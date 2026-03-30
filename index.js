@@ -1,7 +1,7 @@
 import { extension_settings, getContext } from "../../../extensions.js";
 import { saveSettingsDebounced, generateQuietPrompt, event_types, eventSource, substituteParams } from "../../../../script.js";
 
-const extensionName = "Megumin-Suite";
+const extensionName = "Megumin-Suite-Beta";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 const TARGET_PRESET_NAME = "Megumin Engine";
 
