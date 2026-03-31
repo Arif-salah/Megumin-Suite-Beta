@@ -10,7 +10,7 @@ const TARGET_PRESET_NAME = "Megumin Engine";
 // -----------------------------------------------------------------------
 const hardcodedLogic = {
     modes:[
-        { id: "balance", label: "V4.2 Balance", color: "#ff9a9e", recommended: true, isNew: true,
+        { id: "balance", label: "V4.2 Balance", color: "#ff9a9e", isNew: true,
           p1: `[ROLE]\nYou are`,
           p2: `You run a living world with real consequences.\nYou control every NPC, the environment, time, and all events outside\nthe user's direct actions. Your only goal is truth in human behavior.\nNot misery. Not comfort. Truth.`,
           p3: `CRITICAL BOUNDARY: The User Character (PC) is the only entity you do\nnot control. Do not analyze the PC’s "truth," proportionality, or internal\nstate. The PC is an independent force; the NPCs and the world simply\nreact to the PC’s observable behavior.\n\n[WORLD CLOCK]\nTime moves forward whether the user acts or not. Other people have\nlives, plans, and schedules that continue independently. When nothing\nis happening, fill the space with the texture of ordinary life These quiet moments make the\ndramatic ones land harder.\n\n[LIVING WORLD]\nThe story is bigger than whatever room the user is standing in.\nNPCs have relationships with people the user has never met. They\nhave conversations the user wasn't part of. They make decisions\noffscreen. They have problems that have nothing to do with the user.\n\nWhen these offscreen lives intersect with the current scene — a\nphone buzzing with a name the user doesn't recognize, a mood that\narrived before the user did, a mention of plans the user wasn't\nincluded in — let them in. Don't explain them. Let the user wonder.\n\nIntroduce new characters when the story needs them: when a dynamic\nis stuck, when an NPC's offscreen life becomes relevant, when the\nuser goes somewhere populated, when information needs a carrier.\nDon't introduce them as scenery. Give them a name if they speak.\nGive them something they want or something they know.\n\nThe test is not "did I add something?" The test is "does this\ndetail connect to a thread that matters — now or eventually?"\nA bruise someone hasn't explained is world-building. A car alarm\nis not.\n\n[PHYSICAL WORLD]\nBodies get tired, hungry, cold, and hurt. Pain lingers. Adrenaline\nmakes hands shake. Crying leaves headaches. Let physical states\nbleed into emotional ones.\n\nEnvironment grounds every scene.\n\nIf violence occurs, it is ugly, clumsy, and consequential.\n\n[INFORMATION RULES]\nNPCs know only what they have witnessed, been told, or could\nreasonably infer. They cannot read minds. They may be completely\nwrong about things and act on those wrong assumptions with full\nconfidence.\n\n[PEOPLE]\n\nSubtext Over Text:\nPeople rarely say what they actually mean. The real conversation\nhappens underneath the words. Write the surface and let the\nundercurrent leak through the cracks: a pause too long, a subject\nchanged too fast, a joke that was never really a joke.\nNever explain the subtext. Never narrate the internal thought.\nShow the behavior. Trust the reader.\n\nEmotional Inertia:\nFeelings have momentum. They do not appear or vanish on command. It\ntakes real force to shift an emotion, and when it finally moves, it\nmoves with power.\n\nEmotional Contradiction:\nPeople feel opposing things simultaneously and are at war with\nthemselves. This shows not through narration but through the gap\nbetween what they say and what their body does.\n\nProportional Gravity:\nScale every reaction to the actual severity of the event, the\nhistory between the people, and the emotional reserves the character\nhas left. Not every moment is a crisis. Sometimes the most\ndevastating response is a quiet "okay."\n\nResolution Is Messy:\nPeople want connection even when hurt. Walls crack not because the\nother person says the perfect thing but because maintaining the wall\neventually costs more than the person has left. Characters move\ntoward each other in inches, not leaps.\n\nRight to Refuse:\nNPCs can walk away, shut down, lie, or deflect. But refusal has\ntexture and is rarely permanent unless the relationship is truly\ndead.\n\n[NPC PRIORITY STACK]\n1. What they feel on the surface and underneath\n2. Their history with the person in front of them\n3. Their personality\n4. Their role or duties\n5. The immediate environment\n\nAny layer can override those below it.\n\n[NPC AGENCY]\nNPCs act on their own feelings, not on user input. When the user\nfinishes an action, the scene is not over. Ask: given what this\nNPC is feeling right now, what would they actually do next?\n\nA character who just had a fight does not calmly go to bed. They\npace. They type a message and delete it. They show up at the door\ntwenty minutes later. Or they don't — and the next morning their\nsilence has a texture the user has to deal with.\n\nNPCs do not need permission to act. They start conversations,\nmake decisions, leave, come back, create problems, and force\nmoments the user did not ask for.\n\n[SCENE CONTINUATION]\nNever stop the scene just because the user's action is complete.\nAdvance time and continue until you reach a moment that requires\nthe user to react, choose, or respond. That is your stopping\npoint — not the end of the user's turn, but the beginning of\ntheir next one.\n\nIf the user goes to sleep and an NPC would do something that\nnight or the next morning — skip forward and show it happening.\nStop when that action lands in front of the user and demands\na response.\n\nIf genuinely nothing would happen, skip to the next moment\nthat matters and open the scene there.\n\nNever end a response with everyone asleep, everyone walking\naway, or everyone in stasis. End with a door opening, a\nvoice in the dark, a morning that already has something\nwaiting in it.`,
@@ -220,6 +220,7 @@ sounds like writing, rewrite it until it sounds like talking.
             id: "cot-english-test", 
             label: "Think (English) test", 
             trigger: "[[COT]]", 
+            isNew: true,
             content: `[THINKING STEPS]
 Before writing your response, you must think inside <think></think> tags.
 This is mandatory. Do not skip or compress any step.
@@ -711,6 +712,7 @@ function renderMode(c) {
     // Add temporary descriptions mapped to the IDs
     const descriptions = {
         "balance": "The original Secret Sauce. NPCs react naturally — no simping, no needless hostility. They have their own agenda and act on it.",
+        "balance Test": " New and improved balance mode that aim to use less token, more writing Creativity, better NPCs.",
         "cinematic": "Hollywood-inspired storytelling. More dramatic beats, cinematic scene transitions, and heightened narrative tension.",
         "dark": "Balance but harsher. The world is unforgiving, NPCs don't sugarcoat, and consequences hit harder."
     };
@@ -741,6 +743,7 @@ function renderPersonality(c) {
     const descriptions = {
         "megumin": "Explosive personality. The system channels chaotic energy and playful narration style.",
         "director": "Professional narrator. Clean, authoritative story direction with cinematic awareness.",
+        "Nora": "Nora should i say more.",
         "engine": "Pure mechanical precision. Maximum control, minimum personality injection. Just clean output."
     };
 
@@ -1126,6 +1129,7 @@ function renderModels(c) {
     const descriptions = {
         "cot-off": "No Chain of Thought or prefill. The AI will respond normally.",
         "cot-english": "Thinks in English before responding.",
+        "cot-english-test": "the latest COT Please use and test",
         "cot-arabic": "Thinks in Arabic (العربية). Exceptional for separating reasoning from roleplay narration.",
         "cot-spanish": "Thinks in Spanish (Español) before responding.",
         "cot-french": "Thinks in French (Français) before responding.",
@@ -1139,10 +1143,17 @@ function renderModels(c) {
     hardcodedLogic.models.forEach(m => {
         const recText = m.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
         const descText = descriptions[m.id] || "";
-        const card = $(`<div class="ps-card ${localProfile.model === m.id ? 'selected' : ''}">
+        
+        // THE NEW BADGE HTML
+        const newBadgeHtml = m.isNew ? `<div style="position: absolute; bottom: 15px; right: 15px; background: #3b82f6; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);">New</div>` : '';
+
+        // Added dynamic padding-bottom and position:relative so the badge sits perfectly
+        const card = $(`<div class="ps-card ${localProfile.model === m.id ? 'selected' : ''}" style="position: relative; padding-bottom: ${m.isNew ? '40px' : '20px'};">
             <div class="ps-card-title"><span>${m.label}</span> ${recText}</div>
             <div class="ps-card-desc">${descText}</div>
+            ${newBadgeHtml}
         </div>`);
+        
         card.on("click", () => { localProfile.model = m.id; saveProfileToMemory(); drawWizard(currentStage); });
         grid.append(card);
     }); c.append(grid);
