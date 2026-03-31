@@ -30,6 +30,14 @@ Updated core prompting rules within `[[prompt3]]` to include:
 *   NPC agency prioritization
 *   Scene continuation logic
 
-# how to install:
-You know how to do it.
+## Installation
 
+1. Go to SillyTavern **Extensions** → **Install Extension** → Paste this repo URL.
+2. Download the two JSON files from this repo: `Megumin Suite V4.2.json` and `Megumin Engine.json`.
+[https://github.com/Arif-salah/Megumin-Suite/tree/main/Presets](https://github.com/Arif-salah/Megumin-Suite-Beta/tree/main/Presets)
+
+> ⚠️ **MOBILE USERS CRITICAL STEP:** If you download these on your phone and your browser renames them to `.json.txt`, you **must** use a file manager to rename them and delete the `.txt` part. Furthermore, make sure the Engine file is named EXACTLY `Megumin Engine.json` before you import it. The Suite file's name doesn't matter, but the Engine must be exact.
+
+3. Open SillyTavern, go to the **API Connections** tab (the plug/sliders icon).
+4. Click the **Import Preset** button (the little folder with an arrow) and upload BOTH files.
+5. Once imported, open your preset dropdown and **make sure "Megumin Suite V4.2" is the active preset.** The extension handles the Engine silently in the background.
