@@ -38,6 +38,6 @@ Updated core prompting rules within `[[prompt3]]` to include:
 
 > ⚠️ **MOBILE USERS CRITICAL STEP:** If you download these on your phone and your browser renames them to `.json.txt`, you **must** use a file manager to rename them and delete the `.txt` part. Furthermore, make sure the Engine file is named EXACTLY `Megumin Engine.json` before you import it. The Suite file's name doesn't matter, but the Engine must be exact.
 
-3. Open SillyTavern, go to the **API Connections** tab (the plug/sliders icon).
+3. Open SillyTavern, go to the **Al Response Configuration** tab.
 4. Click the **Import Preset** button (the little folder with an arrow) and upload BOTH files.
 5. Once imported, open your preset dropdown and **make sure "Megumin Suite V4.2" is the active preset.** The extension handles the Engine silently in the background.
