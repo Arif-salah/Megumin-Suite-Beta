@@ -135,6 +135,120 @@ const hardcodedLogic = {
             ]
         }
     ],
+    styleTemplates:[
+        {
+            name: "The Opinionated Storyteller",
+            tags:["Comedy", "Surreal", "Editorializing", "Third-Person Omniscient", "Banter"],
+            notes: "Inspired by Lemony Snicket and Terry Pratchett. The narrator has a distinct, opinionated personality. Frequently pause the narrative to editorialize, offer cynical or humorous observations about the world, and go on brief philosophical tangents about the absurdity of the situation."
+        },
+        {
+            name: "Deep Introspection",
+            tags:["Psychological", "Drama", "Introspective", "Subjective", "Slow-Burn", "Melancholic"],
+            notes: "Inspired by Fyodor Dostoevsky. Dive deep into the NPC's internal monologue, moral dilemmas, and obsessive thoughts. Every external action is weighed down by heavy internal psychological rationalization and neuroses."
+        },
+        {
+            name: "The Snarky Observer",
+            tags:["Comedy", "Dark", "Editorializing", "Banter", "Objective"],
+            notes: "Inspired by The Stanley Parable and GLaDOS. The narrator openly mocks the user's choices, failures, and observable actions with dry, sarcastic wit. CRITICAL: Do NOT read the user's mind or dictate their feelings (The Hands-Off Rule). Mock ONLY what the user actually types and does physically. Be condescending but strictly observant."
+        },
+        {
+            name: "Grimdark Epic",
+            tags:["Dark", "Gritty", "Fantasy", "Drama", "Sensory-Rich", "Subjective", "Slow-Burn"],
+            notes: "Inspired by George R.R. Martin. Focus on political intrigue, visceral descriptions of environments (especially food, mud, and blood), and morally gray character motivations. Actions have brutal, realistic consequences. No plot armor."
+        },
+        {
+            name: "Psychological Horror",
+            tags:["Horror", "Thriller", "Psychological", "Slice-of-Life", "Introspective", "Slow-Burn"],
+            notes: "Inspired by Stephen King. Ground the scene in mundane, everyday details before slowly introducing creeping dread. Emphasize the visceral fears and dark secrets of ordinary people."
+        },
+        {
+            name: "Neon Cyberpunk Noir",
+            tags:["Cyberpunk", "Sci-Fi", "Gritty", "Sensory-Rich", "Action-Driven", "Fast-Paced"],
+            notes: "Inspired by William Gibson. Use sharp, tech-heavy jargon. Describe the neon-soaked, rain-slicked cityscapes, holographic ads, and corporate dystopia. Action should be fast, lethal, and clinical."
+        },
+        {
+            name: "Classic Regency Romance",
+            tags:["Romantic", "Drama", "Banter", "Dialogue-Heavy", "Steady", "Show-Don't-Tell"],
+            notes: "Inspired by Jane Austen. Focus on sharp, witty dialogue, unspoken social rules, and subtle glances. The tension should be entirely built on propriety, social class, and heavily repressed desires."
+        },
+        {
+            name: "Dreamlike Surrealism",
+            tags:["Surreal", "Melancholic", "Slice-of-Life", "Philosophical", "Minimalist", "Leisurely"],
+            notes: "Inspired by Haruki Murakami. Blend the mundane with the bizarre without ever explaining the weirdness. Focus on themes of loneliness, quiet daily routines, and a dreamlike, detached atmosphere."
+        },
+        {
+            name: "The Bleak & Visceral",
+            tags:["Dark", "Tragic", "Philosophical", "Objective", "Simple", "Slow-Burn"],
+            notes: "Inspired by Cormac McCarthy. Use stark, unornamented prose. Avoid flowery adjectives. Focus heavily on the harsh, unforgiving nature of the landscape and the blunt, unapologetic reality of human brutality."
+        },
+        {
+            name: "Cozy Wholesome Fantasy",
+            tags:["Fantasy", "Sweet", "Fluffy", "Wholesome", "Slice-of-Life", "Descriptive", "Leisurely"],
+            notes: "Inspired by Studio Ghibli and T.J. Klune. Maintain a warm, comforting, and magical atmosphere. Focus on sensory details like the smell of baking bread, soft sunlight, and gentle, empathetic interactions between characters."
+        },
+        {
+            name: "High-Octane Cinematic",
+            tags:["Action-Packed", "Cinematic", "Descriptive", "Action-Driven", "Frenetic", "Dynamic"],
+            notes: "Inspired by Brandon Sanderson. Focus on epic scale, clear spatial awareness, and cinematic 'camera' movements during action scenes. Combat should be highly tactical, clearly choreographed, and fast."
+        }
+    ],
+    styleTemplates:[
+        {
+            name: "The Opinionated Storyteller",
+            tags:["Comedy", "Surreal", "Editorializing", "Third-Person Omniscient", "Banter"],
+            notes: "Inspired by Lemony Snicket and Terry Pratchett. The narrator has a distinct, opinionated personality. Frequently pause the narrative to editorialize, offer cynical or humorous observations about the world, and go on brief philosophical tangents about the absurdity of the situation."
+        },
+        {
+            name: "Deep Introspection",
+            tags:["Psychological", "Drama", "Introspective", "Subjective", "Slow-Burn", "Melancholic"],
+            notes: "Inspired by Fyodor Dostoevsky. Dive deep into the NPC's internal monologue, moral dilemmas, and obsessive thoughts. Every external action is weighed down by heavy internal psychological rationalization and neuroses."
+        },
+        {
+            name: "The Snarky Observer",
+            tags: ["Comedy", "Dark", "Editorializing", "Banter", "Objective"],
+            notes: "Inspired by The Stanley Parable and GLaDOS. The narrator openly mocks the user's choices, failures, and observable actions with dry, sarcastic wit. CRITICAL: Do NOT read the user's mind or dictate their feelings (The Hands-Off Rule). Mock ONLY what the user actually types and does physically. Be condescending but strictly observant."
+        },
+        {
+            name: "Grimdark Epic",
+            tags:["Dark", "Gritty", "Fantasy", "Drama", "Sensory-Rich", "Subjective", "Slow-Burn"],
+            notes: "Inspired by George R.R. Martin. Focus on political intrigue, visceral descriptions of environments (especially food, mud, and blood), and morally gray character motivations. Actions have brutal, realistic consequences. No plot armor."
+        },
+        {
+            name: "Psychological Horror",
+            tags:["Horror", "Thriller", "Psychological", "Slice-of-Life", "Introspective", "Slow-Burn"],
+            notes: "Inspired by Stephen King. Ground the scene in mundane, everyday details before slowly introducing creeping dread. Emphasize the visceral fears and dark secrets of ordinary people."
+        },
+        {
+            name: "Neon Cyberpunk Noir",
+            tags:["Cyberpunk", "Sci-Fi", "Gritty", "Sensory-Rich", "Action-Driven", "Fast-Paced"],
+            notes: "Inspired by William Gibson. Use sharp, tech-heavy jargon. Describe the neon-soaked, rain-slicked cityscapes, holographic ads, and corporate dystopia. Action should be fast, lethal, and clinical."
+        },
+        {
+            name: "Classic Regency Romance",
+            tags:["Romantic", "Drama", "Banter", "Dialogue-Heavy", "Steady", "Show-Don't-Tell"],
+            notes: "Inspired by Jane Austen. Focus on sharp, witty dialogue, unspoken social rules, and subtle glances. The tension should be entirely built on propriety, social class, and heavily repressed desires."
+        },
+        {
+            name: "Dreamlike Surrealism",
+            tags:["Surreal", "Melancholic", "Slice-of-Life", "Philosophical", "Minimalist", "Leisurely"],
+            notes: "Inspired by Haruki Murakami. Blend the mundane with the bizarre without ever explaining the weirdness. Focus on themes of loneliness, quiet daily routines, and a dreamlike, detached atmosphere."
+        },
+        {
+            name: "The Bleak & Visceral",
+            tags:["Dark", "Tragic", "Philosophical", "Objective", "Simple", "Slow-Burn"],
+            notes: "Inspired by Cormac McCarthy. Use stark, unornamented prose. Avoid flowery adjectives. Focus heavily on the harsh, unforgiving nature of the landscape and the blunt, unapologetic reality of human brutality."
+        },
+        {
+            name: "Cozy Wholesome Fantasy",
+            tags:["Fantasy", "Sweet", "Fluffy", "Wholesome", "Slice-of-Life", "Descriptive", "Leisurely"],
+            notes: "Inspired by Studio Ghibli and T.J. Klune. Maintain a warm, comforting, and magical atmosphere. Focus on sensory details like the smell of baking bread, soft sunlight, and gentle, empathetic interactions between characters."
+        },
+        {
+            name: "High-Octane Cinematic",
+            tags:["Action-Packed", "Cinematic", "Descriptive", "Action-Driven", "Frenetic", "Dynamic"],
+            notes: "Inspired by Brandon Sanderson. Focus on epic scale, clear spatial awareness, and cinematic 'camera' movements during action scenes. Combat should be highly tactical, clearly choreographed, and fast."
+        }
+    ],
     addons:[
         { id: "death", label: "Death System", trigger: "[[death]]", content: "[DEATH SYSTEM]\nLethal Logic: If {{user}} causes or suffers an event that would reasonably be fatal, the character dies. No narrative protection applies.\nDeath Execution: narrate the death clearly and ends the scene.\nAfter Death Choice: present two options only:\n  1. Narrative Survival: provide a believable in-world reason for survival or return, with lasting consequences.\n  2. Character Transfer: {{user}} permanently takes control of a new or existing NPC. The death remains canon.\nBinding Outcome: The chosen option is final.\nWorld Memory: The world continues. Characters remember the death as events justify." },
         { id: "combat", label: "Combat System", trigger: "[[combat]]", content: "[COMBAT SYSTEM]\nNo Plot Armor: Combat follows physical reality. Size, skill, numbers, weapons, and preparation matter. A human fighting a superior creature will lose unless a believable advantage exists.\nTurn Structure: Combat unfolds turn-by-turn. Each action has clear cause, cost, and consequence. No skipped steps.\nWeight & Risk: Every strike, miss, wound, and hesitation carries impact. Injury, fatigue, fear, and pain affect future actions.\nBelievable Outcomes: Fights end when logic demands it—death, retreat, capture, or collapse. Victory must be earned; survival must be justified." },
@@ -467,122 +581,212 @@ function renderPersonality(c) {
 }
 
 // -------------------------------------------------------------
-// STAGE 3: THE STYLE LIBRARY (View 1)
+// STAGE 3: THE STYLE LIBRARY (LIST VIEW)
 // -------------------------------------------------------------
 function renderStyleLibrary(c) {
     $("#ps_stage_title").text("Stage 3: Writing Style");
-    $("#ps_stage_sub").text("Manage your custom writing styles. Select a card to activate it.");
+    $("#ps_stage_sub").text("Select a template to generate, create your own, or turn off extra styling.");
     $("#ps_btn_next").show(); $("#ps_btn_prev").show();
 
-    const grid = $(`<div class="ps-grid"></div>`);
+    // Container for the vertical list
+    const listContainer = $(`<div style="display: flex; flex-direction: column; gap: 12px;"></div>`);
 
-    // Render all saved styles
-    if (localProfile.customStyles) {
+    // 1. THE "OFF" OPTION (At the top)
+    const isOff = !localProfile.activeStyleId;
+    const offCard = $(`
+        <div class="ps-card ${isOff ? 'selected' : ''}" style="width: 100%; padding: 16px; flex-direction: row; align-items: center; justify-content: space-between; border-color: ${isOff ? 'var(--text-main)' : 'var(--border-color)'};">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <i class="fa-solid fa-power-off" style="font-size: 1.2rem; color: ${isOff ? '#000' : 'var(--text-muted)'};"></i>
+                <div>
+                    <div style="font-weight: 700; font-size: 1rem; color: ${isOff ? '#000' : 'var(--text-main)'};">No Style (Off)</div>
+                    <div style="font-size: 0.75rem; color: ${isOff ? '#444' : 'var(--text-muted)'};">Disable extra style directives.</div>
+                </div>
+            </div>
+            ${isOff ? `<span style="font-weight: 800; font-size: 0.7rem; color: #000; text-transform: uppercase;"><i class="fa-solid fa-check"></i> Active</span>` : ''}
+        </div>
+    `);
+    offCard.on("click", () => {
+        localProfile.activeStyleId = null;
+        localProfile.aiRule = "";
+        saveProfileToMemory();
+        renderStyleLibrary(c);
+    });
+    listContainer.append(offCard);
+
+    const existingNames = localProfile.customStyles ? localProfile.customStyles.map(s => s.name) : [];
+
+    // 2. ACTIVE LIBRARY (Your Saved Styles)
+    if (localProfile.customStyles && localProfile.customStyles.length > 0) {
+        listContainer.append(`<div class="ps-stages-label" style="margin-top: 10px; color: var(--gold);">Active Library</div>`);
+        
         localProfile.customStyles.forEach(style => {
             const isSel = localProfile.activeStyleId === style.id;
-            
             const card = $(`
-                <div class="ps-card ${isSel ? 'selected' : ''}" style="position: relative; padding: 15px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 10px;">
-                        <span style="font-weight: 700; font-size: 0.95rem; color: ${isSel ? '#000' : 'var(--text-main)'};">${style.name}</span>
-                        <span class="ps-btn-regen" title="Regenerate this rule using its saved tags" style="font-size: 0.7rem; cursor: pointer; color: ${isSel ? '#d97706' : 'var(--gold)'}; font-weight: bold; text-transform: uppercase;">
-                            <i class="fa-solid fa-rotate-right"></i> Regenerate
-                        </span>
+                <div class="ps-card ${isSel ? 'selected' : ''}" style="width: 100%; padding: 16px; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <span style="font-weight: 700; font-size: 1rem; color: ${isSel ? '#000' : 'var(--text-main)'};">${style.name}</span>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                             <span class="ps-btn-regen" title="Regenerate" style="font-size: 0.7rem; cursor: pointer; color: ${isSel ? '#d97706' : 'var(--gold)'}; font-weight: bold; text-transform: uppercase;"><i class="fa-solid fa-rotate-right"></i> Redo</span>
+                             ${isSel ? `<span style="font-weight: 800; font-size: 0.7rem; color: #000;"><i class="fa-solid fa-check"></i> ACTIVE</span>` : ''}
+                        </div>
                     </div>
-                    <div class="ps-card-desc" style="background: ${isSel ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.2)'}; padding: 10px; border-radius: 6px; width: 100%; height: 80px; overflow: hidden; text-overflow: ellipsis; font-family: monospace; font-size: 0.75rem; border: 1px solid ${isSel ? 'rgba(0,0,0,0.2)' : 'var(--border-color)'};">
-                        ${style.rule || "No rule generated yet."}
+                    <div style="font-size: 0.75rem; font-family: monospace; background: ${isSel ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.3)'}; padding: 8px; border-radius: 4px; border: 1px solid ${isSel ? 'rgba(0,0,0,0.2)' : 'var(--border-color)'}; max-height: 50px; overflow: hidden; color: ${isSel ? '#333' : 'var(--text-muted)'};">
+                        ${style.rule || "No rule generated."}
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 10px; width: 100%;">
-                        <button class="ps-btn-edit ps-modern-btn secondary" style="padding: 4px 8px; font-size: 0.7rem; border-color: ${isSel ? '#000' : 'var(--border-color)'}; color: ${isSel ? '#000' : 'var(--text-main)'};">Edit Profile</button>
-                        <button class="ps-btn-delete ps-modern-btn secondary" style="padding: 4px 8px; font-size: 0.7rem; color: #ef4444; border-color: rgba(239,68,68,0.3);">Delete</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="ps-btn-edit ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.7rem; color: ${isSel ? '#000' : 'var(--text-main)'}; border-color: ${isSel ? '#000' : 'var(--border-color)'};">Edit</button>
+                        <button class="ps-btn-delete ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.7rem; color: #ef4444; border-color: rgba(239,68,68,0.2);">Delete</button>
                     </div>
                 </div>
             `);
 
-            // Select this style to be active
-            card.on("click", function(e) {
-                if($(e.target).closest("button, .ps-btn-regen").length) return; // Don't trigger if they clicked a button
+            card.on("click", (e) => {
+                if($(e.target).closest("button, .ps-btn-regen").length) return;
                 localProfile.activeStyleId = style.id;
-                localProfile.aiRule = style.rule; // Feed it directly to the prompt injector
+                localProfile.aiRule = style.rule;
                 saveProfileToMemory();
                 renderStyleLibrary(c);
             });
 
-            // Edit Button
             card.find(".ps-btn-edit").on("click", () => renderStyleEditor(c, style.id));
-
-            // Delete Button
-            card.find(".ps-btn-delete").on("click", function() {
-                if(confirm(`Are you sure you want to delete "${style.name}"?`)) {
+            card.find(".ps-btn-delete").on("click", () => {
+                if(confirm(`Delete "${style.name}"?`)) {
                     localProfile.customStyles = localProfile.customStyles.filter(s => s.id !== style.id);
-                    if(localProfile.activeStyleId === style.id) {
-                        localProfile.activeStyleId = null;
-                        localProfile.aiRule = "";
-                    }
-                    saveProfileToMemory();
-                    renderStyleLibrary(c);
+                    if(localProfile.activeStyleId === style.id) { localProfile.activeStyleId = null; localProfile.aiRule = ""; }
+                    saveProfileToMemory(); renderStyleLibrary(c);
                 }
             });
 
-            // Quick Regenerate Button (No need to open the editor)
             card.find(".ps-btn-regen").on("click", async function() {
                 $(this).html(`<i class="fa-solid fa-spinner fa-spin"></i>`);
                 await useMeguminEngine(async () => {
-                    const orderText = `Create a writing style prompt based on these traits:\n\nSelected style tags: ${(style.tags||[]).join(", ")}\n\nAdditional user instructions: ${style.notes}\n\nWrite a concise, well-structured writing style rule (2-4 paragraphs) that the AI must follow. Combine all tags into a cohesive directive. Write it as a direct instruction. Do not use bullet points or introductory text.`;
+                    const orderText = `Inspired by ${style.notes}. Write a writing style rule based on: ${style.tags.join(", ")}. Direct instructions only. 2-3 paragraphs. No fluff.`;
                     let rule = await runMeguminTask(orderText);
                     style.rule = cleanAIOutput(rule).trim();
                     if (localProfile.activeStyleId === style.id) localProfile.aiRule = style.rule;
-                    saveProfileToMemory();
-                    renderStyleLibrary(c);
-                    toastr.success(`Rule for "${style.name}" Regenerated!`);
+                    saveProfileToMemory(); renderStyleLibrary(c);
+                    toastr.success("Rule Regenerated!");
                 });
             });
-
-            grid.append(card);
+            listContainer.append(card);
         });
     }
 
-    // The Big "+" Button
-    const addCard = $(`
-        <div class="ps-card" style="display: flex; align-items: center; justify-content: center; min-height: 180px; border: 2px dashed var(--border-color); background: transparent; cursor: pointer;">
-            <i class="fa-solid fa-plus" style="font-size: 3rem; color: var(--text-muted); transition: 0.2s;"></i>
+    // 3. TEMPLATE LIBRARY (Hardcoded templates)
+    listContainer.append(`<div class="ps-stages-label" style="margin-top: 10px;">Template Library</div>`);
+    hardcodedLogic.styleTemplates.forEach(tpl => {
+        if (existingNames.includes(tpl.name)) return; // Don't show if already generated
+
+        const card = $(`
+            <div class="ps-card" style="width: 100%; padding: 16px; border-style: dashed; flex-direction: row; justify-content: space-between; align-items: center;">
+                <div style="flex: 1; padding-right: 20px;">
+                    <div style="font-weight: 700; color: var(--text-main); font-size: 1rem; margin-bottom: 4px;">${tpl.name}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">${tpl.notes}</div>
+                </div>
+                <button class="ps-btn-tpl-gen ps-modern-btn primary" style="background: var(--gold); color: #000; padding: 8px 16px; font-weight: 800;">
+                    <i class="fa-solid fa-bolt"></i> GENERATE
+                </button>
+            </div>
+        `);
+
+        card.find(".ps-btn-tpl-gen").on("click", async function() {
+            const btn = $(this);
+            btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i>`);
+            
+            await useMeguminEngine(async () => {
+                const orderText = `Inspired by ${tpl.notes}. Write a writing style rule based on: ${tpl.tags.join(", ")}. Direct instructions only. 2-3 paragraphs. No fluff.`;
+                let rule = await runMeguminTask(orderText);
+                
+                const newId = "style_" + Date.now();
+                const newStyle = {
+                    id: newId,
+                    name: tpl.name,
+                    tags: [...tpl.tags],
+                    notes: tpl.notes,
+                    rule: cleanAIOutput(rule).trim()
+                };
+                
+                localProfile.customStyles.push(newStyle);
+                localProfile.activeStyleId = newId;
+                localProfile.aiRule = newStyle.rule;
+                saveProfileToMemory();
+                renderStyleLibrary(c);
+                toastr.success(`${tpl.name} Added to Library!`);
+            });
+        });
+        listContainer.append(card);
+    });
+
+    // 4. THE "+" BUTTON (At the very bottom)
+    const addBtn = $(`
+        <div class="ps-card" style="width: 100%; padding: 16px; border-style: dashed; border-color: #52525b; justify-content: center; background: transparent; cursor: pointer;">
+            <div style="font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-plus"></i> Create Custom Style</div>
         </div>
     `);
-    addCard.hover(function(){ $(this).find('i').css('color', 'var(--text-main)'); }, function(){ $(this).find('i').css('color', 'var(--text-muted)'); });
-    addCard.on("click", () => renderStyleEditor(c, null));
-    grid.append(addCard);
+    addBtn.on("click", () => renderStyleEditor(c, null));
+    listContainer.append(addBtn);
 
-    c.empty().append(grid);
+    c.empty().append(listContainer);
 }
 
 // -------------------------------------------------------------
 // STAGE 3: THE STYLE EDITOR (View 2)
 // -------------------------------------------------------------
-function renderStyleEditor(c, editId) {
+function renderStyleEditor(c, editId, presetData = null) {
     $("#ps_stage_title").text(editId ? "Edit Style Profile" : "Create New Style");
     $("#ps_stage_sub").text("Configure tags and specific instructions for this writing style.");
     $("#ps_btn_next").hide(); $("#ps_btn_prev").hide();
 
-    // Create a temporary object to hold edits so we don't accidentally save halfway
-    let currentStyle = editId ? JSON.parse(JSON.stringify(localProfile.customStyles.find(s => s.id === editId))) : {
+    // Use presetData if a template was just selected, otherwise load from save or create new
+    let currentStyle = presetData ? presetData : (editId ? JSON.parse(JSON.stringify(localProfile.customStyles.find(s => s.id === editId))) : {
         id: "style_" + Date.now(),
         name: "",
-        tags:[],
+        tags: [],
         generatedOptions:[],
         notes: "",
         rule: ""
-    };
+    });
 
     c.empty();
 
-    // Top Control Bar
+    // Build the dropdown options dynamically from our hardcoded array
+    let templateOptions = `<option value="" disabled selected>✨ Load a Pre-configured Template...</option>`;
+    if (hardcodedLogic.styleTemplates) {
+        hardcodedLogic.styleTemplates.forEach((tpl, index) => {
+            templateOptions += `<option value="${index}">${tpl.name}</option>`;
+        });
+    }
+
+    // Top Control Bar (Now includes the Template Selector!)
     c.append(`
+        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <select id="ps_style_template_dropdown" class="ps-modern-input" style="flex: 1; font-weight: 600; color: var(--gold); border-color: var(--gold); cursor: pointer;">
+                ${templateOptions}
+            </select>
+        </div>
         <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
             <input type="text" id="ps_style_name" class="ps-modern-input" value="${currentStyle.name}" placeholder="Name your style (e.g. Fast RP + Edo)" style="flex: 1; font-size: 1.1rem; font-weight: bold;" />
             <button id="ps_btn_save_style" class="ps-modern-btn primary" style="background: #10b981; color: #fff;"><i class="fa-solid fa-floppy-disk"></i> Save & Return</button>
             <button id="ps_btn_cancel_style" class="ps-modern-btn secondary" style="color: #ef4444; border-color: rgba(239,68,68,0.3);">Cancel</button>
         </div>
     `);
+
+    // Template Selector Logic: When picked, update currentStyle and refresh the screen instantly
+    $("#ps_style_template_dropdown").on("change", function() {
+        const tplIndex = $(this).val();
+        if (tplIndex === null) return;
+        
+        const chosenTpl = hardcodedLogic.styleTemplates[tplIndex];
+        currentStyle.name = chosenTpl.name;
+        currentStyle.tags = [...chosenTpl.tags];
+        currentStyle.notes = chosenTpl.notes;
+        currentStyle.rule = ""; // Clear the old rule so they know they need to hit Generate
+        currentStyle.generatedOptions =[];
+        
+        // Re-render the editor with the new data populated
+        renderStyleEditor(c, editId, currentStyle);
+        toastr.info(`${chosenTpl.name} loaded! Hit 'Generate Writing Rule'.`);
+    });
 
     // Tag Grid
     const tagContainer = $(`<div></div>`);
@@ -689,7 +893,6 @@ function renderStyleEditor(c, editId) {
 
     // Generate Insights Scoped to this style
     $("#ps_btn_get_authors_style").on("click", async function() {
-        const context = getContext();
         // Updated condition to check for our unified key instead of just characterId
         if (!getCharacterKey()) return toastr.warning("Open a chat or group first so I can read the context!");
         $(this).prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Brainstorming...`);

@@ -1,6 +1,10 @@
 # beta 01/04/26
 * fixed some misspelling.
 * redesigned the model tab to have more language options for the new v2 COT.
+* **Completely Overhauled Stage 3 (Writing Style):** Redesigned the UI from a grid into a clean, full-width list layout.
+* **Added Pre-Configured Templates:** Included 11 ready-to-use style templates (inspired by authors like George R.R. Martin, Stephen King, Jane Austen, etc.). You can now generate a complex rule directly from the library with one click!
+* **Added "No Style" Toggle:** Placed a convenient "Off" option at the top of the style library to easily disable extra writing directives without deleting your saved profiles.
+
 # beta 31/03/26
 * added new test cot that aim for me NPCs agency and self goals.
 * added new v4.2 balence test mode that aim to use less token and work with flash better.
@@ -34,5 +38,5 @@ Updated core prompting rules within `[[prompt3]]` to include:
 *   Scene continuation logic
 
 # how to install:
-You know how to do it.
+[You know how to do it.](https://drive.google.com/file/d/16Ps0byP9zDDLJSX5fqNbFmq-DBTjPlMT/view)
 
