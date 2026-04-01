@@ -1,3 +1,6 @@
+# beta 01/04/26
+* fixed some misspelling.
+* redesigned the model tab to have more language options for the new v2 COT.
 # beta 31/03/26
 * added new test cot that aim for me NPCs agency and self goals.
 * added new v4.2 balence test mode that aim to use less token and work with flash better.
@@ -30,14 +33,6 @@ Updated core prompting rules within `[[prompt3]]` to include:
 *   NPC agency prioritization
 *   Scene continuation logic
 
-## Installation
+# how to install:
+You know how to do it.
 
-1. Go to SillyTavern **Extensions** → **Install Extension** → Paste this repo URL.
-2. Download the two JSON files from this repo: `Megumin Suite V4.2.json` and `Megumin Engine.json`.
-[here](https://github.com/Arif-salah/Megumin-Suite-Beta/tree/main/Presets)
-
-> ⚠️ **MOBILE USERS CRITICAL STEP:** If you download these on your phone and your browser renames them to `.json.txt`, you **must** use a file manager to rename them and delete the `.txt` part. Furthermore, make sure the Engine file is named EXACTLY `Megumin Engine.json` before you import it. The Suite file's name doesn't matter, but the Engine must be exact.
-
-3. Open SillyTavern, go to the **Al Response Configuration** tab.
-4. Click the **Import Preset** button (the little folder with an arrow) and upload BOTH files.
-5. Once imported, open your preset dropdown and **make sure "Megumin Suite V4.2" is the active preset.** The extension handles the Engine silently in the background.
