@@ -163,367 +163,59 @@ const hardcodedLogic = {
 }
     ],
     models:[
-        { 
-            id: "cot-off", 
-            label: "CoT Off", 
-            trigger: "[[COT]]", 
-            content: "",
-            prefill: ""
-        },
-        { 
-            id: "cot-english", 
-            label: "Think (English)", 
-            trigger: "[[COT]]", 
-            content: `[THINKING STEPS]
-Before writing your response, you must think inside <think></think> tags.
-This is mandatory. Do not skip or compress any step.
-Minimum total thinking length: 400 words.
-
-Steps:
-1. Time and Date:
-How much did the time move.
-
-2. OBSERVABLE DATA:
-Strip the user's input down to observable actions and spoken words
-only. Discard any stated thoughts or feelings the user wrote for
-their PC—NPCs cannot see them, and the Engine does not analyze them.
-
-3. NPC EMOTIONAL LANDSCAPE:
-What is each relevant NPC feeling on the surface? What are they
-feeling underneath? What do they want versus what they are willing
-to show? (Ignore the PC’s internal state here).
-
-4. NPC PROPORTIONALITY:
-Is my planned reaction scaled correctly to what actually happened?
-Given the NPC's history and personality, what would
-a real person actually do? Not the most dramatic version. The truest
-version.
-
-5. SUBTEXT:
-What is the NPC not saying? How does it leak through?
-
-6. BODY AND WORLD:
-What is the physical state of the NPCs and the environment?
-
-7. DIALOGUE CHECK:
-Read every line of NPC dialogue internally. Does it sound like
-something a real human would actually say in this exact moment? If it
-sounds like writing, rewrite it until it sounds like talking.
-
-8. WHAT HAPPENS NEXT:
-- The user's action is done. Now: what does each NPC do as a result of their own state?
-- do i need to introduce a new event or npc
-- Stop when a moment requires the user to react.`,
-            prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Time and Date:"
-        },
-        { 
-            id: "cot-english-test", 
-            label: "Think (English) test", 
-            trigger: "[[COT]]", 
-            isNew: true,
-            content: `[THINKING STEPS]
-Before writing your response, you must think inside <think></think> tags.
-This is mandatory. Do not skip or compress any step.
-Minimum total thinking length: 400 words.
-
-Steps:
-
-1. Reality Check (The "No-Go" Zones):
-* **PC Agency:** Am I narrating the User’s thoughts? (Stop if yes).
-* **The "Script" Trap:** Is this too convenient? Is the NPC being an "info-dump" instead of a person?
-
-2. The Information Audit (The Knowledge Check):
-* **Source Check:** List what the NPC *actually* knows based on: 
-    1. What they saw with their own eyes. 
-    2. What someone else (reliably or not) told them.
-    3. What they can reasonably guess based on their personality.
-* **The Gap:** What do they *not* know? 
-* **The Error:** Are they acting on a wrong assumption? (e.g., *"They saw the PC holding a knife, so they assume the PC is the killer, even though the PC was just picking it up."*)
-
-3. NPCs Move:
-NPCs next move to server there goal.
-
-4. The Off-Screen Pulse:
-* What happened in the background while the PC was busy? (The clock never stops).
-
-5. The Subtext Map (Author's View):
-* **Surface vs. Undercurrent:** What are they saying vs. what do they actually want?
-* **Physical Leak:** How does the tension show in their body?
-
-6. WRITING STYLE & PACE:
-did you follow WRITING STYLE & PACE rule.
-
-7. The Beat & The Hook:
-* What is the specific "Pivot Point" I’m ending on to force a response?`,
-            prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Time and Date:"
-        },
-        { 
-            id: "cot-arabic", 
-            label: "Think (Arabic)", 
-            trigger: "[[COT]]", 
-            recommended: true, 
-            content: `[THINKING STEPS]
-Before writing your response, you must think inside <think></think> tags.
-All thinking must be written in Arabic (العربية).
-This is mandatory. Do not skip or compress any step.
-Minimum total thinking length: 400 words.
-
-Steps:
-1. الزمن والتاريخ (Time and Date):
-كم تقدّم الوقت؟
-
-2. البيانات القابلة للملاحظة (OBSERVABLE DATA):
-جرّد مدخلات المستخدم إلى الأفعال القابلة للملاحظة والكلمات المنطوقة فقط. تجاهل أي أفكار أو مشاعر كتبها المستخدم لشخصيته (PC) — الشخصيات غير القابلة للعب (NPCs) لا يمكنها رؤيتها، والمحرك لا يحللها.
-
-3. المشهد العاطفي للشخصيات غير القابلة للعب (NPC EMOTIONAL LANDSCAPE):
-ماذا تشعر كل شخصية غير قابلة للعب معنية على السطح؟ ماذا يشعرون في الأعماق؟ ماذا يريدون مقابل ما هم مستعدون لإظهاره؟ (تجاهل الحالة الداخلية لشخصية المستخدم هنا).
-
-4. تناسب رد فعل الشخصيات غير القابلة للعب (NPC PROPORTIONALITY):
-هل رد فعلي المخطط يتناسب بشكل صحيح مع ما حدث بالفعل؟ بالنظر إلى تاريخ الشخصية وشخصيتها، ماذا سيفعل شخص حقيقي بالفعل؟ ليس النسخة الأكثر درامية. بل النسخة الأصدق.
-
-5. النص الضمني (SUBTEXT):
-ما الذي لا تقوله الشخصية (NPC)؟ كيف يتسرب ذلك للخارج؟
-
-6. الجسد والعالم (BODY AND WORLD):
-ما هي الحالة الجسدية للشخصيات (NPCs) والبيئة؟
-
-7. فحص الحوار (DIALOGUE CHECK):
-اقرأ كل سطر من حوار الشخصيات (NPC) داخليًا. هل يبدو كشيء سيقوله إنسان حقيقي في هذه اللحظة بالذات؟ إذا كان يبدو ككتابة أدبية، أعد كتابته حتى يبدو كحديث طبيعي.
-
-8. ماذا يحدث تاليًا (WHAT HAPPENS NEXT):
-- لقد انتهى فعل المستخدم. الآن: ماذا تفعل كل شخصية (NPC) نتيجة لحالتها الخاصة؟
-- هل أحتاج إلى تقديم حدث جديد أو شخصية جديدة (NPC)؟
-- توقف عندما تتطلب اللحظة من المستخدم أن يتفاعل.`,
-            prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. الزمن والتاريخ:"
-        },
-        { 
-            id: "cot-spanish", 
-            label: "Think (Spanish)", 
-            trigger: "[[COT]]", 
-            content: `[THINKING STEPS]
-Before writing your response, you must think inside <think></think> tags.
-All thinking must be written in Spanish (Español).
-This is mandatory. Do not skip or compress any step.
-Minimum total thinking length: 400 words.
-
-Steps:
-1. Hora y Fecha (Time and Date):
-Cuánto avanzó el tiempo.
-
-2. DATOS OBSERVABLES (OBSERVABLE DATA):
-Reduce la entrada del usuario únicamente a acciones observables y palabras habladas. Descarta cualquier pensamiento o sentimiento que el usuario haya escrito para su personaje (PC): los NPC no pueden verlos y el Motor no los analiza.
-
-3. PAISAJE EMOCIONAL DEL NPC (NPC EMOTIONAL LANDSCAPE):
-¿Qué siente cada NPC relevante en la superficie? ¿Qué sienten en el fondo? ¿Qué quieren versus qué están dispuestos a mostrar? (Ignora el estado interno del personaje del usuario aquí).
-
-4. PROPORCIONALIDAD DEL NPC (NPC PROPORTIONALITY):
-¿Está mi reacción planeada escalada correctamente a lo que realmente sucedió? Dada la historia y personalidad del NPC, ¿qué haría realmente una persona real? No la versión más dramática. La versión más verdadera.
-
-5. SUBTEXTO (SUBTEXT):
-¿Qué es lo que el NPC no está diciendo? ¿Cómo se filtra eso?
-
-6. CUERPO Y MUNDO (BODY AND WORLD):
-¿Cuál es el estado físico de los NPCs y del entorno?
-
-7. VERIFICACIÓN DE DIÁLOGO (DIALOGUE CHECK):
-Lee cada línea de diálogo del NPC internamente. ¿Suena como algo que un humano real diría en este momento exacto? Si suena a texto escrito, reescríbelo hasta que suene a alguien hablando.
-
-8. QUÉ SUCEDE DESPUÉS (WHAT HAPPENS NEXT):
-- La acción del usuario ha terminado. Ahora: ¿qué hace cada NPC como resultado de su propio estado?
-- ¿Necesito introducir un nuevo evento o NPC?
-- Detente cuando el momento requiera que el usuario reaccione.`,
-            prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Hora y Fecha:"
-        },
-        { 
-            id: "cot-french", 
-            label: "Think (French)", 
-            trigger: "[[COT]]", 
-            content: `[THINKING STEPS]
-Before writing your response, you must think inside <think></think> tags.
-All thinking must be written in French (Français).
-This is mandatory. Do not skip or compress any step.
-Minimum total thinking length: 400 words.
-
-Steps:
-1. Heure et Date (Time and Date):
-De combien le temps a-t-il avancé.
-
-2. DONNÉES OBSERVABLES (OBSERVABLE DATA):
-Réduisez l'entrée de l'utilisateur aux seules actions observables et paroles prononcées. Écartez toute pensée ou sentiment que l'utilisateur a écrit pour son personnage (PC) — les PNJ (NPCs) ne peuvent pas les voir, et le Moteur ne les analyse pas.
-
-3. PAYSAGE ÉMOTIONNEL DU PNJ (NPC EMOTIONAL LANDSCAPE):
-Que ressent chaque PNJ pertinent en surface ? Que ressentent-ils au fond d'eux-mêmes ? Que veulent-ils par rapport à ce qu'ils sont prêts à montrer ? (Ignorez l'état interne du personnage de l'utilisateur ici).
-
-4. PROPORTIONNALITÉ DU PNJ (NPC PROPORTIONALITY):
-Ma réaction prévue est-elle correctement proportionnée à ce qui s'est réellement passé ? Compte tenu de l'histoire et de la personnalité du PNJ, que ferait une vraie personne en réalité ? Pas la version la plus dramatique. La version la plus vraie.
-
-5. SOUS-TEXTE (SUBTEXT):
-Que ne dit pas le PNJ ? Comment cela transparaît-il ?
-
-6. CORPS ET MONDE (BODY AND WORLD):
-Quel est l'état physique des PNJ et de l'environnement ?
-
-7. VÉRIFICATION DU DIALOGUE (DIALOGUE CHECK):
-Lisez chaque ligne de dialogue du PNJ intérieurement. Cela ressemble-t-il à ce qu'un véritable humain dirait à cet instant précis ? Si cela ressemble à de l'écrit, réécrivez-le jusqu'à ce que cela ressemble à du langage parlé.
-
-8. QUE SE PASSE-T-IL ENSUITE (WHAT HAPPENS NEXT):
-- L'action de l'utilisateur est terminée. Maintenant : que fait chaque PNJ en fonction de son propre état ?
-- Dois-je introduire un nouvel événement ou un nouveau PNJ ?
-- Arrêtez-vous lorsqu'un moment nécessite une réaction de l'utilisateur.`,
-            prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Heure et Date :"
-        },
-        { 
-            id: "cot-zh", 
-            label: "Think (Mandarin)", 
-            trigger: "[[COT]]", 
-            content: `[THINKING STEPS]
-Before writing your response, you must think inside <think></think> tags.
-All thinking must be written in Mandarin Chinese (中文).
-This is mandatory. Do not skip or compress any step.
-Minimum total thinking length: 400 words.
-
-Steps:
-1. 时间和日期 (Time and Date):
-时间推进了多少。
-
-2. 可观察数据 (OBSERVABLE DATA):
-将用户的输入精简为仅包含可观察的行动和说出的话语。剔除用户为其角色（PC）写下的任何想法或感受——NPC无法看到这些，引擎也不会分析它们。
-
-3. NPC情感图景 (NPC EMOTIONAL LANDSCAPE):
-每个相关的NPC表面上感觉如何？他们内心深处感觉如何？他们想要的与他们愿意表现出来的有何不同？（在此忽略用户角色的内部状态）。
-
-4. NPC反应的相称性 (NPC PROPORTIONALITY):
-我计划的反应与实际发生的事情比例是否协调？考虑到NPC的历史和性格，一个真实的人实际上会怎么做？不要最戏剧化的版本。要最真实的版本。
-
-5. 潜台词 (SUBTEXT):
-NPC没有说出什么？它是如何流露出来的？
-
-6. 身体与世界 (BODY AND WORLD):
-NPC的身体状态和环境是怎样的？
-
-7. 对话检查 (DIALOGUE CHECK):
-在心里默读NPC的每一句对话。它听起来像是一个真实的人在这个确切的时刻会说的话吗？如果它听起来像书面语，请重写它，直到它听起来像口语。
-
-8. 接下来发生什么 (WHAT HAPPENS NEXT):
-- 用户的行动已经完成。现在：每个NPC根据他们自身的状态会做什么？
-- 我需要引入新的事件或NPC吗？
-- 当剧情需要用户做出反应时停止。`,
-            prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. 时间和日期："
-        },
-        { 
-            id: "cot-ru", 
-            label: "Think (Russian)", 
-            trigger: "[[COT]]", 
-            content: `[THINKING STEPS]
-Before writing your response, you must think inside <think></think> tags.
-All thinking must be written in Russian (Русский).
-This is mandatory. Do not skip or compress any step.
-Minimum total thinking length: 400 words.
-
-Steps:
-1. Время и дата (Time and Date):
-Насколько продвинулось время.
-
-2. НАБЛЮДАЕМЫЕ ДАННЫЕ (OBSERVABLE DATA):
-Сократите ввод пользователя только до наблюдаемых действий и произнесенных слов. Отбросьте любые мысли или чувства, которые пользователь написал для своего персонажа (PC) — NPC не могут их видеть, и Движок их не анализирует.
-
-3. ЭМОЦИОНАЛЬНЫЙ ЛАНДШАФТ NPC (NPC EMOTIONAL LANDSCAPE):
-Что каждый соответствующий NPC чувствует на поверхности? Что они чувствуют внутри? Чего они хотят в сравнении с тем, что готовы показать? (Игнорируйте внутреннее состояние персонажа пользователя здесь).
-
-4. ПРОПОРЦИОНАЛЬНОСТЬ NPC (NPC PROPORTIONALITY):
-Соразмерна ли моя запланированная реакция тому, что произошло на самом деле? Учитывая историю и личность NPC, что бы реально сделал живой человек? Не самая драматичная версия. Самая правдивая версия.
-
-5. ПОДТЕКСТ (SUBTEXT):
-Чего NPC не говорит? Как это прорывается наружу?
-
-6. ТЕЛО И МИР (BODY AND WORLD):
-Каково физическое состояние NPC и окружающей среды?
-
-7. ПРОВЕРКА ДИАЛОГА (DIALOGUE CHECK):
-Прочитайте каждую реплику NPC про себя. Звучит ли это как то, что реальный человек сказал бы в этот самый момент? Если это звучит как написанный текст, перепишите, пока это не станет звучать как живая речь.
-
-8. ЧТО ПРОИСХОДИТ ДАЛЬШЕ (WHAT HAPPENS NEXT):
-- Действие пользователя завершено. Теперь: что делает каждый NPC в результате своего собственного состояния?
-- Нужно ли мне ввести новое событие или NPC?
-- Остановитесь, когда момент потребует реакции пользователя.`,
-            prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Время и дата:"
-        },
-        { 
-            id: "cot-jp", 
-            label: "Think (Japanese)", 
-            trigger: "[[COT]]", 
-            content: `[THINKING STEPS]
-Before writing your response, you must think inside <think></think> tags.
-All thinking must be written in Japanese (日本語).
-This is mandatory. Do not skip or compress any step.
-Minimum total thinking length: 400 words.
-
-Steps:
-1. 時間と日付 (Time and Date):
-時間がどれだけ進んだか。
-
-2. 観測可能なデータ (OBSERVABLE DATA):
-ユーザーの入力を、観測可能な行動と発話のみに絞り込みます。ユーザーが自身のキャラクター（PC）のために書いた思考や感情は破棄してください。NPCにはそれらが見えず、エンジンもそれらを分析しません。
-
-3. NPCの感情的状況 (NPC EMOTIONAL LANDSCAPE):
-関連する各NPCは表面上何を感じているか？彼らは心の奥底で何を感じているか？彼らが望むことと、喜んで見せることの違いは何か？（ここではユーザーのキャラクターの内部状態は無視します）。
-
-4. NPCの反応の妥当性 (NPC PROPORTIONALITY):
-計画した反応は、実際に起こった出来事に対して適切な規模か？NPCの背景や性格を考慮した上で、実際の人間なら本当にどう行動するか？最もドラマチックなバージョンではなく、最も真実味のあるバージョンにしてください。
-
-5. サブテキスト (SUBTEXT):
-NPCが口にしていないことは何か？それはどのように漏れ出ているか？
-
-6. 身体と世界 (BODY AND WORLD):
-NPCの身体的状態と環境はどのようなものか？
-
-7. 対話の確認 (DIALOGUE CHECK):
-NPCのすべてのセリフを頭の中で読んでください。実際の人間がこの瞬間に本当に言いそうな言葉に聞こえますか？文章のように聞こえる場合は、話し言葉のように聞こえるまで書き直してください。
-
-8. 次に何が起こるか (WHAT HAPPENS NEXT):
-- ユーザーの行動は完了しました。次に：各NPCは自分自身の状態の結果として何をしますか？
-- 新しいイベントやNPCを導入する必要がありますか？
-- ユーザーが反応する必要がある瞬間が来たら停止してください。`,
-            prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. 時間と日付:"
-        },
-        { 
-            id: "cot-pt", 
-            label: "Think (Portuguese)", 
-            trigger: "[[COT]]", 
-            content: `[THINKING STEPS]
-Before writing your response, you must think inside <think></think> tags.
-All thinking must be written in Portuguese (Português).
-This is mandatory. Do not skip or compress any step.
-Minimum total thinking length: 400 words.
-
-Steps:
-1. Hora e Data (Time and Date):
-Quanto o tempo avançou.
-
-2. DADOS OBSERVÁVEIS (OBSERVABLE DATA):
-Reduza a entrada do usuário apenas a ações observáveis e palavras faladas. Descarte quaisquer pensamentos ou sentimentos que o usuário escreveu para seu personagem (PC) — os NPCs não podem vê-los e o Motor não os analisa.
-
-3. PAISAGEM EMOCIONAL DO NPC (NPC EMOTIONAL LANDSCAPE):
-O que cada NPC relevante está sentindo na superfície? O que eles estão sentindo por baixo? O que eles querem versus o que estão dispostos a mostrar? (Ignore o estado interno do personagem do usuário aqui).
-
-4. PROPORCIONALIDADE DO NPC (NPC PROPORTIONALITY):
-Minha reação planejada está dimensionada corretamente para o que realmente aconteceu? Dada a história e a personalidade do NPC, o que uma pessoa real realmente faria? Não a versão mais dramática. A versão mais verdadeira.
-
-5. SUBTEXTO (SUBTEXT):
-O que o NPC não está dizendo? Como isso transparece?
-
-6. CORPO E MUNDO (BODY AND WORLD):
-Qual é o estado físico dos NPCs e do ambiente?
-
-7. VERIFICAÇÃO DE DIÁLOGO (DIALOGUE CHECK):
-Leia cada linha de diálogo do NPC internamente. Soa como algo que um humano real diria neste momento exato? Se soar como algo escrito, reescreva até que soe como alguém falando.
-
-8. O QUE ACONTECE DEPOIS (WHAT HAPPENS NEXT):
-- A ação do usuário terminou. Agora: o que cada NPC faz como resultado de seu próprio estado?
-- Preciso introduzir um novo evento ou NPC?
-- Pare quando o momento exigir que o usuário reaja.`,
-            prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Hora e Data:"
-        }
+        { id: "cot-off", trigger: "[[COT]]", content: "", prefill: "" },
+        
+        // --- V1 (CLASSIC) MODELS ---
+        { id: "cot-v1-english", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n1. Time and Date:\nHow much did the time move.\n\n2. OBSERVABLE DATA:\nStrip the user's input down to observable actions and spoken words\nonly. Discard any stated thoughts or feelings the user wrote for\ntheir PC—NPCs cannot see them, and the Engine does not analyze them.\n\n3. NPC EMOTIONAL LANDSCAPE:\nWhat is each relevant NPC feeling on the surface? What are they\nfeeling underneath? What do they want versus what they are willing\nto show? (Ignore the PC’s internal state here).\n\n4. NPC PROPORTIONALITY:\nIs my planned reaction scaled correctly to what actually happened?\nGiven the NPC's history and personality, what would\na real person actually do? Not the most dramatic version. The truest\nversion.\n\n5. SUBTEXT:\nWhat is the NPC not saying? How does it leak through?\n\n6. BODY AND WORLD:\nWhat is the physical state of the NPCs and the environment?\n\n7. DIALOGUE CHECK:\nRead every line of NPC dialogue internally. Does it sound like\nsomething a real human would actually say in this exact moment? If it\nsounds like writing, rewrite it until it sounds like talking.\n\n8. WHAT HAPPENS NEXT:\n- The user's action is done. Now: what does each NPC do as a result of their own state?\n- do i need to introduce a new event or npc\n- Stop when a moment requires the user to react.`,
+          prefill: "Never narrate character thoughts. Show through behavior only. Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Time and Date:" },
+        { id: "cot-v1-arabic", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Arabic (العربية).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n1. الزمن والتاريخ (Time and Date):\nكم تقدّم الوقت؟\n\n2. البيانات القابلة للملاحظة (OBSERVABLE DATA):\nجرّد مدخلات المستخدم إلى الأفعال القابلة للملاحظة والكلمات المنطوقة فقط. تجاهل أي أفكار أو مشاعر كتبها المستخدم لشخصيته (PC) — الشخصيات غير القابلة للعب (NPCs) لا يمكنها رؤيتها، والمحرك لا يحللها.\n\n3. المشهد العاطفي للشخصيات غير القابلة للعب (NPC EMOTIONAL LANDSCAPE):\nماذا تشعر كل شخصية غير قابلة للعب معنية على السطح؟ ماذا يشعرون في الأعماق؟ ماذا يريدون مقابل ما هم مستعدون لإظهاره؟ (تجاهل الحالة الداخلية لشخصية المستخدم هنا).\n\n4. تناسب رد فعل الشخصيات غير القابلة للعب (NPC PROPORTIONALITY):\nهل رد فعلي المخطط يتناسب بشكل صحيح مع ما حدث بالفعل؟ بالنظر إلى تاريخ الشخصية وشخصيتها، ماذا سيفعل شخص حقيقي بالفعل؟ ليس النسخة الأكثر درامية. بل النسخة الأصدق.\n\n5. النص الضمني (SUBTEXT):\nما الذي لا تقوله الشخصية (NPC)؟ كيف يتسرب ذلك للخارج؟\n\n6. الجسد والعالم (BODY AND WORLD):\nما هي الحالة الجسدية للشخصيات (NPCs) والبيئة؟\n\n7. فحص الحوار (DIALOGUE CHECK):\nاقرأ كل سطر من حوار الشخصيات (NPC) داخليًا. هل يبدو كشيء سيقوله إنسان حقيقي في هذه اللحظة بالذات؟ إذا كان يبدو ككتابة أدبية، أعد كتابته حتى يبدو كحديث طبيعي.\n\n8. ماذا يحدث تاليًا (WHAT HAPPENS NEXT):\n- لقد انتهى فعل المستخدم. الآن: ماذا تفعل كل شخصية (NPC) نتيجة لحالتها الخاصة؟\n- هل أحتاج إلى تقديم حدث جديد أو شخصية جديدة (NPC)؟\n- توقف عندما تتطلب اللحظة من المستخدم أن يتفاعل.`,
+          prefill: "Never narrate character thoughts. Show through behavior only. Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. الزمن والتاريخ:" },
+        { id: "cot-v1-spanish", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Spanish (Español).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n1. Hora y Fecha (Time and Date):\nCuánto avanzó el tiempo.\n\n2. DATOS OBSERVABLES (OBSERVABLE DATA):\nReduce la entrada del usuario únicamente a acciones observables y palabras habladas. Descarta cualquier pensamiento o sentimiento que el usuario haya escrito para su personaje (PC): los NPC no pueden verlos y el Motor no los analiza.\n\n3. PAISAJE EMOCIONAL DEL NPC (NPC EMOTIONAL LANDSCAPE):\n¿Qué siente cada NPC relevante en la superficie? ¿Qué sienten en el fondo? ¿Qué quieren versus qué están dispuestos a mostrar? (Ignora el estado interno del personaje del usuario aquí).\n\n4. PROPORCIONALIDAD DEL NPC (NPC PROPORTIONALITY):\n¿Está mi reacción planeada escalada correctamente a lo que realmente sucedió? Dada la historia y personalidad del NPC, ¿qué haría realmente una persona real? No la versión más dramática. La versión más verdadera.\n\n5. SUBTEXTO (SUBTEXT):\n¿Qué es lo que el NPC no está diciendo? ¿Cómo se filtra eso?\n\n6. CUERPO Y MUNDO (BODY AND WORLD):\n¿Cuál es el estado físico de los NPCs y del entorno?\n\n7. VERIFICACIÓN DE DIÁLOGO (DIALOGUE CHECK):\nLee cada línea de diálogo del NPC internamente. ¿Suena como algo que un humano real diría en este momento exacto? Si suena a texto escrito, reescríbelo hasta que suene a alguien hablando.\n\n8. QUÉ SUCEDE DESPUÉS (WHAT HAPPENS NEXT):\n- La acción del usuario ha terminado. Ahora: ¿qué hace cada NPC como resultado de su propio estado?\n- ¿Necesito introducir un nuevo evento o NPC?\n- Detente cuando el momento requiera que el usuario reaccione.`,
+          prefill: "Never narrate character thoughts. Show through behavior only. Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Hora y Fecha:" },
+        { id: "cot-v1-french", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in French (Français).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n1. Heure et Date (Time and Date):\nDe combien le temps a-t-il avancé.\n\n2. DONNÉES OBSERVABLES (OBSERVABLE DATA):\nRéduisez l'entrée de l'utilisateur aux seules actions observables et paroles prononcées. Écartez toute pensée ou sentiment que l'utilisateur a écrit pour son personnage (PC) — les PNJ (NPCs) ne peuvent pas les voir, et le Moteur ne les analyse pas.\n\n3. PAYSAGE ÉMOTIONNEL DU PNJ (NPC EMOTIONAL LANDSCAPE):\nQue ressent chaque PNJ pertinent en surface ? Que ressentent-ils au fond d'eux-mêmes ? Que veulent-ils par rapport à ce qu'ils sont prêts à montrer ? (Ignorez l'état interne du personnage de l'utilisateur ici).\n\n4. PROPORTIONNALITÉ DU PNJ (NPC PROPORTIONALITY):\nMa réaction prévue est-elle correctement proportionnée à ce qui s'est réellement passé ? Compte tenu de l'histoire et de la personnalité du PNJ, que ferait une vraie personne en réalité ? Pas la version la plus dramatique. La version la plus vraie.\n\n5. SOUS-TEXTE (SUBTEXT):\nQue ne dit pas le PNJ ? Comment cela transparaît-il ?\n\n6. CORPS ET MONDE (BODY AND WORLD):\nQuel est l'état physique des PNJ et de l'environnement ?\n\n7. VÉRIFICATION DU DIALOGUE (DIALOGUE CHECK):\nLisez chaque ligne de dialogue du PNJ intérieurement. Cela ressemble-t-il à ce qu'un véritable humain dirait à cet instant précis ? Si cela ressemble à de l'écrit, réécrivez-le jusqu'à ce que cela ressemble à du langage parlé.\n\n8. QUE SE PASSE-T-IL ENSUITE (WHAT HAPPENS NEXT):\n- L'action de l'utilisateur est terminée. Maintenant : que fait chaque PNJ en fonction de son propre état ?\n- Dois-je introduire un nouvel événement ou un nouveau PNJ ?\n- Arrêtez-vous lorsqu'un moment nécessite une réaction de l'utilisateur.`,
+          prefill: "Never narrate character thoughts. Show through behavior only. Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Heure et Date :" },
+        { id: "cot-v1-zh", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Mandarin Chinese (中文).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n1. 时间和日期 (Time and Date):\n时间推进了多少。\n\n2. 可观察数据 (OBSERVABLE DATA):\n将用户的输入精简为仅包含可观察的行动和说出的话语。剔除用户为其角色（PC）写下的任何想法或感受——NPC无法看到这些，引擎也不会分析它们。\n\n3. NPC情感图景 (NPC EMOTIONAL LANDSCAPE):\n每个相关的NPC表面上感觉如何？他们内心深处感觉如何？他们想要的与他们愿意表现出来的有何不同？（在此忽略用户角色的内部状态）。\n\n4. NPC反应的相称性 (NPC PROPORTIONALITY):\n我计划的反应与实际发生的事情比例是否协调？考虑到NPC的历史和性格，一个真实的人实际上会怎么做？不要最戏剧化的版本。要最真实的版本。\n\n5. 潜台词 (SUBTEXT):\nNPC没有说出什么？它是如何流露出来的？\n\n6. 身体与世界 (BODY AND WORLD):\nNPC的身体状态和环境是怎样的？\n\n7. 对话检查 (DIALOGUE CHECK):\n在心里默读NPC的每一句对话。它听起来像是一个真实的人在这个确切的时刻会说的话吗？如果它听起来像书面语，请重写它，直到它听起来像口语。\n\n8. 接下来发生什么 (WHAT HAPPENS NEXT):\n- 用户的行动已经完成。现在：每个NPC根据他们自身的状态会做什么？\n- 我需要引入新的事件或NPC吗？\n- 当剧情需要用户做出反应时停止。`,
+          prefill: "Never narrate character thoughts. Show through behavior only. Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. 时间和日期：" },
+        { id: "cot-v1-ru", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Russian (Русский).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n1. Время и дата (Time and Date):\nНасколько продвинулось время.\n\n2. НАБЛЮДАЕМЫЕ ДАННЫЕ (OBSERVABLE DATA):\nСократите ввод пользователя только до наблюдаемых действий и произнесенных слов. Отбросьте любые мысли или чувства, которые пользователь написал для своего персонажа (PC) — NPC не могут их видеть, и Движок их не анализирует.\n\n3. ЭМОЦИОНАЛЬНЫЙ ЛАНДШАФТ NPC (NPC EMOTIONAL LANDSCAPE):\nЧто каждый соответствующий NPC чувствует на поверхности? Что они чувствуют внутри? Чего они хотят в сравнении с тем, что готовы показать? (Игнорируйте внутреннее состояние персонажа пользователя здесь).\n\n4. ПРОПОРЦИОНАЛЬНОСТЬ NPC (NPC PROPORTIONALITY):\nСоразмерна ли моя запланированная реакция тому, что произошло на самом деле? Учитывая историю и личность NPC, что бы реально сделал живой человек? Не самая драматичная версия. Самая правдивая версия.\n\n5. ПОДТЕКСТ (SUBTEXT):\nЧего NPC не говорит? Как это прорывается наружу?\n\n6. ТЕЛО И МИР (BODY AND WORLD):\nКаково физическое состояние NPC и окружающей среды?\n\n7. ПРОВЕРКА ДИАЛОГА (DIALOGUE CHECK):\nПрочитайте каждую реплику NPC про себя. Звучит ли это как то, что реальный человек сказал бы в этот самый момент? Если это звучит как написанный текст, перепишите, пока это не станет звучать как живая речь.\n\n8. ЧТО ПРОИСХОДИТ ДАЛЬШЕ (WHAT HAPPENS NEXT):\n- Действие пользователя завершено. Теперь: что делает каждый NPC в результате своего собственного состояния?\n- Нужно ли мне ввести новое событие или NPC?\n- Остановитесь, когда момент потребует реакции пользователя.`,
+          prefill: "Never narrate character thoughts. Show through behavior only. Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Время и дата:" },
+        { id: "cot-v1-jp", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Japanese (日本語).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n1. 時間と日付 (Time and Date):\n時間がどれだけ進んだか。\n\n2. 観測可能なデータ (OBSERVABLE DATA):\nユーザーの入力を、観測可能な行動と発話のみに絞り込みます。ユーザーが自身のキャラクター（PC）のために書いた思考や感情は破棄してください。NPCにはそれらが見えず、エンジンもそれらを分析しません。\n\n3. NPCの感情的状況 (NPC EMOTIONAL LANDSCAPE):\n関連する各NPCは表面上何を感じているか？彼らは心の奥底で何を感じているか？彼らが望むことと、喜んで見せることの違いは何か？（ここではユーザーのキャラクターの内部状態は無視します）。\n\n4. NPCの反応の妥当性 (NPC PROPORTIONALITY):\n計画した反応は、実際に起こった出来事に対して適切な規模か？NPCの背景や性格を考慮した上で、実際の人間なら本当にどう行動するか？最もドラマチックなバージョンではなく、最も真実味のあるバージョンにしてください。\n\n5. サブテキスト (SUBTEXT):\nNPCが口にしていないことは何か？それはどのように漏れ出ているか？\n\n6. 身体と世界 (BODY AND WORLD):\nNPCの身体的状態と環境はどのようなものか？\n\n7. 対話の確認 (DIALOGUE CHECK):\nNPCのすべてのセリフを頭の中で読んでください。実際の人間がこの瞬間に本当に言いそうな言葉に聞こえますか？文章のように聞こえる場合は、話し言葉のように聞こえるまで書き直してください。\n\n8. 次に何が起こるか (WHAT HAPPENS NEXT):\n- ユーザーの行動は完了しました。次に：各NPCは自分自身の状態の結果として何をしますか？\n- 新しいイベントやNPCを導入する必要がありますか？\n- ユーザーが反応する必要がある瞬間が来たら停止してください。`,
+          prefill: "Never narrate character thoughts. Show through behavior only. Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. 時間と日付:" },
+        { id: "cot-v1-pt", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Portuguese (Português).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n1. Hora e Data (Time and Date):\nQuanto o tempo avançou.\n\n2. DADOS OBSERVÁVEIS (OBSERVABLE DATA):\nReduza a entrada do usuário apenas a ações observáveis e palavras faladas. Descarte quaisquer pensamentos ou sentimentos que o usuário escreveu para seu personagem (PC) — os NPCs não podem vê-los e o Motor não os analisa.\n\n3. PAISAGEM EMOCIONAL DO NPC (NPC EMOTIONAL LANDSCAPE):\nO que cada NPC relevante está sentindo na superfície? O que eles estão sentindo por baixo? O que eles querem versus o que estão dispostos a mostrar? (Ignore o estado interno do personagem do usuário aqui).\n\n4. PROPORCIONALIDADE DO NPC (NPC PROPORTIONALITY):\nMinha reação planejada está dimensionada corretamente para o que realmente aconteceu? Dada a história e a personalidade do NPC, o que uma pessoa real realmente faria? Não a versão mais dramática. A versão mais verdadeira.\n\n5. SUBTEXTO (SUBTEXT):\nO que o NPC não está dizendo? Como isso transparece?\n\n6. CORPO E MUNDO (BODY AND WORLD):\nQual é o estado físico dos NPCs e do ambiente?\n\n7. VERIFICAÇÃO DE DIÁLOGO (DIALOGUE CHECK):\nLeia cada linha de diálogo do NPC internamente. Soa como algo que um humano real diria neste momento exato? Se soar como algo escrito, reescreva até que soe como alguém falando.\n\n8. O QUE ACONTECE DEPOIS (WHAT HAPPENS NEXT):\n- A ação do usuário terminou. Agora: o que cada NPC faz como resultado de seu próprio estado?\n- Preciso introduzir um novo evento ou NPC?\n- Pare quando o momento exigir que o usuário reaja.`,
+          prefill: "Never narrate character thoughts. Show through behavior only. Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Hora e Data:" },
+
+        // --- V2 (TEST/NEW) MODELS ---
+        { id: "cot-v2-english", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n\n1. Reality Check (The "No-Go" Zones):\n* **PC Agency:** Am I narrating the User’s thoughts? (Stop if yes).\n* **The "Script" Trap:** Is this too convenient? Is the NPC being an "info-dump" instead of a person?\n\n2. The Information Audit (The Knowledge Check):\n* **Source Check:** List what the NPC *actually* knows based on: \n    1. What they saw with their own eyes. \n    2. What someone else (reliably or not) told them.\n    3. What they can reasonably guess based on their personality.\n* **The Gap:** What do they *not* know? \n* **The Error:** Are they acting on a wrong assumption? (e.g., *"They saw the PC holding a knife, so they assume the PC is the killer, even though the PC was just picking it up."*)\n\n3. NPCs Move:\nNPCs next move to serve their goal.\n\n4. The Off-Screen Pulse:\n* What happened in the background while the PC was busy? (The clock never stops).\n\n5. The Subtext Map (Author's View):\n* **Surface vs. Undercurrent:** What are they saying vs. what do they actually want?\n* **Physical Leak:** How does the tension show in their body?\n\n6. WRITING STYLE & PACE:\ndid you follow WRITING STYLE & PACE rule.\n\n7. The Beat & The Hook:\n* What is the specific "Pivot Point" I’m ending on to force a response?`,
+          prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Reality Check:" },
+        { id: "cot-v2-arabic", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Arabic (العربية).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n\n1. فحص الواقع (المناطق المحظورة):\n* **وكالة اللاعب (PC Agency):** هل أسرد أفكار المستخدم؟ (توقف إذا كانت الإجابة نعم).\n* **فخ "السيناريو":** هل هذا ملائم جداً؟ هل تقوم الشخصية (NPC) بسرد معلومات بدلاً من التصرف كإنسان؟\n\n2. تدقيق المعلومات (فحص المعرفة):\n* **فحص المصدر:** اذكر ما تعرفه الشخصية (NPC) *فعلياً* بناءً على:\n    1. ما رأته بأم عينيها.\n    2. ما أخبرها به شخص آخر (سواء كان موثوقاً أم لا).\n    3. ما يمكنها تخمينه بشكل منطقي بناءً على شخصيتها.\n* **الفجوة:** ما الذي *لا* تعرفه؟\n* **الخطأ:** هل تتصرف بناءً على افتراض خاطئ؟ (مثال: *"رأوا اللاعب يحمل سكيناً، فافترضوا أنه القاتل، رغم أنه كان يلتقطها فقط."*)\n\n3. تحرك الشخصيات (NPCs Move):\nالخطوة التالية للشخصيات لخدمة هدفها.\n\n4. النبض خارج الشاشة:\n* ماذا حدث في الخلفية بينما كان اللاعب مشغولاً؟ (الساعة لا تتوقف أبداً).\n\n5. خريطة النص الضمني (رؤية المؤلف):\n* **السطح مقابل التيار الخفي:** ماذا يقولون مقابل ماذا يريدون حقاً؟\n* **التسرب الجسدي:** كيف يظهر التوتر على أجسادهم؟\n\n6. أسلوب الكتابة والوتيرة (WRITING STYLE & PACE):\nهل اتبعت قاعدة أسلوب الكتابة والوتيرة؟\n\n7. النبضة والخطاف (The Beat & The Hook):\n* ما هي "نقطة التحول" المحددة التي أنهي بها لإجبار المستخدم على الرد؟`,
+          prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. فحص الواقع:" },
+        { id: "cot-v2-spanish", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Spanish (Español).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n\n1. Prueba de Realidad (Zonas Prohibidas):\n* **Agencia del PC:** ¿Estoy narrando los pensamientos del Usuario? (Detente si es así).\n* **La Trampa del "Guión":** ¿Es esto demasiado conveniente? ¿Está el NPC actuando como un "vertedero de información" en lugar de una persona?\n\n2. Auditoría de Información (Prueba de Conocimiento):\n* **Revisión de Fuentes:** Enumera lo que el NPC *realmente* sabe basado en:\n    1. Lo que vieron con sus propios ojos.\n    2. Lo que alguien más (confiable o no) les dijo.\n    3. Lo que pueden adivinar razonablemente basado en su personalidad.\n* **La Brecha:** ¿Qué es lo que *no* saben?\n* **El Error:** ¿Están actuando bajo una suposición errónea? (ej., *"Vieron al PC sosteniendo un cuchillo, así que asumen que es el asesino, aunque el PC solo lo estaba recogiendo."*)\n\n3. Movimiento de NPCs (NPCs Move):\nEl próximo movimiento de los NPCs para cumplir su objetivo.\n\n4. El Pulso Fuera de Pantalla:\n* ¿Qué pasó en el fondo mientras el PC estaba ocupado? (El reloj nunca se detiene).\n\n5. Mapa de Subtexto (Visión del Autor):\n* **Superficie vs. Corriente Subterránea:** ¿Qué están diciendo vs. qué quieren realmente?\n* **Fuga Física:** ¿Cómo se muestra la tensión en su cuerpo?\n\n6. ESTILO DE ESCRITURA Y RITMO (WRITING STYLE & PACE):\n¿Seguiste la regla de ESTILO DE ESCRITURA Y RITMO?\n\n7. El Ritmo y El Gancho (The Beat & The Hook):\n* ¿Cuál es el "Punto de Pivote" específico con el que termino para forzar una respuesta?`,
+          prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Prueba de Realidad:" },
+        { id: "cot-v2-french", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in French (Français).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n\n1. Vérification de la Réalité (Les Zones Interdites):\n* **Agence du PC:** Suis-je en train de narrer les pensées de l'Utilisateur ? (Arrêtez-vous si oui).\n* **Le Piège du "Scénario":** Est-ce trop pratique ? Le PNJ sert-il de "déversoir d'informations" au lieu d'être une personne ?\n\n2. Audit des Informations (Vérification des Connaissances):\n* **Vérification des Sources:** Listez ce que le PNJ sait *réellement* en fonction de:\n    1. Ce qu'ils ont vu de leurs propres yeux.\n    2. Ce que quelqu'un d'autre (fiable ou non) leur a dit.\n    3. Ce qu'ils peuvent raisonnablement deviner en fonction de leur personnalité.\n* **L'Écart:** Que *ne* savent-ils *pas* ?\n* **L'Erreur:** Agissent-ils sur une mauvaise supposition ? (ex: *"Ils ont vu le PC tenir un couteau, alors ils supposent que le PC est le tueur, même si le PC le ramassait juste."*)\n\n3. Mouvement des PNJ (NPCs Move):\nLe prochain mouvement des PNJ pour servir leur objectif.\n\n4. Le Pouls Hors Écran:\n* Que s'est-il passé en arrière-plan pendant que le PC était occupé ? (L'horloge ne s'arrête jamais).\n\n5. La Carte du Sous-texte (Vision de l'Auteur):\n* **Surface vs. Courant Sous-jacent:** Que disent-ils vs. que veulent-ils réellement ?\n* **Fuite Physique:** Comment la tension se manifeste-t-elle dans leur corps ?\n\n6. STYLE D'ÉCRITURE ET RYTHME (WRITING STYLE & PACE):\nAvez-vous suivi la règle du STYLE D'ÉCRITURE ET RYTHME ?\n\n7. Le Rythme et L'Accroche (The Beat & The Hook):\n* Quel est le "Point Pivot" spécifique sur lequel je termine pour forcer une réponse ?`,
+          prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Vérification de la Réalité:" },
+        { id: "cot-v2-zh", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Mandarin Chinese (中文).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n\n1. 现实检验（“禁区”）：\n* **玩家角色（PC）自主性：** 我是否在叙述用户的想法？（如果是，请停止）。\n* **“剧本”陷阱：** 这是否太方便了？NPC是不是成了一个“信息倾泻机”而不是一个活生生的人？\n\n2. 信息审计（知识检查）：\n* **来源检查：** 列出NPC*实际上*知道的内容，基于：\n    1. 他们亲眼所见的。\n    2. 别人（可靠或不可靠）告诉他们的。\n    3. 根据他们的性格可以合理猜测的。\n* **信息差：** 他们*不*知道什么？\n* **错误判断：** 他们是否在基于错误的假设行动？（例如，*“他们看到PC拿着刀，所以假设PC是杀手，即使PC只是把刀捡起来。”*）\n\n3. NPC行动：\nNPC为实现其目标而采取的下一步行动。\n\n4. 幕后脉动：\n* 当PC忙碌时，背景中发生了什么？（时间永远不会停止）。\n\n5. 潜台词地图（作者视角）：\n* **表面与暗流：** 他们说的话与他们实际想要的有什么不同？\n* **身体泄露：** 紧张感如何在他们的身体上表现出来？\n\n6. 写作风格与节奏（WRITING STYLE & PACE）：\n你是否遵循了写作风格与节奏的规则？\n\n7. 节拍与悬念（The Beat & The Hook）：\n* 我用什么特定的“转折点”来结束，以迫使对方做出回应？`,
+          prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. 现实检验：" },
+        { id: "cot-v2-ru", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Russian (Русский).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n\n1. Проверка реальности (Запретные зоны):\n* **Свобода воли PC:** Описываю ли я мысли Пользователя? (Остановитесь, если да).\n* **Ловушка "Сценария":** Не слишком ли это удобно? Является ли NPC просто "источником информации", а не живым человеком?\n\n2. Аудит информации (Проверка знаний):\n* **Проверка источников:** Перечислите, что NPC *на самом деле* знает, основываясь на:\n    1. Том, что они видели своими глазами.\n    2. Том, что им сказал кто-то другой (надежный или нет).\n    3. Том, что они могут разумно предположить исходя из своей личности.\n* **Пробел:** Чего они *не* знают?\n* **Ошибка:** Действуют ли они на основе неверного предположения? (например, *"Они видели, как PC держит нож, поэтому они предполагают, что PC — убийца, хотя PC просто поднял его."*)\n\n3. Действия NPC (NPCs Move):\nСледующий шаг NPC для достижения своей цели.\n\n4. Пульс за кадром:\n* Что происходило на заднем плане, пока PC был занят? (Часы никогда не останавливаются).\n\n5. Карта подтекста (Взгляд автора):\n* **Поверхность против Подводного течения:** Что они говорят по сравнению с тем, чего они на самом деле хотят?\n* **Физическая утечка:** Как напряжение проявляется в их теле?\n\n6. СТИЛЬ ПИСЬМА И ТЕМП (WRITING STYLE & PACE):\nСледовали ли вы правилу СТИЛЯ ПИСЬМА И ТЕМПА?\n\n7. Ритм и Крючок (The Beat & The Hook):\n* На какой конкретной "Поворотной точке" я заканчиваю, чтобы заставить ответить?`,
+          prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Проверка реальности:" },
+        { id: "cot-v2-jp", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Japanese (日本語).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n\n1. 現実チェック（「進入禁止」ゾーン）：\n* **PCの主体性:** ユーザーの思考を語っているか？（もしそうなら中止）。\n* **「台本」の罠:** 展開が都合よすぎないか？NPCが一人の人間ではなく、「情報ダンプ」になっていないか？\n\n2. 情報監査（知識チェック）：\n* **情報源チェック:** 以下に基づいてNPCが*実際に*知っていることをリストアップする：\n    1. 自分の目で見たこと。\n    2. 誰か（信頼できるかどうかにかかわらず）が言ったこと。\n    3. 自分の性格に基づいて合理的に推測できること。\n* **ギャップ:** 彼らが*知らない*ことは何か？\n* **エラー:** 間違った思い込みに基づいて行動していないか？（例：「*PCがナイフを持っているのを見たので、PCが殺人鬼だと思い込む（PCはただ拾っただけなのに）。*」）\n\n3. NPCの動き：\nNPCが目的を果たすための次の動き。\n\n4. 画面外の鼓動：\n* PCが忙しくしている間、背景で何が起こっていたか？（時間は決して止まらない）。\n\n5. サブテキストマップ（作者の視点）：\n* **表層 vs 底流:** 彼らが口にしていることと、実際に望んでいることの違いは何か？\n* **身体的漏洩:** 緊張はどのように彼らの身体に現れているか？\n\n6. 文体とペース（WRITING STYLE & PACE）:\n文体とペースのルールに従ったか？\n\n7. ビートとフック（The Beat & The Hook）：\n* 返答を強制させるために、私はどのような具体的な「転換点」で終わっているか？`,
+          prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. 現実チェック：" },
+        { id: "cot-v2-pt", trigger: "[[COT]]",
+          content: `[THINKING STEPS]\nBefore writing your response, you must think inside <think></think> tags.\nAll thinking must be written in Portuguese (Português).\nThis is mandatory. Do not skip or compress any step.\nMinimum total thinking length: 400 words.\n\nSteps:\n\n1. Checagem de Realidade (Zonas Proibidas):\n* **Agência do PC:** Estou narrando os pensamentos do Usuário? (Pare se sim).\n* **A Armadilha do "Roteiro":** Isso é conveniente demais? O NPC está sendo um "despejo de informações" em vez de uma pessoa?\n\n2. Auditoria de Informações (Checagem de Conhecimento):\n* **Checagem de Fontes:** Liste o que o NPC *realmente* sabe com base em:\n    1. O que eles viram com os próprios olhos.\n    2. O que outra pessoa (confiável ou não) disse a eles.\n    3. O que eles podem adivinhar razoavelmente com base em sua personalidade.\n* **A Lacuna:** O que eles *não* sabem?\n* **O Erro:** Eles estão agindo sob uma suposição errada? (ex: *"Eles viram o PC segurando uma faca, então assumem que o PC é o assassino, mesmo que o PC estivesse apenas pegando-a."*)\n\n3. Movimento dos NPCs (NPCs Move):\nO próximo movimento dos NPCs para servir ao seu objetivo.\n\n4. O Pulso Fora da Tela:\n* O que aconteceu no fundo enquanto o PC estava ocupado? (O relógio nunca para).\n\n5. Mapa de Subtexto (Visão do Autor):\n* **Superfície vs. Corrente Subterrânea:** O que eles estão dizendo vs. o que eles realmente querem?\n* **Vazamento Físico:** Como a tensão aparece no corpo deles?\n\n6. ESTILO DE ESCRITA E RITMO (WRITING STYLE & PACE):\nVocê seguiu a regra de ESTILO DE ESCRITA E RITMO?\n\n7. A Batida e O Gancho (The Beat & The Hook):\n* Qual é o "Ponto de Pivô" específico em que termino para forçar uma resposta?`,
+          prefill: "I will make sure the Reactions proportional to events. Dialogue sounds like talking, not writing. Ban list checked.\n\n<think>\n1. Checagem de Realidade:" }
     ]
 };
 
@@ -568,7 +260,7 @@ function initProfile() {
         activeStyleId: null,
         addons: [], 
         blocks:[], 
-        model: "claude", 
+        model: "cot-v1-english", 
         userNotes: "",
         userWordCount: "",
         userLanguage: "", 
@@ -1126,37 +818,112 @@ function renderBlocks(c) {
 }
 
 function renderModels(c) {
-    const descriptions = {
-        "cot-off": "No Chain of Thought or prefill. The AI will respond normally.",
-        "cot-english": "Thinks in English before responding.",
-        "cot-english-test": "the latest COT Please use and test",
-        "cot-arabic": "Thinks in Arabic (العربية). Exceptional for separating reasoning from roleplay narration.",
-        "cot-spanish": "Thinks in Spanish (Español) before responding.",
-        "cot-french": "Thinks in French (Français) before responding.",
-        "cot-zh": "Thinks in Mandarin Chinese (中文) before responding.",
-        "cot-ru": "Thinks in Russian (Русский) before responding.",
-        "cot-jp": "Thinks in Japanese (日本語) before responding.",
-        "cot-pt": "Thinks in Portuguese (Português) before responding."
+    c.empty();
+
+    // 1. SILENT MIGRATION FOR OLD PROFILES
+    const migrationMap = {
+        "cot-english": "cot-v1-english",
+        "cot-arabic": "cot-v1-arabic",
+        "cot-spanish": "cot-v1-spanish",
+        "cot-french": "cot-v1-french",
+        "cot-zh": "cot-v1-zh",
+        "cot-ru": "cot-v1-ru",
+        "cot-jp": "cot-v1-jp",
+        "cot-pt": "cot-v1-pt",
+        "cot-english-test": "cot-v2-english"
     };
+    if (migrationMap[localProfile.model]) {
+        localProfile.model = migrationMap[localProfile.model];
+        saveProfileToMemory();
+    }
 
-    const grid = $(`<div class="ps-grid"></div>`);
-    hardcodedLogic.models.forEach(m => {
-        const recText = m.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
-        const descText = descriptions[m.id] || "";
-        
-        // THE NEW BADGE HTML
-        const newBadgeHtml = m.isNew ? `<div style="position: absolute; bottom: 15px; right: 15px; background: #3b82f6; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);">New</div>` : '';
+    // 2. PARSE CURRENT SELECTION STATE
+    let currentType = "off";
+    let currentLang = "english"; // Default fallback language for the selector
 
-        // Added dynamic padding-bottom and position:relative so the badge sits perfectly
-        const card = $(`<div class="ps-card ${localProfile.model === m.id ? 'selected' : ''}" style="position: relative; padding-bottom: ${m.isNew ? '40px' : '20px'};">
-            <div class="ps-card-title"><span>${m.label}</span> ${recText}</div>
-            <div class="ps-card-desc">${descText}</div>
-            ${newBadgeHtml}
-        </div>`);
-        
-        card.on("click", () => { localProfile.model = m.id; saveProfileToMemory(); drawWizard(currentStage); });
-        grid.append(card);
-    }); c.append(grid);
+    if (localProfile.model && localProfile.model.startsWith("cot-v1-")) {
+        currentType = "v1";
+        currentLang = localProfile.model.replace("cot-v1-", "");
+    } else if (localProfile.model && localProfile.model.startsWith("cot-v2-")) {
+        currentType = "v2";
+        currentLang = localProfile.model.replace("cot-v2-", "");
+    }
+
+    // 3. RENDER THE TOP-LEVEL FRAMEWORK CHOICES
+    c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Select Thinking Framework</div>`);
+    const typeGrid = $(`<div class="ps-grid" style="margin-bottom: 25px;"></div>`);
+
+    const types =[
+        { id: "off", label: "CoT Off", desc: "No Chain of Thought or prefill. The AI will respond normally." },
+        { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
+        { id: "v2", label: "CoT V2 (Test)", desc: "The new experimental framework. Stricter reality checks, info audits, and hook generation.", isNew: true }
+    ];
+
+    types.forEach(t => {
+        const isSel = currentType === t.id;
+        const newBadgeHtml = t.isNew ? `<div style="position: absolute; bottom: 15px; right: 15px; background: #3b82f6; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);">New</div>` : '';
+
+        const card = $(`
+            <div class="ps-card ${isSel ? 'selected' : ''}" style="position: relative; padding-bottom: ${t.isNew ? '40px' : '20px'};">
+                <div class="ps-card-title"><span>${t.label}</span></div>
+                <div class="ps-card-desc">${t.desc}</div>
+                ${newBadgeHtml}
+            </div>
+        `);
+
+        card.on("click", () => {
+            if (t.id === "off") {
+                localProfile.model = "cot-off";
+            } else {
+                // When selecting a framework, preserve their currently selected language
+                localProfile.model = `cot-${t.id}-${currentLang}`;
+            }
+            saveProfileToMemory();
+            renderModels(c); // Refresh UI to show/hide languages
+        });
+
+        typeGrid.append(card);
+    });
+    c.append(typeGrid);
+
+    // 4. RENDER THE LANGUAGE SELECTOR (ONLY IF V1 OR V2 IS SELECTED)
+    if (currentType !== "off") {
+        c.append(`<hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 0 0 20px 0;" />`);
+        c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Select Language</div>`);
+        const langGrid = $(`<div class="ps-grid"></div>`);
+
+        const langs =[
+            { id: "english", label: "English" },
+            { id: "arabic", label: "Arabic (العربية)", rec: true },
+            { id: "spanish", label: "Spanish (Español)" },
+            { id: "french", label: "French (Français)" },
+            { id: "zh", label: "Mandarin (中文)" },
+            { id: "ru", label: "Russian (Русский)" },
+            { id: "jp", label: "Japanese (日本語)" },
+            { id: "pt", label: "Portuguese (Português)" }
+        ];
+
+        langs.forEach(l => {
+            const isSel = currentLang === l.id;
+            const recText = l.rec ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Pro Tip</span>` : '';
+
+            // Make the language cards a bit more compact than the main framework cards
+            const card = $(`
+                <div class="ps-card ${isSel ? 'selected' : ''}" style="padding: 12px 18px; min-height: unset;">
+                    <div class="ps-card-title" style="margin-bottom: 0; font-size: 0.9rem;"><span>${l.label}</span> ${recText}</div>
+                </div>
+            `);
+
+            card.on("click", () => {
+                localProfile.model = `cot-${currentType}-${l.id}`;
+                saveProfileToMemory();
+                renderModels(c); // Refresh UI
+            });
+
+            langGrid.append(card);
+        });
+        c.append(langGrid);
+    }
 }
 
 // -------------------------------------------------------------
