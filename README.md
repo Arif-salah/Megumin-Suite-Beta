@@ -1,3 +1,6 @@
+# beta 02/04/26
+* fixed a Stupid error from my side i forget to enable Forbid Overrides so some cards was changing the main prompts and making the output bad. use the new json files.
+* added MVU Compatibility read here https://github.com/KritBlade/MVU_Game_Maker
 # beta 01/04/26
 * fixed some misspelling.
 * redesigned the model tab to have more language options for the new v2 COT.
@@ -7,7 +10,7 @@
 
 # beta 31/03/26
 * added new test cot that aim for me NPCs agency and self goals.
-* added new v4.2 balence test mode that aim to use less token and work with flash better.
+* added v5 Slice of Reality mode New and improved balance mode that aim to use less token, more writing Creativity, better NPCs.
 * added nora because why not.
 # beta 30/03/26
 * now the button is Draggable WOW
