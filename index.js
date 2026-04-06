@@ -316,7 +316,6 @@ let currentStage = 0;
 let localProfile = {};
 let activeGenerationOrder = null;
 let activeBanListChat = null;
-let activeImageGenRequest = null;
 
 function getCharacterKey() {
     const context = getContext();
@@ -332,9 +331,6 @@ function initProfile() {
 
     if (!extension_settings[extensionName]) extension_settings[extensionName] = { profiles: {} };
     if (!extension_settings[extensionName].profiles) extension_settings[extensionName].profiles = {};
-    if (!extension_settings[extensionName].customModes) {
-        extension_settings[extensionName].customModes =[];
-    }
 
     const defaults = {
         mode: "balance", 
@@ -354,7 +350,6 @@ function initProfile() {
         userPronouns: "off",
         devOverrides: {}, 
         banList:[],
-        customModes:[],
         // NEW: INTEGRATED IMAGE GEN STATE
         imageGen: {
             enabled: false,
@@ -371,18 +366,10 @@ function initProfile() {
             steps: 20, cfg: 7.0, denoise: 0.5, clipSkip: 1,
             promptStyle: "standard",      
             promptPerspective: "scene",   
-            promptExtra: "",
-            triggerMode: "always", 
-            autoGenFreq: 1,
-            previewPrompt: false,
+            promptExtra: "",              
             savedWorkflowStates: {} 
         }
     };
-
-    if (localProfile.devOverrides && Object.keys(localProfile.devOverrides).length > 0) {
-        localProfile.devOverrides = {};
-        saveSettingsDebounced();
-    }
 
     if (!extension_settings[extensionName].profiles["default"]) {
         extension_settings[extensionName].profiles["default"] = JSON.parse(JSON.stringify(defaults));
@@ -423,7 +410,6 @@ function initProfile() {
     }
     
     $("#ps_char_rule_label").text(displayName);
-    toggleQuickGenButton();
 }
 
 function saveProfileToMemory() {
@@ -474,12 +460,6 @@ const stagesUI =[
 ];
 
 function drawWizard(index) {
-    $(".ps-sidebar").show(); 
-    // Reset Dev button visuals
-    $("#ps_btn_dev_mode")
-        .html(`<i class="fa-solid fa-code"></i> Dev`)
-        .css("color", "#a855f7");
-    
     currentStage = index;
     const stage = stagesUI[index];
     $("#ps_stage_title").text(stage.title); $("#ps_stage_sub").text(stage.sub);
@@ -504,43 +484,22 @@ function drawWizard(index) {
 
 function renderMode(c) {
     const descriptions = {
-        "balance": "The original Secret Sauce. NPCs react naturally — no simping, no needless hostility.",
-        "balance Test": "New and improved balance mode that aims to use less tokens and more creativity.",
-        "cinematic": "Hollywood-inspired storytelling. Dramatic beats and heightened tension.",
-        "dark": "Balance but harsher. The world is unforgiving and consequences hit harder."
+        "balance": "The original Secret Sauce. NPCs react naturally — no simping, no needless hostility. They have their own agenda and act on it.",
+        "balance Test": " New and improved balance mode that aim to use less token, more writing Creativity, better NPCs.",
+        "cinematic": "Hollywood-inspired storytelling. More dramatic beats, cinematic scene transitions, and heightened narrative tension.",
+        "dark": "Balance but harsher. The world is unforgiving, NPCs don't sugarcoat, and consequences hit harder."
     };
-
-    // --- SECTION 1: CORE ENGINES ---
-    c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Megumin Core Engines</div>`);
-    const coreGrid = $(`<div class="ps-grid" style="margin-bottom: 30px;"></div>`);
+    const grid = $(`<div class="ps-grid"></div>`);
     hardcodedLogic.modes.forEach(m => {
         const recText = m.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
-        const newBadge = m.isNew ? `<div style="position: absolute; bottom: 15px; right: 15px; background: #3b82f6; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase;">New</div>` : '';
-        const card = $(`<div class="ps-card ${localProfile.mode === m.id ? 'selected' : ''}" style="position:relative; padding-bottom: ${m.isNew ? '40px' : '20px'};">
+        const newBadgeHtml = m.isNew ? `<div style="position: absolute; bottom: 15px; right: 15px; background: #3b82f6; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);">New</div>` : '';
+        const card = $(`<div class="ps-card ${localProfile.mode === m.id ? 'selected' : ''}" style="padding-bottom: ${m.isNew ? '40px' : '20px'};">
             <div class="ps-card-title"><span>${m.label}</span> ${recText}</div>
-            <div class="ps-card-desc">${descriptions[m.id] || ""}</div>${newBadge}
+            <div class="ps-card-desc">${descriptions[m.id] || ""}</div>${newBadgeHtml}
         </div>`);
         card.on("click", () => { localProfile.mode = m.id; saveProfileToMemory(); drawWizard(currentStage); });
-        coreGrid.append(card);
-    }); 
-    c.append(coreGrid);
-
-    // --- SECTION 2: CUSTOM ENGINES ---
-    const customModes = extension_settings[extensionName].customModes || [];
-    if (customModes.length > 0) {
-        c.append(`<div class="ps-rule-title" style="margin-bottom:10px; color: #10b981;">Custom User Engines</div>`);
-        const customGrid = $(`<div class="ps-grid"></div>`);
-        customModes.forEach(m => {
-            const isSel = localProfile.mode === m.id;
-            const card = $(`<div class="ps-card ${isSel ? 'selected' : ''}" style="border-color: ${isSel ? '#10b981' : 'var(--border-color)'};">
-                <div class="ps-card-title"><span style="color: ${isSel ? '#000' : '#10b981'};">${m.label}</span></div>
-                <div class="ps-card-desc">Custom Engine Flow</div>
-            </div>`);
-            card.on("click", () => { localProfile.mode = m.id; saveProfileToMemory(); drawWizard(currentStage); });
-            customGrid.append(card);
-        });
-        c.append(customGrid);
-    }
+        grid.append(card);
+    }); c.append(grid);
 }
 
 function renderPersonality(c) {
@@ -826,26 +785,6 @@ function renderAddons(c) {
             saveProfileToMemory(); drawWizard(currentStage);
         }); grid.append(card);
     }); c.append(grid);
-    // --- INJECT CUSTOM ENGINE MODULES (STAGE 4) ---
-    const activeMode = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
-    if (activeMode && activeMode.customToggles) {
-        const customSettings = activeMode.customToggles.filter(t => t.location === "settings");
-        if (customSettings.length > 0) {
-            c.append(`<div class="ps-rule-title" style="margin-top: 10px; margin-bottom:10px; color: #10b981;">Custom Engine Settings</div>`);
-            customSettings.forEach(cs => {
-                const isSel = !!localProfile.toggles[cs.id];
-                const tCard = $(`<div class="ps-toggle-card ${isSel ? 'active' : ''}" style="border-color: ${isSel ? '#10b981' : 'var(--border-color)'};">
-                    <div style="display:flex; flex-direction:column;">
-                        <span style="font-weight:600; color: ${isSel ? '#10b981' : 'var(--text-main)'};">${cs.name}</span>
-                        <div style="margin-top:4px; font-size:0.7rem; color:var(--text-muted);">Custom Module Attached to [[${cs.attachPoint}]]</div>
-                    </div>
-                    <div class="ps-switch" style="${isSel ? 'background:#10b981;' : ''}"></div>
-                </div>`);
-                tCard.on("click", () => { localProfile.toggles[cs.id] = !localProfile.toggles[cs.id]; saveProfileToMemory(); drawWizard(currentStage); });
-                c.append(tCard);
-            });
-        }
-    }
 
     c.append(`
         <div style="margin-top: 32px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 20px;">
@@ -878,7 +817,6 @@ function renderAddons(c) {
 }
 
 function renderBlocks(c) {
-    const activeEngine = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
     const descriptions = {
         "info": "Appends a clean status block with current weather, time, location, and character clothing.",
         "summary": "A rolling summary the AI updates each response so it never forgets key events or details.",
@@ -888,56 +826,21 @@ function renderBlocks(c) {
     const grid = $(`<div class="ps-grid"></div>`);
     hardcodedLogic.blocks.forEach(b => {
         const isSel = localProfile.blocks.includes(b.id);
-        
-        const isOverridden = activeEngine && activeEngine[b.id] && activeEngine[b.id].trim() !== "";
-        const overrideText = isOverridden ? `<div style="color: #10b981; font-weight: 800; font-size: 0.65rem; margin-top: 4px; text-transform: uppercase;">Using Engine Version</div>` : "";
-
-        const card = $(`<div class="ps-card ${isSel ? 'selected' : ''}" style="${isOverridden ? 'border-color: #10b981; border-width: 2px;' : ''}">
-            <div class="ps-card-title"><span style="${isOverridden && !isSel ? 'color: #10b981;' : ''}">${b.label}</span></div>
-            <div class="ps-card-desc">${descriptions[b.id] || ""}</div>
-            ${overrideText}
+        const recText = b.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
+        const card = $(`<div class="ps-card ${isSel ? 'selected' : ''}">
+            <div class="ps-card-title"><span>${b.label}</span> ${recText}</div>
+            <div class="ps-card-desc" style="position: relative; z-index: 5;">${descriptions[b.id] || ""}</div>
         </div>`);
         card.on("click", (e) => {
             if ($(e.target).closest("a").length) return; 
             if(isSel) localProfile.blocks = localProfile.blocks.filter(i => i !== b.id); else localProfile.blocks.push(b.id);
             saveProfileToMemory(); drawWizard(currentStage);
         }); grid.append(card);
-    });
-    // --- INJECT CUSTOM ENGINE MODULES (STAGE 5) ---
-    const activeMode =[...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
-    if (activeMode && activeMode.customToggles) {
-        const customAddons = activeMode.customToggles.filter(t => t.location === "addons");
-        if (customAddons.length > 0) {
-            grid.append(`<div style="grid-column: 1 / -1; margin-top: 10px;"><div class="ps-rule-title" style="color: #10b981; margin-bottom: 0;">Custom Engine Add-ons</div></div>`);
-            customAddons.forEach(ca => {
-                const isSel = !!localProfile.toggles[ca.id];
-                const card = $(`<div class="ps-card ${isSel ? 'selected' : ''}" style="border-color: ${isSel ? '#10b981' : 'var(--border-color)'}; background: ${isSel ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-panel)'};">
-                    <div class="ps-card-title"><span style="color: ${isSel ? '#10b981' : 'var(--text-main)'};">${ca.name}</span></div>
-                    <div class="ps-card-desc">Custom Module Attached to [[${ca.attachPoint}]]</div>
-                </div>`);
-                card.on("click", () => { localProfile.toggles[ca.id] = !localProfile.toggles[ca.id]; saveProfileToMemory(); drawWizard(currentStage); });
-                grid.append(card);
-            });
-        }
-    } c.append(grid);
+    }); c.append(grid);
 }
 
 function renderModels(c) {
     c.empty();
-    const activeEngine = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
-
-    // IF CUSTOM COT EXISTS, SHOW GREEN INDICATOR
-    if (activeEngine && activeEngine.cot && activeEngine.cot.trim() !== "") {
-        c.append(`
-            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 12px; padding: 15px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
-                <i class="fa-solid fa-shield-halved" style="font-size: 1.5rem; color: #10b981;"></i>
-                <div>
-                    <div style="font-weight: bold; color: #10b981; font-size: 0.9rem;">Custom Engine Logic Active</div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">This Engine provides its own [[COT]] and [[prefill]]. Selections below will be overridden by the Engine's code.</div>
-                </div>
-            </div>
-        `);
-    }
     const migrationMap = {
         "cot-english": "cot-v1-english", "cot-arabic": "cot-v1-arabic", "cot-spanish": "cot-v1-spanish", "cot-french": "cot-v1-french",
         "cot-zh": "cot-v1-zh", "cot-ru": "cot-v1-ru", "cot-jp": "cot-v1-jp", "cot-pt": "cot-v1-pt", "cot-english-test": "cot-v2-english"
@@ -1088,32 +991,8 @@ function renderImageGen(c) {
             </div>
 
             <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                <div class="ps-rule-title" style="margin-bottom: 12px;"><i class="fa-solid fa-pen-nib"></i> Generation Triggers & Formatting</div>
+                <div class="ps-rule-title" style="margin-bottom: 12px;"><i class="fa-solid fa-pen-nib"></i> Prompt Formatting</div>
                 
-                <div style="display: flex; gap: 15px; margin-bottom: 15px;">
-                    <div style="flex: 2;">
-                        <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Trigger Mode</div>
-                        <select id="ig_trigger_mode" class="ps-modern-input" style="padding: 8px; font-size: 0.8rem; cursor: pointer;">
-                            <option value="always" ${s.triggerMode === 'always' ? 'selected' : ''}>Always (Every Reply)</option>
-                            <option value="frequency" ${s.triggerMode === 'frequency' ? 'selected' : ''}>After X Replies</option>
-                            <option value="conditional" ${s.triggerMode === 'conditional' ? 'selected' : ''}>Only when character sends a pic</option>
-                            <option value="manual" ${s.triggerMode === 'manual' ? 'selected' : ''}>Manual Button Only</option>
-                        </select>
-                    </div>
-                    <div style="flex: 1; display: ${s.triggerMode === 'frequency' ? 'block' : 'none'};" id="ig_freq_container">
-                        <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Every X Replies</div>
-                        <input type="number" id="ig_auto_freq" class="ps-modern-input" value="${s.autoGenFreq}" min="1" style="padding: 8px; font-size: 0.8rem; text-align: center;" />
-                    </div>
-                </div>
-
-                <div class="ps-toggle-card ${s.previewPrompt ? 'active' : ''}" id="ig_preview_card" style="padding: 12px 18px; margin-bottom: 15px;">
-                    <div style="display:flex; flex-direction:column;">
-                        <span style="font-weight:600; font-size:0.85rem;">Preview Prompt Before Sending</span>
-                        <div style="margin-top:2px; font-size: 0.7rem; color: var(--text-muted);">Show a popup to view or edit the AI's prompt before rendering.</div>
-                    </div>
-                    <div class="ps-switch"></div>
-                </div>
-
                 <div id="ig_prompt_builder" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border-left: 3px solid var(--gold);">
                     <div style="display: flex; gap: 15px; margin-bottom: 10px;">
                         <div style="flex: 1;">
@@ -1220,24 +1099,8 @@ function renderImageGen(c) {
     $("#ig_enable_card").on("click", function() {
         s.enabled = !s.enabled;
         saveProfileToMemory();
-        toggleQuickGenButton(); // <-- ADDED
         if (s.enabled) { $(this).addClass("active"); $(this).css("border-color", "var(--gold)"); $(this).find("span").css("color", "var(--gold)"); $("#ig_main_content").slideDown(200); igFetchComfyLists(); } 
         else { $(this).removeClass("active"); $(this).css("border-color", "var(--border-color)"); $(this).find("span").css("color", "var(--text-main)"); $("#ig_main_content").slideUp(200); }
-    });
-
-    $("#ig_trigger_mode").on("change", (e) => { 
-        s.triggerMode = $(e.target).val(); 
-        saveProfileToMemory(); 
-        toggleQuickGenButton(); // <-- ADDED
-        if (s.triggerMode === 'frequency') $("#ig_freq_container").show(); else $("#ig_freq_container").hide();
-    });
-    $("#ig_auto_freq").on("input", (e) => { let v = parseInt($(e.target).val()); if(v<1)v=1; s.autoGenFreq = v; saveProfileToMemory(); });
-
-    $("#ig_preview_card").on("click", function() {
-        s.previewPrompt = s.previewPrompt === true ? false : true; 
-        saveProfileToMemory();
-        if (s.previewPrompt) $(this).addClass("active");
-        else $(this).removeClass("active");
     });
 
     // Inputs
@@ -1292,7 +1155,7 @@ function renderImageGen(c) {
             s.savedWorkflowStates[oldWorkflow] = {
                 selectedModel: s.selectedModel, selectedSampler: s.selectedSampler, steps: s.steps, cfg: s.cfg, denoise: s.denoise, clipSkip: s.clipSkip,
                 imgWidth: s.imgWidth, imgHeight: s.imgHeight, customSeed: s.customSeed, customNegative: s.customNegative,
-                promptStyle: s.promptStyle, promptPerspective: s.promptPerspective, promptExtra: s.promptExtra, previewPrompt: s.previewPrompt,
+                promptStyle: s.promptStyle, promptPerspective: s.promptPerspective, promptExtra: s.promptExtra,
                 selectedLora: s.selectedLora, selectedLoraWt: s.selectedLoraWt, selectedLora2: s.selectedLora2, selectedLoraWt2: s.selectedLoraWt2,
                 selectedLora3: s.selectedLora3, selectedLoraWt3: s.selectedLoraWt3, selectedLora4: s.selectedLora4, selectedLoraWt4: s.selectedLoraWt4
             };
@@ -1346,15 +1209,6 @@ async function igFetchComfyLists() {
             }
         }
     } catch (e) { console.warn(`[Megumin-Suite] ComfyLists failed`, e); }
-}
-
-function toggleQuickGenButton() {
-    const s = localProfile?.imageGen;
-    if (s && s.enabled && s.triggerMode === 'manual') {
-        $("#kazuma_quick_gen").css("display", "flex");
-    } else {
-        $("#kazuma_quick_gen").css("display", "none");
-    }
 }
 
 async function igTestConnection() {
@@ -1486,104 +1340,8 @@ function showKazumaProgress(text = "Processing...") {
     $("#kazuma_progress_text").text(text); $("#kazuma_progress_overlay").css("display", "flex");
 }
 
-async function igManualGenerate() {
-    const s = localProfile?.imageGen;
-    if (!s || !s.enabled) return;
-    
-    const chat = getContext().chat;
-    if (!chat || chat.length === 0) return toastr.warning("No chat history.");
-
-    // The same Regex used in the Ban List analyzer
-    const badStuffRegex = /(<disclaimer>.*?<\/disclaimer>)|(<guifan>.*?<\/guifan>)|(<danmu>.*?<\/danmu>)|(<options>.*?<\/options>)|```start|```end|<done>|`<done>`|(.*?<\/(?:ksc??|think(?:ing)?)>(\n)?)|(<(?:ksc??|think(?:ing)?)>[\s\S]*?<\/(?:ksc??|think(?:ing)?)>(\n)?)/gs;
-
-    // Grab the last 5 real messages and clean them so the AI doesn't get confused by formatting
-    const lastMessages = chat.filter(m => !m.is_system).slice(-5).map(m => {
-        let text = m.mes;
-        text = text.replace(badStuffRegex, "");
-        text = text.replace(/<details>[\s\S]*?<\/details>/gs, "");
-        text = text.replace(/<summary>[\s\S]*?<\/summary>/gs, "");
-        text = text.replace(/<[^>]*>?/gm, "");
-        return `${m.name}: ${text.trim()}`;
-    }).join("\n\n");
-    
-    let styleStr = "Use a comma-separated list of detailed keywords and visual descriptors.";
-    if (s.promptStyle === "illustrious") styleStr = "Use Danbooru-style tags separated by commas.";
-    else if (s.promptStyle === "sdxl") styleStr = "Use natural, descriptive prose and full sentences.";
-    
-    let perspStr = "Describe the entire environment and atmosphere.";
-    if (s.promptPerspective === "pov") perspStr = "Frame the scene strictly from a First-Person (POV) perspective.";
-    else if (s.promptPerspective === "character") perspStr = "Focus intensely on the character's appearance.";
-    
-    // Load the data into the global variable for the interceptor
-    activeImageGenRequest = {
-        chatText: lastMessages,
-        styleStr: styleStr,
-        perspStr: perspStr,
-        extraStr: s.promptExtra || "None"
-    };
-
-    showKazumaProgress("Analyzing Scene...");
-    
-    try {
-        // Fire the request DIRECTLY. No preset switching!
-        let rawOutput = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
-        
-        // Clean the thinking block out of the response
-        let promptText = rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-        
-        // Clean up in case the AI wraps it in image tags anyway
-        const imgRegex = /<img\s+prompt=["'](.*?)["']\s*\/?>/i;
-        const match = promptText.match(imgRegex);
-        if (match) promptText = match[1];
-
-        toastr.info("Sending to ComfyUI...", "Megumin Suite");
-        igGenerateWithComfy(promptText, null);
-    } catch(e) {
-        console.error(e);
-        $("#kazuma_progress_overlay").hide();
-        toastr.error("Manual generation failed.");
-    } finally {
-        // Always reset the interceptor!
-        activeImageGenRequest = null;
-    }
-}
-
 async function igGenerateWithComfy(positivePrompt, target = null) {
     const s = localProfile.imageGen;
-    let finalPrompt = positivePrompt;
-
-    // --- INTERCEPT PROMPT IF PREVIEW IS ENABLED ---
-    if (s.previewPrompt) {
-        $("#kazuma_progress_overlay").hide(); // Hide the progress bar temporarily
-        
-        const $content = $(`
-            <div style="display:flex; flex-direction:column; gap:10px; font-family: 'Inter', sans-serif;">
-                <div style="font-size: 0.85rem; color: var(--text-muted);">Review or modify the prompt before it goes to ComfyUI.</div>
-                <textarea class="ps-modern-input ig-preview-textarea" style="height: 150px; resize: vertical; font-family: monospace; font-size: 0.85rem; padding: 10px;">${finalPrompt}</textarea>
-            </div>
-        `);
-        
-        // CRITICAL FIX: SillyTavern destroys the popup HTML when it closes. 
-        // We MUST capture the text while the user is typing!
-        let liveText = finalPrompt;
-        $content.find(".ig-preview-textarea").on("input", function() { 
-            liveText = $(this).val(); 
-        });
-        
-        const popup = new Popup($content, POPUP_TYPE.CONFIRM, "Preview Image Prompt", { okButton: "Send to ComfyUI", cancelButton: "Cancel", wide: true });
-        const confirmed = await popup.show();
-        
-        if (!confirmed) {
-            toastr.info("Generation cancelled.");
-            return;
-        }
-        
-        finalPrompt = liveText.trim();
-        if (!finalPrompt) return toastr.warning("Prompt cannot be empty.");
-        
-        showKazumaProgress("Preparing to Render..."); // Bring progress bar back
-    }
-
     let workflowRaw;
     try {
         const res = await fetch('/api/sd/comfy/workflow', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ file_name: s.currentWorkflowName }) });
@@ -1599,7 +1357,7 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
         if (node.inputs) {
             for (const key in node.inputs) {
                 const val = node.inputs[key];
-                if (val === "%prompt%") node.inputs[key] = finalPrompt;
+                if (val === "%prompt%") node.inputs[key] = positivePrompt;
                 if (val === "%negative_prompt%") node.inputs[key] = s.customNegative || "";
                 if (val === "%seed%") { node.inputs[key] = finalSeed; seedInjected = true; }
                 if (val === "%sampler%") node.inputs[key] = s.selectedSampler || "euler";
@@ -1658,9 +1416,9 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                         const mediaAttach = { 
                             url: savedPath, 
                             type: "image", 
-                            source: "generated",
-                            title: finalPrompt, 
-                            generation_type: "free"
+                            source: "generated", 
+                            title: positivePrompt, 
+                            generation_type: "free",
                         };
 
                         if (target && target.message) {
@@ -1683,227 +1441,100 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
 }
 
 // -------------------------------------------------------------
-// AI GENERATION & BAN LIST HELPER FUNCTIONS (RESTORED)
-// -------------------------------------------------------------
-function getCleanedChatHistory() {
-    const context = getContext();
-    if (!context.chat || context.chat.length === 0) return "";
-
-    const aiMessages = context.chat.filter(m => !m.is_user && !m.is_system).slice(-50);
-    const badStuffRegex = /(<disclaimer>.*?<\/disclaimer>)|(<guifan>.*?<\/guifan>)|(<danmu>.*?<\/danmu>)|(<options>.*?<\/options>)|```start|```end|<done>|`<done>`|(.*?<\/(?:ksc??|think(?:ing)?)>(\n)?)|(<(?:ksc??|think(?:ing)?)>[\s\S]*?<\/(?:ksc??|think(?:ing)?)>(\n)?)/gs;
-
-    let cleanedMessages = aiMessages.map(m => {
-        let text = m.mes;
-        text = text.replace(badStuffRegex, "");
-        text = text.replace(/<details>[\s\S]*?<\/details>/gs, "");
-        text = text.replace(/<summary>[\s\S]*?<\/summary>/gs, "");
-        text = text.replace(/<[^>]*>?/gm, "");
-        return text.trim();
-    });
-
-    cleanedMessages = cleanedMessages.filter(t => t.length > 0);
-    return cleanedMessages.join("\n\n");
-}
-
-async function analyzeSlopDirectly(chatText) {
-    activeBanListChat = chatText; 
-    try {
-        let rawOutput = await generateQuietPrompt({ prompt: "___PS_BANLIST___" });
-        let text = rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-        return text;
-    } catch (e) {
-        console.error(`[${extensionName}] Ban List Analysis Failed:`, e);
-        return null;
-    } finally {
-        activeBanListChat = null; 
-    }
-}
-
-async function useMeguminEngine(task) {
-    const selector = $("#settings_preset_openai");
-    const option = selector.find(`option`).filter(function () { return $(this).text().trim() === TARGET_PRESET_NAME; });
-    let originalValue = null;
-
-    if (option.length) {
-        originalValue = selector.val();
-        selector.val(option.val()).trigger("change");
-        await new Promise(r => setTimeout(r, 2000));
-    } else {
-        toastr.error(`"${TARGET_PRESET_NAME}" not found in OpenAI presets.`);
-        return;
-    }
-
-    try {
-        await task();
-    } catch (e) {
-        console.error(`[${extensionName}] AI Error:`, e);
-    } finally {
-        await new Promise(r => setTimeout(r, 500));
-        selector.val(originalValue).trigger("change");
-    }
-}
-
-async function runMeguminTask(orderText) {
-    activeGenerationOrder = orderText;
-    try {
-        return await generateQuietPrompt({ prompt: "___PS_DUMMY___" });
-    } finally {
-        activeGenerationOrder = null;
-    }
-}
-
-$("body").on("input", "#ps_main_current_rule", function () {
-    localProfile.aiRule = $(this).val(); saveProfileToMemory();
-});
-
-// -------------------------------------------------------------
 // EVENT LISTENERS & INITS
 // -------------------------------------------------------------
 function buildBaseDict() {
     const dict = {};
     if (!localProfile) return dict;
 
-    // 1. GLOBAL DEFAULTS (Language, Pronouns, Word Count)
     const targetLang = (localProfile.userLanguage && localProfile.userLanguage.trim() !== "") 
                         ? localProfile.userLanguage.toUpperCase() 
                         : "ENGLISH";
+                        
     dict["[[Language]]"] = `[LANGUAGE RULE]\nALL OUTPUT EXCEPT THINKING MUST BE IN ${targetLang} ONLY.`;
 
     if (localProfile.userPronouns === "male") dict["[[pronouns]]"] = `{{user}} is male. Always portray and address him as such.`;
     else if (localProfile.userPronouns === "female") dict["[[pronouns]]"] = `{{user}} is female. Always portray and address her as such.`;
-    
-    const wordCountStr = (localProfile.userWordCount && String(localProfile.userWordCount).trim() !== "") 
-        ? String(localProfile.userWordCount).trim() 
-        : null;
-    
-    if (wordCountStr) {
-        dict["[[count]]"] = `— maximum ${wordCountStr} words`;
-    } else { 
-        dict["[[count]]"] = ""; 
+    if (localProfile.userWordCount && String(localProfile.userWordCount).trim() !== "") {
+        dict["[[count]]"] = `— maximum ${String(localProfile.userWordCount).trim()} words`;
+    } else {
+        dict["[[count]]"] = "";
     }
 
-    // 2. STANDARD STAGE SELECTIONS (Stage 2, 4, 5, 6)
-    
-    // Personality (Stage 2) - Will be overwritten later if Custom Engine is active
+    const mData = hardcodedLogic.modes.find(m => m.id === localProfile.mode);
+    if (mData) {
+        dict["[[prompt1]]"] = mData.p1; dict["[[prompt2]]"] = mData.p2;
+        dict["[[prompt3]]"] = mData.p3; dict["[[prompt4]]"] = mData.p4;
+        dict["[[prompt5]]"] = mData.p5; dict["[[prompt6]]"] = mData.p6;
+        dict["[prompt1]"] = mData.p1; dict["[prompt2]"] = mData.p2;
+        dict["[prompt3]"] = mData.p3; dict["[prompt4]"] = mData.p4;
+        dict["[prompt5]"] = mData.p5; dict["[prompt6]"] = mData.p6;
+        dict["[[AI1]]"] = mData.A1; dict["[[AI2]]"] = mData.A2;
+    }
+
     const pData = hardcodedLogic.personalities.find(p => p.id === localProfile.personality);
-    dict["[[main]]"] = pData ? pData.content : "";
-    dict["[[AI1]]"] = "Understood."; // Default
-    dict["[[AI2]]"] = "Understood."; // Default
-
-    if (localProfile.personality === "megumin") {
-        dict["[[AI1]]"] = "Fine i read the rules.";
-        dict["[[AI2]]"] = "OK i Understnd it.";
+    if (pData) {
+        dict["[[main]]"] = pData.content;
+        if (localProfile.personality === "megumin") {
+            dict["[[AI1]]"] = "Fine i read the rules.";
+            dict["[[AI2]]"] = "OK i Understnd it.";
+        }
     }
 
-    // Standard Toggles & Addons
     if (localProfile.toggles.ooc) dict["[[OOC]]"] = hardcodedLogic.toggles.ooc.content;
     if (localProfile.toggles.control) dict["[[control]]"] = hardcodedLogic.toggles.control.content;
     if (localProfile.aiRule) dict["[[aiprompt]]"] = localProfile.aiRule;
-    localProfile.addons.forEach(aId => { 
-        const item = hardcodedLogic.addons.find(a => a.id === aId); 
-        if(item) dict[item.trigger] = item.content; 
-    });
 
-    // Stage 5 Defaults (Format Blocks)
-    localProfile.blocks.forEach(bId => { 
-        const item = hardcodedLogic.blocks.find(b => b.id === bId); 
-        if(item) dict[item.trigger] = item.content; 
-    });
+    localProfile.addons.forEach(aId => { const item = hardcodedLogic.addons.find(a => a.id === aId); if(item) dict[item.trigger] = item.content; });
+    localProfile.blocks.forEach(bId => { const item = hardcodedLogic.blocks.find(b => b.id === bId); if(item) dict[item.trigger] = item.content; });
 
-    // Stage 6 Defaults (CoT Framework & Language)
-    const modData = hardcodedLogic.models.find(m => m.id === localProfile.model);
-    if (modData) {
-        dict["[[COT]]"] = modData.content;
-        if (modData.prefill) dict["[[prefill]]"] = modData.prefill;
-    }
+    const wordCountStr = (localProfile.userWordCount && String(localProfile.userWordCount).trim() !== "") 
+        ? String(localProfile.userWordCount).trim() 
+        : null;
 
-    // MVU Logic
     if (localProfile.blocks.includes("mvu")) {
         let baseMvu = hardcodedLogic.blocks.find(b => b.id === "mvu").content;
         if (wordCountStr) dict["[[MVU]]"] = baseMvu.replace("[[count]]", `maximum ${wordCountStr} words`);
         else dict["[[MVU]]"] = baseMvu.replace("[[count]]", "...");
     } else {
-        dict["[[MVU]]"] = wordCountStr ? `{Main narrative response — maximum ${wordCountStr} words}` : `{Main narrative response}`;
+        if (wordCountStr) dict["[[MVU]]"] = `{Main narrative response — maximum ${wordCountStr} words}`;
+        else dict["[[MVU]]"] = `{Main narrative response}`;
     }
-
-    // 3. ENGINE OVERRIDES (The "Superior" Layer)
-    // This part runs last so it can overwrite standard Stage choices
-    const allAvailableModes = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])];
-    const activeEngine = allAvailableModes.find(m => m.id === localProfile.mode);
-    const isCustom = activeEngine && !hardcodedLogic.modes.find(x => x.id === activeEngine.id);
-
-    if (activeEngine) {
-        // Map p1-p6
-        for (let i = 1; i <= 6; i++) {
-            const val = activeEngine[`p${i}`] || "";
-            dict[`[[prompt${i}]]`] = val;
-            dict[`[prompt${i}]`] = val;
-        }
-
-        // Custom Engines kill [[main]] personality ONLY if they are truly built from scratch
-        if (isCustom && activeEngine.isCoreClone !== true) {
-            dict["[[main]]"] = "";
-        }
-
-        // Engine-specific AI Prefills (If defined in the engine)
-        if (activeEngine.A1) dict["[[AI1]]"] = activeEngine.A1;
-        if (activeEngine.A2) dict["[[AI2]]"] = activeEngine.A2;
-
-        // Engine-specific Block Overwrites (Summary, CoT, etc.)
-        if (activeEngine.cot && activeEngine.cot.trim() !== "") dict["[[COT]]"] = activeEngine.cot;
-        if (activeEngine.prefill && activeEngine.prefill.trim() !== "") dict["[[prefill]]"] = activeEngine.prefill;
-        if (localProfile.blocks.includes("info") && activeEngine.info) dict["[[infoblock]]"] = activeEngine.info;
-        if (localProfile.blocks.includes("summary") && activeEngine.summary) dict["[[summary]]"] = activeEngine.summary;
-        if (localProfile.blocks.includes("cyoa") && activeEngine.cyoa) dict["[[cyoa]]"] = activeEngine.cyoa;
-
-        // Custom Toggles Appender
-        if (activeEngine.customToggles) {
-            activeEngine.customToggles.forEach(ct => {
-                if (localProfile.toggles[ct.id]) {
-                    const targetKey = "[[prompt" + ct.attachPoint.replace('p','') + "]]";
-                    if (dict[targetKey] !== undefined) {
-                        dict[targetKey] += `\n\n${ct.content}`;
-                    }
-                }
-            });
-        }
+    
+    const modData = hardcodedLogic.models.find(m => m.id === localProfile.model);
+    if (modData) {
+        dict["[[COT]]"] = modData.content;
+        if (modData.prefill) dict["[[prefill]]"] = modData.prefill;
     }
-
-    // 4. FINAL INJECTIONS (Banlist & Image Gen)
+    
     if (localProfile.banList && localProfile.banList.length > 0) {
         const banStr = localProfile.banList.map(b => `- ${b}`).join("\n");
         dict["[[banlist]]"] = `[BAN LIST]\nNever rely on these clichés, tropes, or repetitive patterns. They are dead language:\n${banStr}`;
     } else {
         dict["[[banlist]]"] = "";
     }
-
-    if (localProfile.imageGen && localProfile.imageGen.enabled) {
+     if (localProfile.imageGen && localProfile.imageGen.enabled) {
         const ig = localProfile.imageGen;
-        let shouldInject = false;
-        let conditionalText = "";
-        const mode = ig.triggerMode || "always";
+        
+        // 1. Build Style Instructions
+        let styleStr = "Use a comma-separated list of detailed keywords and visual descriptors.";
+        if (ig.promptStyle === "illustrious") styleStr = "Use Danbooru-style tags separated by commas (e.g., 1girl, solo, highly detailed). Focus strictly on anime aesthetics.";
+        else if (ig.promptStyle === "sdxl") styleStr = "Use natural, descriptive prose and full sentences. Focus on photorealism, dynamic lighting, and intricate textures.";
+        
+        // 2. Build Perspective Instructions
+        let perspStr = "Describe the entire environment, atmosphere, and the subjects within it (Cinematic scene).";
+        if (ig.promptPerspective === "pov") perspStr = "Frame the scene strictly from a First-Person (POV) perspective, looking directly at the subject.";
+        else if (ig.promptPerspective === "character") perspStr = "Focus intensely on the character's appearance, clothing, and expression. Ignore background details (Portrait).";
+        
+        const extraStr = ig.promptExtra ? `\nExtra Details: ${ig.promptExtra}` : "";
 
-        if (mode === "always") shouldInject = true;
-        else if (mode === "frequency") {
-            const chat = getContext().chat || [];
-            const aiMsgCount = chat.filter(m => !m.is_user && !m.is_system).length;
-            const freq = parseInt(ig.autoGenFreq) || 1;
-            if ((aiMsgCount + 1) % freq === 0) shouldInject = true;
-        } else if (mode === "conditional") {
-            shouldInject = true;
-            conditionalText = "CRITICAL INSTRUCTION: ONLY output the <img prompt=\"...\"> tag if the character is explicitly taking a photo, sending a picture, or sharing an image in this exact moment. If not, do NOT output the image tags at all.\n\n";
-        }
-
-        if (shouldInject) {
-            let styleStr = ig.promptStyle === "illustrious" ? "Use Danbooru-style tags. Focus on anime." : (ig.promptStyle === "sdxl" ? "Use natural descriptive sentences. Focus on photorealism." : "Use keywords.");
-            let perspStr = ig.promptPerspective === "pov" ? "First-Person (POV)." : (ig.promptPerspective === "character" ? "Focus on character appearance." : "Describe environment.");
-            dict["[[img1]]"] = `[IMAGE GENERATION]\n${conditionalText}Style: ${styleStr}\nPerspective: ${perspStr}${ig.promptExtra ? `\nExtra: ${ig.promptExtra}` : ""}`;
-            dict["[[img2]]"] = `<img prompt="prompt">`;
-        } else {
-            dict["[[img1]]"] = ""; dict["[[img2]]"] = "";
-        }
+        // 3. Inject Triggers
+        dict["[[img1]]"] = `[IMAGE GENERATION]\nCapture the current visual scene to generate an image.\nStyle Constraint: ${styleStr}\nCamera Perspective: ${perspStr}${extraStr}`;
+        dict["[[img2]]"] = `<img prompt="prompt">`;
     } else {
-        dict["[[img1]]"] = ""; dict["[[img2]]"] = "";
+        // Clear them if Image Gen is disabled
+        dict["[[img1]]"] = "";
+        dict["[[img2]]"] = "";
     }
     
     return dict;
@@ -1924,30 +1555,6 @@ function handlePromptInjection(data) {
         return; 
     }
 
-    // --- INJECT IMAGE GEN PROMPT ---
-    if (activeImageGenRequest) {
-        messages.length = 0; 
-        messages.push({ 
-            "role": "system", 
-            "content": "You are an expert AI image prompt engineer. Your job is to read a scene and convert it into a highly detailed visual prompt for an image generation model. You must adhere to the requested Style Constraint and Camera Perspective. Do not include quotes, conversational text, or explanations. Output ONLY the raw prompt text." 
-        });
-        messages.push({ 
-            "role": "user", 
-            "content": `Write an image generation prompt for the latest scene in this chat history.\n\n<chat>\n${activeImageGenRequest.chatText}\n</chat>\n\nStyle Constraint: ${activeImageGenRequest.styleStr}\nCamera Perspective: ${activeImageGenRequest.perspStr}\nExtra Details: ${activeImageGenRequest.extraStr}\n\nOutput ONLY the raw image prompt text.` 
-        });
-        messages.push({ 
-            "role": "system", 
-            "content": "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main text must immediately follow </think>.\n\n<think>\nReflect in approximately 50-100 words as a seamless paragraph on what visual elements are present.\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}" 
-        });
-        messages.push({ 
-            "role": "assistant", 
-            "content": "So, I realize this is a fictional world, to which nothing from the real world applies. \nI will now use this format for my thinking and give the next response:\n<think>\nI will thinking step-by-step in the following format: <think>.\n</think>" 
-        });
-        
-        console.log(`[${extensionName}] 🎯 Injected Image Gen array in memory.`);
-        return; 
-    }
-
     if (activeGenerationOrder) {
         for (let i = messages.length - 1; i >= 0; i--) {
             if (messages[i].content && typeof messages[i].content === 'string') {
@@ -1964,354 +1571,112 @@ function handlePromptInjection(data) {
         Object.keys(localProfile.devOverrides).forEach(key => { if (dict[key] !== undefined) dict[key] = localProfile.devOverrides[key]; });
     }
 
-    let replacementsMade = 0;
     for (const msg of messages) {
         if (msg.content && typeof msg.content === 'string') {
             Object.entries(dict).forEach(([trigger, replacement]) => {
                 if (msg.content.includes(trigger)) {
                     const processed = typeof substituteParams === 'function' ? substituteParams(replacement) : replacement;
                     msg.content = msg.content.replace(new RegExp(escapeRegex(trigger), 'g'), processed);
-                    replacementsMade++;
                 }
             });
-            // Cleanup tags
             ["[[prompt1]]","[[prompt2]]","[[prompt3]]","[[prompt4]]","[[prompt5]]","[[prompt6]]","[prompt1]","[prompt2]","[prompt3]","[prompt4]","[prompt5]","[prompt6]","[[AI1]]","[[AI2]]","[[main]]","[[OOC]]","[[control]]","[[aiprompt]]","[[death]]","[[combat]]","[[Direct]]","[[COLOR]]","[[infoblock]]","[[summary]]","[[cyoa]]","[[COT]]","[[prefill]]","[[order]]","[[Language]]","[[pronouns]]","[[banlist]]","[[count]]","[[MVU]]","[[img1]]","[[img2]]"].forEach(tr => {
                 if(msg.content.includes(tr)) msg.content = msg.content.replace(new RegExp(escapeRegex(tr), 'g'), "");
             });
         }
-    }
-    
-    if (replacementsMade > 0 && !activeGenerationOrder) {
-        console.log(`[${extensionName}] ✅ Executed ${replacementsMade} block replacements.`);
     }
 }
 
 $("body").on("click", "#ps_btn_next", function() { if (currentStage < stagesUI.length - 1) drawWizard(currentStage + 1); });
 $("body").on("click", "#ps_btn_prev", function() { if (currentStage > 0) drawWizard(currentStage - 1); });
 
-// -------------------------------------------------------------
-// DEV MODE: VISUAL ENGINE BUILDER
-// -------------------------------------------------------------
-function renderDevMode(view = "landing", selectedModeId = null, passedModeData = null) {
-    const c = $("#ps_stage_content");
-    c.empty();
-    $("#ps_btn_prev, #ps_btn_next").hide();
-    $(".ps-dot").removeClass("active");
-    $("#ps_breadcrumb_num").text("DEV");
-    $(".ps-sidebar").hide(); 
+function renderDevMode() {
+    $("#ps_stage_title").text("Developer Mode"); $("#ps_stage_sub").text("Override raw prompt values for this profile.");
+    $(".ps-dot").removeClass("active"); $("#ps_breadcrumb_num").text("DEV");
+    const c = $("#ps_stage_content"); c.empty();
+    const dict = buildBaseDict(); 
+    if (!localProfile.devOverrides) localProfile.devOverrides = {};
+    let isGlobalDevMode = false;
 
-    // Update Dev button visuals
-    $("#ps_btn_dev_mode")
-        .html(`<i class="fa-solid fa-right-from-bracket"></i> Exit Dev`)
-        .css("color", "#10b981");
-
-    if (!extension_settings[extensionName].customModes) extension_settings[extensionName].customModes = [];
-
-    // --- VIEW 1: DASHBOARD (Merged Landing & List) ---
-    if (view === "landing") {
-        $("#ps_stage_title").text("Engine Builder");
-        $("#ps_stage_sub").text("Design your own chronological AI logic flow. Clone an existing template or start from scratch.");
-
-        // Top Action Bar (Moved Import up here!)
-        c.append(`
-            <div style="display: flex; gap: 15px; margin-top: 10px; margin-bottom: 30px;">
-                <button id="dev_btn_new" class="ps-modern-btn primary" style="background: #10b981; color: #fff; flex: 1; padding: 12px; font-size: 1rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> Create Blank Engine</button>
-                <button id="dev_btn_import" class="ps-modern-btn secondary" style="flex: 1; padding: 12px; font-size: 1rem;"><i class="fa-solid fa-file-import"></i> Import Engine (JSON)</button>
-                <input type="file" id="dev_import_file" accept=".json" style="display:none;" />
-            </div>
-        `);
-
-        // Event Listeners for Top Bar
-        $("#dev_btn_new").on("click", () => renderDevMode("editor", "NEW"));
-        $("#dev_btn_import").on("click", () => $("#dev_import_file").click());
-        $("#dev_import_file").on("change", function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const imported = JSON.parse(e.target.result);
-                    imported.id = "custom_" + Date.now(); // Ensure unique ID on import
-                    extension_settings[extensionName].customModes.push(imported);
-                    saveSettingsDebounced();
-                    toastr.success(`Imported ${imported.label}!`);
-                    renderDevMode("landing"); // Refresh UI
-                } catch(e) { toastr.error("Invalid JSON file."); }
-            };
-            reader.readAsText(file);
-        });
-
-        // --- SECTION 1: CORE TEMPLATES (CLONE) ---
-        c.append(`<div class="ps-rule-title" style="color: var(--gold); margin-bottom: 12px;"><i class="fa-solid fa-cube"></i> Core Templates (Clone)</div>`);
-        const coreGrid = $(`<div class="ps-grid" style="margin-bottom: 30px;"></div>`); // Added margin-bottom so it breathes before the next section
-        hardcodedLogic.modes.forEach(m => {
-            const card = $(`
-                <div class="ps-card" style="justify-content: space-between;">
-                    <div style="width: 100%;">
-                        <div class="ps-card-title"><span>${m.label}</span></div>
-                        <div class="ps-card-desc">System Default Engine</div>
-                    </div>
-                    <div style="width: 100%; margin-top: 20px;">
-                        <button class="ps-modern-btn secondary dev-clone" style="width: 100%; padding: 8px; font-size: 0.8rem; border-color: var(--gold); color: var(--gold);"><i class="fa-solid fa-copy"></i> Clone & Edit</button>
-                    </div>
+    const globalToggleCard = $(`
+        <div class="ps-toggle-card" id="ps_dev_global_card" style="margin-bottom: 24px; padding: 14px 20px; border-color: var(--gold);">
+            <div style="display:flex; flex-direction:column;">
+                <span style="font-weight:700; color: var(--gold);"><i class="fa-solid fa-earth-americas"></i> Apply Overrides Globally</span>
+                <div style="margin-top:4px; font-size: 0.75rem; color: var(--text-muted);">
+                    When active, saving or restoring will apply to <b>ALL</b> characters, groups, and defaults.<br>
+                    <i>(Safety: The <b>[[aiprompt]]</b> writing style cannot be globally overridden.)</i>
                 </div>
-            `);
-            card.find(".dev-clone").on("click", () => renderDevMode("editor", m.id));
-            coreGrid.append(card);
-        });
-        c.append(coreGrid);
+            </div>
+            <div class="ps-switch" id="ps_dev_global_switch"></div>
+        </div>
+    `);
 
-        // --- SECTION 2: YOUR CUSTOM ENGINES ---
-        const customModes = extension_settings[extensionName].customModes || [];
-        c.append(`<div class="ps-rule-title" style="color: #10b981; margin-bottom: 12px;"><i class="fa-solid fa-microchip"></i> Your Custom Engines</div>`);
-        
-        if (customModes.length === 0) {
-            c.append(`<div style="padding: 20px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: 12px; margin-bottom: 30px;">No custom engines yet. Create or import one above!</div>`);
-        } else {
-            const customGrid = $(`<div class="ps-grid" style="margin-bottom: 30px;"></div>`);
-            customModes.forEach(m => {
-                const card = $(`
-                    <div class="ps-card" style="border-color: #10b981; background: rgba(16, 185, 129, 0.05); justify-content: space-between;">
-                        <div style="width: 100%;">
-                            <div class="ps-card-title"><span style="color: #10b981;">${m.label}</span></div>
-                            <div class="ps-card-desc">Custom User Logic Flow</div>
-                        </div>
-                        <div style="display: flex; gap: 8px; margin-top: 20px; width: 100%;">
-                            <button class="ps-modern-btn secondary dev-export" style="flex: 1; padding: 6px; font-size: 0.8rem; border-color: rgba(255,255,255,0.2);" title="Export"><i class="fa-solid fa-download"></i></button>
-                            <button class="ps-modern-btn primary dev-edit" style="flex: 2; padding: 6px; font-size: 0.8rem; background: var(--gold); color: #000;"><i class="fa-solid fa-pen"></i> Edit</button>
-                            <button class="ps-modern-btn secondary dev-delete" style="flex: 1; padding: 6px; font-size: 0.8rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);" title="Delete"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </div>
-                `);
-                
-                card.find(".dev-edit").on("click", () => renderDevMode("editor", m.id));
-                card.find(".dev-export").on("click", () => {
-                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(m));
-                    const downloadAnchorNode = document.createElement('a');
-                    downloadAnchorNode.setAttribute("href", dataStr);
-                    downloadAnchorNode.setAttribute("download", m.label.replace(/\s+/g, '_') + ".json");
-                    document.body.appendChild(downloadAnchorNode);
-                    downloadAnchorNode.click();
-                    downloadAnchorNode.remove();
-                });
-                card.find(".dev-delete").on("click", () => {
-                    if (confirm(`Delete ${m.label}?`)) {
-                        extension_settings[extensionName].customModes = extension_settings[extensionName].customModes.filter(x => x.id !== m.id);
-                        saveSettingsDebounced(); renderDevMode("landing");
-                    }
-                });
-                customGrid.append(card);
-            });
-            c.append(customGrid);
-        }
+    globalToggleCard.on("click", function() {
+        isGlobalDevMode = !isGlobalDevMode;
+        if (isGlobalDevMode) { $(this).addClass("active"); $(this).css("background", "rgba(245, 158, 11, 0.05)"); } 
+        else { $(this).removeClass("active"); $(this).css("background", "var(--bg-panel)"); }
+    });
+    c.append(globalToggleCard);
 
-        return;
-    }
-
-    // --- VIEW 3: EDITOR ---
-    if (view === "editor") {
-        let modeData;
-        let isNew = false;
-        if (passedModeData) { 
-            modeData = passedModeData; 
-        } else if (selectedModeId === "NEW") { 
-            isNew = true; 
-            const baseCoT = hardcodedLogic.models.find(m => m.id === "cot-v1-english");
-            modeData = { 
-                id: "custom_" + Date.now(), 
-                label: "New Custom Engine", 
-                isCoreClone: false,
-                p1: "", p2: "", p3: "", p4: "", p5: "", p6: "",
-                cot: baseCoT.content, 
-                prefill: baseCoT.prefill,
-                cyoa: hardcodedLogic.blocks.find(b => b.id === "cyoa").content, 
-                info: hardcodedLogic.blocks.find(b => b.id === "info").content, 
-                summary: hardcodedLogic.blocks.find(b => b.id === "summary").content, 
-                customToggles: [] 
-            };
-        } else {
-            const coreMatch = hardcodedLogic.modes.find(m => m.id === selectedModeId);
-            if (coreMatch) {
-                isNew = true; modeData = JSON.parse(JSON.stringify(coreMatch));
-                modeData.id = "custom_" + Date.now(); modeData.label = coreMatch.label + " (Copy)";
-                modeData.isCoreClone = true;
-                const baseCoT = hardcodedLogic.models.find(m => m.id === "cot-v1-english");
-                if(!modeData.cot) modeData.cot = baseCoT.content;
-                if(!modeData.prefill) modeData.prefill = baseCoT.prefill;
-                if(!modeData.cyoa) modeData.cyoa = hardcodedLogic.blocks.find(b => b.id === "cyoa").content;
-                if(!modeData.info) modeData.info = hardcodedLogic.blocks.find(b => b.id === "info").content;
-                if(!modeData.summary) modeData.summary = hardcodedLogic.blocks.find(b => b.id === "summary").content;
-            } else { 
-                modeData = extension_settings[extensionName].customModes.find(m => m.id === selectedModeId); 
-            }
-        }
-        if (!modeData.customToggles) modeData.customToggles = [];
-
-        $("#ps_stage_title").text("Visual Engine Builder");
-        c.append(`
-            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <button id="dev_back_list" class="ps-modern-btn secondary"><i class="fa-solid fa-arrow-left"></i> Back</button>
-                <input type="text" id="dev_mode_name" class="ps-modern-input" value="${modeData.label}" style="flex: 1; font-weight: bold;" />
-                <button id="dev_save_mode" class="ps-modern-btn primary" style="background: #10b981; color: #fff;"><i class="fa-solid fa-floppy-disk"></i> Save Engine</button>
+    const wrapper = $(`<div style="display:flex; flex-direction:column; gap: 16px;"></div>`);
+    Object.keys(dict).sort().forEach(trigger => {
+        if (!trigger.startsWith("[[")) return; 
+        const defaultVal = dict[trigger]; const isOverridden = localProfile.devOverrides[trigger] !== undefined; const currentVal = isOverridden ? localProfile.devOverrides[trigger] : defaultVal;
+        const item = $(`
+            <div style="background: var(--bg-panel); border: 1px solid ${isOverridden ? 'var(--gold)' : 'var(--border-color)'}; border-radius: 8px; padding: 12px; transition: 0.2s;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-weight: bold; color: ${isOverridden ? 'var(--gold)' : 'var(--accent-color)'}; font-family: monospace;">${trigger}</span>
+                    <span class="dev-status" style="font-size: 0.7rem; color: var(--gold); font-weight: bold; display: ${isOverridden ? 'block' : 'none'};">MODIFIED</span>
+                </div>
+                <textarea class="ps-modern-input dev-textarea" style="height: 120px; resize: vertical; font-family: monospace; font-size: 0.8rem; background: #000;">${currentVal}</textarea>
+                <div style="display: flex; gap: 10px; margin-top: 10px; justify-content: flex-end;">
+                    <button class="ps-modern-btn secondary dev-btn-restore" style="padding: 6px 12px; font-size: 0.75rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); display: ${isOverridden ? 'flex' : 'none'};"><i class="fa-solid fa-rotate-left"></i> Restore Default</button>
+                    <button class="ps-modern-btn primary dev-btn-save" style="padding: 6px 12px; font-size: 0.75rem; background: var(--text-main); color: #000;"><i class="fa-solid fa-floppy-disk"></i> Save Override</button>
+                </div>
             </div>
         `);
-        $("#dev_back_list").on("click", () => renderDevMode("landing"));
-
-        const saveCurrentTextState = () => {
-            modeData.label = $("#dev_mode_name").val();
-            if ($("#dev_edit_p1").length) modeData.p1 = $("#dev_edit_p1").val(); 
-            modeData.p3 = $("#dev_edit_p3").val();
-            modeData.p4 = $("#dev_edit_p4").val(); modeData.p5 = $("#dev_edit_p5").val(); modeData.p6 = $("#dev_edit_p6").val();
-            modeData.cot = $("#dev_edit_cot").val(); modeData.cyoa = $("#dev_edit_cyoa").val();
-            modeData.info = $("#dev_edit_info").val(); modeData.summary = $("#dev_edit_summary").val(); modeData.prefill = $("#dev_edit_prefill").val();
-        };
-
-        // UI Helpers
-        const createInsertPoint = (attach) => `<div class="dev-insert-point" data-attach="${attach}" style="text-align: center; padding: 10px; cursor: pointer; color: var(--gold); border: 2px dashed rgba(245,158,11,0.3); border-radius: 8px; margin: 10px 0;"><i class="fa-solid fa-plus"></i> Add Module Here</div>`;
-        const createLockedBlock = (t, c) => `<div style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px;"><div style="font-weight: bold; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 6px;">${t} <i class="fa-solid fa-lock" style="float: right;"></i></div><div style="font-family: monospace; font-size: 0.75rem; color: #666; white-space: pre-wrap;">${c}</div></div>`;
-        const createEditableBlock = (t, k, v) => `<div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px;"><div style="font-weight: bold; color: var(--accent-color); font-size: 0.8rem; margin-bottom: 6px;">${t}</div><textarea id="dev_edit_${k}" class="ps-modern-input" style="height: 80px; resize: vertical; font-family: monospace; font-size: 0.8rem;">${v || ""}</textarea></div>`;
-
-        const flow = $(`<div style="display: flex; flex-direction: column;"></div>`);
         
-        if (modeData.isCoreClone) {
-            // Cloned Core Engine: P1 and P2 are locked and visible.
-            flow.append(createLockedBlock("[[prompt1]]", modeData.p1));
-            flow.append(createLockedBlock("[[prompt2]]", modeData.p2));
-        } else {
-            // Brand New Engine: P1 is editable. P2 does not exist.
-            flow.append(createEditableBlock("[[prompt1]]", "p1", modeData.p1));
-        }
-
-        flow.append(createEditableBlock("[[prompt3]]", "p3", modeData.p3));
-        
-        // Modules
-        const modRender = (ap) => {
-            const wrap = $("<div></div>");
-            modeData.customToggles.filter(t => t.attachPoint === ap).forEach(m => {
-                const div = $(`
-                    <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid #10b981; border-radius: 8px; padding: 10px; margin-bottom: 10px;">
-                        <div style="display: flex; justify-content: space-between; font-weight: bold; color: #10b981; font-size: 0.75rem; margin-bottom: 5px;">
-                            <span>${m.name}</span>
-                            <div style="display:flex; gap: 8px;">
-                                <i class="ps-btn-edit-mod fa-solid fa-pen-to-square" style="cursor:pointer; color:var(--gold);"></i>
-                                <i class="ps-btn-del-mod fa-solid fa-trash" style="cursor:pointer; color:#ef4444;"></i>
-                            </div>
-                        </div>
-                        <div style="font-size:0.7rem; opacity:0.8; font-family: monospace; white-space: pre-wrap;">${m.content}</div>
-                    </div>
-                `);
-                
-                // DELETE LOGIC
-                div.find(".ps-btn-del-mod").on("click", () => { 
-                    modeData.customToggles = modeData.customToggles.filter(x => x.id !== m.id); 
-                    saveCurrentTextState(); renderDevMode("editor", modeData.id, modeData); 
-                });
-
-                // EDIT LOGIC
-                div.find(".ps-btn-edit-mod").on("click", async () => {
-                    saveCurrentTextState();
-                    const $p = $(`<div style="display:flex; flex-direction:column; gap:10px;">
-                        <input type="text" id="m_n" class="ps-modern-input" value="${m.name}" />
-                        <select id="m_l" class="ps-modern-input">
-                            <option value="settings" ${m.location==='settings'?'selected':''}>Stage 4: Settings</option>
-                            <option value="addons" ${m.location==='addons'?'selected':''}>Stage 5: Add-ons</option>
-                        </select>
-                        <textarea id="m_c" class="ps-modern-input" style="height:150px;">${m.content}</textarea>
-                    </div>`);
-                    
-                    if (await new Popup($p, POPUP_TYPE.CONFIRM, "Edit Module", { okButton: "Save", cancelButton: "Cancel", wide: true }).show()) {
-                        m.name = $p.find("#m_n").val() || "Module";
-                        m.location = $p.find("#m_l").val();
-                        m.content = $p.find("#m_c").val();
-                        renderDevMode("editor", modeData.id, modeData);
-                    }
-                });
-
-                wrap.append(div);
-            }); 
-            return wrap;
-        };
-
-        flow.append(modRender("p3")); flow.append(createInsertPoint("p3"));
-        flow.append(createLockedBlock("[[AI1]]", "Understood."));
-        flow.append(createEditableBlock("[[prompt4]]", "p4", modeData.p4));
-        flow.append(createEditableBlock("[[prompt5]]", "p5", modeData.p5));
-        flow.append(modRender("p5")); flow.append(createInsertPoint("p5"));
-        flow.append(createEditableBlock("[[prompt6]]", "p6", modeData.p6));
-        flow.append(modRender("p6")); flow.append(createInsertPoint("p6"));
-        flow.append(createLockedBlock("[[AI2]]", "Understood."));
-        flow.append(createEditableBlock("[[COT]]", "cot", modeData.cot));
-        flow.append(createEditableBlock("[[cyoa]]", "cyoa", modeData.cyoa));
-        flow.append(createEditableBlock("[[infoblock]]", "info", modeData.info));
-        flow.append(createEditableBlock("[[summary]]", "summary", modeData.summary));
-        flow.append(createEditableBlock("[[prefill]]", "prefill", modeData.prefill));
-
-        c.append(flow);
-
-        // Insertion Point Click
-        flow.find(".dev-insert-point").on("click", async function() {
-            const ap = $(this).attr("data-attach"); saveCurrentTextState();
-            const $p = $(`<div style="display:flex; flex-direction:column; gap:10px;"><input type="text" id="m_n" class="ps-modern-input" placeholder="Module Name" /><select id="m_l" class="ps-modern-input"><option value="settings">Stage 4: Settings</option><option value="addons">Stage 5: Add-ons</option></select><textarea id="m_c" class="ps-modern-input" placeholder="Prompt Content" style="height:100px;"></textarea></div>`);
-            if (await new Popup($p, POPUP_TYPE.CONFIRM, "Add Module", { wide: true }).show()) {
-                const content = $p.find("#m_c").val();
-                if (content) { modeData.customToggles.push({ id: "mod_" + Date.now(), name: $p.find("#m_n").val() || "Module", location: $p.find("#m_l").val(), content: content, attachPoint: ap }); renderDevMode("editor", modeData.id, modeData); }
+        item.find(".dev-btn-save").on("click", function() {
+            const val = item.find(".dev-textarea").val();
+            if (isGlobalDevMode && trigger !== "[[aiprompt]]") {
+                Object.keys(extension_settings[extensionName].profiles).forEach(pk => {
+                    const prof = extension_settings[extensionName].profiles[pk];
+                    if (!prof.devOverrides) prof.devOverrides = {}; prof.devOverrides[trigger] = val;
+                }); toastr.success(`Global override saved for ${trigger}`);
+            } else {
+                if (isGlobalDevMode && trigger === "[[aiprompt]]") toastr.warning(`[[aiprompt]] cannot be applied globally.`);
+                else toastr.success(`Override saved for ${trigger}`);
+                localProfile.devOverrides[trigger] = val;
             }
+            saveProfileToMemory(); item.css("border-color", "var(--gold)"); item.find(".dev-status").show(); item.find(".dev-btn-restore").css("display", "flex");
         });
 
-        // Final Save Click
-        $("#dev_save_mode").on("click", () => {
-            saveCurrentTextState();
-            if (isNew) { extension_settings[extensionName].customModes.push(modeData); } 
-            else { const idx = extension_settings[extensionName].customModes.findIndex(m => m.id === modeData.id); if(idx > -1) extension_settings[extensionName].customModes[idx] = modeData; }
-            saveSettingsDebounced(); toastr.success("Engine Flow Saved!"); renderDevMode("landing");
+        item.find(".dev-btn-restore").on("click", function() {
+            if (isGlobalDevMode && trigger !== "[[aiprompt]]") {
+                Object.keys(extension_settings[extensionName].profiles).forEach(pk => {
+                    const prof = extension_settings[extensionName].profiles[pk];
+                    if (prof.devOverrides && prof.devOverrides[trigger] !== undefined) delete prof.devOverrides[trigger];
+                }); toastr.info(`Restored default globally for ${trigger}`);
+            } else {
+                if (isGlobalDevMode && trigger === "[[aiprompt]]") toastr.warning(`[[aiprompt]] cannot be restored globally.`);
+                else toastr.info(`Restored default for ${trigger}`);
+                delete localProfile.devOverrides[trigger];
+            }
+            saveProfileToMemory(); item.find(".dev-textarea").val(defaultVal); item.css("border-color", "var(--border-color)"); item.find(".dev-status").hide(); $(this).hide();
         });
-    }
+        wrapper.append(item);
+    });
+    c.append(wrapper);
+    $("#ps_btn_prev").hide(); $("#ps_btn_next").hide();
 }
-// UNIFIED DEV BUTTON CLICK LISTENER
-$("body").on("click", "#ps_btn_dev_mode", function(e) { 
-    e.preventDefault();
-    if ($(this).text().includes("Exit Dev")) {
-        drawWizard(0); 
-    } else {
-        renderDevMode("landing"); 
-    }
-});
+
+$("body").on("click", "#ps_btn_dev_mode", function() { renderDevMode(); });
 
 jQuery(async () => {
     try {
         const h = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(h);
 
-        // Make the button draggable with strict boundary failsafes
-        const $floatBtn = $("#prompt-slot-fixed-btn");
-        $floatBtn.draggable({ 
-            containment: "window", 
-            scroll: false,
-            stop: function() {
-                // Failsafe 1: Snap back if dragged outside viewport boundaries
-                let top = parseInt($(this).css("top")) || 0;
-                let left = parseInt($(this).css("left")) || 0;
-                let maxTop = window.innerHeight - $(this).outerHeight();
-                let maxLeft = window.innerWidth - $(this).outerWidth();
-                
-                if (top < 0) $(this).css("top", "0px");
-                if (left < 0) $(this).css("left", "0px");
-                if (top > maxTop) $(this).css("top", maxTop + "px");
-                if (left > maxLeft) $(this).css("left", maxLeft + "px");
-            }
-        });
-
-        // Failsafe 2: Pull button back on screen if browser window is resized
-        $(window).on("resize", function() {
-            if (!$floatBtn.length) return;
-            let top = parseInt($floatBtn.css("top")) || 0;
-            let left = parseInt($floatBtn.css("left")) || 0;
-            let maxTop = window.innerHeight - $floatBtn.outerHeight();
-            let maxLeft = window.innerWidth - $floatBtn.outerWidth();
-            
-            if (top > maxTop) $floatBtn.css("top", maxTop + "px");
-            if (left > maxLeft) $floatBtn.css("left", maxLeft + "px");
-        });
+        $("#prompt-slot-fixed-btn").draggable({ containment: "window", scroll: false });
         $("body").append('<div id="ps-global-tooltip"></div>');
         
         $("body").on("mouseenter", ".ps-modern-tag", function() { const hint = $(this).attr("data-hint"); if (!hint) return; const title = $(this).text().trim(); $("#ps-global-tooltip").html(`<span class="ps-tooltip-title">${title}:</span> ${hint}`).addClass("visible"); });
@@ -2365,88 +1730,43 @@ jQuery(async () => {
                     }, 500);
                 } 
             });
-            const meguminSwipeHandler = async (data) => {
+             const meguminSwipeHandler = async (data) => {
                 const s = localProfile?.imageGen;
                 if (!s || !s.enabled) return;
-                
                 const { message, direction, element } = data;
+                const settings = getContext().powerUserSettings || window.power_user;
                 
-                // Only trigger on right swipes
-                if (direction !== "right") return;
+                if (direction !== "right" || (settings && settings.image_overswipe !== "generate")) return;
                 
                 const media = message.extra?.media ||[]; 
                 const idx = message.extra?.media_index || 0;
-                
-                // Only trigger on the LAST image in the gallery (overswipe)
                 if (idx < media.length - 1) return;
                 
                 const mediaObj = media[idx]; 
                 
-                // If there is no title (prompt), we can't regenerate it.
-                if (!mediaObj || !mediaObj.title) return; 
+                // CHECK: Was this image generated by Megumin Suite?
+                if (!mediaObj || !mediaObj.megumin_prompt) return; // If not, let ST default handle it!
 
-                // PRIORITY HACK: Temporarily stun both old and new ST Image Gen settings
-                // so the native ST listener aborts itself!
-                let ogPower = null;
-                if (window.power_user && window.power_user.image_overswipe) {
-                    ogPower = window.power_user.image_overswipe;
-                    window.power_user.image_overswipe = "off";
-                }
-                
-                let ogExt = null;
-                if (extension_settings.image_generation && extension_settings.image_generation.overswipe) {
-                    ogExt = extension_settings.image_generation.overswipe;
-                    extension_settings.image_generation.overswipe = false;
-                }
-
-                // Restore ST's native settings 200ms later after the default listener aborts
-                setTimeout(() => { 
-                    if (ogPower && window.power_user) window.power_user.image_overswipe = ogPower; 
-                    if (ogExt && extension_settings.image_generation) extension_settings.image_generation.overswipe = ogExt;
-                }, 200);
+                // PRIORITY HACK: It IS our image! Temporarily turn off the global ST setting
+                // so the default SillyTavern listener (which runs immediately after this) aborts!
+                const ogSet = window.power_user.image_overswipe;
+                window.power_user.image_overswipe = "off";
+                setTimeout(() => { window.power_user.image_overswipe = ogSet; }, 150);
 
                 toastr.info("Regenerating Image...", "Megumin Suite");
-                await igGenerateWithComfy(mediaObj.title, { message: message, element: $(element) });
+                await igGenerateWithComfy(mediaObj.megumin_prompt, { message: message, element: $(element) });
             };
 
-            // Bind the listener
+            // Bind it, then force it to the FRONT of the listener array so it runs before ST Core!
             eventSource.on(event_types.IMAGE_SWIPED, meguminSwipeHandler);
-            
-            // FORCE IT TO THE FRONT OF THE REAL ARRAY
-            // This ensures our extension evaluates the swipe BEFORE SillyTavern does.
-            if (eventSource._events && Array.isArray(eventSource._events[event_types.IMAGE_SWIPED])) {
-                const arr = eventSource._events[event_types.IMAGE_SWIPED];
-                if (arr.length > 1 && arr[arr.length - 1] === meguminSwipeHandler) {
-                    arr.unshift(arr.pop());
-                }
+            const listeners = eventSource.listeners ? eventSource.listeners(event_types.IMAGE_SWIPED) : (eventSource._events ? eventSource._events[event_types.IMAGE_SWIPED] : null);
+            if (Array.isArray(listeners) && listeners.length > 1) {
+                listeners.unshift(listeners.pop());
             }
         }
 
         $("body").on("click", "#prompt-slot-fixed-btn", function() { initProfile(); updateCharacterDisplay(); drawWizard(0); $("#prompt-slot-modal-overlay").fadeIn(250).css("display", "flex"); });
         $("body").on("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay", function(e) { if (e.target === this) { saveProfileToMemory(); $("#prompt-slot-modal-overlay").fadeOut(200); } });
-        let att = 0; 
-        const int = setInterval(() => { 
-            if ($("#kazuma_quick_gen").length > 0) { 
-                clearInterval(int); 
-                return; 
-            } 
-            const b = `<div id="kazuma_quick_gen" class="interactable" title="Visualize Last Scene (Manual)" style="cursor: pointer; width: 35px; height: 35px; display: none; align-items: center; justify-content: center; margin-right: 5px; color: var(--gold);"><i class="fa-solid fa-image fa-lg"></i></div>`; 
-            let t = $("#send_but_sheld"); 
-            if (!t.length) t = $("#send_textarea"); 
-            if (t.length) { 
-                t.attr("id") === "send_textarea" ? t.before(b) : t.prepend(b); 
-                toggleQuickGenButton(); // Ensure correct visibility immediately upon injection
-                clearInterval(int);
-            }
-            att++; 
-            if (att > 10) clearInterval(int); 
-        }, 1000);
-        
-        $(document).on("click", "#kazuma_quick_gen", function(e) { 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-            igManualGenerate(); 
-        });
 
     } catch (e) { console.error(`[${extensionName}] Failed to load:`, e); }
 });

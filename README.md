@@ -1,6 +1,3 @@
-# beta 06/04/26
-* added new image gen stage.
-* new and improved Dev mode.
 # beta 02/04/26
 * fixed a Stupid error from my side i forget to enable Forbid Overrides so some cards was changing the main prompts and making the output bad. use the new json files.
 * added MVU Compatibility read here https://github.com/KritBlade/MVU_Game_Maker
