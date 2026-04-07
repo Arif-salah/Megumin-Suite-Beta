@@ -1,4 +1,7 @@
 # beta 06/04/26
+* the button is fixed now (removed the draggable function).
+* Optimized the ext.
+# beta 06/04/26
 * added new image gen stage.
 * new and improved Dev mode.
 # beta 02/04/26
