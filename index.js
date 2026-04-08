@@ -1818,17 +1818,12 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
             modeData = passedModeData; 
         } else if (selectedModeId === "NEW") { 
             isNew = true; 
-            const baseCoT = hardcodedLogic.models.find(m => m.id === "cot-v1-english");
             modeData = { 
                 id: "custom_" + Date.now(), 
                 label: "New Custom Engine", 
                 isCoreClone: false,
                 p1: "", p2: "", p3: "", p4: "", p5: "", p6: "",
-                cot: baseCoT.content, 
-                prefill: baseCoT.prefill,
-                cyoa: hardcodedLogic.blocks.find(b => b.id === "cyoa").content, 
-                info: hardcodedLogic.blocks.find(b => b.id === "info").content, 
-                summary: hardcodedLogic.blocks.find(b => b.id === "summary").content, 
+                cot: "", prefill: "", cyoa: "", info: "", summary: "", 
                 customToggles: [] 
             };
         } else {
@@ -1837,12 +1832,11 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
                 isNew = true; modeData = JSON.parse(JSON.stringify(coreMatch));
                 modeData.id = "custom_" + Date.now(); modeData.label = coreMatch.label + " (Copy)";
                 modeData.isCoreClone = true;
-                const baseCoT = hardcodedLogic.models.find(m => m.id === "cot-v1-english");
-                if(!modeData.cot) modeData.cot = baseCoT.content;
-                if(!modeData.prefill) modeData.prefill = baseCoT.prefill;
-                if(!modeData.cyoa) modeData.cyoa = hardcodedLogic.blocks.find(b => b.id === "cyoa").content;
-                if(!modeData.info) modeData.info = hardcodedLogic.blocks.find(b => b.id === "info").content;
-                if(!modeData.summary) modeData.summary = hardcodedLogic.blocks.find(b => b.id === "summary").content;
+                if(!modeData.cot) modeData.cot = "";
+                if(!modeData.prefill) modeData.prefill = "";
+                if(!modeData.cyoa) modeData.cyoa = "";
+                if(!modeData.info) modeData.info = "";
+                if(!modeData.summary) modeData.summary = "";
             } else { 
                 modeData = extension_settings[extensionName].customModes.find(m => m.id === selectedModeId); 
             }
@@ -1872,6 +1866,21 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
         const createInsertPoint = (attach) => `<div class="dev-insert-point" data-attach="${attach}" style="text-align: center; padding: 10px; cursor: pointer; color: var(--gold); border: 2px dashed rgba(245,158,11,0.3); border-radius: 8px; margin: 10px 0;"><i class="fa-solid fa-plus"></i> Add Module Here</div>`;
         const createLockedBlock = (t, c) => `<div style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px;"><div style="font-weight: bold; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 6px;">${t} <i class="fa-solid fa-lock" style="float: right;"></i></div><div style="font-family: monospace; font-size: 0.75rem; color: #666; white-space: pre-wrap;">${c}</div></div>`;
         const createEditableBlock = (t, k, v) => `<div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px;"><div style="font-weight: bold; color: var(--accent-color); font-size: 0.8rem; margin-bottom: 6px;">${t}</div><textarea id="dev_edit_${k}" class="ps-modern-input" style="height: 80px; resize: vertical; font-family: monospace; font-size: 0.8rem;">${v || ""}</textarea></div>`;
+        const createOverrideBlock = (t, k, v, presets) => {
+            let btnsHtml = presets.map(p => {
+                const isActive = (v || "") === p.value;
+                const style = isActive ? 'background: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #10b981;' : '';
+                return `<button type="button" class="ps-modern-btn secondary dev-preset-btn" data-target="dev_edit_${k}" data-val="${encodeURIComponent(p.value)}" style="padding: 4px 10px; font-size: 0.7rem; border-radius: 4px; ${style}">${p.label}</button>`;
+            }).join('');
+
+            return `<div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <div style="font-weight: bold; color: var(--accent-color); font-size: 0.8rem;">${t}</div>
+                    <div style="display: flex; gap: 6px;">${btnsHtml}</div>
+                </div>
+                <textarea id="dev_edit_${k}" class="ps-modern-input" style="height: 80px; resize: vertical; font-family: monospace; font-size: 0.8rem;">${v || ""}</textarea>
+            </div>`;
+        };
 
         const flow = $(`<div style="display: flex; flex-direction: column;"></div>`);
         
@@ -1942,13 +1951,43 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
         flow.append(createEditableBlock("[[prompt6]]", "p6", modeData.p6));
         flow.append(modRender("p6")); flow.append(createInsertPoint("p6"));
         flow.append(createLockedBlock("[[AI2]]", "Understood."));
-        flow.append(createEditableBlock("[[COT]]", "cot", modeData.cot));
-        flow.append(createEditableBlock("[[cyoa]]", "cyoa", modeData.cyoa));
-        flow.append(createEditableBlock("[[infoblock]]", "info", modeData.info));
-        flow.append(createEditableBlock("[[summary]]", "summary", modeData.summary));
-        flow.append(createEditableBlock("[[prefill]]", "prefill", modeData.prefill));
+        // Fetch raw template data for our presets
+        const cotV1 = hardcodedLogic.models.find(m => m.id === "cot-v1-english")?.content || "";
+        const cotV2 = hardcodedLogic.models.find(m => m.id === "cot-v2-english")?.content || "";
+        const preV1 = hardcodedLogic.models.find(m => m.id === "cot-v1-english")?.prefill || "";
+        const preV2 = hardcodedLogic.models.find(m => m.id === "cot-v2-english")?.prefill || "";
+        const bCyoa = hardcodedLogic.blocks.find(b => b.id === "cyoa")?.content || "";
+        const bInfo = hardcodedLogic.blocks.find(b => b.id === "info")?.content || "";
+        const bSumm = hardcodedLogic.blocks.find(b => b.id === "summary")?.content || "";
+
+        flow.append(createOverrideBlock("[[COT]]", "cot", modeData.cot, [
+            { label: "No Change", value: "" }, { label: "V1 Classic", value: cotV1 }, { label: "V2 New", value: cotV2 }
+        ]));
+        flow.append(createOverrideBlock("[[prefill]]", "prefill", modeData.prefill, [
+            { label: "No Change", value: "" }, { label: "V1 Classic", value: preV1 }, { label: "V2 New", value: preV2 }
+        ]));
+        flow.append(createOverrideBlock("[[cyoa]]", "cyoa", modeData.cyoa, [
+            { label: "No Change", value: "" }, { label: "Default", value: bCyoa }
+        ]));
+        flow.append(createOverrideBlock("[[infoblock]]", "info", modeData.info, [
+            { label: "No Change", value: "" }, { label: "Default", value: bInfo }
+        ]));
+        flow.append(createOverrideBlock("[[summary]]", "summary", modeData.summary, [
+            { label: "No Change", value: "" }, { label: "Default", value: bSumm }
+        ]));
 
         c.append(flow);
+
+        // Bind preset button click logic
+        c.find(".dev-preset-btn").on("click", function() {
+            const targetId = $(this).attr("data-target");
+            const val = decodeURIComponent($(this).attr("data-val"));
+            $("#" + targetId).val(val);
+
+            // Visual toggle update
+            $(this).siblings().css({"background": "transparent", "border-color": "var(--border-color)", "color": "var(--text-main)"});
+            $(this).css({"background": "rgba(16, 185, 129, 0.15)", "border-color": "#10b981", "color": "#10b981"});
+        });
 
         // Insertion Point Click
         flow.find(".dev-insert-point").on("click", async function() {

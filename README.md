@@ -1,3 +1,5 @@
+# beta 08/04/26
+* added the ability to choose between no change or Default in dev mode COT.
 # beta 06/04/26
 * the button is fixed now (removed the draggable function).
 * Optimized the ext.
