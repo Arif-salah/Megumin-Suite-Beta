@@ -14,17 +14,51 @@ const TARGET_PRESET_NAME = "Megumin Engine";
 // -------------------------------------------------------------
 // STATE MANAGEMENT
 // -------------------------------------------------------------
-let currentStage = 0;
+let currentTab = 0;
 let localProfile = {};
 let activeGenerationOrder = null;
 let activeBanListChat = null;
 let activeImageGenRequest = null;
+let activeStoryPlanRequest = null;
+let isDevEngineDirty = false;
 
 function getCharacterKey() {
     const context = getContext();
     if (context.groupId !== undefined && context.groupId !== null) { return `group_${context.groupId}`; }
     if (context.characterId !== undefined && context.characterId !== null && context.characters[context.characterId]) { return context.characters[context.characterId].avatar; }
     return null;
+}
+
+function cleanGhostProfiles() {
+    if (!extension_settings[extensionName] || !extension_settings[extensionName].profiles) return;
+    
+    const context = getContext();
+    if (!context.characters || context.characters.length === 0) {
+        return; 
+    }
+    // Get all valid avatars and group IDs currently in SillyTavern
+    const activeAvatars = Object.values(context.characters || {}).map(c => c.avatar);
+    const activeGroups = (context.groups || []).map(g => `group_${g.id}`);
+    const validKeys = ["default", ...activeAvatars, ...activeGroups];
+    
+    let deletedCount = 0;
+    Object.keys(extension_settings[extensionName].profiles).forEach(key => {
+        if (!validKeys.includes(key)) {
+            delete extension_settings[extensionName].profiles[key];
+            deletedCount++;
+        }
+    });
+    
+    if (deletedCount > 0) {
+        saveSettingsDebounced();
+        console.log(`[Megumin Suite] Garbage Collection: Cleaned up ${deletedCount} ghost profiles.`);
+    }
+}
+
+// Estimate token count
+function estimateTokens(text) {
+    if (!text || typeof text !== 'string') return 0;
+    return Math.ceil(text.length / 4);
 }
 
 function initProfile() {
@@ -42,11 +76,20 @@ function initProfile() {
         mode: "balance", 
         personality: "engine", 
         toggles: { ooc: false, control: false },
+        disableUtilityPrefill: false,
         aiTags:[], 
         aiGeneratedOptions:[], 
         aiRule: "", 
         customStyles:[],   
         activeStyleId: null,
+        dnRatio: {
+            enabled: false,
+            dialogue: 50
+        },
+        onomatopoeia: {
+            enabled: false,
+            useStyling: false
+        },
         addons: [], 
         blocks:[], 
         model: "cot-v1-english", 
@@ -56,10 +99,18 @@ function initProfile() {
         userPronouns: "off",
         devOverrides: {}, 
         banList:[],
+        banListBackend: "direct",
         customModes:[],
-        // NEW: INTEGRATED IMAGE GEN STATE
+        storyPlan: {
+            enabled: false,
+            backend: "direct",
+            triggerMode: "manual",
+            autoFreq: 10,
+            currentPlan: ""
+        },
         imageGen: {
             enabled: false,
+            generatorBackend: "direct",
             comfyUrl: "http://127.0.0.1:8188",
             currentWorkflowName: "",
             selectedModel: "",
@@ -111,7 +162,11 @@ function initProfile() {
         if (localProfile[k] === undefined) localProfile[k] = defaults[k];
     });
     if (!localProfile.toggles) localProfile.toggles = defaults.toggles;
-    if (!localProfile.imageGen) localProfile.imageGen = defaults.imageGen; // Patch ImageGen
+    if (!localProfile.imageGen) localProfile.imageGen = defaults.imageGen;
+    if (!localProfile.storyPlan) localProfile.storyPlan = defaults.storyPlan;
+    if (!localProfile.dnRatio) localProfile.dnRatio = defaults.dnRatio;
+    if (!localProfile.onomatopoeia) localProfile.onomatopoeia = defaults.onomatopoeia;
+    if (localProfile.disableUtilityPrefill === undefined) localProfile.disableUtilityPrefill = false;
 
     let displayName = "Global Default";
     if (isGroup) {
@@ -126,6 +181,7 @@ function initProfile() {
     
     $("#ps_char_rule_label").text(displayName);
     toggleQuickGenButton();
+    updateLiveTokenCount();
 }
 
 function saveProfileToMemory() {
@@ -135,6 +191,8 @@ function saveProfileToMemory() {
     extension_settings[extensionName].profiles[key] = localProfile;
     saveSettingsDebounced();
 
+    updateLiveTokenCount(); // NEW: Update the UI whenever settings are saved!
+
     const saveInd = $("#ps_save_indicator");
     if(saveInd.length) {
         saveInd.html(`<i class="fa-solid fa-check"></i> Saved`).fadeIn(150);
@@ -143,16 +201,81 @@ function saveProfileToMemory() {
     }
 }
 
+// NEW: Function to calculate and update the token UI with a Hover Breakdown
+function updateLiveTokenCount() {
+    const counterBadge = $("#ps_live_token_count");
+    if (!counterBadge.length) return;
+
+    const dict = buildBaseDict();
+    
+    let engineStr = "";
+    let cotStr = "";
+    let styleStr = "";
+    let addonsStr = "";
+    
+    Object.entries(dict).forEach(([key, value]) => {
+        if (!value) return;
+        // Skip the single-bracket aliases to prevent double counting
+        if (key.match(/^\[prompt[1-6]\]$/)) return; 
+
+        // Categorize the text
+        if (key.includes("prompt") || key.includes("main") || key.includes("AI")) {
+            engineStr += value + " ";
+        } else if (key.includes("COT") || key.includes("prefill") || key.includes("THINK")) {
+            cotStr += value + " ";
+        } else if (key.includes("aiprompt") || key.includes("Language") || key.includes("pronouns") || key.includes("count") || key.includes("DNRATIO")) {
+            styleStr += value + " ";
+        } else {
+            addonsStr += value + " ";
+        }
+    });
+
+    // Estimate tokens (4.0 chars per token is the standard English NLP ratio)
+    const estEngine = Math.ceil(engineStr.replace(/\s+/g, ' ').length / 4.0);
+    const estCot = Math.ceil(cotStr.replace(/\s+/g, ' ').length / 4.0);
+    const estStyle = Math.ceil(styleStr.replace(/\s+/g, ' ').length / 4.0);
+    const estAddons = Math.ceil(addonsStr.replace(/\s+/g, ' ').length / 4.0);
+    
+    const total = estEngine + estCot + estStyle + estAddons;
+
+    // Update the UI text
+    counterBadge.html(`<i class="fa-solid fa-microchip"></i> ~${total}`);
+
+    // Build the Hover Breakdown HTML
+    const breakdownHTML = `
+        <div style="text-align:left; min-width: 160px; font-family: 'Inter', sans-serif;">
+            <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 6px; margin-bottom: 6px; color: var(--gold); font-size: 0.8rem;"><b>Payload Breakdown</b></div>
+            <div style="display:flex; justify-content:space-between; font-size: 0.75rem; margin-bottom: 4px;"><span>Engine Core:</span> <span style="color:#10b981; font-weight:bold;">~${estEngine}</span></div>
+            <div style="display:flex; justify-content:space-between; font-size: 0.75rem; margin-bottom: 4px;"><span>CoT / Logic:</span> <span style="color:#3b82f6; font-weight:bold;">~${estCot}</span></div>
+            <div style="display:flex; justify-content:space-between; font-size: 0.75rem; margin-bottom: 4px;"><span>Writing Style:</span> <span style="color:#a855f7; font-weight:bold;">~${estStyle}</span></div>
+            <div style="display:flex; justify-content:space-between; font-size: 0.75rem;"><span>Add-ons/Blocks:</span> <span style="color:#ef4444; font-weight:bold;">~${estAddons}</span></div>
+        </div>
+    `;
+    
+    // Attach it to the badge
+    counterBadge.attr("data-breakdown", breakdownHTML);
+    counterBadge.css("cursor", "help");
+
+    // Flash green to show it updated
+    counterBadge.css("color", "#10b981");
+    setTimeout(() => {
+        counterBadge.css("color", "var(--text-muted)");
+    }, 400);
+}
+
 function updateCharacterDisplay() {
     const context = getContext();
-    const pfpElement = $("#ps_char_pfp");
+    const bannerElement = $("#ps_hero_banner");
+    let imgUrl = `${extensionFolderPath}/img/default.png`;
+
     if (context.groupId !== undefined && context.groupId !== null) {
-        pfpElement.attr("src", `${extensionFolderPath}/img/group.png`);
+        imgUrl = `${extensionFolderPath}/img/group.png`;
     } else if (context.characterId !== undefined && context.characterId !== null && context.characters[context.characterId]) {
-        pfpElement.attr("src", `/characters/${context.characters[context.characterId].avatar}`);
-    } else {
-        pfpElement.attr("src", `${extensionFolderPath}/img/default.png`);
+        imgUrl = `/characters/${context.characters[context.characterId].avatar}`;
     }
+    
+    // Set the full-width background image smoothly
+    bannerElement.css("background-image", `url('${imgUrl}')`);
 }
 
 function cleanAIOutput(text) {
@@ -162,46 +285,82 @@ function cleanAIOutput(text) {
 }
 
 // -------------------------------------------------------------
-// UI WIZARD RENDERER
+// UI TAB RENDERER (Toolbox System)
 // -------------------------------------------------------------
-const stagesUI =[
-    { title: "Stage 1: System Mode", sub: "Select the core logic engine.", render: renderMode },
-    { title: "Stage 2: Personality", sub: "Define the persona and Extra Toggles.", render: renderPersonality },
-    { title: "Stage 3: Writing Style", sub: "Manage your custom writing styles. Select one to activate it.", render: renderStyleLibrary },
-    { title: "Stage 4: Settings", sub: "Toggle advanced modules.", render: renderAddons },
-    { title: "Stage 5: Add-ons", sub: "Append mechanical blocks to the end of responses.", render: renderBlocks },
-    { title: "Stage 6: Chain of Thought (CoT)", sub: "Select the thinking language to enforce reasoning before responding.", render: renderModels },
-    { title: "Stage 7: Dynamic Ban List", sub: "Scan chat history to catch and ban repetitive AI phrases.", render: renderBanList },
-    { title: "Stage 8: Image Gen", sub: "Advanced ComfyUI integration for visual storytelling.", render: renderImageGen } // NEW STAGE
+const tabsUI =[
+    { title: "Core Engine", sub: "Select the foundational logic engine.", icon: "fa-server", render: renderMode },
+    { title: "Persona & Toggles", sub: "Define the personality and extra toggles.", icon: "fa-user-astronaut", render: renderPersonality },
+    { title: "Writing Style", sub: "Manage and apply custom writing directives.", icon: "fa-pen-nib", render: renderStyleLibrary },
+    { title: "Global Settings", sub: "Configure word count, language, and pronouns.", icon: "fa-earth-americas", render: renderAddons },
+    { title: "Add-ons & Blocks", sub: "Append mechanical blocks to responses.", icon: "fa-puzzle-piece", render: renderBlocks },
+    { title: "Chain of Thought", sub: "Select the reasoning framework.", icon: "fa-brain", render: renderModels },
+    { title: "Story Planner", sub: "Generate and track future plot developments.", icon: "fa-map", render: renderStoryPlanner },
+    { title: "Dynamic Ban List", sub: "Scan and ban repetitive AI phrases.", icon: "fa-ban", render: renderBanList },
+    { title: "Image Generation", sub: "Advanced ComfyUI integration.", icon: "fa-image", render: renderImageGen } 
 ];
 
-function drawWizard(index) {
-    $(".ps-sidebar").show(); 
-    // Reset Dev button visuals
-    $("#ps_btn_dev_mode")
-        .html(`<i class="fa-solid fa-code"></i> Dev`)
-        .css("color", "#a855f7");
+function switchTab(index) {
+    $(".dock").show(); 
+    $("#ps_btn_save_close").show();
     
-    currentStage = index;
-    const stage = stagesUI[index];
-    $("#ps_stage_title").text(stage.title); $("#ps_stage_sub").text(stage.sub);
-    $("#ps_breadcrumb_num").text(index + 1); 
+    // Hide Apply All on Tab 3 (Writing Style)
+    if (index === 2) { $("#btn_apply_tab_all").hide(); } 
+    else { $("#btn_apply_tab_all").show(); }
     
-    // Add dynamically the dots if they don't exist
+    $("#ps_btn_dev_mode").html(`<i class="fa-solid fa-code"></i> Dev`).css("color", "#a855f7");
+    
+    currentTab = index;
+    const tab = tabsUI[index];
+    
+    // Generate Icons
     const dotsContainer = $("#ps_dynamic_dots");
-    if (dotsContainer.children(".ps-dot").length < stagesUI.length) {
-        dotsContainer.find(".ps-dot").remove();
-        stagesUI.forEach((stg, i) => {
-            dotsContainer.append(`<div class="ps-dot sidebar-step" id="dot_${i}"><span class="step-num">${i+1}</span> <span class="step-text">${stg.title.split(':')[1].trim()}</span></div>`);
+    if (dotsContainer.children(".dock-icon").length < tabsUI.length) {
+        dotsContainer.empty();
+        tabsUI.forEach((t, i) => {
+            dotsContainer.append(`<div class="dock-icon sidebar-step" id="dot_${i}" title="${t.title}">
+                <i class="fa-solid ${t.icon}"></i> <span>${t.title}</span>
+            </div>`);
         });
     }
 
-    $(".ps-dot").removeClass("active"); for(let i=0; i<=index; i++) { $(`#dot_${i}`).addClass("active"); }
-    const container = $("#ps_stage_content");
-    container.empty(); stage.render(container);
+    $(".dock-icon").removeClass("active"); 
+    $(`#dot_${index}`).addClass("active"); 
     
-    $("#ps_btn_prev").toggle(index > 0); 
-    $("#ps_btn_next").toggle(index < stagesUI.length - 1);
+    const container = $("#ps_stage_content");
+    container.empty(); 
+    container.off(".devDirty");
+
+    container.scrollTop(0);
+    
+    tab.render(container);
+    updateLiveTokenCount();
+}
+
+function applyTabToAll() {
+    const tabKeys = {
+        0: ["mode"],
+        1: ["personality", "toggles"],
+        2: ["activeStyleId", "aiRule", "customStyles", "dnRatio"], 
+        3: ["userWordCount", "userLanguage", "userPronouns", "disableUtilityPrefill", "onomatopoeia"],
+        4: ["addons", "blocks"],
+        5: ["model"],
+        6: ["storyPlan"],
+        7: ["banList"],
+        8: ["imageGen"]
+    };
+    
+    const keysToSync = tabKeys[currentTab];
+    if (confirm(`Apply ${tabsUI[currentTab].title} settings to ALL characters, groups, and defaults?`)) {
+        const currentData = localProfile;
+        Object.keys(extension_settings[extensionName].profiles).forEach(profKey => {
+            const prof = extension_settings[extensionName].profiles[profKey];
+            keysToSync.forEach(k => {
+                prof[k] = JSON.parse(JSON.stringify(currentData[k]));
+            });
+        });
+        saveSettingsDebounced();
+        toastr.success(`Synced ${tabsUI[currentTab].title} across all profiles!`);
+    }
 }
 
 function renderMode(c) {
@@ -214,18 +373,88 @@ function renderMode(c) {
 
     // --- SECTION 1: CORE ENGINES ---
     c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Megumin Core Engines</div>`);
+    
+    // The Filter Buttons
+    const filterContainer = $(`
+        <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+            <button class="ps-modern-tag filter-btn selected" data-filter="all" style="margin:0; border-radius: 20px; padding: 6px 16px;">All Engines</button>
+            <button class="ps-modern-tag filter-btn" data-filter="V4" style="margin:0; border-radius: 20px; padding: 6px 16px;">V4 Generation</button>
+            <button class="ps-modern-tag filter-btn" data-filter="V5" style="margin:0; border-radius: 20px; padding: 6px 16px;">V5 Generation</button>
+            <button class="ps-modern-tag filter-btn" data-filter="V6" style="margin:0; border-radius: 20px; padding: 6px 16px;">V6 <i class="fa-solid fa-lock" style="font-size:0.7em; margin-left:4px;"></i></button>
+        </div>
+    `);
+    c.append(filterContainer);
+
     const coreGrid = $(`<div class="ps-grid" style="margin-bottom: 30px;"></div>`);
+    // Note: Adjusted the banner text slightly to match your request
+    const v6Empty = $(`<div id="v6-empty-msg" style="display:none; padding: 40px 20px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: 12px; margin-bottom: 30px;"><i class="fa-solid fa-hammer" style="font-size: 2rem; color: var(--border-color); margin-bottom: 12px;"></i><br><span style="font-weight: bold; color: var(--text-main);">V6 Engines are in the forge.</span><br>Stay tuned for the next update! Later this week.</div>`);
+
+    // 1. Build the active V4/V5 Engine Cards
     hardcodedLogic.modes.forEach(m => {
         const recText = m.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
         const newBadge = m.isNew ? `<div style="position: absolute; bottom: 15px; right: 15px; background: #3b82f6; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase;">New</div>` : '';
-        const card = $(`<div class="ps-card ${localProfile.mode === m.id ? 'selected' : ''}" style="position:relative; padding-bottom: ${m.isNew ? '40px' : '20px'};">
+        
+        let version = "all";
+        if (m.label.includes("V4")) version = "V4";
+        else if (m.label.includes("V5")) version = "V5";
+
+        const card = $(`<div class="ps-card core-engine-card ${localProfile.mode === m.id ? 'selected' : ''}" data-version="${version}" style="position:relative; padding-bottom: ${m.isNew ? '40px' : '20px'};">
             <div class="ps-card-title"><span>${m.label}</span> ${recText}</div>
             <div class="ps-card-desc">${descriptions[m.id] || ""}</div>${newBadge}
         </div>`);
-        card.on("click", () => { localProfile.mode = m.id; saveProfileToMemory(); drawWizard(currentStage); });
+        
+        card.on("click", () => { localProfile.mode = m.id; saveProfileToMemory(); switchTab(currentTab); });
         coreGrid.append(card);
     }); 
+
+    // 2. Build the Locked V6 Preview Cards
+    const v6Previews = [
+        { label: "Anime Director", desc: "Advanced cinematic framing and pacing. Designed to emulate high-budget anime direction." },
+        { label: "Dream Team V6", desc: "The ultimate 6-specialist writer room. Unprecedented narrative consistency and realism." },
+        { label: "Dream Team V6 Lite", desc: "A streamlined version of the Dream Team. Faster generation with lower token overhead." }
+    ];
+
+    v6Previews.forEach(p => {
+        const card = $(`<div class="ps-card core-engine-card" data-version="V6" style="opacity: 0.5; filter: grayscale(100%); pointer-events: none; position: relative; padding-bottom: 40px;">
+            <div class="ps-card-title"><span style="color: var(--text-muted);"><i class="fa-solid fa-lock" style="margin-right: 6px;"></i> ${p.label}</span></div>
+            <div class="ps-card-desc">${p.desc}</div>
+            <div style="position: absolute; bottom: 15px; right: 15px; background: #52525b; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase;">Coming Soon</div>
+        </div>`);
+        coreGrid.append(card);
+    });
+    
     c.append(coreGrid);
+    c.append(v6Empty);
+
+    // 3. Updated Click Logic for the Filters
+    filterContainer.find('.filter-btn').on('click', function() {
+        filterContainer.find('.filter-btn').removeClass('selected');
+        $(this).addClass('selected');
+        
+        const filter = $(this).attr('data-filter');
+        
+        if (filter === "all") {
+            coreGrid.show();
+            coreGrid.find('.core-engine-card').show();
+            v6Empty.hide();
+        } else {
+            coreGrid.find('.core-engine-card').each(function() {
+                if ($(this).attr('data-version') === filter) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+            coreGrid.show();
+            
+            // Show the "In the forge" banner only when viewing the V6 tab
+            if (filter === "V6") {
+                v6Empty.show();
+            } else {
+                v6Empty.hide();
+            }
+        }
+    });
 
     // --- SECTION 2: CUSTOM ENGINES ---
     const customModes = extension_settings[extensionName].customModes || [];
@@ -234,11 +463,26 @@ function renderMode(c) {
         const customGrid = $(`<div class="ps-grid"></div>`);
         customModes.forEach(m => {
             const isSel = localProfile.mode === m.id;
-            const card = $(`<div class="ps-card ${isSel ? 'selected' : ''}" style="border-color: ${isSel ? '#10b981' : 'var(--border-color)'};">
-                <div class="ps-card-title"><span style="color: ${isSel ? '#000' : '#10b981'};">${m.label}</span></div>
+            const card = $(`<div class="ps-card ${isSel ? 'selected' : ''}" style="border-color: ${isSel ? '#10b981' : 'var(--border-color)'}; position: relative;">
+                <div class="ps-card-title" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                    <span style="color: ${isSel ? '#000' : '#10b981'};">${m.label}</span>
+                    <button class="ps-modern-btn secondary btn-quick-edit" style="padding: 4px 8px; font-size: 0.7rem; color: var(--gold); border-color: rgba(245,158,11,0.3); background: transparent;"><i class="fa-solid fa-pen"></i> Edit</button>
+                </div>
                 <div class="ps-card-desc">Custom Engine Flow</div>
             </div>`);
-            card.on("click", () => { localProfile.mode = m.id; saveProfileToMemory(); drawWizard(currentStage); });
+            
+            card.on("click", (e) => { 
+                if ($(e.target).closest('.btn-quick-edit').length) return; // Prevent selection when clicking edit
+                localProfile.mode = m.id; 
+                saveProfileToMemory(); 
+                switchTab(currentTab); 
+            });
+            
+            card.find(".btn-quick-edit").on("click", () => {
+                // Pass "tab" as the returnTo parameter so it knows where to go back to!
+                renderDevMode("editor", m.id, null, "tab");
+            });
+            
             customGrid.append(card);
         });
         c.append(customGrid);
@@ -260,7 +504,7 @@ function renderPersonality(c) {
             <div class="ps-card-title"><span>${p.label}</span> ${recText}</div>
             <div class="ps-card-desc">${descriptions[p.id] || ""}</div>
         </div>`);
-        card.on("click", () => { localProfile.personality = p.id; saveProfileToMemory(); drawWizard(currentStage); });
+        card.on("click", () => { localProfile.personality = p.id; saveProfileToMemory(); switchTab(currentTab); });
         grid.append(card);
     }); c.append(grid);
     c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Extra Toggles</div>`);
@@ -269,17 +513,20 @@ function renderPersonality(c) {
         const tCard = $(`<div class="ps-toggle-card ${localProfile.toggles[key] ? 'active' : ''}">
             <div style="display:flex; flex-direction:column;"><span style="font-weight:600;">${tog.label}</span><div style="margin-top:4px;">${recText}</div></div>
             <div class="ps-switch"></div></div>`);
-        tCard.on("click", () => { localProfile.toggles[key] = !localProfile.toggles[key]; saveProfileToMemory(); drawWizard(currentStage); });
+        tCard.on("click", () => { localProfile.toggles[key] = !localProfile.toggles[key]; saveProfileToMemory(); switchTab(currentTab); });
         c.append(tCard);
     });
 }
 
 function renderStyleLibrary(c) {
     $("#ps_stage_title").text("Stage 3: Writing Style");
-    $("#ps_stage_sub").text("Select a template to generate, create your own, or turn off extra styling.");
+    $("#ps_stage_sub").text("Select an instant precooked style, use an AI generator, or build your own.");
     $("#ps_btn_next").show(); $("#ps_btn_prev").show();
+    
     const listContainer = $(`<div style="display: flex; flex-direction: column; gap: 12px;"></div>`);
     const isOff = !localProfile.activeStyleId;
+    
+    // --- 1. THE OFF CARD ---
     const offCard = $(`
         <div class="ps-card ${isOff ? 'selected' : ''}" style="width: 100%; padding: 16px; flex-direction: row; align-items: center; justify-content: space-between; border-color: ${isOff ? 'var(--text-main)' : 'var(--border-color)'};">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -295,9 +542,94 @@ function renderStyleLibrary(c) {
     offCard.on("click", () => { localProfile.activeStyleId = null; localProfile.aiRule = ""; saveProfileToMemory(); renderStyleLibrary(c); });
     listContainer.append(offCard);
 
+    // --- 2. DIALOGUE / NARRATION RATIO UI ---
+    if (!localProfile.dnRatio) localProfile.dnRatio = { enabled: false, dialogue: 50 };
+    const isDNR = localProfile.dnRatio.enabled;
+    const dVal = localProfile.dnRatio.dialogue;
+    
+    const dnrBlock = $(`
+        <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-top: 5px; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <i class="fa-solid fa-scale-balanced" style="font-size: 1.2rem; color: var(--gold);"></i>
+                    <div>
+                        <div style="font-weight: 700; font-size: 1rem; color: var(--text-main);">Dialogue / Narration Ratio</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Force the AI to favor spoken dialogue or descriptive narration via [[DNRATIO]].</div>
+                    </div>
+                </div>
+                <div class="ps-toggle-card ${isDNR ? 'active' : ''}" id="dnr_toggle" style="padding: 10px; min-width: 64px; justify-content: center; cursor: pointer;">
+                    <div class="ps-switch"></div>
+                </div>
+            </div>
+            <div id="dnr_slider_container" style="display: ${isDNR ? 'block' : 'none'}; margin-top: 15px;">
+                <div style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <span style="font-size: 0.8rem; font-weight: bold; color: #a855f7; width: 110px; text-align: right;"><span id="lbl_narr">${100 - dVal}</span>% Narration</span>
+                    <input type="range" id="dnr_slider" min="0" max="100" step="10" value="${dVal}" style="flex: 1; cursor: pointer; accent-color: var(--gold);">
+                    <span style="font-size: 0.8rem; font-weight: bold; color: #10b981; width: 110px;"><span id="lbl_dial">${dVal}</span>% Dialogue</span>
+                </div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 8px; font-family: monospace;">
+                    Injection Preview: "- Ratio: Maintain a balance of <span id="lbl_prev_d">${dVal}</span>% Dialogue and <span id="lbl_prev_n">${100 - dVal}</span>% Narration."
+                </div>
+            </div>
+        </div>
+    `);
+
+    dnrBlock.find("#dnr_toggle").on("click", function() {
+        localProfile.dnRatio.enabled = !localProfile.dnRatio.enabled; saveProfileToMemory(); renderStyleLibrary(c); 
+    });
+    dnrBlock.find("#dnr_slider").on("input", function() {
+        let d = parseInt($(this).val()); let n = 100 - d;
+        $("#lbl_dial, #lbl_prev_d").text(d); $("#lbl_narr, #lbl_prev_n").text(n);
+    });
+    dnrBlock.find("#dnr_slider").on("change", function() {
+        localProfile.dnRatio.dialogue = parseInt($(this).val()); saveProfileToMemory();
+    });
+    listContainer.append(dnrBlock);
+
+    // --- 3. FILTER BUTTONS ---
+    const filterContainer = $(`
+        <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+            <button class="ps-modern-tag style-filter-btn selected" data-filter="all" style="margin:0; border-radius: 20px; padding: 6px 16px;">All Styles</button>
+            <button class="ps-modern-tag style-filter-btn" data-filter="precooked" style="margin:0; border-radius: 20px; padding: 6px 16px;">Precooked</button>
+            <button class="ps-modern-tag style-filter-btn" data-filter="generators" style="margin:0; border-radius: 20px; padding: 6px 16px;">AI Generators</button>
+            <button class="ps-modern-tag style-filter-btn" data-filter="custom" style="margin:0; border-radius: 20px; padding: 6px 16px;">My Library</button>
+        </div>
+    `);
+    listContainer.append(filterContainer);
+
+    // --- SECTIONS ---
+    const secPrecooked = $(`<div class="style-section" data-section="precooked" style="display: flex; flex-direction: column; gap: 12px;"></div>`);
+    const secGenerators = $(`<div class="style-section" data-section="generators" style="display: flex; flex-direction: column; gap: 12px;"></div>`);
+    const secCustom = $(`<div class="style-section" data-section="custom" style="display: flex; flex-direction: column; gap: 12px;"></div>`);
+
+    // A. Precooked Styles (Hardcoded, no AI generation needed)
+    secPrecooked.append(`<div class="ps-stages-label" style="margin-top: 5px; color: var(--gold);"><i class="fa-solid fa-fire-burner"></i> Precooked Styles (Instant)</div>`);
+    hardcodedLogic.directStyles.forEach(ds => {
+        const isSel = localProfile.activeStyleId === ds.id;
+        const card = $(`
+            <div class="ps-card ${isSel ? 'selected' : ''}" style="width: 100%; padding: 16px; flex-direction: column; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-weight: 700; font-size: 1rem; color: ${isSel ? '#000' : 'var(--text-main)'};">${ds.name}</span>
+                        <span style="font-size: 0.75rem; color: ${isSel ? '#333' : 'var(--text-muted)'}; margin-top: 2px;">${ds.desc}</span>
+                    </div>
+                    ${isSel ? `<span style="font-weight: 800; font-size: 0.7rem; color: #000; text-transform: uppercase;"><i class="fa-solid fa-check"></i> ACTIVE</span>` : ''}
+                </div>
+                <div style="font-size: 0.75rem; font-family: monospace; background: ${isSel ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.3)'}; padding: 8px; border-radius: 4px; border: 1px solid ${isSel ? 'rgba(0,0,0,0.2)' : 'var(--border-color)'}; color: ${isSel ? '#333' : 'var(--text-muted)'};">
+                    ${ds.rule}
+                </div>
+            </div>
+        `);
+        card.on("click", () => {
+            localProfile.activeStyleId = ds.id; localProfile.aiRule = ds.rule; saveProfileToMemory(); renderStyleLibrary(c);
+        });
+        secPrecooked.append(card);
+    });
+
+    // B. Custom Styles (My Library)
+    secCustom.append(`<div class="ps-stages-label" style="margin-top: 5px; color: #10b981;"><i class="fa-solid fa-book"></i> My Library</div>`);
     const existingNames = localProfile.customStyles ? localProfile.customStyles.map(s => s.name) :[];
     if (localProfile.customStyles && localProfile.customStyles.length > 0) {
-        listContainer.append(`<div class="ps-stages-label" style="margin-top: 10px; color: var(--gold);">Active Library</div>`);
         localProfile.customStyles.forEach(style => {
             const isSel = localProfile.activeStyleId === style.id;
             const card = $(`
@@ -337,15 +669,22 @@ function renderStyleLibrary(c) {
                     let rule = await runMeguminTask(orderText);
                     style.rule = cleanAIOutput(rule).trim();
                     if (localProfile.activeStyleId === style.id) localProfile.aiRule = style.rule;
-                    saveProfileToMemory(); renderStyleLibrary(c);
-                    toastr.success("Rule Regenerated!");
+                    saveProfileToMemory(); renderStyleLibrary(c); toastr.success("Rule Regenerated!");
                 });
             });
-            listContainer.append(card);
+            secCustom.append(card);
         });
     }
+    const addBtn = $(`
+        <div class="ps-card" style="width: 100%; padding: 16px; border-style: dashed; border-color: #52525b; justify-content: center; background: transparent; cursor: pointer;">
+            <div style="font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-plus"></i> Create Custom AI Style</div>
+        </div>
+    `);
+    addBtn.on("click", () => renderStyleEditor(c, null));
+    secCustom.append(addBtn);
 
-    listContainer.append(`<div class="ps-stages-label" style="margin-top: 10px;">Template Library</div>`);
+    // C. AI Generators (Templates)
+    secGenerators.append(`<div class="ps-stages-label" style="margin-top: 5px; color: #a855f7;"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Style Generators</div>`);
     hardcodedLogic.styleTemplates.forEach(tpl => {
         if (existingNames.includes(tpl.name)) return;
         const card = $(`
@@ -370,17 +709,28 @@ function renderStyleLibrary(c) {
                 saveProfileToMemory(); renderStyleLibrary(c); toastr.success(`${tpl.name} Added!`);
             });
         });
-        listContainer.append(card);
+        secGenerators.append(card);
     });
 
-    const addBtn = $(`
-        <div class="ps-card" style="width: 100%; padding: 16px; border-style: dashed; border-color: #52525b; justify-content: center; background: transparent; cursor: pointer;">
-            <div style="font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-plus"></i> Create Custom Style</div>
-        </div>
-    `);
-    addBtn.on("click", () => renderStyleEditor(c, null));
-    listContainer.append(addBtn);
+    listContainer.append(secPrecooked);
+    listContainer.append(secCustom);
+    listContainer.append(secGenerators);
     c.empty().append(listContainer);
+
+    // --- FILTER LOGIC ---
+    filterContainer.find('.style-filter-btn').on('click', function() {
+        filterContainer.find('.style-filter-btn').removeClass('selected');
+        $(this).addClass('selected');
+        
+        const filter = $(this).attr('data-filter');
+        if (filter === "all") {
+            secPrecooked.show(); secGenerators.show(); secCustom.show();
+        } else {
+            secPrecooked.toggle(filter === "precooked");
+            secGenerators.toggle(filter === "generators");
+            secCustom.toggle(filter === "custom");
+        }
+    });
 }
 
 function renderStyleEditor(c, editId, presetData = null) {
@@ -500,7 +850,7 @@ function renderStyleEditor(c, editId, presetData = null) {
         if (currentStyle.tags.length === 0) return toastr.warning("Select tags first!");
         $(this).prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Finalizing...`);
         await useMeguminEngine(async () => {
-            const orderText = `Create a writing style prompt based on these traits:\n\nSelected style tags: ${currentStyle.tags.join(", ")}\n\nAdditional user instructions: ${currentStyle.notes}\n\nWrite a concise, well-structured writing style rule (2-4 paragraphs) that the AI must follow. Combine all tags into a cohesive directive. Write it as a direct instruction. Do not use bullet points or introductory text.`;
+            const orderText = `Create a writing style prompt based on these traits:\n\nSelected style tags: ${currentStyle.tags.join(", ")}\n\nAdditional user instructions: ${currentStyle.notes}\n\nWrite a concise, well-structured writing style rule (100 words max) that the AI must follow. Combine all tags into a cohesive directive. Write it as a direct instruction. Do not use bullet points or introductory text.`;
             let rule = await runMeguminTask(orderText);
             currentStyle.rule = cleanAIOutput(rule).trim(); 
             $("#ps_style_rule_text").val(currentStyle.rule); toastr.success("Live AI Rule Generated!");
@@ -516,6 +866,8 @@ function renderAddons(c) {
         "color": "Each character's dialogue is color-coded for easy visual parsing."
     };
     const grid = $(`<div class="ps-grid"></div>`);
+    
+    // Add standard hardcoded addons
     hardcodedLogic.addons.forEach(a => {
         const isSel = localProfile.addons.includes(a.id);
         const recText = a.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
@@ -525,9 +877,47 @@ function renderAddons(c) {
         </div>`);
         card.on("click", () => {
             if(isSel) localProfile.addons = localProfile.addons.filter(i => i !== a.id); else localProfile.addons.push(a.id);
-            saveProfileToMemory(); drawWizard(currentStage);
+            saveProfileToMemory(); switchTab(currentTab);
         }); grid.append(card);
-    }); c.append(grid);
+    });
+
+    // --- NEW: INJECT ONOMATOPOEIA AS A CARD IN THE GRID ---
+    if (!localProfile.onomatopoeia) localProfile.onomatopoeia = { enabled: false, useStyling: false };
+    const isOno = localProfile.onomatopoeia.enabled;
+    const isOnoStyle = localProfile.onomatopoeia.useStyling;
+
+    const onoCard = $(`
+        <div class="ps-card ${isOno ? 'selected' : ''}" style="display: flex; flex-direction: column; justify-content: flex-start;">
+            <div class="ps-card-title"><span>Cinematic Sounds (onomatopoeia)</span></div>
+            <div class="ps-card-desc">Force the AI to use precise phonetic sound words (e.g., click, thud) instead of abstract descriptions.</div>
+            
+            <!-- Inner Toggle Section (Only visible when card is selected) -->
+            <div style="display: ${isOno ? 'flex' : 'none'}; width: 100%; margin-top: 15px; padding-top: 12px; border-top: 1px dashed rgba(0,0,0,0.2); justify-content: space-between; align-items: center;">
+                <div style="display:flex; flex-direction:column; flex: 1; padding-right: 10px;">
+                    <span style="font-weight:700; font-size: 0.75rem; color: #000;">Animate Sounds</span>
+                    <span style="font-size: 0.65rem; color: #444; line-height: 1.2;">Wrap in HTML tags. For capable AI only.</span>
+                </div>
+                <div class="ps-toggle-card ${isOnoStyle ? 'active' : ''}" id="ono_inner_toggle" style="padding: 4px; min-width: 44px; justify-content: center; background: transparent; border-color: ${isOnoStyle ? '#10b981' : 'rgba(0,0,0,0.3)'};">
+                    <div class="ps-switch" style="transform: scale(0.75); ${isOnoStyle ? 'background: #10b981;' : 'background: rgba(0,0,0,0.4);'}"></div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    // Handle clicks safely so the inner toggle doesn't trigger the outer card
+    onoCard.on("click", (e) => {
+        if ($(e.target).closest("#ono_inner_toggle").length) {
+            localProfile.onomatopoeia.useStyling = !localProfile.onomatopoeia.useStyling;
+            saveProfileToMemory(); switchTab(currentTab);
+            return;
+        }
+        localProfile.onomatopoeia.enabled = !localProfile.onomatopoeia.enabled;
+        saveProfileToMemory(); switchTab(currentTab);
+    });
+
+    grid.append(onoCard);
+    c.append(grid);
+
     // --- INJECT CUSTOM ENGINE MODULES (STAGE 4) ---
     const activeMode = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
     if (activeMode && activeMode.customToggles) {
@@ -543,27 +933,40 @@ function renderAddons(c) {
                     </div>
                     <div class="ps-switch" style="${isSel ? 'background:#10b981;' : ''}"></div>
                 </div>`);
-                tCard.on("click", () => { localProfile.toggles[cs.id] = !localProfile.toggles[cs.id]; saveProfileToMemory(); drawWizard(currentStage); });
+                tCard.on("click", () => { localProfile.toggles[cs.id] = !localProfile.toggles[cs.id]; saveProfileToMemory(); switchTab(currentTab); });
                 c.append(tCard);
             });
         }
     }
 
+    // --- EXTRA CONTAINER (Global Settings) ---
     c.append(`
         <div style="margin-top: 32px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 20px;">
             <div class="ps-rule-title" style="color: var(--text-main); font-size: 0.9rem; font-weight: 700;">
                 <i class="fa-solid fa-earth-americas" style="margin-right: 8px; color: #4a90e2;"></i> Extra
             </div>
+            
+            <div class="ps-toggle-card ${localProfile.disableUtilityPrefill ? 'active' : ''}" id="ps_toggle_utility_prefill" style="padding: 12px 18px;">
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-weight:600; font-size: 0.85rem;">Disable Utility Prefills</span>
+                    <div style="margin-top:2px; font-size: 0.75rem; color: var(--text-muted);">Turn this ON if your API (like Claude) errors out during Image Gen, Banlist, or Story Planner generation. Stops the engine from forcing an 'assistant' message.</div>
+                </div>
+                <div class="ps-switch"></div>
+            </div>
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0;" />
+
             <div style="display: flex; align-items: center; gap: 15px;">
                 <div style="flex: 1;"><div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Target Word Count</div><div style="font-size: 0.75rem; color: var(--text-muted);">Leave empty for no limit</div></div>
                 <input type="number" id="ps_input_wordcount" class="ps-modern-input" style="width: 200px;" placeholder="e.g. 400" value="${localProfile.userWordCount || ''}" min="1" />
             </div>
             <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0;" />
+            
             <div style="display: flex; align-items: center; gap: 15px;">
                 <div style="flex: 1;"><div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Language Output</div><div style="font-size: 0.75rem; color: var(--text-muted);">Leave empty for default (English)</div></div>
                 <input type="text" id="ps_input_language" class="ps-modern-input" style="width: 200px;" placeholder="e.g. Arabic, French..." value="${localProfile.userLanguage || ''}" />
             </div>
             <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0;" />
+            
             <div style="display: flex; align-items: center; gap: 15px;">
                 <div style="flex: 1;"><div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">User Gender</div><div style="font-size: 0.75rem; color: var(--text-muted);">Ensure the AI addresses you correctly</div></div>
                 <select id="ps_select_pronouns" class="ps-modern-input" style="width: 200px; cursor: pointer;">
@@ -574,6 +977,13 @@ function renderAddons(c) {
             </div>
         </div>
     `);
+
+    $("#ps_toggle_utility_prefill").on("click", function() {
+        localProfile.disableUtilityPrefill = !localProfile.disableUtilityPrefill;
+        saveProfileToMemory();
+        if (localProfile.disableUtilityPrefill) $(this).addClass("active");
+        else $(this).removeClass("active");
+    });
     $("#ps_input_wordcount").on("input", function() { localProfile.userWordCount = $(this).val(); saveProfileToMemory(); });
     $("#ps_input_language").on("input", function() { localProfile.userLanguage = $(this).val(); saveProfileToMemory(); });
     $("#ps_select_pronouns").on("change", function() { localProfile.userPronouns = $(this).val(); saveProfileToMemory(); });
@@ -602,7 +1012,7 @@ function renderBlocks(c) {
         card.on("click", (e) => {
             if ($(e.target).closest("a").length) return; 
             if(isSel) localProfile.blocks = localProfile.blocks.filter(i => i !== b.id); else localProfile.blocks.push(b.id);
-            saveProfileToMemory(); drawWizard(currentStage);
+            saveProfileToMemory(); switchTab(currentTab);
         }); grid.append(card);
     });
     // --- INJECT CUSTOM ENGINE MODULES (STAGE 5) ---
@@ -617,7 +1027,7 @@ function renderBlocks(c) {
                     <div class="ps-card-title"><span style="color: ${isSel ? '#10b981' : 'var(--text-main)'};">${ca.name}</span></div>
                     <div class="ps-card-desc">Custom Module Attached to [[${ca.attachPoint}]]</div>
                 </div>`);
-                card.on("click", () => { localProfile.toggles[ca.id] = !localProfile.toggles[ca.id]; saveProfileToMemory(); drawWizard(currentStage); });
+                card.on("click", () => { localProfile.toggles[ca.id] = !localProfile.toggles[ca.id]; saveProfileToMemory(); switchTab(currentTab); });
                 grid.append(card);
             });
         }
@@ -695,6 +1105,127 @@ function renderModels(c) {
     }
 }
 
+// -------------------------------------------------------------
+// STAGE 7.5: STORY PLANNER
+// -------------------------------------------------------------
+function renderStoryPlanner(c) {
+    c.empty();
+    const sp = localProfile.storyPlan;
+
+    c.append(`
+        <!-- MASTER TOGGLE -->
+        <div class="ps-toggle-card ${sp.enabled ? 'active' : ''}" id="sp_enable_card" style="border-color: ${sp.enabled ? 'var(--gold)' : 'var(--border-color)'}; margin-bottom: 20px;">
+            <div style="display:flex; flex-direction:column;">
+                <span style="font-weight:700; font-size: 1.1rem; color: ${sp.enabled ? 'var(--gold)' : 'var(--text-main)'};"><i class="fa-solid fa-map-location-dot"></i> Enable Story Planner</span>
+                <div style="margin-top:4px; font-size: 0.8rem; color: var(--text-muted);">Automatically brainstorms and tracks plot milestones. Injects via [[storyplan]] and [[storytracker]].</div>
+            </div>
+            <div class="ps-switch"></div>
+        </div>
+
+        <div id="sp_main_content" style="display: ${sp.enabled ? 'block' : 'none'};">
+            
+            <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <div class="ps-rule-title" style="margin-bottom: 12px;"><i class="fa-solid fa-gears"></i> Engine Settings</div>
+                
+                <div style="display: flex; gap: 15px; margin-bottom: 15px; align-items: center;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.85rem; font-weight: 600;">Generation Backend</div>
+                    </div>
+                    <select id="sp_backend" class="ps-modern-input" style="width: 250px; cursor: pointer;">
+                        <option value="direct" ${sp.backend === 'direct' ? 'selected' : ''}>Direct API Call (Fast)</option>
+                        <option value="preset" ${sp.backend === 'preset' ? 'selected' : ''}>Megumin Engine Preset</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.85rem; font-weight: 600;">Auto-Trigger Mode</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Generate new plans automatically.</div>
+                    </div>
+                    <select id="sp_trigger" class="ps-modern-input" style="width: 150px; cursor: pointer;">
+                        <option value="manual" ${sp.triggerMode === 'manual' ? 'selected' : ''}>Manual Only</option>
+                        <option value="frequency" ${sp.triggerMode === 'frequency' ? 'selected' : ''}>Every X Replies</option>
+                    </select>
+                    <input type="number" id="sp_freq" class="ps-modern-input" value="${sp.autoFreq}" min="1" style="width: 80px; text-align: center; display: ${sp.triggerMode === 'frequency' ? 'block' : 'none'};" title="Number of AI replies" />
+                </div>
+            </div>
+
+            <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div class="ps-rule-title" style="margin-bottom: 0;"><i class="fa-solid fa-book-open"></i> Current Story Plan</div>
+                    <button id="sp_btn_generate" class="ps-modern-btn primary" style="background: var(--gold); color: #000; padding: 8px 16px; font-weight: bold;"><i class="fa-solid fa-bolt"></i> Generate Plan Now</button>
+                </div>
+                
+                <textarea id="sp_current_plan" class="ps-modern-input" style="height: 250px; resize: vertical; font-size: 0.85rem; line-height: 1.5; margin-bottom: 10px;" placeholder="Generated plot milestones will appear here. You can manually edit them.">${sp.currentPlan || ""}</textarea>
+                
+                <div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; border-radius: 4px; padding: 12px 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #3b82f6; font-weight: 600; font-size: 0.85rem; margin-bottom: 4px;"><i class="fa-solid fa-circle-info"></i> How to Use</div>
+                    <div style="color: var(--text-main); font-size: 0.8rem; line-height: 1.5;">Ensure you have placed the <b>[[storyplan]]</b> and <b>[[storytracker]]</b> macros somewhere in your Engine Builder or Core Toggles so the AI can read this data!</div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    // Listeners
+    $("#sp_enable_card").on("click", function() {
+        sp.enabled = !sp.enabled; saveProfileToMemory();
+        if (sp.enabled) { $(this).addClass("active").css("border-color", "var(--gold)").find("span").css("color", "var(--gold)"); $("#sp_main_content").slideDown(200); } 
+        else { $(this).removeClass("active").css("border-color", "var(--border-color)").find("span").css("color", "var(--text-main)"); $("#sp_main_content").slideUp(200); }
+    });
+
+    $("#sp_backend").on("change", e => { sp.backend = $(e.target).val(); saveProfileToMemory(); });
+    $("#sp_trigger").on("change", e => { 
+        sp.triggerMode = $(e.target).val(); saveProfileToMemory(); 
+        if (sp.triggerMode === 'frequency') $("#sp_freq").show(); else $("#sp_freq").hide();
+    });
+    $("#sp_freq").on("input", e => { sp.autoFreq = Math.max(1, parseInt($(e.target).val()) || 10); saveProfileToMemory(); });
+    $("#sp_current_plan").on("input", e => { sp.currentPlan = $(e.target).val(); saveProfileToMemory(); });
+
+    $("#sp_btn_generate").on("click", async function() {
+        const chatText = getCleanedChatHistory();
+        if (chatText.length < 100) return toastr.warning("Not enough chat history to generate a plot.");
+        
+        const btn = $(this);
+        btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Brainstorming...`);
+        
+        try {
+            let output;
+            if (sp.backend === "direct") {
+                output = await generateStoryPlanLogic(chatText);
+            } else {
+                await useMeguminEngine(async () => { output = await generateStoryPlanLogic(chatText); });
+            }
+            
+            if (output) {
+                // Extract only what is inside <plot></plot>
+                const plotMatch = output.match(/<plot>([\s\S]*?)<\/plot>/i);
+                if (plotMatch) {
+                    sp.currentPlan = plotMatch[1].trim();
+                    $("#sp_current_plan").val(sp.currentPlan);
+                    saveProfileToMemory();
+                    toastr.success("Story Plan Generated!");
+                } else {
+                    toastr.warning("AI failed to format the plot correctly. Try again.");
+                }
+            }
+        } catch (e) {
+            toastr.error("Failed to generate plot.");
+        } finally {
+            btn.prop("disabled", false).html(`<i class="fa-solid fa-bolt"></i> Generate Plan Now`);
+        }
+    });
+}
+
+async function generateStoryPlanLogic(chatText) {
+    activeStoryPlanRequest = chatText;
+    try {
+        let rawOutput = await generateQuietPrompt({ prompt: "___PS_STORY_PLAN___" });
+        return rawOutput;
+    } finally {
+        activeStoryPlanRequest = null;
+    }
+}
+
 function renderBanList(c) {
     c.empty();
     if (!localProfile.banList) localProfile.banList =[];
@@ -704,6 +1235,17 @@ function renderBanList(c) {
                 <div><span style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">AI Slop Detector</span><div style="font-size: 0.75rem; color: var(--text-muted);">Scans the last 15 AI messages to catch overused clichés.</div></div>
                 <button id="ps_btn_scan_slop" class="ps-modern-btn primary" style="padding: 8px 16px; font-size: 0.8rem; background: #a855f7; color: #fff;"><i class="fa-solid fa-radar"></i> Analyze Chat History</button>
             </div>
+                <hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 15px 0;" />
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Generator Backend</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Choose how to generate the analysis.</div>
+                    </div>
+                    <select id="ban_list_backend" class="ps-modern-input" style="width: 200px; cursor: pointer;">
+                        <option value="direct" ${localProfile.banListBackend === 'direct' ? 'selected' : ''}>Direct API Call (Fast)</option>
+                        <option value="preset" ${localProfile.banListBackend === 'preset' ? 'selected' : ''}>Megumin Engine Preset</option>
+                    </select>
+                </div>
             <hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 15px 0;" />
             <div style="display: flex; gap: 10px;">
                 <input type="text" id="ps_manual_ban_input" class="ps-modern-input" placeholder="Manually add a phrase to ban..." style="flex: 1;" />
@@ -738,11 +1280,20 @@ function renderBanList(c) {
         if (localProfile.banList.length === 0) return;
         if (confirm("Are you sure you want to delete all banned phrases?")) { localProfile.banList =[]; saveProfileToMemory(); renderTags(); toastr.info("Ban list cleared."); }
     });
+    $("#ban_list_backend").on("change", function() {
+        localProfile.banListBackend = $(this).val();
+        saveProfileToMemory();
+    });
     $("#ps_btn_scan_slop").on("click", async function() {
         const chatText = getCleanedChatHistory();
         if (chatText.length < 50) return toastr.warning("Not enough chat history to analyze!");
         $(this).prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...`);
-        const rawResponse = await analyzeSlopDirectly(chatText);
+        let rawResponse;
+        if (localProfile.banListBackend === "direct") {
+            rawResponse = await analyzeSlopDirectly(chatText);
+        } else {
+            rawResponse = await analyzeSlopWithPreset(chatText);
+        }
         if (rawResponse) {
             const newPhrases = rawResponse.split(/[,*\n-]/).map(t => t.trim().replace(/['"\[\]\.]/g, '')).filter(t => t.length > 3);
             let addedCount = 0;
@@ -769,6 +1320,20 @@ function renderImageGen(c) {
             </div>
             <div class="ps-switch"></div>
         </div>
+        <!-- Generator Backend -->
+            <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <div class="ps-rule-title" style="margin-bottom: 12px;"><i class="fa-solid fa-gears"></i> Prompt Generator Backend</div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Generation Method</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">"Direct" is faster. "Megumin Image" is more creative and follows your preset instructions.</div>
+                    </div>
+                    <select id="img_gen_backend" class="ps-modern-input" style="width: 220px; cursor: pointer;">
+                        <option value="direct" ${s.generatorBackend === 'direct' ? 'selected' : ''}>Direct API Call (Fast)</option>
+                        <option value="preset" ${s.generatorBackend === 'preset' ? 'selected' : ''}>Megumin Image Preset</option>
+                    </select>
+                </div>
+            </div>
 
         <div id="ig_main_content" style="display: ${s.enabled ? 'block' : 'none'};">
             
@@ -925,6 +1490,10 @@ function renderImageGen(c) {
         toggleQuickGenButton(); // <-- ADDED
         if (s.enabled) { $(this).addClass("active"); $(this).css("border-color", "var(--gold)"); $(this).find("span").css("color", "var(--gold)"); $("#ig_main_content").slideDown(200); igFetchComfyLists(); } 
         else { $(this).removeClass("active"); $(this).css("border-color", "var(--border-color)"); $(this).find("span").css("color", "var(--text-main)"); $("#ig_main_content").slideUp(200); }
+    });
+    $("#img_gen_backend").on("change", function() {
+        s.generatorBackend = $(this).val();
+        saveProfileToMemory();
     });
 
     $("#ig_trigger_mode").on("change", (e) => { 
@@ -1192,62 +1761,54 @@ async function igManualGenerate() {
     const s = localProfile?.imageGen;
     if (!s || !s.enabled) return;
     
-    const chat = getContext().chat;
-    if (!chat || chat.length === 0) return toastr.warning("No chat history.");
-
-    // The same Regex used in the Ban List analyzer
-    const badStuffRegex = /(<disclaimer>.*?<\/disclaimer>)|(<guifan>.*?<\/guifan>)|(<danmu>.*?<\/danmu>)|(<options>.*?<\/options>)|```start|```end|<done>|`<done>`|(.*?<\/(?:ksc??|think(?:ing)?)>(\n)?)|(<(?:ksc??|think(?:ing)?)>[\s\S]*?<\/(?:ksc??|think(?:ing)?)>(\n)?)/gs;
-
-    // Grab the last 5 real messages and clean them so the AI doesn't get confused by formatting
-    const lastMessages = chat.filter(m => !m.is_system).slice(-5).map(m => {
-        let text = m.mes;
-        text = text.replace(badStuffRegex, "");
-        text = text.replace(/<details>[\s\S]*?<\/details>/gs, "");
-        text = text.replace(/<summary>[\s\S]*?<\/summary>/gs, "");
-        text = text.replace(/<[^>]*>?/gm, "");
-        return `${m.name}: ${text.trim()}`;
-    }).join("\n\n");
-    
-    let styleStr = "Use a comma-separated list of detailed keywords and visual descriptors.";
-    if (s.promptStyle === "illustrious") styleStr = "Use Danbooru-style tags separated by commas.";
-    else if (s.promptStyle === "sdxl") styleStr = "Use natural, descriptive prose and full sentences.";
-    
-    let perspStr = "Describe the entire environment and atmosphere.";
-    if (s.promptPerspective === "pov") perspStr = "Frame the scene strictly from a First-Person (POV) perspective.";
-    else if (s.promptPerspective === "character") perspStr = "Focus intensely on the character's appearance.";
-    
-    // Load the data into the global variable for the interceptor
-    activeImageGenRequest = {
-        chatText: lastMessages,
-        styleStr: styleStr,
-        perspStr: perspStr,
-        extraStr: s.promptExtra || "None"
-    };
-
     showKazumaProgress("Analyzing Scene...");
-    
+
     try {
-        // Fire the request DIRECTLY. No preset switching!
-        let rawOutput = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
-        
-        // Clean the thinking block out of the response
-        let promptText = rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-        
-        // Clean up in case the AI wraps it in image tags anyway
+        let promptText;
+        if (s.generatorBackend === "direct") {
+            promptText = await generateImagePromptText();
+        } else {
+            // Use the "Megumin Image" preset, but still run the exact same prompt logic
+            await useMeguminEngine(async () => {
+                promptText = await generateImagePromptText();
+            }, "Megumin Image");
+        }
+
         const imgRegex = /<img\s+prompt=["'](.*?)["']\s*\/?>/i;
         const match = promptText.match(imgRegex);
         if (match) promptText = match[1];
 
         toastr.info("Sending to ComfyUI...", "Megumin Suite");
         igGenerateWithComfy(promptText, null);
+
     } catch(e) {
         console.error(e);
         $("#kazuma_progress_overlay").hide();
         toastr.error("Manual generation failed.");
     } finally {
-        // Always reset the interceptor!
         activeImageGenRequest = null;
     }
+}
+
+// New Helper Function for generating the prompt text
+async function generateImagePromptText() {
+    const s = localProfile.imageGen;
+    const chat = getContext().chat;
+    const badStuffRegex = /(<disclaimer>.*?<\/disclaimer>)|(<guifan>.*?<\/guifan>)|(<danmu>.*?<\/danmu>)|(<options>.*?<\/options>)|```start|```end|<done>|`<done>`|(.*?<\/(?:ksc??|think(?:ing)?)>(\n)?)|(<(?:ksc??|think(?:ing)?)>[\s\S]*?<\/(?:ksc??|think(?:ing)?)>(\n)?)/gs;
+
+    const lastMessages = chat.filter(m => !m.is_system).slice(-5).map(m => {
+        let text = m.mes;
+        text = text.replace(badStuffRegex, "").replace(/<details>[\s\S]*?<\/details>/gs, "").replace(/<summary>[\s\S]*?<\/summary>/gs, "").replace(/<[^>]*>?/gm, "");
+        return `${m.name}: ${text.trim()}`;
+    }).join("\n\n");
+    
+    let styleStr = s.promptStyle === "illustrious" ? "Use Danbooru-style tags separated by commas." : (s.promptStyle === "sdxl" ? "Use natural, descriptive prose and full sentences." : "Use a comma-separated list of detailed keywords and visual descriptors.");
+    let perspStr = s.promptPerspective === "pov" ? "Frame the scene strictly from a First-Person (POV) perspective." : (s.promptPerspective === "character" ? "Focus intensely on the character's appearance." : "Describe the entire environment and atmosphere.");
+    
+    activeImageGenRequest = { chatText: lastMessages, styleStr: styleStr, perspStr: perspStr, extraStr: s.promptExtra || "None" };
+    
+    let rawOutput = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
+    return rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
 
 async function igGenerateWithComfy(positivePrompt, target = null) {
@@ -1408,30 +1969,39 @@ function getCleanedChatHistory() {
 }
 
 async function analyzeSlopDirectly(chatText) {
-    activeBanListChat = chatText; 
+    activeBanListChat = chatText;
     try {
         let rawOutput = await generateQuietPrompt({ prompt: "___PS_BANLIST___" });
-        let text = rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-        return text;
+        return rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
     } catch (e) {
         console.error(`[${extensionName}] Ban List Analysis Failed:`, e);
         return null;
     } finally {
-        activeBanListChat = null; 
+        activeBanListChat = null;
     }
 }
 
-async function useMeguminEngine(task) {
+async function analyzeSlopWithPreset(chatText) {
+    let result = null;
+    await useMeguminEngine(async () => {
+        // We still use the interceptor! This just makes the engine switch first.
+        result = await analyzeSlopDirectly(chatText); 
+    });
+    return result;
+}
+
+async function useMeguminEngine(task, targetPreset = TARGET_PRESET_NAME) { // Added parameter with default value
     const selector = $("#settings_preset_openai");
-    const option = selector.find(`option`).filter(function () { return $(this).text().trim() === TARGET_PRESET_NAME; });
+    const option = selector.find(`option`).filter(function () { return $(this).text().trim() === targetPreset; }); // Use the new parameter
     let originalValue = null;
 
     if (option.length) {
         originalValue = selector.val();
         selector.val(option.val()).trigger("change");
-        await new Promise(r => setTimeout(r, 2000));
+        toastr.info(`Switched to ${targetPreset} preset... Please wait.`);
+        await new Promise(r => setTimeout(r, 3000));
     } else {
-        toastr.error(`"${TARGET_PRESET_NAME}" not found in OpenAI presets.`);
+        toastr.error(`"${targetPreset}" not found in OpenAI presets.`);
         return;
     }
 
@@ -1519,13 +2089,37 @@ function buildBaseDict() {
         if (modData.prefill) dict["[[prefill]]"] = modData.prefill;
     }
 
+    if (localProfile.model !== "cot-off") {
+        dict["[[THINK]]"] = "<think>\n{Thinking}\n</think>";
+    } else {
+        dict["[[THINK]]"] = "";
+    }
+
+    if (localProfile.dnRatio && localProfile.dnRatio.enabled) {
+        const d = localProfile.dnRatio.dialogue;
+        const n = 100 - d;
+        dict["[[DNRATIO]]"] = `- Ratio: Maintain a balance of ${d}% Dialogue and ${n}% Narration.`;
+    } else {
+        dict["[[DNRATIO]]"] = "";
+    }
+
+    if (localProfile.onomatopoeia && localProfile.onomatopoeia.enabled) {
+        let onoRule = `- Narration must utilize onomatopoeia. Use precise, context-specific phonetic representations for physical interactions (e.g., the click of a latch, the thud of a heavy object, the soughing of wind) rather than abstract descriptions of sound.`;
+        if (localProfile.onomatopoeia.useStyling) {
+            onoRule += `\nAll onomatopoeic words must animated and colored using HTML and CSS. The selected style tag and color must objectively correspond to the physical nature or movement of the sound produced; for example, a repetitive friction sound such as "shush-shush" must utilize a sliding animation tag to represent the physical action.`;
+        }
+        dict["[[onomato]]"] = onoRule;
+    } else {
+        dict["[[onomato]]"] = "";
+    }
+
     // MVU Logic
     if (localProfile.blocks.includes("mvu")) {
         let baseMvu = hardcodedLogic.blocks.find(b => b.id === "mvu").content;
         if (wordCountStr) dict["[[MVU]]"] = baseMvu.replace("[[count]]", `maximum ${wordCountStr} words`);
         else dict["[[MVU]]"] = baseMvu.replace("[[count]]", "...");
     } else {
-        dict["[[MVU]]"] = wordCountStr ? `{Main narrative response — maximum ${wordCountStr} words}` : `{Main narrative response}`;
+        dict["[[MVU]]"] = wordCountStr ? `{main response — maximum ${wordCountStr} words}` : `{main response}`;
     }
 
     // 3. ENGINE OVERRIDES (The "Superior" Layer)
@@ -1569,6 +2163,22 @@ function buildBaseDict() {
                 }
             });
         }
+    }
+
+    // Story Planner Injection
+    if (localProfile.storyPlan && localProfile.storyPlan.enabled) {
+        const planText = localProfile.storyPlan.currentPlan;
+        if (planText && planText.trim() !== "") {
+            dict["[[storyplan]]"] = `<Story_Plan>\nThis is a possible event for the story, take from it:\n${planText}\n</Story_Plan>`;
+        } else {
+            dict["[[storyplan]]"] = "";
+        }
+        
+        // The refined tracker block you asked for
+        dict["[[storytracker]]"] = `<Story_Tracker>\narc: The Arc that is now active.\nchapter: The chapter that is now active.\nEpisode: The episode that is now active.\nSecrets: Any secret that the user/{{user}} doesn't know.\n</Story_Tracker>`;
+    } else {
+        dict["[[storyplan]]"] = "";
+        dict["[[storytracker]]"] = "";
     }
 
     // 4. FINAL INJECTIONS (Banlist & Image Gen)
@@ -1616,13 +2226,47 @@ function escapeRegex(string) { return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$
 function handlePromptInjection(data) {
     const messages = data?.messages || data?.chat || (Array.isArray(data) ? data : null);
     if (!messages || !Array.isArray(messages)) return;
+    const disablePrefill = localProfile && localProfile.disableUtilityPrefill === true;
+
+    // --- INJECT STORY PLANNER PROMPT ---
+    if (activeStoryPlanRequest) {
+        messages.length = 0; 
+        
+        // SillyTavern macro substitutions to get Lore and Persona
+        const charLore = typeof substituteParams === 'function' ? substituteParams('{{description}}') : "No character description found.";
+        const userPersona = typeof substituteParams === 'function' ? substituteParams('{{persona}}') : "No user persona found.";
+
+        messages.push({ 
+            "role": "system", 
+            "content": `Role: You are an expert Story Architect and Plot Planner.\n\n<lore>\n${charLore}\n</lore>\n\nUser Persona ({{user}}):\n<user_persona>\n${userPersona}\n</user_persona>\n\n<Story>\n${activeStoryPlanRequest}\n</Story>` 
+        });
+        messages.push({ 
+            "role": "user", 
+            "content": `Task: Brainstorm a minimum of 10 theoretical, medium-to-long-term plot developments based on the story so far.\n\nStrict Rules & Constraints:\n1. DO NOT write the immediate next scene. Skip past the current moment and look ahead to future structural milestones.\n2. Use Narrative Structure, NOT Timeframes: Do not use phrases like "three days later" or "next month." Instead, frame every idea as a theoretical future Arc, Chapter, or Episode.\n3. Create a Menu of Possibilities: Treat this list as a theoretical menu of branching paths. Focus on major plot shifts, new character introductions, or escalating conflicts that could anchor a future chapter.\n4. Zero Agency Theft: You are STRICTLY FORBIDDEN from writing dialogue, actions, thoughts, or emotional reactions for {{user}}. You must never describe what {{user}} does, feels, or says under any circumstances.\n5. No Assumptions or Suggestions: Do not predict, suggest, or assume what {{user}} will do next. Never end a response by telling or hinting at what {{user}} should do.\n\nFormat & Style: Keep the ideas punchy, plot-focused, and clearly labeled by narrative structure.` 
+        });
+        messages.push({ 
+            "role": "system", 
+            "content": "<thinking_steps>\nBefore creating the response, think deeply.\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main text must immediately follow </think>.\n<think>\nReflect in approximately 100–150 words as a seamless paragraph.\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\nEvery response must follow this exact structure in this exact order:\n<think>\n{Thinking}\n</think>\n<plot>\n{main response}\n</plot>" 
+        });
+    if (!disablePrefill) {
+        messages.push({ 
+            "role": "assistant", 
+            "content": "ok i will start thinking \n<think>\n" 
+        });
+    }
+        
+        console.log(`[${extensionName}] 🎯 Injected Story Planner array in memory.`);
+        return; 
+    }
 
     if (activeBanListChat) {
         messages.length = 0; 
         messages.push({ "role": "system", "content": "You are an expert literary critique. Analyze the provided chat history and identify the 5 most repetitive, cliché, or overused stylistic patterns or crutch phrases the writer relies on. Instead of quoting the exact phrase, write a short, generalized rule forbidding the underlying trope. Return ONLY the 5 rules separated by commas. Do not explain them. Do not use quotes or numbers." });
         messages.push({ "role": "user", "content": "Extract the top 5 most overused clichés or repetitive narrative patterns from this text. Return ONLY the 5 generalized rules forbidding them, separated by commas.\n<chat>\n" + activeBanListChat + "\n</chat>" });
-        messages.push({ "role": "system", "content": "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main text must immediately follow </think>.\n\n<think>\nReflect in approximately 100–150 words as a seamless paragraph.\n\n– your thinking steps\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}" });
+        messages.push({ "role": "system", "content": "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main response must immediately follow </think>.\n\n<think>\nReflect in approximately 100–150 words as a seamless paragraph.\n\n– your thinking steps\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}" });
+    if (!disablePrefill) {
         messages.push({ "role": "assistant", "content": "So, I realize this is a fictional world, to which nothing from the real world applies. \nI will now use this format for my thinking and give the next response:\n<think>\nI will thinking step-by-step in the following format: <think>.\n</think>" });
+    }
         return; 
     }
 
@@ -1639,12 +2283,14 @@ function handlePromptInjection(data) {
         });
         messages.push({ 
             "role": "system", 
-            "content": "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main text must immediately follow </think>.\n\n<think>\nReflect in approximately 50-100 words as a seamless paragraph on what visual elements are present.\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}" 
+            "content": "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main response must immediately follow </think>.\n\n<think>\nReflect in approximately 50-100 words as a seamless paragraph on what visual elements are present.\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}" 
         });
+    if (!disablePrefill) {
         messages.push({ 
             "role": "assistant", 
             "content": "So, I realize this is a fictional world, to which nothing from the real world applies. \nI will now use this format for my thinking and give the next response:\n<think>\nI will thinking step-by-step in the following format: <think>.\n</think>" 
         });
+    }
         
         console.log(`[${extensionName}] 🎯 Injected Image Gen array in memory.`);
         return; 
@@ -1677,7 +2323,7 @@ function handlePromptInjection(data) {
                 }
             });
             // Cleanup tags
-            ["[[prompt1]]","[[prompt2]]","[[prompt3]]","[[prompt4]]","[[prompt5]]","[[prompt6]]","[prompt1]","[prompt2]","[prompt3]","[prompt4]","[prompt5]","[prompt6]","[[AI1]]","[[AI2]]","[[main]]","[[OOC]]","[[control]]","[[aiprompt]]","[[death]]","[[combat]]","[[Direct]]","[[COLOR]]","[[infoblock]]","[[summary]]","[[cyoa]]","[[COT]]","[[prefill]]","[[order]]","[[Language]]","[[pronouns]]","[[banlist]]","[[count]]","[[MVU]]","[[img1]]","[[img2]]"].forEach(tr => {
+            ["[[prompt1]]","[[prompt2]]","[[prompt3]]","[[prompt4]]","[[prompt5]]","[[prompt6]]","[prompt1]","[prompt2]","[prompt3]","[prompt4]","[prompt5]","[prompt6]","[[AI1]]","[[AI2]]","[[main]]","[[OOC]]","[[control]]","[[aiprompt]]","[[death]]","[[combat]]","[[Direct]]","[[COLOR]]","[[infoblock]]","[[summary]]","[[cyoa]]","[[COT]]","[[prefill]]","[[order]]","[[Language]]","[[pronouns]]","[[banlist]]","[[count]]","[[MVU]]","[[img1]]","[[img2]]","[[storyplan]]","[[storytracker]]","[[DNRATIO]]","[[THINK]]","[[onomato]]"].forEach(tr => {
                 if(msg.content.includes(tr)) msg.content = msg.content.replace(new RegExp(escapeRegex(tr), 'g'), "");
             });
         }
@@ -1688,19 +2334,30 @@ function handlePromptInjection(data) {
     }
 }
 
-$("body").on("click", "#ps_btn_next", function() { if (currentStage < stagesUI.length - 1) drawWizard(currentStage + 1); });
-$("body").on("click", "#ps_btn_prev", function() { if (currentStage > 0) drawWizard(currentStage - 1); });
+$("body").on("click", "#ps_btn_next", function() { if (currentStage < stagesUI.length - 1) switchTab(currentStage + 1); });
+$("body").on("click", "#ps_btn_prev", function() { if (currentStage > 0) switchTab(currentStage - 1); });
 
 // -------------------------------------------------------------
 // DEV MODE: VISUAL ENGINE BUILDER
 // -------------------------------------------------------------
-function renderDevMode(view = "landing", selectedModeId = null, passedModeData = null) {
+function renderDevMode(view = "landing", selectedModeId = null, passedModeData = null, returnTo = "landing") {
     const c = $("#ps_stage_content");
     c.empty();
-    $("#ps_btn_prev, #ps_btn_next").hide();
-    $(".ps-dot").removeClass("active");
-    $("#ps_breadcrumb_num").text("DEV");
-    $(".ps-sidebar").hide(); 
+    c.off(".devDirty");
+    
+    // Hide the dock and the apply to all button
+    $(".dock").hide(); 
+    $("#btn_apply_tab_all").hide();
+    $("#ps_btn_save_close").hide();
+
+    // Update Dev button visually
+    $("#ps_btn_dev_mode").html(`<i class="fa-solid fa-right-from-bracket"></i> Exit Dev`).css("color", "#10b981");
+
+    if (!extension_settings[extensionName].customModes) extension_settings[extensionName].customModes = [];
+    
+    // Inject custom headers depending on which Dev view we are in
+    const devTitle = view === "landing" ? "Engine Builder" : "Visual Engine Builder";
+    const devSub = view === "landing" ? "Design your own chronological AI logic flow. Clone an existing template or start from scratch." : "Configure your custom engine blocks.";
 
     // Update Dev button visuals
     $("#ps_btn_dev_mode")
@@ -1711,7 +2368,7 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
 
     // --- VIEW 1: DASHBOARD (Merged Landing & List) ---
     if (view === "landing") {
-        $("#ps_stage_title").text("Engine Builder");
+        isDevEngineDirty = false;
         $("#ps_stage_sub").text("Design your own chronological AI logic flow. Clone an existing template or start from scratch.");
 
         // Top Action Bar (Moved Import up here!)
@@ -1843,15 +2500,28 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
         }
         if (!modeData.customToggles) modeData.customToggles = [];
 
-        $("#ps_stage_title").text("Visual Engine Builder");
         c.append(`
-            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <div style="position: sticky; top: -11px; z-index: 100; background: var(--bg-panel); padding: 10px 0 15px 0; margin-top: -10px; margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 1px solid var(--border-color); box-shadow: 0 10px 15px -10px rgba(0,0,0,0.6);">
                 <button id="dev_back_list" class="ps-modern-btn secondary"><i class="fa-solid fa-arrow-left"></i> Back</button>
-                <input type="text" id="dev_mode_name" class="ps-modern-input" value="${modeData.label}" style="flex: 1; font-weight: bold;" />
+                <input type="text" id="dev_mode_name" class="ps-modern-input" value="${modeData.label}" style="flex: 1; font-weight: bold; font-size: 1.1rem; border-color: var(--gold);" />
                 <button id="dev_save_mode" class="ps-modern-btn primary" style="background: #10b981; color: #fff;"><i class="fa-solid fa-floppy-disk"></i> Save Engine</button>
             </div>
         `);
-        $("#dev_back_list").on("click", () => renderDevMode("landing"));
+
+        // NEW: Track if the user types anything
+        c.off("input.devDirty change.devDirty").on("input.devDirty change.devDirty", "input, textarea, select", function() {
+            isDevEngineDirty = true;
+        });
+
+        // NEW: Back button with unsaved changes warning
+        $("#dev_back_list").on("click", () => {
+            if (isDevEngineDirty) {
+                if (!confirm("You have unsaved changes in this engine. Are you sure you want to go back? Changes will be lost.")) return;
+            }
+            isDevEngineDirty = false; // Reset tracker
+            if (returnTo === "tab") { $(".ps-sidebar").show(); switchTab(0); }
+            else { renderDevMode("landing"); }
+        });
 
         const saveCurrentTextState = () => {
             modeData.label = $("#dev_mode_name").val();
@@ -1916,6 +2586,7 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
                 div.find(".ps-btn-del-mod").on("click", () => { 
                     modeData.customToggles = modeData.customToggles.filter(x => x.id !== m.id); 
                     saveCurrentTextState(); renderDevMode("editor", modeData.id, modeData); 
+                    isDevEngineDirty = true;
                 });
 
                 // EDIT LOGIC
@@ -1935,6 +2606,7 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
                         m.location = $p.find("#m_l").val();
                         m.content = $p.find("#m_c").val();
                         renderDevMode("editor", modeData.id, modeData);
+                        isDevEngineDirty = true;
                     }
                 });
 
@@ -2002,52 +2674,105 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
         // Final Save Click
         $("#dev_save_mode").on("click", () => {
             saveCurrentTextState();
+            isDevEngineDirty = false;
             if (isNew) { extension_settings[extensionName].customModes.push(modeData); } 
             else { const idx = extension_settings[extensionName].customModes.findIndex(m => m.id === modeData.id); if(idx > -1) extension_settings[extensionName].customModes[idx] = modeData; }
-            saveSettingsDebounced(); toastr.success("Engine Flow Saved!"); renderDevMode("landing");
+            saveSettingsDebounced(); toastr.success("Engine Flow Saved!"); 
+            
+            if (returnTo === "tab") { $(".ps-sidebar").show(); switchTab(0); }
+            else { renderDevMode("landing"); }
         });
     }
 }
 // UNIFIED DEV BUTTON CLICK LISTENER
-$("body").on("click", "#ps_btn_dev_mode", function(e) { 
-    e.preventDefault();
-    if ($(this).text().includes("Exit Dev")) {
-        drawWizard(0); 
-    } else {
-        renderDevMode("landing"); 
-    }
-});
+$("body").off("click", "#ps_btn_dev_mode").on("click", "#ps_btn_dev_mode", function(e) { 
+        e.preventDefault();
+        if ($(this).text().includes("Exit Dev")) {
+            if (isDevEngineDirty) {
+                if (!confirm("You have unsaved changes in your custom engine. Are you sure you want to exit? Changes will be lost.")) return;
+            }
+            isDevEngineDirty = false;
+            switchTab(0); 
+        } else {
+            renderDevMode("landing"); 
+        }
+    });
 
 jQuery(async () => {
     try {
         const h = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(h);
-
         $("body").append('<div id="ps-global-tooltip"></div>');
+        // Modify DOM to transition from Wizard -> Tabs
+        $(".ps-breadcrumbs").hide();
+        $("#ps_btn_prev, #ps_btn_next").hide();
+        
+        $("body").off("click", "#btn_apply_tab_all").on("click", "#btn_apply_tab_all", applyTabToAll);
         
         $("body").on("mouseenter", ".ps-modern-tag", function() { const hint = $(this).attr("data-hint"); if (!hint) return; const title = $(this).text().trim(); $("#ps-global-tooltip").html(`<span class="ps-tooltip-title">${title}:</span> ${hint}`).addClass("visible"); });
+        $("body").on("mouseenter", "#ps_live_token_count", function(e) {
+            const hint = $(this).attr("data-breakdown");
+            if (!hint) return;
+            $("#ps-global-tooltip").html(hint).addClass("visible");
+        });
+        $("body").on("mousemove", "#ps_live_token_count", function(e) {
+            const tooltip = $("#ps-global-tooltip"); 
+            // Position to the left of the mouse so it doesn't go off the screen!
+            let x = e.clientX - tooltip.outerWidth() - 15; 
+            let y = e.clientY + 15; 
+            tooltip.css({ left: x + 'px', top: y + 'px' });
+        });
+        $("body").on("mouseleave", "#ps_live_token_count", function() {
+            $("#ps-global-tooltip").removeClass("visible");
+        });
         $("body").on("mousemove", ".ps-modern-tag", function(e) { if (!$(this).attr("data-hint")) return; const tooltip = $("#ps-global-tooltip"); let x = e.clientX + 15; let y = e.clientY + 15; if (x + tooltip.outerWidth() > window.innerWidth) x = e.clientX - tooltip.outerWidth() - 15; if (y + tooltip.outerHeight() > window.innerHeight) y = e.clientY - tooltip.outerHeight() - 15; tooltip.css({ left: x + 'px', top: y + 'px' }); });
         $("body").on("mouseleave", ".ps-modern-tag", function() { $("#ps-global-tooltip").removeClass("visible"); });
 
-        $("body").on("click", ".sidebar-step", function() { const index = parseInt($(this).attr("id").replace("dot_", "")); if(!isNaN(index)) drawWizard(index); });
+        $("body").on("click", ".sidebar-step", function() { const index = parseInt($(this).attr("id").replace("dot_", "")); if(!isNaN(index)) switchTab(index); });
 
         $("body").on("click", "#ps_btn_reset", function() {
             if(confirm("Are you sure you want to completely reset this character's profile to the default template?")) {
                 const key = getCharacterKey() || "default"; delete extension_settings[extensionName].profiles[key]; saveSettingsDebounced();
-                initProfile(); drawWizard(0); toastr.info("Profile has been reset to defaults.");
+                initProfile(); switchTab(0); toastr.info("Profile has been reset to defaults.");
             }
         });
 
         $("body").on("click", "#ps_btn_save_close", function() { saveProfileToMemory(); $("#prompt-slot-modal-overlay").fadeOut(200); toastr.success("Workflow Configured & Applied Successfully!"); });
 
         if (typeof eventSource !== 'undefined' && typeof event_types !== 'undefined') {
+            eventSource.on(event_types.APP_READY, () => {
+                cleanGhostProfiles();
+            });
             eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, handlePromptInjection);
             eventSource.on(event_types.CHAT_CHANGED, () => {
                 initProfile(); updateCharacterDisplay();
-                if($("#prompt-slot-modal-overlay").is(":visible")) drawWizard(currentStage);
+                if($("#prompt-slot-modal-overlay").is(":visible")) switchTab(currentTab);
             });
             // IMAGE GEN AUTO-GEN & SWIPE TRIGGERS
             eventSource.on(event_types.MESSAGE_RECEIVED, async () => { 
+// AUTO-TRIGGER STORY PLANNER
+            const sp = localProfile?.storyPlan;
+            if (sp && sp.enabled && sp.triggerMode === 'frequency') {
+                const chat = getContext().chat;
+                const aiMsgCount = chat.filter(m => !m.is_user && !m.is_system).length;
+                if (aiMsgCount > 0 && aiMsgCount % sp.autoFreq === 0) {
+                    toastr.info("Auto-Generating new Story Plan...", "Megumin Suite");
+                    setTimeout(async () => {
+                        const chatText = getCleanedChatHistory();
+                        if (chatText.length < 100) return;
+                        try {
+                            let output = sp.backend === "direct" ? await generateStoryPlanLogic(chatText) : await new Promise(r => useMeguminEngine(async () => r(await generateStoryPlanLogic(chatText))));
+                            const plotMatch = output?.match(/<plot>([\s\S]*?)<\/plot>/i);
+                            if (plotMatch) {
+                                sp.currentPlan = plotMatch[1].trim();
+                                saveProfileToMemory();
+                                if ($("#sp_current_plan").length) $("#sp_current_plan").val(sp.currentPlan);
+                                toastr.success("Story Plan Updated silently!");
+                            }
+                        } catch (e) { console.error("Story Plan auto-gen failed", e); }
+                    }, 2000); // Small delay to let chat save first
+                }
+            }
                 const s = localProfile?.imageGen;
                 if (!s || !s.enabled) return; 
                 
@@ -2133,8 +2858,17 @@ jQuery(async () => {
             }
         }
 
-        $("body").on("click", "#prompt-slot-fixed-btn", function() { initProfile(); updateCharacterDisplay(); drawWizard(0); $("#prompt-slot-modal-overlay").fadeIn(250).css("display", "flex"); });
-        $("body").on("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay", function(e) { if (e.target === this) { saveProfileToMemory(); $("#prompt-slot-modal-overlay").fadeOut(200); } });
+        $("body").on("click", "#prompt-slot-fixed-btn", function() { initProfile(); updateCharacterDisplay(); switchTab(0); $("#prompt-slot-modal-overlay").fadeIn(250).css("display", "flex"); });
+        $("body").off("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay").on("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay", function(e) { 
+        if (e.target === this) { 
+            if (isDevEngineDirty) {
+                if (!confirm("You have unsaved changes in your custom engine. Are you sure you want to close? Changes will be lost.")) return;
+                isDevEngineDirty = false;
+            }
+            saveProfileToMemory(); 
+            $("#prompt-slot-modal-overlay").fadeOut(200); 
+        } 
+    });
         let att = 0; 
         const int = setInterval(() => { 
             if ($("#kazuma_quick_gen").length > 0) { 

@@ -3,68 +3,47 @@
 </div>
 
 <div id="prompt-slot-modal-overlay">
-    <div class="ps-modern-modal">
+    <div class="ps-modern-modal app-container">
+        
+        <!-- The Floating Glass Dock -->
+        <div class="dock" id="ps_dynamic_dots">
+            <!-- Icons injected via JavaScript -->
+        </div>
 
-        <aside class="ps-sidebar">
-            <div class="ps-sidebar-header">
-                <div class="ps-sidebar-icon">
-                    <img src="scripts/extensions/third-party/Megumin-Suite-Beta/img/Cat.png" alt="Logo" onerror="this.src='img/ai4.png'" />
-                </div>
-                <div class="ps-sidebar-title">
-                    <h2>Megumin Suite</h2>
-                    <p>BETA 08/04/26</p>
-                </div>
-            </div>
+        <div class="main-wrapper">
+            <!-- The Full-Width Hero Banner -->
+            <div class="hero-banner" id="ps_hero_banner">
+                <div class="hero-overlay"></div>
+                
+                <!-- Action Buttons (Top Right) -->
+                <div class="top-app-bar">
+                    <div class="app-actions">
+                        
+                        <!-- NEW: Live Token Counter Badge (Placed safely in the button row) -->
+                        <div id="ps_live_token_count" title="Estimated Payload Tokens" style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); background: rgba(0,0,0,0.5); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); backdrop-filter: blur(4px); transition: color 0.3s ease; margin-right: 10px; display: flex; align-items: center; gap: 6px; cursor: default;">
+                            <i class="fa-solid fa-microchip"></i> ~0
+                        </div>
 
-            <div class="ps-modern-dots" id="ps_dynamic_dots">
-                <div class="ps-stages-label">Configuration Stages</div>
-                <div class="ps-dot active sidebar-step" id="dot_0"><span class="step-num">1</span> <span class="step-text">System Mode</span></div>
-                <div class="ps-dot sidebar-step" id="dot_1"><span class="step-num">2</span> <span class="step-text">Personality & Toggles</span></div>
-                <div class="ps-dot sidebar-step" id="dot_2"><span class="step-num">3</span> <span class="step-text">Writing Style</span></div>
-                <div class="ps-dot sidebar-step" id="dot_3"><span class="step-num">4</span> <span class="step-text">Settings</span></div>
-                <div class="ps-dot sidebar-step" id="dot_4"><span class="step-num">5</span> <span class="step-text">Add-ons</span></div>
-                <div class="ps-dot sidebar-step" id="dot_5"><span class="step-num">6</span> <span class="step-text">AI Model</span></div>
-                <div class="ps-dot sidebar-step" id="dot_6"><span class="step-num">7</span> <span class="step-text">Ban List</span></div>
-                <div class="ps-dot sidebar-step" id="dot_7"><span class="step-num">8</span> <span class="step-text">Image Gen</span></div>
-            </div>
-
-            <div class="ps-sidebar-footer">
-                <div class="ps-character-image-container">
-                    <img id="ps_char_pfp" src="" onerror="this.src='scripts/extensions/third-party/Megumin-Suite-Beta/img/default.png'" />
-                    <div class="ps-character-label">
-                        <div class="sub">Active Profile</div>
-                        <div class="name" id="ps_char_rule_label">Global Default</div>
+                        <button id="btn_apply_tab_all" class="ps-modern-btn secondary" title="Apply the settings on this specific tab to EVERY character and group." style="color: var(--gold); border-color: rgba(245,158,11,0.3);"><i class="fa-solid fa-earth-americas"></i> Sync Tab Globally</button>
+                        <button id="ps_btn_reset" class="ps-modern-btn secondary" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+                        <button id="ps_btn_dev_mode" class="ps-modern-btn secondary" style="color: #a855f7; border-color: rgba(168, 85, 247, 0.3);"><i class="fa-solid fa-code"></i> Dev</button>
+                        <div id="ps_save_indicator" style="display: none; color: #10b981; font-weight: bold; font-size: 0.85rem;"><i class="fa-solid fa-check"></i> Saved</div>
+                        <button id="ps_btn_save_close" class="ps-modern-btn primary" style="background: #10b981; color: #fff;"><i class="fa-solid fa-floppy-disk"></i> Save & Close</button>
                     </div>
                 </div>
+
+                <!-- Profile Info (Bottom Left) -->
+                <div class="hero-content">
+                    <div class="status" id="ps_rule_status_main">Global Default</div>
+                    <h2 class="name" id="ps_char_rule_label">Tavern Profile</h2>
+                </div>
             </div>
-        </aside>
+            
+            <!-- Main Content Area -->
+            <div class="main-content" id="ps_stage_content">
+                <!-- Settings injected via JavaScript -->
+            </div>
+        </div>
 
-        <main class="ps-wizard-area">
-            <header class="ps-main-header">
-                <div class="ps-header-left">
-                    <div class="ps-breadcrumbs">Step <span id="ps_breadcrumb_num">1</span></div>
-                    <h1 id="ps_stage_title" class="ps-stage-header">Stage Title</h1>
-                    <p id="ps_stage_sub" class="ps-stage-sub">Instructions</p>
-                </div>
-                <div class="ps-status-pill">
-                    <span id="ps_rule_status_main" class="ps-status-glow">Status</span>
-                </div>
-            </header>
-
-            <div class="ps-main-body" id="ps_stage_content"></div>
-
-            <footer class="ps-footer">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <button id="ps_btn_reset" class="ps-modern-btn secondary" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-rotate-left"></i> Reset</button>
-                    <button id="ps_btn_dev_mode" class="ps-modern-btn secondary" style="color: #a855f7; border-color: rgba(168, 85, 247, 0.3);"><i class="fa-solid fa-code"></i> Dev</button>
-                    <div id="ps_save_indicator" style="display: none; color: #10b981; font-size: 0.8rem; font-weight: 600; margin-left: 10px;"><i class="fa-solid fa-check"></i> Autosaved</div>
-                </div>
-                <div style="display: flex; gap: 12px; margin-left: auto;">
-                    <button id="ps_btn_prev" class="ps-modern-btn secondary">Back</button>
-                    <button id="ps_btn_save_close" class="ps-modern-btn primary" style="background: #10b981; color: #fff;"><i class="fa-solid fa-floppy-disk"></i> Save & Close</button>
-                    <button id="ps_btn_next" class="ps-modern-btn primary">Next Step</button>
-                </div>
-            </footer>
-        </main>
     </div>
 </div>

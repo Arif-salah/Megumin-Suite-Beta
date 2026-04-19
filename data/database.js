@@ -157,14 +157,51 @@ export const hardcodedLogic = {
             notes: "The narrator is incredibly sweet, overly empathetic, and openly sides with the NPCs. Editorialize the story by adding warm, comforting commentary about how the characters feel, focusing on wholesome emotions, gentle interactions, and always rooting for a happy outcome."
         },
         {
-            name: "Simple and Plain",
-            tags:["Simple", "Minimalist", "Objective", "Fast-Paced"],
-            notes: "Narration must be strictly simple and straight to the point. Absolutely no flowery descriptions of environments, clothing, or unnecessary details. Focus only on the immediate actions, dialogue, and moving the scene forward efficiently."
-        },
-        {
             name: "Action Thriller",
             tags:["Action-Packed", "Thriller", "Fast-Paced", "Dynamic", "Sensory-Rich"],
             notes: "Focus on high stakes, constant tension, and clear tactical movements. Keep sentences punchy and the pacing fast. Describe the immediate physical impact of the action—sweat, adrenaline, momentum—without slowing down the scene with unnecessary exposition."
+        },
+        {
+    name: "The Unreliable Memoirist",
+    tags: ["Drama", "Psychological", "Introspective", "Subjective", "Slow-Burn", "Melancholic"],
+    notes: "The narrator retells events in past tense from memory — but memory is imperfect. The voice is personal and confessional: 'I think she smiled. Or maybe that came later.', 'He said something then. I no longer remember the exact words, only the way they landed.' The narrator occasionally second-guesses or reframes what happened. NPCs are still fully alive and agentic, but we see them through a lens that admits its own limits. Inspired by Kazuo Ishiguro's 'The Remains of the Day'."
+},
+{
+    name: "The Southern Gothic Teller",
+    tags: ["Gothic", "Tragic", "Drama", "Descriptive", "Sensory-Rich", "Slow-Burn", "Melancholic"],
+    notes: "Past-tense narration soaked in heat, decay, and family rot. The voice is languid and heavy, like August air: 'The house had been dying for years before anyone admitted it.', 'She had always known he would come back — just not like this.' Settings are vivid and suffocating. Characters carry old wounds they never name. The world is beautiful and ruined simultaneously. Inspired by Flannery O'Connor and William Faulkner."
+}
+    ],
+    directStyles: [
+        {
+            id: "dir_simple",
+            name: "Simple & Direct",
+            desc: "Focuses on physical actions and chronological events. Highly efficient.",
+            rule: "Adapt a simple narration style focusing on direct physical actions and chronological events. Maintain linguistic economy. Minimize the use of adjectives and prioritize the clear execution of movements and transitions."
+        },
+        {
+            id: "dir_descriptive",
+            name: "Descriptive & Spatial",
+            desc: "Focuses on the physical parameters and sensory data of the environment.",
+            rule: "Adapt a descriptive narration style focusing on the physical parameters of the environment. Establish spatial relationships, lighting, and material textures. Provide high-density sensory data to define the setting without utilizing emotive or evaluative language."
+        },
+        {
+            id: "dir_dialogue",
+            name: "Dialogue-Centric",
+            desc: "Prioritizes spoken words and subtle physical cues between speech.",
+            rule: "Adapt a dialogue-centric style. Prioritize spoken words and subtext over environmental description. Use sparse narration only to frame the dialogue and indicate subtle physical cues, tone shifts, or micro-expressions."
+        },
+        {
+            id: "dir_clinical",
+            name: "Clinical & Objective",
+            desc: "Cold, precise, and completely detached narration. No emotional assumptions.",
+            rule: "Adapt a clinical and objective narration style. Report events, expressions, and dialogue with absolute detachment. Do not interpret emotions, use flowery prose, or make assumptions. Treat the narrative as a precise, factual transcript."
+        },
+        {
+            id: "dir_sensory",
+            name: "Sensory-Rich",
+            desc: "Grounds the scene heavily in the five senses.",
+            rule: "Adapt a sensory-rich narration style. Ground every scene in the five senses—smell, texture, temperature, ambient sound, and taste. Avoid abstract summaries of the environment in favor of immediate physical sensations."
         }
     ],
     addons:[

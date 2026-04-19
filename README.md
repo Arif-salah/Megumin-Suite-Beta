@@ -1,3 +1,24 @@
+# beta 18/04/26
+* change COT off now will remove <think>\n{Thinking}\n</think> so the ai will not be forced to use thinking.
+* added Dialogue / Narration Ratio slider so now you can choose how mush narration you want (i know you dont like to read you dummy)
+* added new "Precooked" styles for fast style pick.
+* Added a filter bar (All, Precooked, AI Generators, My Library) to organize the style tab.
+* added Megumin image for manual image gen.
+* added token counter.
+* added Cinematic Sounds (onomatopoeia) and animation toggle.
+* added cleaning Function to clean character profile if the character was deleted.
+* added Story Planner.
+* fixed GLM error with banlist and image_gen.
+* added Disable prefill to fix opus error when generating banlist or image_gen.
+* new ui more clean, more modern for mobile and disktop.
+* nanogpt not working for Rules and insight generating fixed.
+* added apply Specific tab to all profile.
+* some under the hood fixes for better rule Generating.
+* added the ability to edit Custom User Engines right from the Core Engine menu.
+* added the ability to use direct api call or Specific preset for image gen and bed list.
+* Dev mode fixed and added:
+  - The engine renaming and "Save Engine" bar now sticks to the top of the screen when you scroll through long prompt blocks.
+  - Implemented a "Dirty State" tracker. If you edit an engine and try to click "Back," "Exit Dev," or "Close" without saving, a confirmation popup will warn you.
 # beta 08/04/26
 * added the ability to choose between no change or Default in dev mode COT.
 # beta 06/04/26

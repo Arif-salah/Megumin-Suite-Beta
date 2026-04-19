@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
     --bg-main: #0e0e11;
@@ -11,350 +11,402 @@
 }
 
 #prompt-slot-fixed-btn {
-    position: fixed; 
-    top: 60px; 
-    right: 20px; 
-    z-index: 9999; 
-    width: 48px; 
-    height: 48px; 
-    border-radius: 12px; 
-    border: none;
-    background: var(--bg-panel); 
-    color: var(--text-main); 
-    font-size: 1.4rem; 
-    cursor: pointer; 
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5); 
-    border: 1px solid var(--border-color);
-    /* THE FIX IS HERE: Don't animate 'all', just colors and transforms! */
-    transition: background-color 0.2s ease, transform 0.2s ease; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
+    position: fixed; top: 60px; right: 20px; z-index: 9999; width: 48px; height: 48px; border-radius: 12px; 
+    background: var(--bg-panel); color: var(--text-main); font-size: 1.4rem; cursor: pointer; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); border: 1px solid var(--border-color);
+    transition: background-color 0.2s ease, transform 0.2s ease; display: flex; align-items: center; justify-content: center;
 }
 #prompt-slot-fixed-btn:hover { background: #27272a; transform: translateY(-2px); }
 
 #prompt-slot-modal-overlay {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
     z-index: 10000; display: none; align-items: center; justify-content: center; font-family: 'Inter', sans-serif;
 }
 
-.ps-modern-modal {
-    width: 1050px; max-width: 95vw; height: 85vh; max-height: 850px; background: var(--bg-main); border: 1px solid var(--border-color);
-    border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: var(--text-main); display: flex; flex-direction: row; overflow: hidden;
+/* The Main App Window */
+.ps-modern-modal.app-container {
+    width: 1050px; max-width: 95vw; height: 85vh; max-height: 850px; background: var(--bg-panel); border: 1px solid var(--border-color);
+    border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: var(--text-main); 
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
 }
 
-/* SIDEBAR */
-.ps-sidebar { width: 280px; background: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; flex-shrink: 0; }
-.ps-sidebar-header { padding: 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--border-color); margin-bottom: 16px; }
-.ps-sidebar-icon { width: 50px; height: 50px; border-radius: 10px; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color); }
-.ps-sidebar-icon img { width: 100%; height: 100%; object-fit: cover; }
-.ps-sidebar-title h2 { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main); }
-.ps-sidebar-title p { margin: 0; font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+.main-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
-.ps-modern-dots { display: flex; flex-direction: column; gap: 6px; padding: 0 16px; flex: 1; overflow-y: auto; }
-.ps-stages-label { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-left: 8px; }
-.ps-dot { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
-.ps-dot:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
-.ps-dot .step-num { width: 24px; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; border: 1px solid var(--border-color); }
-.ps-dot .step-text { font-size: 0.8rem; font-weight: 600; }
-.ps-dot.active { background: rgba(255, 255, 255, 0.08); color: var(--accent-color); border-color: rgba(255,255,255,0.1); }
-.ps-dot.active .step-num { background: var(--accent-color); color: var(--bg-main); border-color: var(--accent-color); }
-
-/* EXTENDED CHARACTER PICTURE AREA */
-.ps-sidebar-footer { padding: 20px; position: relative; margin-top: auto; border-top: 1px solid var(--border-color); }
-.ps-character-image-container { width: 100%; height: 250px; border-radius: 12px; background: var(--bg-main); border: 1px solid var(--border-color); overflow: hidden; position: relative; }
-.ps-character-image-container img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; transition: 0.3s; }
-.ps-character-image-container:hover img { opacity: 1; }
-.ps-character-label { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.95)); padding: 30px 12px 12px 12px; z-index: 2; }
-.ps-character-label .sub { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
-.ps-character-label .name { font-size: 0.85rem; font-weight: 600; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* MAIN CONTENT */
-.ps-wizard-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-main); }
-.ps-main-header { padding: 32px; display: flex; justify-content: space-between; align-items: flex-start; }
-.ps-header-left { display: flex; flex-direction: column; gap: 8px; }
-/* --- GRADIENT HEADER STYLES --- */
-.ps-breadcrumbs { 
-    font-size: 0.7rem; font-weight: 700; color: var(--text-muted); 
-    text-transform: uppercase; letter-spacing: 1px; 
-    display: flex; align-items: center; gap: 10px; /* Added flex for the line */
+/* Full Width Hero Banner */
+.hero-banner { 
+    height: 200px; width: 100%; background-position: center 25%; background-size: cover; 
+    position: relative; display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0;
 }
+.hero-overlay { position: absolute; inset: 0; background: linear-gradient(to right, rgba(0,0,0,0.9) 0%, rgba(24, 24, 27, 0.4) 50%, rgba(24, 24, 27, 0.8) 100%); }
+.hero-overlay::after { content:''; position:absolute; inset:0; background: linear-gradient(to top, var(--bg-panel) 0%, transparent 100%); }
 
-.ps-stage-header { 
-    margin: 0; font-size: 1.8rem; font-weight: 800; color: var(--text-main); 
-    letter-spacing: -0.5px; position: relative; display: inline-block;
-    margin-top: 6px; 
+/* Top App Bar (Action Buttons) */
+.top-app-bar { position: relative; z-index: 2; padding: 20px 30px; display: flex; justify-content: flex-end; }
+.app-actions { display: flex; gap: 10px; align-items: center; }
+
+/* Hero Text */
+.hero-content { position: relative; z-index: 2; padding: 0 30px 25px 100px; }
+.hero-content .status { font-size: 0.7rem; font-weight: 800; color: #a855f7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+.hero-content .name { font-size: 2.2rem; font-weight: 800; margin: 0; text-shadow: 0 4px 10px rgba(0,0,0,0.8); color: #fff; line-height: 1.1; }
+
+/* Floating Glass Dock */
+.dock { 
+    position: absolute; top: 20px; bottom: 20px; left: 20px; width: 60px; 
+    background: rgba(18, 18, 20, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); 
+    border-radius: 12px; display: flex; flex-direction: column; padding-top: 15px; 
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; white-space: nowrap; z-index: 50; 
 }
-
-/* --- CARD DESCRIPTION TEXT --- */
-.ps-card-desc {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    line-height: 1.5;
-    transition: color 0.2s;
-    margin-top: 4px;
+.dock:hover { width: 240px; box-shadow: 10px 10px 40px rgba(0,0,0,0.8); }
+.dock-icon { 
+    display: flex; align-items: center; width: 240px; height: 50px; padding: 0 20px; 
+    color: #a1a1aa; cursor: pointer; transition: 0.2s; font-weight: 600; font-size: 0.9rem; margin-bottom: 5px; 
 }
+.dock-icon i { width: 20px; text-align: center; margin-right: 15px; font-size: 1.1rem; }
+.dock-icon:hover { color: #fff; background: rgba(255,255,255,0.1); border-radius: 8px; margin-left: 10px; width: 220px; }
+.dock-icon.active { color: #f59e0b; background: rgba(245, 158, 11, 0.15); border-radius: 8px; margin-left: 10px; width: 220px; }
+.dock-icon span { opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.dock:hover .dock-icon span { opacity: 1; transition-delay: 0.1s; }
 
-/* Keeps the description readable when the card turns white */
-.ps-card.selected .ps-card-desc {
-    color: #444; 
-}
-.ps-stage-sub { margin: 0; font-size: 0.9rem; color: var(--text-muted); }
+/* Main Content Area */
+.main-content { padding: 10px 40px 40px 100px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+.main-content::-webkit-scrollbar { width: 6px; }
+.main-content::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
 
-/* GLOWING STATUS TEXT (Replaces Clunky Border/Dot) */
-.ps-status-pill { display: flex; align-items: center; justify-content: flex-end; }
-.ps-status-glow {
-    font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
-    animation: text-pulse 2.5s infinite alternate ease-in-out;
-}
-@keyframes text-pulse {
-    0% { opacity: 0.6; filter: brightness(1); }
-    100% { opacity: 1; filter: brightness(1.3); }
-}
-
-.ps-main-body { flex: 1; overflow-y: auto; padding: 0 32px 32px 32px; display: flex; flex-direction: column; gap: 24px; }
-.ps-main-body::-webkit-scrollbar { width: 6px; }
-.ps-main-body::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
-
+/* UI Components */
+.ps-rule-title { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
 .ps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .ps-card {
-    background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: left; position: relative;
-    cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: flex-start; overflow: visible;
+    background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; position: relative;
+    cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: flex-start;
 }
 .ps-card:hover { border-color: #52525b; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
 .ps-card.selected { border-color: var(--text-main); background: var(--text-main); color: #000; }
 .ps-card.selected .ps-card-title { color: #000; }
-.ps-card.selected div { color: #444; }
-.ps-card-title { 
-    font-size: 1.05rem; font-weight: 600; color: var(--text-main); margin-bottom: 6px; width: 100%; 
-    display: flex; justify-content: space-between; align-items: center; /* Pushes the badge to the right */
-}
-.ps-card div { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; transition: 0.2s; }
+.ps-card.selected .ps-card-desc, .ps-card.selected div { color: #444; }
+.ps-card-title { font-size: 1.05rem; font-weight: 600; color: var(--text-main); margin-bottom: 6px; width: 100%; display: flex; justify-content: space-between; align-items: center; }
+.ps-card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin-top: 4px; }
+.ps-rec-text { font-size: 0.65rem; font-weight: 800; color: var(--gold); display: flex; align-items: center; gap: 4px; text-transform: uppercase; margin: 0; }
 
-/* VIBRANT GOLD INLINE TEXT (Replaces the clunky badge) */
-.ps-rec-text {
-    font-size: 0.65rem;
-    font-weight: 800;
-    color: var(--gold);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: 0;
-}
-.ps-card.selected .ps-rec-text { color: #d97706; }
-
-.ps-toggle-card { display: flex; justify-content: space-between; align-items: center; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px 24px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; }
+.ps-toggle-card { display: flex; justify-content: space-between; align-items: center; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px 24px; cursor: pointer; transition: 0.2s; }
 .ps-toggle-card:hover { border-color: #52525b; }
+.ps-toggle-card.active { border-color: var(--accent-color); background: #27272a; }
 .ps-switch { width: 44px; height: 24px; background: #3f3f46; border-radius: 12px; position: relative; transition: 0.3s; }
 .ps-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-.ps-toggle-card.active { border-color: var(--accent-color); background: #27272a; }
 .ps-toggle-card.active .ps-switch { background: var(--accent-color); }
 .ps-toggle-card.active .ps-switch::after { left: 22px; background: #000; }
 
-.ps-modern-tag {
-    display: inline-block; padding: 6px 14px; margin: 4px; background: var(--bg-panel); border: 1px solid var(--border-color);
-    border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500; color: var(--text-main); transition: 0.2s;
-}
+.ps-modern-tag { display: inline-block; padding: 6px 14px; margin: 4px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500; color: var(--text-main); transition: 0.2s; }
 .ps-modern-tag:hover { border-color: #52525b; background: #27272a; }
 .ps-modern-tag.selected { background: var(--text-main); color: #000; border-color: var(--text-main); font-weight: 600; }
 
-.ps-modern-input {
-    width: 100%; background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px 16px;
-    border-radius: 8px; font-family: inherit; font-size: 0.85rem; outline: none; transition: 0.2s; box-sizing: border-box;
-}
+.ps-modern-input { width: 100%; background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px 16px; border-radius: 8px; font-family: inherit; font-size: 0.85rem; outline: none; transition: 0.2s; box-sizing: border-box; }
 .ps-modern-input:focus { border-color: var(--text-muted); background: var(--bg-panel); }
-select.ps-modern-input {
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 1rem center;
-    background-size: 1em;
-    padding-right: 2.5rem;
-}
-/* --- GLOBAL FLOATING TOOLTIP --- */
-#ps-global-tooltip {
-    position: fixed; /* Bypasses all clipping boundaries */
-    background: #2a2a2b; /* Smooth dark gray */
-    color: #f4f4f5;
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    width: max-content;
-    max-width: 280px;
-    white-space: normal;
-    line-height: 1.4;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-    border: 1px solid var(--border-color);
-    
-    /* Magic that makes it float cleanly */
-    pointer-events: none; 
-    z-index: 999999;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.15s ease-in-out;
-}
 
-#ps-global-tooltip.visible {
-    opacity: 1;
-    visibility: visible;
-}
-
-.ps-tooltip-title {
-    color: var(--gold);
-    font-weight: 700;
-}
-
-.ps-footer { padding: 24px 32px; background: var(--bg-panel); border-top: 1px solid var(--border-color); display: flex; align-items: center; width: 100%; box-sizing: border-box; justify-content: space-between; }
-.ps-modern-btn { border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.ps-modern-btn.primary { background: var(--text-main); color: #000; border: none; padding: 10px 20px; }
+.ps-modern-btn { border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; }
+.ps-modern-btn.primary { background: var(--text-main); color: #000; border: none; }
 .ps-modern-btn.primary:hover:not(:disabled) { background: #d4d4d8; transform: translateY(-1px); }
-.ps-modern-btn.secondary { background: transparent; color: var(--text-main); border: 1px solid var(--border-color); padding: 10px 20px; }
-.ps-modern-btn.secondary:hover:not(:disabled) { background: #27272a; border-color: #52525b; }
+.ps-modern-btn.secondary { background: rgba(0,0,0,0.5); color: var(--text-main); border: 1px solid var(--border-color); backdrop-filter: blur(5px); }
+.ps-modern-btn.secondary:hover:not(:disabled) { background: rgba(255,255,255,0.1); border-color: #52525b; }
 .ps-modern-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-/* --- MOBILE UI OVERHAUL --- */
+
+#ps-global-tooltip { position: fixed; background: #2a2a2b; color: #f4f4f5; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 500; width: max-content; max-width: 280px; white-space: normal; line-height: 1.4; box-shadow: 0 10px 30px rgba(0,0,0,0.7); border: 1px solid var(--border-color); pointer-events: none; z-index: 999999; opacity: 0; visibility: hidden; transition: opacity 0.15s ease-in-out; }
+#ps-global-tooltip.visible { opacity: 1; visibility: visible; }
+.ps-tooltip-title { color: var(--gold); font-weight: 700; }
+
+/* ================================================================
+   MOBILE RESPONSIVE — All rules scoped to @media only.
+   Desktop UI is completely untouched.
+   ================================================================ */
+
 @media (max-width: 768px) {
-    .ps-modern-modal {
-        flex-direction: column;
-        width: 100vw;
-        height: 100dvh; /* 100dvh completely fixes the bottom cut-off on mobile browsers */
-        max-height: 100dvh;
-        border-radius: 0;
-        border: none;
-        position: relative; /* Acts as the anchor for the absolute status pill */
-        overflow: hidden; 
+
+    /* ── Modal: full-screen takeover ── */
+    .ps-modern-modal.app-container {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        border-radius: 0 !important;
+        border: none !important;
     }
 
-    /* Transform Sidebar into a sleek top navigation */
-    .ps-sidebar {
-        width: 100%;
-        height: auto;
-        flex-direction: column;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-        background: var(--bg-panel);
-        z-index: 10;
+    #prompt-slot-modal-overlay {
+        align-items: stretch !important;
+        padding: 0 !important;
     }
 
-    /* Limit title width to make room for the status pill in the top right */
-    .ps-sidebar-header {
-        padding: 12px 15px;
-        margin-bottom: 0;
-        border-bottom: none;
-        max-width: 65%;
+    /* ── Floating open button: larger touch target ── */
+    #prompt-slot-fixed-btn {
+        width: 44px;
+        height: 44px;
+        top: 70px !important;
+        bottom: auto !important;
+        right: 12px !important;
+        border-radius: 50%;
     }
 
-    .ps-sidebar-icon {
-        width: 32px;
-        height: 32px;
-        border-radius: 6px;
+    /* ── Dock → Horizontal bottom tab bar ── */
+    .dock {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        height: 84px !important;
+        border-radius: 0 !important;
+        border: none !important;
+        border-top: 1px solid rgba(255,255,255,0.08) !important;
+        flex-direction: row !important;
+        padding: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        gap: 0 !important;
+        z-index: 100 !important;
+        background: rgba(14, 14, 17, 0.95) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-overflow-scrolling: touch;
     }
 
-    .ps-sidebar-title h2 { font-size: 0.95rem; }
-    .ps-sidebar-title p { display: block; font-size: 0.65rem; }
-
-    /* THIS FIXES ISSUE #2: Move Status Pill to the Top Right Corner */
-    .ps-status-pill {
-        position: absolute !important;
-        top: 15px;
-        right: 15px;
-        justify-content: flex-end !important;
-        margin: 0;
-        z-index: 20;
-        max-width: 35%;
-        text-align: right;
+    .dock:hover {
+        width: 100% !important;
+        box-shadow: none !important;
     }
 
-    .ps-status-glow {
-        font-size: 0.55rem;
-        line-height: 1.2;
-        display: block;
-    }
-
-    /* Make the steps a horizontal scrollable bar */
-    .ps-modern-dots {
-        display: flex !important;
-        flex-direction: row;
-        overflow-x: auto;
-        padding: 0 15px 10px 15px;
-        gap: 8px;
-    }
-    
-    .ps-modern-dots::-webkit-scrollbar { display: none; }
-    
-    .ps-dot {
-        flex-shrink: 0; 
-        padding: 6px 10px;
-    }
-
-    /* Hide large images on mobile */
-    .ps-sidebar-footer { display: none; }
-
-    /* THIS FIXES ISSUE #1: Let the header scroll AWAY so it doesn't take up space */
-    .ps-wizard-area {
-        flex: 1;
-        display: block; /* Removing flexbox here makes the header scroll naturally with the body! */
-        overflow-y: auto;
-        padding-bottom: 120px; /* Leaves room for the footer to not cover the bottom cards */
-    }
-
-    /* Clean up the header to look good while scrolling */
-    .ps-main-header {
-        padding: 15px 20px 5px 20px;
-        display: block; 
-    }
-
-    /* Hide the repetitive "STEP 1 OF 6" since the dots above already show it */
-    .ps-breadcrumbs { display: none !important; } 
-
-    .ps-stage-header {
-        font-size: 1.3rem;
-        margin: 0 0 5px 0 !important;
-    }
-
-    .ps-stage-sub {
-        font-size: 0.8rem;
-        margin-bottom: 5px;
-    }
-
-    /* Adjust main body so it flows properly */
-    .ps-main-body {
-        overflow-y: visible; /* Disabled internal scroll so the whole page scrolls together */
-        padding: 0 20px 20px 20px;
-    }
-
-    .ps-grid {
-        grid-template-columns: 1fr; /* 1 column for mobile cards */
-    }
-
-    /* THIS FIXES THE CUT OFF: Pin the footer to the absolute bottom */
-    .ps-footer {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        padding: 12px 15px;
-        flex-direction: column;
-        gap: 10px;
-        background: var(--bg-panel);
-        border-top: 1px solid var(--border-color);
-        z-index: 50;
-        box-shadow: 0 -4px 15px rgba(0,0,0,0.5);
-        /* env safe-area prevents iPhones from putting the home-bar over your buttons */
-        padding-bottom: calc(12px + env(safe-area-inset-bottom)); 
-    }
-
-    .ps-footer > div {
-        width: 100%;
-        justify-content: space-between;
+    .dock-icon {
+        flex-direction: column !important;
+        width: auto !important;
+        min-width: 65px !important; /* Slightly wider for better touch */
+        height: 84px !important; /* Match the new dock height */
+        padding: 10px 10px !important; /* Added more padding */
         margin: 0 !important;
+        font-size: 0.7rem !important; /* Slightly larger text */
+        gap: 4px; /* More space between icon and text */
+        justify-content: center;
+        align-items: center;
+        flex-shrink: 0;
     }
 
+    .dock-icon i {
+        margin-right: 0 !important;
+        font-size: 1rem !important;
+        width: auto !important;
+    }
+
+    .dock-icon span {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        font-size: 0.55rem !important;
+        white-space: nowrap;
+        text-align: center;
+        line-height: 1.1;
+    }
+
+    .dock:hover .dock-icon span {
+        transition-delay: 0s !important;
+    }
+
+    .dock-icon:hover,
+    .dock-icon.active {
+        margin-left: 0 !important;
+        width: auto !important;
+        min-width: 56px !important;
+        border-radius: 0 !important;
+        background: rgba(255,255,255,0.06) !important;
+    }
+
+    .dock-icon.active {
+        background: rgba(245, 158, 11, 0.12) !important;
+        border-top: 2px solid var(--gold) !important;
+    }
+
+    /* ── Hero banner: keep it, slightly shorter ── */
+    .hero-banner {
+        height: 150px !important;
+    }
+
+    .hero-content {
+        padding: 0 16px 14px 16px !important;
+    }
+
+    .hero-content .name {
+        font-size: 1.5rem !important;
+    }
+
+    .hero-content .status {
+        font-size: 0.6rem !important;
+    }
+
+    /* ── Top app bar: compact action buttons ── */
+    .top-app-bar {
+        padding: 10px 12px !important;
+    }
+
+    .app-actions {
+        gap: 6px !important;
+        flex-wrap: wrap !important;
+        justify-content: flex-end !important;
+    }
+
+    .app-actions .ps-modern-btn {
+        padding: 6px 10px !important;
+        font-size: 0.7rem !important;
+    }
+
+    /* Hide button labels on mobile, keep icons */
+    #btn_apply_tab_all,
+    #ps_btn_reset {
+        font-size: 0 !important;
+    }
+
+    #btn_apply_tab_all i,
+    #ps_btn_reset i {
+        font-size: 0.85rem !important;
+    }
+
+    /* ── Main content area: adjust padding for bottom dock ── */
+    .main-content {
+        padding: 10px 14px 100px 14px !important;
+    }
+
+    /* ── Cards grid: single column ── */
+    .ps-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    .ps-card {
+        padding: 14px !important;
+    }
+
+    .ps-card-title {
+        font-size: 0.95rem !important;
+    }
+
+    /* ── Toggle cards: tighter ── */
+    .ps-toggle-card {
+        padding: 14px 16px !important;
+    }
+
+    /* ── Inputs: full width on small screens ── */
+    .ps-modern-input {
+        font-size: 0.85rem !important;
+    }
+
+    /* ── Tags: slightly smaller for wrapping ── */
+    .ps-modern-tag {
+        padding: 5px 10px !important;
+        font-size: 0.75rem !important;
+        margin: 2px !important;
+    }
+
+    /* ── Buttons: touch-friendly sizing ── */
     .ps-modern-btn {
-        flex: 1; 
-        padding: 12px 5px;
-        font-size: 0.8rem;
+        padding: 10px 14px !important;
+        font-size: 0.8rem !important;
+        min-height: 40px;
+    }
+
+    /* ── Fix inline flex rows that overflow on mobile ── */
+    /* Settings rows (word count, language, pronouns) */
+    .main-content div[style*="display: flex"][style*="align-items: center"][style*="gap: 15px"] {
+        flex-wrap: wrap !important;
+    }
+
+    .main-content div[style*="display: flex"][style*="align-items: center"][style*="gap: 15px"] .ps-modern-input[style*="width: 200px"],
+    .main-content div[style*="display: flex"][style*="align-items: center"][style*="gap: 15px"] select[style*="width: 200px"] {
+        width: 100% !important;
+    }
+
+    /* Image gen parameter sliders: stack vertically on small screens */
+    div[style*="display: grid"][style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* LoRA lab grid */
+    div[style*="display: grid"][style*="grid-template-columns: 1fr 1fr"][style*="gap: 15px"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Image gen dropdowns full width */
+    div[style*="display: flex"][style*="gap: 10px"] select[style*="flex: 2"],
+    div[style*="display: flex"][style*="gap: 10px"] select[style*="flex: 1"] {
+        min-width: 0 !important;
+    }
+
+    /* Dev mode: editor top bar */
+    div[style*="display: flex"][style*="gap: 10px"][style*="margin-bottom: 20px"] {
+        flex-wrap: wrap !important;
+    }
+
+    /* Style editor: name + buttons row */
+    div[style*="display: flex"][style*="gap: 15px"][style*="margin-bottom: 20px"][style*="align-items: center"] {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    /* Workflow editor: sidebar placeholders panel hidden on mobile */
+    .wf-textarea {
+        min-height: 300px !important;
+    }
+
+    div[style*="width: 250px"][style*="flex-shrink: 0"] {
+        display: none !important;
+    }
+
+    /* Filter buttons wrap */
+    div[style*="display: flex"][style*="gap: 8px"][style*="margin-bottom: 20px"] {
+        flex-wrap: wrap !important;
+    }
+
+    /* Tooltip: position safely on mobile */
+    #ps-global-tooltip {
+        max-width: 200px !important;
+        font-size: 0.78rem !important;
+    }
+
+    /* Progress overlay: full width on mobile */
+    #kazuma_progress_overlay {
+        left: 10px !important;
+        right: 10px !important;
+        width: auto !important;
+        bottom: 120px !important;
+    }
+}
+
+/* Extra small screens (phones in portrait) */
+@media (max-width: 420px) {
+    .hero-banner {
+        height: 120px !important;
+    }
+
+    .hero-content .name {
+        font-size: 1.2rem !important;
+    }
+
+    .dock-icon {
+        min-width: 48px !important;
+        padding: 6px 6px !important;
+    }
+
+    .dock-icon span {
+        font-size: 0.5rem !important;
+    }
+
+    .app-actions .ps-modern-btn {
+        padding: 6px 8px !important;
+        font-size: 0 !important;
+    }
+
+    .app-actions .ps-modern-btn i {
+        font-size: 0.85rem !important;
+    }
+
+    #ps_btn_save_close {
+        font-size: 0.7rem !important;
+    }
+
+    .main-content {
+        padding: 8px 10px 68px 10px !important;
     }
 }
