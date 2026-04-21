@@ -122,10 +122,15 @@
 
     /* ── Modal: full-screen takeover ── */
     .ps-modern-modal.app-container {
-        width: 100vw !important;
-        max-width: 100vw !important;
-        height: 100dvh !important;
-        max-height: 100dvh !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        position: absolute !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
         border-radius: 0 !important;
         border: none !important;
     }
@@ -147,18 +152,19 @@
 
     /* ── Dock → Horizontal bottom tab bar ── */
     .dock {
-        position: fixed !important;
+        position: absolute !important; /* Safer than fixed on mobile */
         top: auto !important;
         bottom: 0 !important;
         left: 0 !important;
         right: 0 !important;
         width: 100% !important;
-        height: 84px !important;
+        height: auto !important;
+        min-height: 84px !important;
+        padding: 0 0 env(safe-area-inset-bottom, 0px) 0 !important; 
         border-radius: 0 !important;
         border: none !important;
         border-top: 1px solid rgba(255,255,255,0.08) !important;
         flex-direction: row !important;
-        padding: 0 !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
         gap: 0 !important;
@@ -266,7 +272,7 @@
 
     /* ── Main content area: adjust padding for bottom dock ── */
     .main-content {
-        padding: 10px 14px 100px 14px !important;
+        padding: 10px 14px calc(100px + env(safe-area-inset-bottom, 0px)) 14px !important;
     }
 
     /* ── Cards grid: single column ── */
