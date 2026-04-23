@@ -55,11 +55,6 @@ function cleanGhostProfiles() {
     }
 }
 
-// Estimate token count
-function estimateTokens(text) {
-    if (!text || typeof text !== 'string') return 0;
-    return Math.ceil(text.length / 4);
-}
 
 function initProfile() {
     const key = getCharacterKey();
@@ -132,10 +127,6 @@ function initProfile() {
         }
     };
 
-    if (localProfile.devOverrides && Object.keys(localProfile.devOverrides).length > 0) {
-        localProfile.devOverrides = {};
-        saveSettingsDebounced();
-    }
 
     if (!extension_settings[extensionName].profiles["default"]) {
         extension_settings[extensionName].profiles["default"] = JSON.parse(JSON.stringify(defaults));
@@ -167,6 +158,11 @@ function initProfile() {
     if (!localProfile.dnRatio) localProfile.dnRatio = defaults.dnRatio;
     if (!localProfile.onomatopoeia) localProfile.onomatopoeia = defaults.onomatopoeia;
     if (localProfile.disableUtilityPrefill === undefined) localProfile.disableUtilityPrefill = false;
+
+    if (localProfile.devOverrides && Object.keys(localProfile.devOverrides).length > 0) {
+        localProfile.devOverrides = {};
+        saveSettingsDebounced();
+    }
 
     let displayName = "Global Default";
     if (isGroup) {
@@ -263,10 +259,31 @@ function updateLiveTokenCount() {
     }, 400);
 }
 
+let defaultImageCount = 0;
+
+async function discoverDefaultImages() {
+    if (defaultImageCount > 0) return;
+    let count = 0;
+    for (let i = 1; i <= 20; i++) {
+        try {
+            const res = await fetch(`${extensionFolderPath}/img/default${i}.png`, { method: 'HEAD' });
+            if (res.ok) count = i;
+            else break;
+        } catch { break; }
+    }
+    defaultImageCount = count;
+}
+
+function getRandomDefaultImage() {
+    if (defaultImageCount <= 0) return `${extensionFolderPath}/img/default.png`;
+    const pick = Math.floor(Math.random() * defaultImageCount) + 1;
+    return `${extensionFolderPath}/img/default${pick}.png`;
+}
+
 function updateCharacterDisplay() {
     const context = getContext();
     const bannerElement = $("#ps_hero_banner");
-    let imgUrl = `${extensionFolderPath}/img/default.png`;
+    let imgUrl = getRandomDefaultImage();
 
     if (context.groupId !== undefined && context.groupId !== null) {
         imgUrl = `${extensionFolderPath}/img/group.png`;
@@ -288,15 +305,15 @@ function cleanAIOutput(text) {
 // UI TAB RENDERER (Toolbox System)
 // -------------------------------------------------------------
 const tabsUI =[
-    { title: "Core Engine", sub: "Select the foundational logic engine.", icon: "fa-server", render: renderMode },
+    { title: "Core Engine", sub: "Choose the core ruleset that drives all NPC behavior and world logic.", icon: "fa-server", render: renderMode },
     { title: "Persona & Toggles", sub: "Define the personality and extra toggles.", icon: "fa-user-astronaut", render: renderPersonality },
-    { title: "Writing Style", sub: "Manage and apply custom writing directives.", icon: "fa-pen-nib", render: renderStyleLibrary },
-    { title: "Global Settings", sub: "Configure word count, language, and pronouns.", icon: "fa-earth-americas", render: renderAddons },
-    { title: "Add-ons & Blocks", sub: "Append mechanical blocks to responses.", icon: "fa-puzzle-piece", render: renderBlocks },
-    { title: "Chain of Thought", sub: "Select the reasoning framework.", icon: "fa-brain", render: renderModels },
+    { title: "Writing Style", sub: "Apply a prebuilt style, generate one with AI, or build your own.", icon: "fa-pen-nib", render: renderStyleLibrary },
+    { title: "Global Settings", sub: "Set response length, output language, and how the AI addresses you.", icon: "fa-earth-americas", render: renderAddons },
+    { title: "Add-ons & Blocks", sub: "Attach extra modules that appear at the end of every response.", icon: "fa-puzzle-piece", render: renderBlocks },
+    { title: "Chain of Thought", sub: "Control the AI's internal reasoning process before it writes.", icon: "fa-brain", render: renderModels },
     { title: "Story Planner", sub: "Generate and track future plot developments.", icon: "fa-map", render: renderStoryPlanner },
     { title: "Dynamic Ban List", sub: "Scan and ban repetitive AI phrases.", icon: "fa-ban", render: renderBanList },
-    { title: "Image Generation", sub: "Advanced ComfyUI integration.", icon: "fa-image", render: renderImageGen } 
+    { title: "Image Generation", sub: "Wire up ComfyUI to auto-generate scene images during roleplay.", icon: "fa-image", render: renderImageGen } 
 ];
 
 function switchTab(index) {
@@ -309,6 +326,13 @@ function switchTab(index) {
     
     $("#ps_btn_dev_mode").html(`<i class="fa-solid fa-code"></i> Dev`).css("color", "#a855f7");
     
+    let isSameTab = (currentTab === index);
+    const container = $("#ps_stage_content");
+    let savedScroll = 0;
+    if (isSameTab && container.length) {
+        savedScroll = container.scrollTop() || 0;
+    }
+
     currentTab = index;
     const tab = tabsUI[index];
     
@@ -326,13 +350,17 @@ function switchTab(index) {
     $(".dock-icon").removeClass("active"); 
     $(`#dot_${index}`).addClass("active"); 
     
-    const container = $("#ps_stage_content");
     container.empty(); 
     container.off(".devDirty");
-
-    container.scrollTop(0);
     
     tab.render(container);
+
+    if (isSameTab) {
+        container.scrollTop(savedScroll);
+    } else {
+        container.scrollTop(0);
+    }
+
     updateLiveTokenCount();
 }
 
@@ -368,13 +396,14 @@ function renderMode(c) {
         "balance": "The original Secret Sauce. NPCs react naturally — no simping, no needless hostility.",
         "balance Test": "New and improved balance mode that aims to use less tokens and more creativity.",
         "cinematic": "Hollywood-inspired storytelling. Dramatic beats and heightened tension.",
-        "dark": "Balance but harsher. The world is unforgiving and consequences hit harder."
+        "dark": "Balance but harsher. The world is unforgiving and consequences hit harder.",
+        "v6-anime-director": "Advanced cinematic framing and pacing. Designed to emulate high-budget anime direction.",
+        "v6-dream-team": "The ultimate 6-specialist writer room. Unprecedented narrative consistency and realism.",
+        "v6-dream-team-lite": "A streamlined version of the Dream Team. Faster generation with lower token overhead."
     };
 
-    // --- SECTION 1: CORE ENGINES ---
     c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Megumin Core Engines</div>`);
     
-    // The Filter Buttons
     const filterContainer = $(`
         <div style="display: flex; gap: 8px; margin-bottom: 20px;">
             <button class="ps-modern-tag filter-btn selected" data-filter="all" style="margin:0; border-radius: 20px; padding: 6px 16px;">All Engines</button>
@@ -386,10 +415,8 @@ function renderMode(c) {
     c.append(filterContainer);
 
     const coreGrid = $(`<div class="ps-grid" style="margin-bottom: 30px;"></div>`);
-    // Note: Adjusted the banner text slightly to match your request
     const v6Empty = $(`<div id="v6-empty-msg" style="display:none; padding: 40px 20px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: 12px; margin-bottom: 30px;"><i class="fa-solid fa-hammer" style="font-size: 2rem; color: var(--border-color); margin-bottom: 12px;"></i><br><span style="font-weight: bold; color: var(--text-main);">V6 Engines are in the forge.</span><br>Stay tuned for the next update! Later this week.</div>`);
 
-    // 1. Build the active V4/V5 Engine Cards
     hardcodedLogic.modes.forEach(m => {
         const recText = m.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
         const newBadge = m.isNew ? `<div style="position: absolute; bottom: 15px; right: 15px; background: #3b82f6; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase;">New</div>` : '';
@@ -397,66 +424,42 @@ function renderMode(c) {
         let version = "all";
         if (m.label.includes("V4")) version = "V4";
         else if (m.label.includes("V5")) version = "V5";
+        else if (m.id.includes("v6")) version = "V6"; // Dynamically tags all v6 engines
 
-        const card = $(`<div class="ps-card core-engine-card ${localProfile.mode === m.id ? 'selected' : ''}" data-version="${version}" style="position:relative; padding-bottom: ${m.isNew ? '40px' : '20px'};">
-            <div class="ps-card-title"><span>${m.label}</span> ${recText}</div>
-            <div class="ps-card-desc">${descriptions[m.id] || ""}</div>${newBadge}
+        let isLocked = m.locked === true;
+        let lockStyle = isLocked ? "opacity: 0.6; filter: grayscale(80%); pointer-events: none;" : "cursor: pointer;";
+        let lockIcon = isLocked ? `<i class="fa-solid fa-lock" style="margin-right: 4px; color: var(--text-muted);"></i>` : "";
+        let lockBadge = isLocked ? `<div style="position: absolute; bottom: 15px; right: 15px; background: #52525b; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase;">Coming Soon</div>` : newBadge;
+
+        const card = $(`<div class="ps-card core-engine-card ${localProfile.mode === m.id ? 'selected' : ''}" data-version="${version}" style="position:relative; padding-bottom: ${m.isNew || isLocked ? '40px' : '20px'}; ${lockStyle}">
+            <div class="ps-card-title"><span>${lockIcon}${m.label}</span> ${recText}</div>
+            <div class="ps-card-desc">${descriptions[m.id] || ""}</div>${lockBadge}
         </div>`);
         
-        card.on("click", () => { localProfile.mode = m.id; saveProfileToMemory(); switchTab(currentTab); });
-        coreGrid.append(card);
-    }); 
-
-    // 2. Build the Locked V6 Preview Cards
-    const v6Previews = [
-        { label: "Anime Director", desc: "Advanced cinematic framing and pacing. Designed to emulate high-budget anime direction." },
-        { label: "Dream Team V6", desc: "The ultimate 6-specialist writer room. Unprecedented narrative consistency and realism." },
-        { label: "Dream Team V6 Lite", desc: "A streamlined version of the Dream Team. Faster generation with lower token overhead." }
-    ];
-
-    v6Previews.forEach(p => {
-        const card = $(`<div class="ps-card core-engine-card" data-version="V6" style="opacity: 0.5; filter: grayscale(100%); pointer-events: none; position: relative; padding-bottom: 40px;">
-            <div class="ps-card-title"><span style="color: var(--text-muted);"><i class="fa-solid fa-lock" style="margin-right: 6px;"></i> ${p.label}</span></div>
-            <div class="ps-card-desc">${p.desc}</div>
-            <div style="position: absolute; bottom: 15px; right: 15px; background: #52525b; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase;">Coming Soon</div>
-        </div>`);
+        if (!isLocked) {
+            card.on("click", () => { localProfile.mode = m.id; saveProfileToMemory(); switchTab(currentTab); });
+        }
         coreGrid.append(card);
     });
-    
+
     c.append(coreGrid);
     c.append(v6Empty);
 
-    // 3. Updated Click Logic for the Filters
     filterContainer.find('.filter-btn').on('click', function() {
         filterContainer.find('.filter-btn').removeClass('selected');
         $(this).addClass('selected');
-        
         const filter = $(this).attr('data-filter');
-        
         if (filter === "all") {
-            coreGrid.show();
-            coreGrid.find('.core-engine-card').show();
-            v6Empty.hide();
+            coreGrid.show(); coreGrid.find('.core-engine-card').show(); v6Empty.hide();
         } else {
             coreGrid.find('.core-engine-card').each(function() {
-                if ($(this).attr('data-version') === filter) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
+                if ($(this).attr('data-version') === filter) $(this).show(); else $(this).hide();
             });
             coreGrid.show();
-            
-            // Show the "In the forge" banner only when viewing the V6 tab
-            if (filter === "V6") {
-                v6Empty.show();
-            } else {
-                v6Empty.hide();
-            }
+            if (filter === "V6") v6Empty.show(); else v6Empty.hide();
         }
     });
 
-    // --- SECTION 2: CUSTOM ENGINES ---
     const customModes = extension_settings[extensionName].customModes || [];
     if (customModes.length > 0) {
         c.append(`<div class="ps-rule-title" style="margin-bottom:10px; color: #10b981;">Custom User Engines</div>`);
@@ -470,19 +473,11 @@ function renderMode(c) {
                 </div>
                 <div class="ps-card-desc">Custom Engine Flow</div>
             </div>`);
-            
             card.on("click", (e) => { 
-                if ($(e.target).closest('.btn-quick-edit').length) return; // Prevent selection when clicking edit
-                localProfile.mode = m.id; 
-                saveProfileToMemory(); 
-                switchTab(currentTab); 
+                if ($(e.target).closest('.btn-quick-edit').length) return;
+                localProfile.mode = m.id; saveProfileToMemory(); switchTab(currentTab); 
             });
-            
-            card.find(".btn-quick-edit").on("click", () => {
-                // Pass "tab" as the returnTo parameter so it knows where to go back to!
-                renderDevMode("editor", m.id, null, "tab");
-            });
-            
+            card.find(".btn-quick-edit").on("click", () => renderDevMode("editor", m.id, null, "tab"));
             customGrid.append(card);
         });
         c.append(customGrid);
@@ -490,26 +485,45 @@ function renderMode(c) {
 }
 
 function renderPersonality(c) {
-    const descriptions = {
-        "megumin": "Explosive personality. The system channels chaotic energy and playful narration style.",
-        "director": "Professional narrator. Clean, authoritative story direction with cinematic awareness.",
-        "Nora": "Nora should i say more.",
-        "engine": "Pure mechanical precision. Maximum control, minimum personality injection. Just clean output."
-    };
-    c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Select Persona</div>`);
-    const grid = $(`<div class="ps-grid" style="margin-bottom: 25px;"></div>`);
-    hardcodedLogic.personalities.forEach(p => {
-        const recText = p.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
-        const card = $(`<div class="ps-card ${localProfile.personality === p.id ? 'selected' : ''}">
-            <div class="ps-card-title"><span>${p.label}</span> ${recText}</div>
-            <div class="ps-card-desc">${descriptions[p.id] || ""}</div>
-        </div>`);
-        card.on("click", () => { localProfile.personality = p.id; saveProfileToMemory(); switchTab(currentTab); });
-        grid.append(card);
-    }); c.append(grid);
+    const isV6DreamTeam = localProfile.mode.includes("v6-dream-team");
+
+    if (isV6DreamTeam) {
+        // V6 LOCKED STATE
+        c.append(`
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; background: rgba(168, 85, 247, 0.05); border: 1px dashed #a855f7; border-radius: 12px; margin-bottom: 30px;">
+                <i class="fa-solid fa-user-lock" style="font-size: 3rem; color: #a855f7; margin-bottom: 15px;"></i>
+                <h3 style="color: var(--text-main); margin: 0 0 10px 0;">Persona Selection Locked</h3>
+                <p style="color: var(--text-muted); max-width: 500px; font-size: 0.85rem; line-height: 1.5;">
+                    The V6 Dream Team engine utilizes an intrinsic 6-specialist framework. Standard persona injections (like Megumin or Director) are disabled to prevent logic conflicts.
+                </p>
+            </div>
+        `);
+    } else {
+        // NORMAL STATE
+        const descriptions = {
+            "megumin": "A rebellious, dominant voice. Adds an edge of arrogance and chaos to the narration. Best for energetic or confrontational stories.",
+            "director": "Professional narrator. Clean, authoritative story direction with cinematic awareness.",
+            "Nora": "Nora should i say more.",
+            "engine": "No personality overlay at all. The engine speaks in its purest form — precise, neutral, and fully under your control. Recommended for most setups."
+        };
+        c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Select Persona</div>`);
+        const grid = $(`<div class="ps-grid" style="margin-bottom: 25px;"></div>`);
+        hardcodedLogic.personalities.forEach(p => {
+            const recText = p.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
+            const card = $(`<div class="ps-card ${localProfile.personality === p.id ? 'selected' : ''}">
+                <div class="ps-card-title"><span>${p.label}</span> ${recText}</div>
+                <div class="ps-card-desc">${descriptions[p.id] || ""}</div>
+            </div>`);
+            card.on("click", () => { localProfile.personality = p.id; saveProfileToMemory(); switchTab(currentTab); });
+            grid.append(card);
+        }); 
+        c.append(grid);
+    }
+
+    // EXTRA TOGGLES (Always available)
     c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Extra Toggles</div>`);
     Object.entries(hardcodedLogic.toggles).forEach(([key, tog]) => {
-        const recText = tog.recommendedOff ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Keep OFF for best results not needed on V5</span>` : '';
+        const recText = tog.recommendedOff ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Off by default — most engines handle this natively</span>` : '';
         const tCard = $(`<div class="ps-toggle-card ${localProfile.toggles[key] ? 'active' : ''}">
             <div style="display:flex; flex-direction:column;"><span style="font-weight:600;">${tog.label}</span><div style="margin-top:4px;">${recText}</div></div>
             <div class="ps-switch"></div></div>`);
@@ -519,9 +533,6 @@ function renderPersonality(c) {
 }
 
 function renderStyleLibrary(c) {
-    $("#ps_stage_title").text("Stage 3: Writing Style");
-    $("#ps_stage_sub").text("Select an instant precooked style, use an AI generator, or build your own.");
-    $("#ps_btn_next").show(); $("#ps_btn_prev").show();
     
     const listContainer = $(`<div style="display: flex; flex-direction: column; gap: 12px;"></div>`);
     const isOff = !localProfile.activeStyleId;
@@ -734,9 +745,6 @@ function renderStyleLibrary(c) {
 }
 
 function renderStyleEditor(c, editId, presetData = null) {
-    $("#ps_stage_title").text(editId ? "Edit Style Profile" : "Create New Style");
-    $("#ps_stage_sub").text("Configure tags and specific instructions for this writing style.");
-    $("#ps_btn_next").hide(); $("#ps_btn_prev").hide();
 
     let currentStyle = presetData ? presetData : (editId ? JSON.parse(JSON.stringify(localProfile.customStyles.find(s => s.id === editId))) : {
         id: "style_" + Date.now(), name: "", tags: [], generatedOptions:[], notes: "", rule: ""
@@ -860,28 +868,47 @@ function renderStyleEditor(c, editId, presetData = null) {
 
 function renderAddons(c) {
     const descriptions = {
-        "death": "Permanent death is on the table. You can actually get a Game Over. No plot armor.",
-        "combat": "Lethal, tactical combat. Hits have weight, positioning matters, and fights can go badly fast.",
-        "direct": "No euphemisms or flowery evasions. Characters say exactly what they mean.",
-        "color": "Each character's dialogue is color-coded for easy visual parsing."
+        "death": "Enables permanent consequences. Characters — including yours — can die for real. No safety net, no plot armor.",
+        "combat": "Activates a grounded, tactical combat layer. Actions have real weight, positioning matters, and you can lose badly.",
+        "direct": "Forces AI ti say words like D and P. No dancing around the subject, no polite deflection. you know what i mean.",
+        "color": "Each character's dialogue is color-coded for easy visual parsing.",
+        "npc_events": "Requires all new story events to grow naturally from prior context or environmental cues — no random drama out of nowhere. V6 only."
     };
     const grid = $(`<div class="ps-grid"></div>`);
+
+    // Only declared ONCE here.
+    const activeMode = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
+    const isV6 = activeMode && (activeMode.id.includes("v6") || activeMode.label.includes("V6"));
     
     // Add standard hardcoded addons
     hardcodedLogic.addons.forEach(a => {
         const isSel = localProfile.addons.includes(a.id);
         const recText = a.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
-        const card = $(`<div class="ps-card ${isSel ? 'selected' : ''}">
+        
+        let disabledStyle = "";
+        let v6Badge = "";
+        
+        if (a.id === "npc_events") {
+            if (!isV6) {
+                disabledStyle = "opacity: 0.4; filter: grayscale(100%); pointer-events: none;";
+                v6Badge = `<div style="color: #ef4444; font-size: 0.65rem; font-weight: 800; margin-top: 10px;"><i class="fa-solid fa-lock"></i> REQUIRES V6 ENGINE</div>`;
+            } else {
+                v6Badge = `<div style="color: #10b981; font-size: 0.65rem; font-weight: 800; margin-top: 10px;"><i class="fa-solid fa-unlock"></i> V6 ACTIVE</div>`;
+            }
+        }
+
+        const card = $(`<div class="ps-card ${isSel ? 'selected' : ''}" style="${disabledStyle}">
             <div class="ps-card-title"><span>${a.label}</span> ${recText}</div>
             <div class="ps-card-desc">${descriptions[a.id] || ""}</div>
+            ${v6Badge}
         </div>`);
+        
         card.on("click", () => {
             if(isSel) localProfile.addons = localProfile.addons.filter(i => i !== a.id); else localProfile.addons.push(a.id);
             saveProfileToMemory(); switchTab(currentTab);
         }); grid.append(card);
     });
 
-    // --- NEW: INJECT ONOMATOPOEIA AS A CARD IN THE GRID ---
     if (!localProfile.onomatopoeia) localProfile.onomatopoeia = { enabled: false, useStyling: false };
     const isOno = localProfile.onomatopoeia.enabled;
     const isOnoStyle = localProfile.onomatopoeia.useStyling;
@@ -891,7 +918,6 @@ function renderAddons(c) {
             <div class="ps-card-title"><span>Cinematic Sounds (onomatopoeia)</span></div>
             <div class="ps-card-desc">Force the AI to use precise phonetic sound words (e.g., click, thud) instead of abstract descriptions.</div>
             
-            <!-- Inner Toggle Section (Only visible when card is selected) -->
             <div style="display: ${isOno ? 'flex' : 'none'}; width: 100%; margin-top: 15px; padding-top: 12px; border-top: 1px dashed rgba(0,0,0,0.2); justify-content: space-between; align-items: center;">
                 <div style="display:flex; flex-direction:column; flex: 1; padding-right: 10px;">
                     <span style="font-weight:700; font-size: 0.75rem; color: #000;">Animate Sounds</span>
@@ -904,7 +930,6 @@ function renderAddons(c) {
         </div>
     `);
 
-    // Handle clicks safely so the inner toggle doesn't trigger the outer card
     onoCard.on("click", (e) => {
         if ($(e.target).closest("#ono_inner_toggle").length) {
             localProfile.onomatopoeia.useStyling = !localProfile.onomatopoeia.useStyling;
@@ -918,8 +943,6 @@ function renderAddons(c) {
     grid.append(onoCard);
     c.append(grid);
 
-    // --- INJECT CUSTOM ENGINE MODULES (STAGE 4) ---
-    const activeMode = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
     if (activeMode && activeMode.customToggles) {
         const customSettings = activeMode.customToggles.filter(t => t.location === "settings");
         if (customSettings.length > 0) {
@@ -939,7 +962,6 @@ function renderAddons(c) {
         }
     }
 
-    // --- EXTRA CONTAINER (Global Settings) ---
     c.append(`
         <div style="margin-top: 32px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 20px;">
             <div class="ps-rule-title" style="color: var(--text-main); font-size: 0.9rem; font-weight: 700;">
@@ -990,10 +1012,11 @@ function renderAddons(c) {
 }
 
 function renderBlocks(c) {
+    // RE-DECLARED HERE SAFELY
     const activeEngine = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
     const descriptions = {
-        "info": "Appends a clean status block with current weather, time, location, and character clothing.",
-        "summary": "A rolling summary the AI updates each response so it never forgets key events or details.",
+        "info": "Appends a tidy status panel after each response showing time, weather, location, and what characters are wearing.",
+        "summary": "Keeps a running story digest that the AI updates each turn — helps it remember names, events, and details over long sessions.",
         "cyoa": "Choose-Your-Own-Adventure panel with 4 suggested actions for you to pick from each turn.",
         "mvu": "Add MVU Compatibility still in test read more here: <a href='https://github.com/KritBlade/MVU_Game_Maker' target='_blank' style='color: var(--gold); text-decoration: underline;'>https://github.com/KritBlade/MVU_Game_Maker</a>"
     };
@@ -1015,10 +1038,9 @@ function renderBlocks(c) {
             saveProfileToMemory(); switchTab(currentTab);
         }); grid.append(card);
     });
-    // --- INJECT CUSTOM ENGINE MODULES (STAGE 5) ---
-    const activeMode =[...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
-    if (activeMode && activeMode.customToggles) {
-        const customAddons = activeMode.customToggles.filter(t => t.location === "addons");
+    
+    if (activeEngine && activeEngine.customToggles) {
+        const customAddons = activeEngine.customToggles.filter(t => t.location === "addons");
         if (customAddons.length > 0) {
             grid.append(`<div style="grid-column: 1 / -1; margin-top: 10px;"><div class="ps-rule-title" style="color: #10b981; margin-bottom: 0;">Custom Engine Add-ons</div></div>`);
             customAddons.forEach(ca => {
@@ -1059,13 +1081,17 @@ function renderModels(c) {
     let currentType = "off", currentLang = "english";
     if (localProfile.model && localProfile.model.startsWith("cot-v1-")) { currentType = "v1"; currentLang = localProfile.model.replace("cot-v1-", ""); }
     else if (localProfile.model && localProfile.model.startsWith("cot-v2-")) { currentType = "v2"; currentLang = localProfile.model.replace("cot-v2-", ""); }
+    else if (localProfile.model && localProfile.model.startsWith("cot-v6-lite-")) { currentType = "v6-lite"; currentLang = localProfile.model.replace("cot-v6-lite-", ""); }
+    else if (localProfile.model && localProfile.model.startsWith("cot-v6-")) { currentType = "v6"; currentLang = localProfile.model.replace("cot-v6-", ""); }
 
     c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Select Thinking Framework</div>`);
     const typeGrid = $(`<div class="ps-grid" style="margin-bottom: 25px;"></div>`);
     const types =[
         { id: "off", label: "CoT Off", desc: "No Chain of Thought or prefill. The AI will respond normally." },
         { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
-        { id: "v2", label: "CoT V2 (New)", desc: "The new experimental framework. Stricter reality checks, info audits, better NPCs, and hook generation.", isNew: true }
+        { id: "v2", label: "CoT V2 (New)", desc: "The new experimental framework. Stricter reality checks, info audits, better NPCs, and hook generation." },
+        { id: "v6", label: "CoT V6 (Dream Team)", desc: "The full 4-phase sequence designed specifically for V6 engines. Specialized validation and modeling.", isNew: true },
+        { id: "v6-lite", label: "CoT V6 (Lite)", desc: "A streamlined 3-phase sequence. Less token overhead while maintaining narrative rules.", isNew: true }
     ];
     types.forEach(t => {
         const isSel = currentType === t.id;
@@ -1505,7 +1531,7 @@ function renderImageGen(c) {
     $("#ig_auto_freq").on("input", (e) => { let v = parseInt($(e.target).val()); if(v<1)v=1; s.autoGenFreq = v; saveProfileToMemory(); });
 
     $("#ig_preview_card").on("click", function() {
-        s.previewPrompt = s.previewPrompt === true ? false : true; 
+        s.previewPrompt = !s.previewPrompt; 
         saveProfileToMemory();
         if (s.previewPrompt) $(this).addClass("active");
         else $(this).removeClass("active");
@@ -2165,6 +2191,10 @@ function buildBaseDict() {
         }
     }
 
+    if (localProfile.mode.includes("v6-dream-team")) {
+        dict["[[main]]"] = "";
+    }
+
     // Story Planner Injection
     if (localProfile.storyPlan && localProfile.storyPlan.enabled) {
         const planText = localProfile.storyPlan.currentPlan;
@@ -2323,7 +2353,7 @@ function handlePromptInjection(data) {
                 }
             });
             // Cleanup tags
-            ["[[prompt1]]","[[prompt2]]","[[prompt3]]","[[prompt4]]","[[prompt5]]","[[prompt6]]","[prompt1]","[prompt2]","[prompt3]","[prompt4]","[prompt5]","[prompt6]","[[AI1]]","[[AI2]]","[[main]]","[[OOC]]","[[control]]","[[aiprompt]]","[[death]]","[[combat]]","[[Direct]]","[[COLOR]]","[[infoblock]]","[[summary]]","[[cyoa]]","[[COT]]","[[prefill]]","[[order]]","[[Language]]","[[pronouns]]","[[banlist]]","[[count]]","[[MVU]]","[[img1]]","[[img2]]","[[storyplan]]","[[storytracker]]","[[DNRATIO]]","[[THINK]]","[[onomato]]"].forEach(tr => {
+            ["[[prompt1]]","[[prompt2]]","[[prompt3]]","[[prompt4]]","[[prompt5]]","[[prompt6]]","[prompt1]","[prompt2]","[prompt3]","[prompt4]","[prompt5]","[prompt6]","[[AI1]]","[[AI2]]","[[main]]","[[OOC]]","[[control]]","[[aiprompt]]","[[death]]","[[combat]]","[[Direct]]","[[COLOR]]","[[infoblock]]","[[summary]]","[[cyoa]]","[[COT]]","[[prefill]]","[[order]]","[[Language]]","[[pronouns]]","[[banlist]]","[[count]]","[[MVU]]","[[img1]]","[[img2]]","[[storyplan]]","[[storytracker]]","[[DNRATIO]]","[[THINK]]","[[onomato]]","[[npc_events]]"].forEach(tr => {
                 if(msg.content.includes(tr)) msg.content = msg.content.replace(new RegExp(escapeRegex(tr), 'g'), "");
             });
         }
@@ -2334,8 +2364,6 @@ function handlePromptInjection(data) {
     }
 }
 
-$("body").on("click", "#ps_btn_next", function() { if (currentStage < stagesUI.length - 1) switchTab(currentStage + 1); });
-$("body").on("click", "#ps_btn_prev", function() { if (currentStage > 0) switchTab(currentStage - 1); });
 
 // -------------------------------------------------------------
 // DEV MODE: VISUAL ENGINE BUILDER
@@ -2742,6 +2770,7 @@ jQuery(async () => {
         if (typeof eventSource !== 'undefined' && typeof event_types !== 'undefined') {
             eventSource.on(event_types.APP_READY, () => {
                 cleanGhostProfiles();
+                discoverDefaultImages();
             });
             eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, handlePromptInjection);
             eventSource.on(event_types.CHAT_CHANGED, () => {

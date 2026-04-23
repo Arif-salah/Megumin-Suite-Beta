@@ -1,3 +1,6 @@
+# beta 23/04/26
+* added Dream team v6 and v6 lite.
+* fixed some under the hood stuff.
 # beta 18/04/26
 * change COT off now will remove <think>\n{Thinking}\n</think> so the ai will not be forced to use thinking.
 * added Dialogue / Narration Ratio slider so now you can choose how mush narration you want (i know you dont like to read you dummy)
