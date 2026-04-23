@@ -442,7 +442,7 @@
                 "id": "ca6cc695-2253-404d-859f-18f7458c00d1",
                 "scriptName": "Better Info block",
                 "findRegex": "/<details>\\s*<summary>.*?📌.*?<b>Status<\\/b><\\/summary>\\s*([\\s\\S]*?)\\s*<\\/details>/gi",
-                "replaceString": "<style>\n.ui-card { margin: 12px 0; background: rgba(30, 32, 36, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 0 16px; overflow: hidden; }\n.ui-card summary { cursor: pointer; font-weight: bold; padding: 10px 16px; background: rgba(0, 0, 0, 0.3); margin: 0 -16px; outline: none; }\n.ui-card[open] { padding-bottom: 16px; }\n.ui-card[open] summary { margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }\n</style>\n<details class=\"ui-card\" open>\n<summary style=\"color: #4da6ff;\">📌 Status</summary>\n\n$1\n\n</details>",
+                "replaceString": "<style>\n.ui-card { margin: 12px 0; background: rgba(30, 32, 36, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 0 16px; overflow: hidden; }\n.ui-card summary { cursor: pointer; font-weight: bold; padding: 10px 16px; background: rgba(0, 0, 0, 0.3); margin: 0 -16px; outline: none; }\n.ui-card[open] { padding-bottom: 16px; }\n.ui-card[open] summary { margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }\n</style>\n<details class=\"ui-card\"> <summary style=\"color: #4da6ff;\">📌 Status</summary>\n\n$1\n\n</details>",
                 "trimStrings": [],
                 "placement": [
                     2
