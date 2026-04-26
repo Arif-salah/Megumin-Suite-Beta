@@ -31,16 +31,16 @@ function getCharacterKey() {
 
 function cleanGhostProfiles() {
     if (!extension_settings[extensionName] || !extension_settings[extensionName].profiles) return;
-    
+
     const context = getContext();
     if (!context.characters || context.characters.length === 0) {
-        return; 
+        return;
     }
     // Get all valid avatars and group IDs currently in SillyTavern
     const activeAvatars = Object.values(context.characters || {}).map(c => c.avatar);
     const activeGroups = (context.groups || []).map(g => `group_${g.id}`);
     const validKeys = ["default", ...activeAvatars, ...activeGroups];
-    
+
     let deletedCount = 0;
     Object.keys(extension_settings[extensionName].profiles).forEach(key => {
         if (!validKeys.includes(key)) {
@@ -48,7 +48,7 @@ function cleanGhostProfiles() {
             deletedCount++;
         }
     });
-    
+
     if (deletedCount > 0) {
         saveSettingsDebounced();
         console.log(`[Megumin Suite] Garbage Collection: Cleaned up ${deletedCount} ghost profiles.`);
@@ -64,18 +64,18 @@ function initProfile() {
     if (!extension_settings[extensionName]) extension_settings[extensionName] = { profiles: {} };
     if (!extension_settings[extensionName].profiles) extension_settings[extensionName].profiles = {};
     if (!extension_settings[extensionName].customModes) {
-        extension_settings[extensionName].customModes =[];
+        extension_settings[extensionName].customModes = [];
     }
 
     const defaults = {
-        mode: "balance", 
-        personality: "engine", 
+        mode: "balance",
+        personality: "engine",
         toggles: { ooc: false, control: false },
         disableUtilityPrefill: false,
-        aiTags:[], 
-        aiGeneratedOptions:[], 
-        aiRule: "", 
-        customStyles:[],   
+        aiTags: [],
+        aiGeneratedOptions: [],
+        aiRule: "",
+        customStyles: [],
         activeStyleId: null,
         dnRatio: {
             enabled: false,
@@ -85,17 +85,19 @@ function initProfile() {
             enabled: false,
             useStyling: false
         },
-        addons: [], 
-        blocks:[], 
-        model: "cot-v1-english", 
+        addons: [],
+        blocks: [],
+        model: "cot-v1-english",
         userNotes: "",
         userWordCount: "",
-        userLanguage: "", 
+        userLanguage: "",
         userPronouns: "off",
-        devOverrides: {}, 
-        banList:[],
+        devOverrides: {},
+        banList: [],
         banListBackend: "direct",
-        customModes:[],
+        customModes: [],
+        thinkEffort: "unspecified",
+        customThinkEffort: "100",
         storyPlan: {
             enabled: false,
             backend: "direct",
@@ -117,13 +119,13 @@ function initProfile() {
             selectedSampler: "euler",
             compressImages: true,
             steps: 20, cfg: 7.0, denoise: 0.5, clipSkip: 1,
-            promptStyle: "standard",      
-            promptPerspective: "scene",   
+            promptStyle: "standard",
+            promptPerspective: "scene",
             promptExtra: "",
-            triggerMode: "always", 
+            triggerMode: "always",
             autoGenFreq: 1,
             previewPrompt: false,
-            savedWorkflowStates: {} 
+            savedWorkflowStates: {}
         }
     };
 
@@ -135,16 +137,16 @@ function initProfile() {
     if (key && extension_settings[extensionName].profiles[key]) {
         localProfile = extension_settings[extensionName].profiles[key];
         if (isGroup) {
-            $("#ps_rule_status_main").css({"color": "#3b82f6", "text-shadow": "0 0 10px rgba(59,130,246,0.5)"}).text(`CUSTOM GROUP PROFILE`);
+            $("#ps_rule_status_main").css({ "color": "#3b82f6", "text-shadow": "0 0 10px rgba(59,130,246,0.5)" }).text(`CUSTOM GROUP PROFILE`);
         } else {
-            $("#ps_rule_status_main").css({"color": "#10b981", "text-shadow": "0 0 10px rgba(16,185,129,0.5)"}).text(`CUSTOM CHARACTER PROFILE`);
+            $("#ps_rule_status_main").css({ "color": "#10b981", "text-shadow": "0 0 10px rgba(16,185,129,0.5)" }).text(`CUSTOM CHARACTER PROFILE`);
         }
     } else {
         localProfile = JSON.parse(JSON.stringify(extension_settings[extensionName].profiles["default"]));
-        if(key) {
-            $("#ps_rule_status_main").css({"color": "#f59e0b", "text-shadow": "0 0 10px rgba(245,158,11,0.5)"}).text(`USING SYSTEM DEFAULT`);
+        if (key) {
+            $("#ps_rule_status_main").css({ "color": "#f59e0b", "text-shadow": "0 0 10px rgba(245,158,11,0.5)" }).text(`USING SYSTEM DEFAULT`);
         } else {
-            $("#ps_rule_status_main").css({"color": "#a855f7", "text-shadow": "0 0 10px rgba(168,85,247,0.5)"}).text(`MODIFYING GLOBAL DEFAULT`);
+            $("#ps_rule_status_main").css({ "color": "#a855f7", "text-shadow": "0 0 10px rgba(168,85,247,0.5)" }).text(`MODIFYING GLOBAL DEFAULT`);
         }
     }
 
@@ -174,7 +176,7 @@ function initProfile() {
     } else if (key && context.characterId !== undefined && context.characters[context.characterId]) {
         displayName = context.characters[context.characterId].name;
     }
-    
+
     $("#ps_char_rule_label").text(displayName);
     toggleQuickGenButton();
     updateLiveTokenCount();
@@ -190,7 +192,7 @@ function saveProfileToMemory() {
     updateLiveTokenCount(); // NEW: Update the UI whenever settings are saved!
 
     const saveInd = $("#ps_save_indicator");
-    if(saveInd.length) {
+    if (saveInd.length) {
         saveInd.html(`<i class="fa-solid fa-check"></i> Saved`).fadeIn(150);
         clearTimeout(window.psSaveTimer);
         window.psSaveTimer = setTimeout(() => saveInd.fadeOut(400), 2000);
@@ -203,16 +205,16 @@ function updateLiveTokenCount() {
     if (!counterBadge.length) return;
 
     const dict = buildBaseDict();
-    
+
     let engineStr = "";
     let cotStr = "";
     let styleStr = "";
     let addonsStr = "";
-    
+
     Object.entries(dict).forEach(([key, value]) => {
         if (!value) return;
         // Skip the single-bracket aliases to prevent double counting
-        if (key.match(/^\[prompt[1-6]\]$/)) return; 
+        if (key.match(/^\[prompt[1-6]\]$/)) return;
 
         // Categorize the text
         if (key.includes("prompt") || key.includes("main") || key.includes("AI")) {
@@ -231,7 +233,7 @@ function updateLiveTokenCount() {
     const estCot = Math.ceil(cotStr.replace(/\s+/g, ' ').length / 4.0);
     const estStyle = Math.ceil(styleStr.replace(/\s+/g, ' ').length / 4.0);
     const estAddons = Math.ceil(addonsStr.replace(/\s+/g, ' ').length / 4.0);
-    
+
     const total = estEngine + estCot + estStyle + estAddons;
 
     // Update the UI text
@@ -247,7 +249,7 @@ function updateLiveTokenCount() {
             <div style="display:flex; justify-content:space-between; font-size: 0.75rem;"><span>Add-ons/Blocks:</span> <span style="color:#ef4444; font-weight:bold;">~${estAddons}</span></div>
         </div>
     `;
-    
+
     // Attach it to the badge
     counterBadge.attr("data-breakdown", breakdownHTML);
     counterBadge.css("cursor", "help");
@@ -290,7 +292,7 @@ function updateCharacterDisplay() {
     } else if (context.characterId !== undefined && context.characterId !== null && context.characters[context.characterId]) {
         imgUrl = `/characters/${context.characters[context.characterId].avatar}`;
     }
-    
+
     // Set the full-width background image smoothly
     bannerElement.css("background-image", `url('${imgUrl}')`);
 }
@@ -304,7 +306,7 @@ function cleanAIOutput(text) {
 // -------------------------------------------------------------
 // UI TAB RENDERER (Toolbox System)
 // -------------------------------------------------------------
-const tabsUI =[
+const tabsUI = [
     { title: "Core Engine", sub: "Choose the core ruleset that drives all NPC behavior and world logic.", icon: "fa-server", render: renderMode },
     { title: "Persona & Toggles", sub: "Define the personality and extra toggles.", icon: "fa-user-astronaut", render: renderPersonality },
     { title: "Writing Style", sub: "Apply a prebuilt style, generate one with AI, or build your own.", icon: "fa-pen-nib", render: renderStyleLibrary },
@@ -313,19 +315,19 @@ const tabsUI =[
     { title: "Chain of Thought", sub: "Control the AI's internal reasoning process before it writes.", icon: "fa-brain", render: renderModels },
     { title: "Story Planner", sub: "Generate and track future plot developments.", icon: "fa-map", render: renderStoryPlanner },
     { title: "Dynamic Ban List", sub: "Scan and ban repetitive AI phrases.", icon: "fa-ban", render: renderBanList },
-    { title: "Image Generation", sub: "Wire up ComfyUI to auto-generate scene images during roleplay.", icon: "fa-image", render: renderImageGen } 
+    { title: "Image Generation", sub: "Wire up ComfyUI to auto-generate scene images during roleplay.", icon: "fa-image", render: renderImageGen }
 ];
 
 function switchTab(index) {
-    $(".dock").show(); 
+    $(".dock").show();
     $("#ps_btn_save_close").show();
-    
+
     // Hide Apply All on Tab 3 (Writing Style)
-    if (index === 2) { $("#btn_apply_tab_all").hide(); } 
+    if (index === 2) { $("#btn_apply_tab_all").hide(); }
     else { $("#btn_apply_tab_all").show(); }
-    
+
     $("#ps_btn_dev_mode").html(`<i class="fa-solid fa-code"></i> Dev`).css("color", "#a855f7");
-    
+
     let isSameTab = (currentTab === index);
     const container = $("#ps_stage_content");
     let savedScroll = 0;
@@ -335,7 +337,7 @@ function switchTab(index) {
 
     currentTab = index;
     const tab = tabsUI[index];
-    
+
     // Generate Icons
     const dotsContainer = $("#ps_dynamic_dots");
     if (dotsContainer.children(".dock-icon").length < tabsUI.length) {
@@ -347,12 +349,12 @@ function switchTab(index) {
         });
     }
 
-    $(".dock-icon").removeClass("active"); 
-    $(`#dot_${index}`).addClass("active"); 
-    
-    container.empty(); 
+    $(".dock-icon").removeClass("active");
+    $(`#dot_${index}`).addClass("active");
+
+    container.empty();
     container.off(".devDirty");
-    
+
     tab.render(container);
 
     if (isSameTab) {
@@ -368,7 +370,7 @@ function applyTabToAll() {
     const tabKeys = {
         0: ["mode"],
         1: ["personality", "toggles"],
-        2: ["activeStyleId", "aiRule", "customStyles", "dnRatio"], 
+        2: ["activeStyleId", "aiRule", "customStyles", "dnRatio"],
         3: ["userWordCount", "userLanguage", "userPronouns", "disableUtilityPrefill", "onomatopoeia"],
         4: ["addons", "blocks"],
         5: ["model"],
@@ -376,7 +378,7 @@ function applyTabToAll() {
         7: ["banList"],
         8: ["imageGen"]
     };
-    
+
     const keysToSync = tabKeys[currentTab];
     if (confirm(`Apply ${tabsUI[currentTab].title} settings to ALL characters, groups, and defaults?`)) {
         const currentData = localProfile;
@@ -403,7 +405,7 @@ function renderMode(c) {
     };
 
     c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Megumin Core Engines</div>`);
-    
+
     const filterContainer = $(`
         <div style="display: flex; gap: 8px; margin-bottom: 20px;">
             <button class="ps-modern-tag filter-btn selected" data-filter="all" style="margin:0; border-radius: 20px; padding: 6px 16px;">All Engines</button>
@@ -420,7 +422,7 @@ function renderMode(c) {
     hardcodedLogic.modes.forEach(m => {
         const recText = m.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
         const newBadge = m.isNew ? `<div style="position: absolute; bottom: 15px; right: 15px; background: #3b82f6; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px; text-transform: uppercase;">New</div>` : '';
-        
+
         let version = "all";
         if (m.label.includes("V4")) version = "V4";
         else if (m.label.includes("V5")) version = "V5";
@@ -435,7 +437,7 @@ function renderMode(c) {
             <div class="ps-card-title"><span>${lockIcon}${m.label}</span> ${recText}</div>
             <div class="ps-card-desc">${descriptions[m.id] || ""}</div>${lockBadge}
         </div>`);
-        
+
         if (!isLocked) {
             card.on("click", () => { localProfile.mode = m.id; saveProfileToMemory(); switchTab(currentTab); });
         }
@@ -445,14 +447,14 @@ function renderMode(c) {
     c.append(coreGrid);
     c.append(v6Empty);
 
-    filterContainer.find('.filter-btn').on('click', function() {
+    filterContainer.find('.filter-btn').on('click', function () {
         filterContainer.find('.filter-btn').removeClass('selected');
         $(this).addClass('selected');
         const filter = $(this).attr('data-filter');
         if (filter === "all") {
             coreGrid.show(); coreGrid.find('.core-engine-card').show(); v6Empty.hide();
         } else {
-            coreGrid.find('.core-engine-card').each(function() {
+            coreGrid.find('.core-engine-card').each(function () {
                 if ($(this).attr('data-version') === filter) $(this).show(); else $(this).hide();
             });
             coreGrid.show();
@@ -473,9 +475,9 @@ function renderMode(c) {
                 </div>
                 <div class="ps-card-desc">Custom Engine Flow</div>
             </div>`);
-            card.on("click", (e) => { 
+            card.on("click", (e) => {
                 if ($(e.target).closest('.btn-quick-edit').length) return;
-                localProfile.mode = m.id; saveProfileToMemory(); switchTab(currentTab); 
+                localProfile.mode = m.id; saveProfileToMemory(); switchTab(currentTab);
             });
             card.find(".btn-quick-edit").on("click", () => renderDevMode("editor", m.id, null, "tab"));
             customGrid.append(card);
@@ -516,7 +518,7 @@ function renderPersonality(c) {
             </div>`);
             card.on("click", () => { localProfile.personality = p.id; saveProfileToMemory(); switchTab(currentTab); });
             grid.append(card);
-        }); 
+        });
         c.append(grid);
     }
 
@@ -533,10 +535,10 @@ function renderPersonality(c) {
 }
 
 function renderStyleLibrary(c) {
-    
+
     const listContainer = $(`<div style="display: flex; flex-direction: column; gap: 12px;"></div>`);
     const isOff = !localProfile.activeStyleId;
-    
+
     // --- 1. THE OFF CARD ---
     const offCard = $(`
         <div class="ps-card ${isOff ? 'selected' : ''}" style="width: 100%; padding: 16px; flex-direction: row; align-items: center; justify-content: space-between; border-color: ${isOff ? 'var(--text-main)' : 'var(--border-color)'};">
@@ -557,7 +559,7 @@ function renderStyleLibrary(c) {
     if (!localProfile.dnRatio) localProfile.dnRatio = { enabled: false, dialogue: 50 };
     const isDNR = localProfile.dnRatio.enabled;
     const dVal = localProfile.dnRatio.dialogue;
-    
+
     const dnrBlock = $(`
         <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-top: 5px; margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -585,14 +587,14 @@ function renderStyleLibrary(c) {
         </div>
     `);
 
-    dnrBlock.find("#dnr_toggle").on("click", function() {
-        localProfile.dnRatio.enabled = !localProfile.dnRatio.enabled; saveProfileToMemory(); renderStyleLibrary(c); 
+    dnrBlock.find("#dnr_toggle").on("click", function () {
+        localProfile.dnRatio.enabled = !localProfile.dnRatio.enabled; saveProfileToMemory(); renderStyleLibrary(c);
     });
-    dnrBlock.find("#dnr_slider").on("input", function() {
+    dnrBlock.find("#dnr_slider").on("input", function () {
         let d = parseInt($(this).val()); let n = 100 - d;
         $("#lbl_dial, #lbl_prev_d").text(d); $("#lbl_narr, #lbl_prev_n").text(n);
     });
-    dnrBlock.find("#dnr_slider").on("change", function() {
+    dnrBlock.find("#dnr_slider").on("change", function () {
         localProfile.dnRatio.dialogue = parseInt($(this).val()); saveProfileToMemory();
     });
     listContainer.append(dnrBlock);
@@ -639,7 +641,7 @@ function renderStyleLibrary(c) {
 
     // B. Custom Styles (My Library)
     secCustom.append(`<div class="ps-stages-label" style="margin-top: 5px; color: #10b981;"><i class="fa-solid fa-book"></i> My Library</div>`);
-    const existingNames = localProfile.customStyles ? localProfile.customStyles.map(s => s.name) :[];
+    const existingNames = localProfile.customStyles ? localProfile.customStyles.map(s => s.name) : [];
     if (localProfile.customStyles && localProfile.customStyles.length > 0) {
         localProfile.customStyles.forEach(style => {
             const isSel = localProfile.activeStyleId === style.id;
@@ -662,18 +664,18 @@ function renderStyleLibrary(c) {
                 </div>
             `);
             card.on("click", (e) => {
-                if($(e.target).closest("button, .ps-btn-regen").length) return;
+                if ($(e.target).closest("button, .ps-btn-regen").length) return;
                 localProfile.activeStyleId = style.id; localProfile.aiRule = style.rule; saveProfileToMemory(); renderStyleLibrary(c);
             });
             card.find(".ps-btn-edit").on("click", () => renderStyleEditor(c, style.id));
             card.find(".ps-btn-delete").on("click", () => {
-                if(confirm(`Delete "${style.name}"?`)) {
+                if (confirm(`Delete "${style.name}"?`)) {
                     localProfile.customStyles = localProfile.customStyles.filter(s => s.id !== style.id);
-                    if(localProfile.activeStyleId === style.id) { localProfile.activeStyleId = null; localProfile.aiRule = ""; }
+                    if (localProfile.activeStyleId === style.id) { localProfile.activeStyleId = null; localProfile.aiRule = ""; }
                     saveProfileToMemory(); renderStyleLibrary(c);
                 }
             });
-            card.find(".ps-btn-regen").on("click", async function() {
+            card.find(".ps-btn-regen").on("click", async function () {
                 $(this).html(`<i class="fa-solid fa-spinner fa-spin"></i>`);
                 await useMeguminEngine(async () => {
                     const orderText = `Inspired by ${style.notes}. Write a writing style rule based on: ${style.tags.join(", ")}. Direct instructions only. 2-3 paragraphs. No fluff.`;
@@ -709,7 +711,7 @@ function renderStyleLibrary(c) {
                 </button>
             </div>
         `);
-        card.find(".ps-btn-tpl-gen").on("click", async function() {
+        card.find(".ps-btn-tpl-gen").on("click", async function () {
             const btn = $(this); btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i>`);
             await useMeguminEngine(async () => {
                 const orderText = `Inspired by ${tpl.notes}. Write a writing style rule based on: ${tpl.tags.join(", ")}. Direct instructions only. 2-3 paragraphs. No fluff.`;
@@ -729,10 +731,10 @@ function renderStyleLibrary(c) {
     c.empty().append(listContainer);
 
     // --- FILTER LOGIC ---
-    filterContainer.find('.style-filter-btn').on('click', function() {
+    filterContainer.find('.style-filter-btn').on('click', function () {
         filterContainer.find('.style-filter-btn').removeClass('selected');
         $(this).addClass('selected');
-        
+
         const filter = $(this).attr('data-filter');
         if (filter === "all") {
             secPrecooked.show(); secGenerators.show(); secCustom.show();
@@ -747,7 +749,7 @@ function renderStyleLibrary(c) {
 function renderStyleEditor(c, editId, presetData = null) {
 
     let currentStyle = presetData ? presetData : (editId ? JSON.parse(JSON.stringify(localProfile.customStyles.find(s => s.id === editId))) : {
-        id: "style_" + Date.now(), name: "", tags: [], generatedOptions:[], notes: "", rule: ""
+        id: "style_" + Date.now(), name: "", tags: [], generatedOptions: [], notes: "", rule: ""
     });
 
     c.empty();
@@ -767,10 +769,10 @@ function renderStyleEditor(c, editId, presetData = null) {
         </div>
     `);
 
-    $("#ps_style_template_dropdown").on("change", function() {
+    $("#ps_style_template_dropdown").on("change", function () {
         const tplIndex = $(this).val(); if (tplIndex === null) return;
         const chosenTpl = hardcodedLogic.styleTemplates[tplIndex];
-        currentStyle.name = chosenTpl.name; currentStyle.tags = [...chosenTpl.tags]; currentStyle.notes = chosenTpl.notes; currentStyle.rule = ""; currentStyle.generatedOptions =[];
+        currentStyle.name = chosenTpl.name; currentStyle.tags = [...chosenTpl.tags]; currentStyle.notes = chosenTpl.notes; currentStyle.rule = ""; currentStyle.generatedOptions = [];
         renderStyleEditor(c, editId, currentStyle); toastr.info(`${chosenTpl.name} loaded!`);
     });
 
@@ -782,7 +784,7 @@ function renderStyleEditor(c, editId, presetData = null) {
             const tagName = tagObj.id; const isSel = currentStyle.tags.includes(tagName);
             const tEl = $(`<span class="ps-modern-tag ${isSel ? 'selected' : ''}" data-hint="${tagObj.hint}">${tagName}</span>`);
             tEl.on("click", () => {
-                if(currentStyle.tags.includes(tagName)) currentStyle.tags = currentStyle.tags.filter(t => t !== tagName); else currentStyle.tags.push(tagName);
+                if (currentStyle.tags.includes(tagName)) currentStyle.tags = currentStyle.tags.filter(t => t !== tagName); else currentStyle.tags.push(tagName);
                 tEl.toggleClass("selected");
             }); tagBox.append(tEl);
         }); tagContainer.append(wrap);
@@ -815,7 +817,7 @@ function renderStyleEditor(c, editId, presetData = null) {
 
     const renderInsights = () => {
         const box = $("#ps_ai_author_box_style"); box.empty();
-        (currentStyle.generatedOptions ||[]).forEach(tag => {
+        (currentStyle.generatedOptions || []).forEach(tag => {
             const isSel = currentStyle.tags.includes(tag);
             const tEl = $(`<span class="ps-modern-tag ${isSel ? 'selected' : ''}">${tag.replace(" ✨", "")} <i class="fa-solid fa-sparkles" style="font-size:0.6rem; margin-left:4px; color:var(--gold);"></i></span>`);
             tEl.on("click", () => {
@@ -826,27 +828,27 @@ function renderStyleEditor(c, editId, presetData = null) {
     };
     renderInsights();
 
-    $("#ps_style_notes").on("input", function() { currentStyle.notes = $(this).val(); });
-    $("#ps_style_rule_text").on("input", function() { currentStyle.rule = $(this).val(); });
-    $("#ps_style_name").on("input", function() { currentStyle.name = $(this).val(); });
+    $("#ps_style_notes").on("input", function () { currentStyle.notes = $(this).val(); });
+    $("#ps_style_rule_text").on("input", function () { currentStyle.rule = $(this).val(); });
+    $("#ps_style_name").on("input", function () { currentStyle.name = $(this).val(); });
 
     $("#ps_btn_cancel_style").on("click", () => renderStyleLibrary(c));
     $("#ps_btn_save_style").on("click", () => {
         if (currentStyle.name.trim() === "") currentStyle.name = "Unnamed Style";
-        if (!editId) { localProfile.customStyles.push(currentStyle); } 
-        else { const idx = localProfile.customStyles.findIndex(s => s.id === editId); if(idx > -1) localProfile.customStyles[idx] = currentStyle; }
+        if (!editId) { localProfile.customStyles.push(currentStyle); }
+        else { const idx = localProfile.customStyles.findIndex(s => s.id === editId); if (idx > -1) localProfile.customStyles[idx] = currentStyle; }
         if (localProfile.activeStyleId === currentStyle.id) { localProfile.aiRule = currentStyle.rule; }
         saveProfileToMemory(); renderStyleLibrary(c); toastr.success(`Saved "${currentStyle.name}"`);
     });
 
-    $("#ps_btn_get_authors_style").on("click", async function() {
+    $("#ps_btn_get_authors_style").on("click", async function () {
         if (!getCharacterKey()) return toastr.warning("Open a chat or group first so I can read the context!");
         $(this).prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Brainstorming...`);
         await useMeguminEngine(async () => {
             const orderText = `Based on the active characters and scenario, give me EXACTLY 2 famous author names or literary writing styles (e.g. Edgar Allan Poe, Jane Austen style, Dark Fantasy Author) and 5 tags that fit the rp (e.g. internet culture, femboy, virtual game) whose writing style perfectly fits the tone and world. Return ONLY the 7 items separated by a comma. Do not explain them.`;
             let aiRawOutput = await runMeguminTask(orderText);
             const aiTagsTemp = cleanAIOutput(aiRawOutput).split(",").map(t => t.trim().replace(/['"\[\]\.]/g, '')).filter(t => t.length > 0);
-            if(aiTagsTemp.length > 0) {
+            if (aiTagsTemp.length > 0) {
                 currentStyle.tags = currentStyle.tags.filter(tag => !tag.endsWith("✨"));
                 currentStyle.generatedOptions = aiTagsTemp.map(tag => `${tag} ✨`);
                 renderInsights(); toastr.success(`Generated ${aiTagsTemp.length} insights!`);
@@ -854,13 +856,13 @@ function renderStyleEditor(c, editId, presetData = null) {
         }); $(this).prop("disabled", false).html(`<i class="fa-solid fa-lightbulb"></i> Generate Insights`);
     });
 
-    $("#ps_btn_generate_style").on("click", async function() {
+    $("#ps_btn_generate_style").on("click", async function () {
         if (currentStyle.tags.length === 0) return toastr.warning("Select tags first!");
         $(this).prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Finalizing...`);
         await useMeguminEngine(async () => {
             const orderText = `Create a writing style prompt based on these traits:\n\nSelected style tags: ${currentStyle.tags.join(", ")}\n\nAdditional user instructions: ${currentStyle.notes}\n\nWrite a concise, well-structured writing style rule (100 words max) that the AI must follow. Combine all tags into a cohesive directive. Write it as a direct instruction. Do not use bullet points or introductory text.`;
             let rule = await runMeguminTask(orderText);
-            currentStyle.rule = cleanAIOutput(rule).trim(); 
+            currentStyle.rule = cleanAIOutput(rule).trim();
             $("#ps_style_rule_text").val(currentStyle.rule); toastr.success("Live AI Rule Generated!");
         }); $(this).prop("disabled", false).html(`<i class="fa-solid fa-bolt"></i> Generate Writing Rule`);
     });
@@ -872,22 +874,23 @@ function renderAddons(c) {
         "combat": "Activates a grounded, tactical combat layer. Actions have real weight, positioning matters, and you can lose badly.",
         "direct": "Forces AI ti say words like D and P. No dancing around the subject, no polite deflection. you know what i mean.",
         "color": "Each character's dialogue is color-coded for easy visual parsing.",
-        "npc_events": "Requires all new story events to grow naturally from prior context or environmental cues — no random drama out of nowhere. V6 only."
+        "npc_events": "Requires all new story events to grow naturally from prior context or environmental cues — no random drama out of nowhere. V6 only.",
+        "dn": "Forces dialogue and narration to be wrapped in their respective XML tags. Useful for specific Models for better narration style adherence."
     };
     const grid = $(`<div class="ps-grid"></div>`);
 
     // Only declared ONCE here.
-    const activeMode = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
+    const activeMode = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
     const isV6 = activeMode && (activeMode.id.includes("v6") || activeMode.label.includes("V6"));
-    
+
     // Add standard hardcoded addons
     hardcodedLogic.addons.forEach(a => {
         const isSel = localProfile.addons.includes(a.id);
         const recText = a.recommended ? `<span class="ps-rec-text"><i class="fa-solid fa-star"></i> Recommended</span>` : '';
-        
+
         let disabledStyle = "";
         let v6Badge = "";
-        
+
         if (a.id === "npc_events") {
             if (!isV6) {
                 disabledStyle = "opacity: 0.4; filter: grayscale(100%); pointer-events: none;";
@@ -902,9 +905,9 @@ function renderAddons(c) {
             <div class="ps-card-desc">${descriptions[a.id] || ""}</div>
             ${v6Badge}
         </div>`);
-        
+
         card.on("click", () => {
-            if(isSel) localProfile.addons = localProfile.addons.filter(i => i !== a.id); else localProfile.addons.push(a.id);
+            if (isSel) localProfile.addons = localProfile.addons.filter(i => i !== a.id); else localProfile.addons.push(a.id);
             saveProfileToMemory(); switchTab(currentTab);
         }); grid.append(card);
     });
@@ -1000,20 +1003,20 @@ function renderAddons(c) {
         </div>
     `);
 
-    $("#ps_toggle_utility_prefill").on("click", function() {
+    $("#ps_toggle_utility_prefill").on("click", function () {
         localProfile.disableUtilityPrefill = !localProfile.disableUtilityPrefill;
         saveProfileToMemory();
         if (localProfile.disableUtilityPrefill) $(this).addClass("active");
         else $(this).removeClass("active");
     });
-    $("#ps_input_wordcount").on("input", function() { localProfile.userWordCount = $(this).val(); saveProfileToMemory(); });
-    $("#ps_input_language").on("input", function() { localProfile.userLanguage = $(this).val(); saveProfileToMemory(); });
-    $("#ps_select_pronouns").on("change", function() { localProfile.userPronouns = $(this).val(); saveProfileToMemory(); });
+    $("#ps_input_wordcount").on("input", function () { localProfile.userWordCount = $(this).val(); saveProfileToMemory(); });
+    $("#ps_input_language").on("input", function () { localProfile.userLanguage = $(this).val(); saveProfileToMemory(); });
+    $("#ps_select_pronouns").on("change", function () { localProfile.userPronouns = $(this).val(); saveProfileToMemory(); });
 }
 
 function renderBlocks(c) {
     // RE-DECLARED HERE SAFELY
-    const activeEngine = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
+    const activeEngine = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
     const descriptions = {
         "info": "Appends a tidy status panel after each response showing time, weather, location, and what characters are wearing.",
         "summary": "Keeps a running story digest that the AI updates each turn — helps it remember names, events, and details over long sessions.",
@@ -1023,7 +1026,7 @@ function renderBlocks(c) {
     const grid = $(`<div class="ps-grid"></div>`);
     hardcodedLogic.blocks.forEach(b => {
         const isSel = localProfile.blocks.includes(b.id);
-        
+
         const isOverridden = activeEngine && activeEngine[b.id] && activeEngine[b.id].trim() !== "";
         const overrideText = isOverridden ? `<div style="color: #10b981; font-weight: 800; font-size: 0.65rem; margin-top: 4px; text-transform: uppercase;">Using Engine Version</div>` : "";
 
@@ -1033,12 +1036,12 @@ function renderBlocks(c) {
             ${overrideText}
         </div>`);
         card.on("click", (e) => {
-            if ($(e.target).closest("a").length) return; 
-            if(isSel) localProfile.blocks = localProfile.blocks.filter(i => i !== b.id); else localProfile.blocks.push(b.id);
+            if ($(e.target).closest("a").length) return;
+            if (isSel) localProfile.blocks = localProfile.blocks.filter(i => i !== b.id); else localProfile.blocks.push(b.id);
             saveProfileToMemory(); switchTab(currentTab);
         }); grid.append(card);
     });
-    
+
     if (activeEngine && activeEngine.customToggles) {
         const customAddons = activeEngine.customToggles.filter(t => t.location === "addons");
         if (customAddons.length > 0) {
@@ -1058,7 +1061,7 @@ function renderBlocks(c) {
 
 function renderModels(c) {
     c.empty();
-    const activeEngine = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes ||[])].find(m => m.id === localProfile.mode);
+    const activeEngine = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
 
     // IF CUSTOM COT EXISTS, SHOW GREEN INDICATOR
     if (activeEngine && activeEngine.cot && activeEngine.cot.trim() !== "") {
@@ -1084,9 +1087,68 @@ function renderModels(c) {
     else if (localProfile.model && localProfile.model.startsWith("cot-v6-lite-")) { currentType = "v6-lite"; currentLang = localProfile.model.replace("cot-v6-lite-", ""); }
     else if (localProfile.model && localProfile.model.startsWith("cot-v6-")) { currentType = "v6"; currentLang = localProfile.model.replace("cot-v6-", ""); }
 
+    if (!localProfile.thinkEffort) localProfile.thinkEffort = "unspecified";
+    if (!localProfile.customThinkEffort) localProfile.customThinkEffort = "100";
+
+    c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Select Thinking Effort</div>`);
+    const effortGrid = $(`<div class="ps-grid" style="margin-bottom: 25px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));"></div>`);
+    const efforts = [
+        { id: "100", label: "100 Words" },
+        { id: "250", label: "250 Words" },
+        { id: "450", label: "450 Words" },
+        { id: "custom", label: "Custom" },
+        { id: "unspecified", label: "Unspecified" }
+    ];
+    efforts.forEach(e => {
+        const isSel = localProfile.thinkEffort === e.id;
+        const card = $(`<div class="ps-card ${isSel ? 'selected' : ''}" style="padding: 12px 10px; min-height: unset; text-align: center;">
+            <div class="ps-card-title" style="margin-bottom: 0; font-size: 0.9rem; display: flex; justify-content: center;"><span>${e.label}</span></div>
+        </div>`);
+        card.on("click", () => {
+            localProfile.thinkEffort = e.id;
+            saveProfileToMemory();
+            renderModels(c);
+        });
+        effortGrid.append(card);
+    });
+    c.append(effortGrid);
+
+    if (localProfile.thinkEffort === "custom") {
+        const customBlock = $(`
+            <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-top: -15px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
+                <div style="flex: 1;"><div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Custom Word Count</div></div>
+                <input type="number" id="ps_input_custom_effort" class="ps-modern-input" style="width: 150px;" value="${localProfile.customThinkEffort}" min="1" />
+            </div>
+        `);
+        customBlock.find("#ps_input_custom_effort").on("change input", function () {
+            localProfile.customThinkEffort = $(this).val();
+            saveProfileToMemory();
+        });
+        c.append(customBlock);
+    }
+
+    if (localProfile.thinkingV2 === undefined) localProfile.thinkingV2 = false;
+    const v2Card = $(`
+        <div class="ps-toggle-card ${localProfile.thinkingV2 ? 'active' : ''}" style="margin-bottom: 20px; border-color: ${localProfile.thinkingV2 ? 'var(--gold)' : 'var(--border-color)'};">
+            <div style="display:flex; flex-direction:column;">
+                <span style="font-weight:700; font-size: 1.05rem; color: ${localProfile.thinkingV2 ? 'var(--gold)' : 'var(--text-main)'};"><i class="fa-solid fa-brain"></i> Thinking v2</span>
+                <div style="margin-top:4px; font-size: 0.8rem; color: var(--text-muted);">This toggle is tested only for Gemini 3.1 Pro and 3 Flash. You can test it in other models but it may not work or make things worse.</div>
+            </div>
+            <div class="ps-switch"></div>
+        </div>
+    `);
+    v2Card.on("click", function() {
+        localProfile.thinkingV2 = !localProfile.thinkingV2;
+        saveProfileToMemory();
+        renderModels(c);
+    });
+    c.append(v2Card);
+
+    c.append(`<hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 0 0 20px 0;" />`);
+
     c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Select Thinking Framework</div>`);
     const typeGrid = $(`<div class="ps-grid" style="margin-bottom: 25px;"></div>`);
-    const types =[
+    const types = [
         { id: "off", label: "CoT Off", desc: "No Chain of Thought or prefill. The AI will respond normally." },
         { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
         { id: "v2", label: "CoT V2 (New)", desc: "The new experimental framework. Stricter reality checks, info audits, better NPCs, and hook generation." },
@@ -1112,7 +1174,7 @@ function renderModels(c) {
         c.append(`<hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 0 0 20px 0;" />`);
         c.append(`<div class="ps-rule-title" style="margin-bottom:10px;">Select Language</div>`);
         const langGrid = $(`<div class="ps-grid"></div>`);
-        const langs =[
+        const langs = [
             { id: "english", label: "English" }, { id: "arabic", label: "Arabic (العربية)", rec: true }, { id: "spanish", label: "Spanish (Español)" },
             { id: "french", label: "French (Français)" }, { id: "zh", label: "Mandarin (中文)" }, { id: "ru", label: "Russian (Русский)" },
             { id: "jp", label: "Japanese (日本語)" }, { id: "pt", label: "Portuguese (Português)" }
@@ -1186,34 +1248,34 @@ function renderStoryPlanner(c) {
                 
                 <div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; border-radius: 4px; padding: 12px 16px;">
                     <div style="display: flex; align-items: center; gap: 8px; color: #3b82f6; font-weight: 600; font-size: 0.85rem; margin-bottom: 4px;"><i class="fa-solid fa-circle-info"></i> How to Use</div>
-                    <div style="color: var(--text-main); font-size: 0.8rem; line-height: 1.5;">Ensure you have placed the <b>[[storyplan]]</b> and <b>[[storytracker]]</b> macros somewhere in your Engine Builder or Core Toggles so the AI can read this data!</div>
+                    <div style="color: var(--text-main); font-size: 0.8rem; line-height: 1.5;">A tracker will be added automaticly at the end of each response.</div>
                 </div>
             </div>
         </div>
     `);
 
     // Listeners
-    $("#sp_enable_card").on("click", function() {
+    $("#sp_enable_card").on("click", function () {
         sp.enabled = !sp.enabled; saveProfileToMemory();
-        if (sp.enabled) { $(this).addClass("active").css("border-color", "var(--gold)").find("span").css("color", "var(--gold)"); $("#sp_main_content").slideDown(200); } 
+        if (sp.enabled) { $(this).addClass("active").css("border-color", "var(--gold)").find("span").css("color", "var(--gold)"); $("#sp_main_content").slideDown(200); }
         else { $(this).removeClass("active").css("border-color", "var(--border-color)").find("span").css("color", "var(--text-main)"); $("#sp_main_content").slideUp(200); }
     });
 
     $("#sp_backend").on("change", e => { sp.backend = $(e.target).val(); saveProfileToMemory(); });
-    $("#sp_trigger").on("change", e => { 
-        sp.triggerMode = $(e.target).val(); saveProfileToMemory(); 
+    $("#sp_trigger").on("change", e => {
+        sp.triggerMode = $(e.target).val(); saveProfileToMemory();
         if (sp.triggerMode === 'frequency') $("#sp_freq").show(); else $("#sp_freq").hide();
     });
     $("#sp_freq").on("input", e => { sp.autoFreq = Math.max(1, parseInt($(e.target).val()) || 10); saveProfileToMemory(); });
     $("#sp_current_plan").on("input", e => { sp.currentPlan = $(e.target).val(); saveProfileToMemory(); });
 
-    $("#sp_btn_generate").on("click", async function() {
+    $("#sp_btn_generate").on("click", async function () {
         const chatText = getCleanedChatHistory();
         if (chatText.length < 100) return toastr.warning("Not enough chat history to generate a plot.");
-        
+
         const btn = $(this);
         btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Brainstorming...`);
-        
+
         try {
             let output;
             if (sp.backend === "direct") {
@@ -1221,7 +1283,7 @@ function renderStoryPlanner(c) {
             } else {
                 await useMeguminEngine(async () => { output = await generateStoryPlanLogic(chatText); });
             }
-            
+
             if (output) {
                 // Extract only what is inside <plot></plot>
                 const plotMatch = output.match(/<plot>([\s\S]*?)<\/plot>/i);
@@ -1254,7 +1316,7 @@ async function generateStoryPlanLogic(chatText) {
 
 function renderBanList(c) {
     c.empty();
-    if (!localProfile.banList) localProfile.banList =[];
+    if (!localProfile.banList) localProfile.banList = [];
     c.append(`
         <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -1280,9 +1342,14 @@ function renderBanList(c) {
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <div class="ps-rule-title" style="margin-bottom: 0;">Active Banned Phrases</div>
-            <button id="ps_btn_clear_bans" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.75rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-trash-can"></i> Clear All</button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="file" id="ps_import_bans_file" accept=".json" style="display: none;">
+                <button id="ps_btn_import_bans" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.75rem; color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);"><i class="fa-solid fa-file-import"></i> Import</button>
+                <button id="ps_btn_export_bans" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.75rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);"><i class="fa-solid fa-file-export"></i> Export</button>
+                <button id="ps_btn_clear_bans" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.75rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-trash-can"></i> Clear All</button>
+            </div>
         </div>
-        <div id="ps_banlist_container" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 50px; padding: 10px; border: 1px dashed var(--border-color); border-radius: 8px;"></div>
+        <div id="ps_banlist_container" style="display: flex; flex-direction: column; gap: 8px; min-height: 50px; padding: 10px; border: 1px dashed var(--border-color); border-radius: 8px;"></div>
         <div style="margin-top: 20px; background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; border-radius: 4px; padding: 12px 16px;">
             <div style="display: flex; align-items: center; gap: 8px; color: #3b82f6; font-weight: 600; font-size: 0.85rem; margin-bottom: 4px;"><i class="fa-solid fa-circle-info"></i> Note</div>
             <div style="color: var(--text-main); font-size: 0.8rem; line-height: 1.5;">This is a beta feature. Don't complain if you have to generate more than once.</div>
@@ -1293,7 +1360,12 @@ function renderBanList(c) {
         const box = $("#ps_banlist_container"); box.empty();
         if (localProfile.banList.length === 0) { box.append(`<span style="color: var(--text-muted); font-size: 0.8rem; font-style: italic;">No phrases banned yet.</span>`); return; }
         localProfile.banList.forEach(phrase => {
-            const tEl = $(`<span class="ps-modern-tag selected" style="background: rgba(239,68,68,0.1); border-color: #ef4444; color: #ef4444;">${phrase} <i class="fa-solid fa-xmark" style="margin-left: 6px;"></i></span>`);
+            const tEl = $(`<div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background-color 0.2s; word-break: break-word; line-height: 1.4;">
+                <span style="padding-right: 15px;">${phrase}</span>
+                <i class="fa-solid fa-xmark" style="opacity: 0.7;"></i>
+            </div>`);
+            tEl.on("mouseenter", function() { $(this).css("background", "rgba(239, 68, 68, 0.15)"); });
+            tEl.on("mouseleave", function() { $(this).css("background", "rgba(239, 68, 68, 0.08)"); });
             tEl.on("click", () => { localProfile.banList = localProfile.banList.filter(p => p !== phrase); saveProfileToMemory(); renderTags(); }); box.append(tEl);
         });
     }; renderTags();
@@ -1304,13 +1376,55 @@ function renderBanList(c) {
     });
     $("#ps_btn_clear_bans").on("click", () => {
         if (localProfile.banList.length === 0) return;
-        if (confirm("Are you sure you want to delete all banned phrases?")) { localProfile.banList =[]; saveProfileToMemory(); renderTags(); toastr.info("Ban list cleared."); }
+        if (confirm("Are you sure you want to delete all banned phrases?")) { localProfile.banList = []; saveProfileToMemory(); renderTags(); toastr.info("Ban list cleared."); }
     });
-    $("#ban_list_backend").on("change", function() {
+    $("#ps_btn_export_bans").on("click", () => {
+        if (!localProfile.banList || localProfile.banList.length === 0) return toastr.warning("Ban list is empty!");
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(localProfile.banList, null, 2));
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", `banlist_${localProfile.id || 'export'}.json`);
+        document.body.appendChild(dlAnchorElem);
+        dlAnchorElem.click();
+        document.body.removeChild(dlAnchorElem);
+    });
+    $("#ps_btn_import_bans").on("click", () => {
+        $("#ps_import_bans_file").trigger("click");
+    });
+    $("#ps_import_bans_file").on("change", function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const imported = JSON.parse(evt.target.result);
+                if (Array.isArray(imported)) {
+                    let added = 0;
+                    imported.forEach(p => {
+                        if (typeof p === 'string' && !localProfile.banList.includes(p.trim()) && p.trim().length > 0) {
+                            localProfile.banList.push(p.trim());
+                            added++;
+                        }
+                    });
+                    saveProfileToMemory();
+                    renderTags();
+                    if (added > 0) toastr.success(`Imported ${added} phrases!`);
+                    else toastr.info("No new phrases imported.");
+                } else {
+                    toastr.error("Invalid JSON format. Expected an array of strings.");
+                }
+            } catch (err) {
+                toastr.error("Error parsing JSON file.");
+            }
+        };
+        reader.readAsText(file);
+        $(this).val('');
+    });
+    $("#ban_list_backend").on("change", function () {
         localProfile.banListBackend = $(this).val();
         saveProfileToMemory();
     });
-    $("#ps_btn_scan_slop").on("click", async function() {
+    $("#ps_btn_scan_slop").on("click", async function () {
         const chatText = getCleanedChatHistory();
         if (chatText.length < 50) return toastr.warning("Not enough chat history to analyze!");
         $(this).prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...`);
@@ -1494,13 +1608,13 @@ function renderImageGen(c) {
             <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                 <div class="ps-rule-title" style="margin-bottom: 12px;"><i class="fa-solid fa-flask"></i> LoRA Lab</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    ${[1,2,3,4].map(i => `
+                    ${[1, 2, 3, 4].map(i => `
                         <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; border-left: 3px solid #a855f7;">
                             <div style="font-size: 0.75rem; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">Slot ${i}</div>
                             <select id="ig_lora_${i}" class="ps-modern-input" style="padding: 6px; font-size: 0.75rem; margin-bottom: 8px;"><option value="">Loading...</option></select>
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: bold;">Wt: <span id="ig_lorawt_lbl_${i}" style="color: var(--text-main);">${i===1?s.selectedLoraWt:i===2?s.selectedLoraWt2:i===3?s.selectedLoraWt3:s.selectedLoraWt4}</span></span>
-                                <input type="range" id="ig_lorawt_${i}" min="-2" max="2" step="0.1" value="${i===1?s.selectedLoraWt:i===2?s.selectedLoraWt2:i===3?s.selectedLoraWt3:s.selectedLoraWt4}" style="flex: 1; cursor: pointer;">
+                                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: bold;">Wt: <span id="ig_lorawt_lbl_${i}" style="color: var(--text-main);">${i === 1 ? s.selectedLoraWt : i === 2 ? s.selectedLoraWt2 : i === 3 ? s.selectedLoraWt3 : s.selectedLoraWt4}</span></span>
+                                <input type="range" id="ig_lorawt_${i}" min="-2" max="2" step="0.1" value="${i === 1 ? s.selectedLoraWt : i === 2 ? s.selectedLoraWt2 : i === 3 ? s.selectedLoraWt3 : s.selectedLoraWt4}" style="flex: 1; cursor: pointer;">
                             </div>
                         </div>
                     `).join('')}
@@ -1510,28 +1624,28 @@ function renderImageGen(c) {
     `);
 
     // --- EVENTS & BINDINGS ---
-    $("#ig_enable_card").on("click", function() {
+    $("#ig_enable_card").on("click", function () {
         s.enabled = !s.enabled;
         saveProfileToMemory();
         toggleQuickGenButton(); // <-- ADDED
-        if (s.enabled) { $(this).addClass("active"); $(this).css("border-color", "var(--gold)"); $(this).find("span").css("color", "var(--gold)"); $("#ig_main_content").slideDown(200); igFetchComfyLists(); } 
+        if (s.enabled) { $(this).addClass("active"); $(this).css("border-color", "var(--gold)"); $(this).find("span").css("color", "var(--gold)"); $("#ig_main_content").slideDown(200); igFetchComfyLists(); }
         else { $(this).removeClass("active"); $(this).css("border-color", "var(--border-color)"); $(this).find("span").css("color", "var(--text-main)"); $("#ig_main_content").slideUp(200); }
     });
-    $("#img_gen_backend").on("change", function() {
+    $("#img_gen_backend").on("change", function () {
         s.generatorBackend = $(this).val();
         saveProfileToMemory();
     });
 
-    $("#ig_trigger_mode").on("change", (e) => { 
-        s.triggerMode = $(e.target).val(); 
-        saveProfileToMemory(); 
+    $("#ig_trigger_mode").on("change", (e) => {
+        s.triggerMode = $(e.target).val();
+        saveProfileToMemory();
         toggleQuickGenButton(); // <-- ADDED
         if (s.triggerMode === 'frequency') $("#ig_freq_container").show(); else $("#ig_freq_container").hide();
     });
-    $("#ig_auto_freq").on("input", (e) => { let v = parseInt($(e.target).val()); if(v<1)v=1; s.autoGenFreq = v; saveProfileToMemory(); });
+    $("#ig_auto_freq").on("input", (e) => { let v = parseInt($(e.target).val()); if (v < 1) v = 1; s.autoGenFreq = v; saveProfileToMemory(); });
 
-    $("#ig_preview_card").on("click", function() {
-        s.previewPrompt = !s.previewPrompt; 
+    $("#ig_preview_card").on("click", function () {
+        s.previewPrompt = !s.previewPrompt;
         saveProfileToMemory();
         if (s.previewPrompt) $(this).addClass("active");
         else $(this).removeClass("active");
@@ -1548,8 +1662,8 @@ function renderImageGen(c) {
 
     // Sliders
     const bindSlider = (id, key, isFloat) => {
-        $(`#ig_${id}`).on("input", function() { let v = isFloat ? parseFloat(this.value) : parseInt(this.value); s[key] = v; $(`#ig_${id}_val`).val(v); saveProfileToMemory(); });
-        $(`#ig_${id}_val`).on("input", function() { let v = isFloat ? parseFloat(this.value) : parseInt(this.value); s[key] = v; $(`#ig_${id}`).val(v); saveProfileToMemory(); });
+        $(`#ig_${id}`).on("input", function () { let v = isFloat ? parseFloat(this.value) : parseInt(this.value); s[key] = v; $(`#ig_${id}_val`).val(v); saveProfileToMemory(); });
+        $(`#ig_${id}_val`).on("input", function () { let v = isFloat ? parseFloat(this.value) : parseInt(this.value); s[key] = v; $(`#ig_${id}`).val(v); saveProfileToMemory(); });
     };
     bindSlider("steps", "steps", false); bindSlider("cfg", "cfg", true); bindSlider("denoise", "denoise", true); bindSlider("clip", "clipSkip", false);
 
@@ -1563,11 +1677,11 @@ function renderImageGen(c) {
     });
 
     // LoRAs
-    for(let i=1; i<=4; i++) {
-        const key = i===1 ? "selectedLora" : `selectedLora${i}`;
-        const wtKey = i===1 ? "selectedLoraWt" : `selectedLoraWt${i}`;
+    for (let i = 1; i <= 4; i++) {
+        const key = i === 1 ? "selectedLora" : `selectedLora${i}`;
+        const wtKey = i === 1 ? "selectedLoraWt" : `selectedLoraWt${i}`;
         $(`#ig_lora_${i}`).on("change", (e) => { s[key] = $(e.target).val(); saveProfileToMemory(); });
-        $(`#ig_lorawt_${i}`).on("input", function() { let v = parseFloat(this.value); s[wtKey] = v; $(`#ig_lorawt_lbl_${i}`).text(v); saveProfileToMemory(); });
+        $(`#ig_lorawt_${i}`).on("input", function () { let v = parseFloat(this.value); s[wtKey] = v; $(`#ig_lorawt_lbl_${i}`).text(v); saveProfileToMemory(); });
     }
 
     // Models & Samplers
@@ -1576,7 +1690,7 @@ function renderImageGen(c) {
 
     // Buttons
     $("#ig_test_btn").on("click", igTestConnection);
-    
+
     // Workflow Managers
     $("#ig_new_wf").on("click", igNewWorkflowClick);
     $("#ig_edit_wf").on("click", igOpenWorkflowEditorClick);
@@ -1599,7 +1713,7 @@ function renderImageGen(c) {
             toastr.success(`Restored settings for ${newWorkflow}`);
             renderImageGen(c); // Re-render to update UI with restored values
         } else { toastr.info(`New workflow context active`); }
-        
+
         s.currentWorkflowName = newWorkflow;
         saveProfileToMemory();
     });
@@ -1635,8 +1749,8 @@ async function igFetchComfyLists() {
         if (lRes.ok) {
             const json = await lRes.json();
             const files = json['LoraLoader'].input.required.lora_name[0];
-            for(let i=1; i<=4; i++) {
-                const sel = $(`#ig_lora_${i}`); const val = i===1 ? s.selectedLora : s[`selectedLora${i}`];
+            for (let i = 1; i <= 4; i++) {
+                const sel = $(`#ig_lora_${i}`); const val = i === 1 ? s.selectedLora : s[`selectedLora${i}`];
                 sel.empty().append('<option value="">-- No LoRA --</option>');
                 files.forEach(f => sel.append(`<option value="${f}">${f}</option>`));
                 if (val) sel.val(val);
@@ -1706,7 +1820,7 @@ async function igOpenWorkflowEditorClick() {
         const res = await fetch('/api/sd/comfy/workflow', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ file_name: name }) });
         if (res.ok) {
             const rawBody = await res.json(); let jsonObj = rawBody;
-            if (typeof rawBody === 'string') { try { jsonObj = JSON.parse(rawBody); } catch(e) {} }
+            if (typeof rawBody === 'string') { try { jsonObj = JSON.parse(rawBody); } catch (e) { } }
             loadedContent = JSON.stringify(jsonObj, null, 4);
         }
     } catch (e) { toastr.error("Failed to load file. Starting empty."); }
@@ -1738,24 +1852,24 @@ async function igOpenWorkflowEditorClick() {
 
     KAZUMA_PLACEHOLDERS.forEach(item => {
         const $itemDiv = $('<div></div>').css({ 'padding': '8px', 'margin-bottom': '6px', 'background': 'rgba(255,255,255,0.05)', 'border-radius': '6px', 'border': '1px solid transparent', 'transition': '0.2s' });
-        $itemDiv.append($('<span></span>').text(item.key).css({'font-weight': 'bold', 'color': 'var(--gold)', 'font-family': 'monospace'})).append($('<div></div>').text(item.desc).css({ 'font-size': '0.7rem', 'color': 'var(--text-muted)', 'margin-top': '4px' }));
+        $itemDiv.append($('<span></span>').text(item.key).css({ 'font-weight': 'bold', 'color': 'var(--gold)', 'font-family': 'monospace' })).append($('<div></div>').text(item.desc).css({ 'font-size': '0.7rem', 'color': 'var(--text-muted)', 'margin-top': '4px' }));
         $list.append($itemDiv);
     });
 
     const updateState = () => {
         currentJsonText = $textarea.val();
-        $list.children().each(function() {
+        $list.children().each(function () {
             const cleanKey = $(this).find('span').first().text().replace(/"/g, '');
-            if (currentJsonText.includes(cleanKey)) $(this).css({'border-color': '#10b981', 'background': 'rgba(16, 185, 129, 0.1)'});
-            else $(this).css({'border-color': 'transparent', 'background': 'rgba(255,255,255,0.05)'});
+            if (currentJsonText.includes(cleanKey)) $(this).css({ 'border-color': '#10b981', 'background': 'rgba(16, 185, 129, 0.1)' });
+            else $(this).css({ 'border-color': 'transparent', 'background': 'rgba(255,255,255,0.05)' });
         });
     };
     $textarea.on('input', updateState); setTimeout(updateState, 100);
 
-    $container.find('.wf-format').on('click', () => { try { $textarea.val(JSON.stringify(JSON.parse($textarea.val()), null, 4)); updateState(); toastr.success("Formatted"); } catch(e) { toastr.warning("Invalid JSON"); } });
+    $container.find('.wf-format').on('click', () => { try { $textarea.val(JSON.stringify(JSON.parse($textarea.val()), null, 4)); updateState(); toastr.success("Formatted"); } catch (e) { toastr.warning("Invalid JSON"); } });
     $container.find('.wf-import').on('click', () => $fileInput.click());
     $fileInput.on('change', (e) => { if (!e.target.files[0]) return; const r = new FileReader(); r.onload = (ev) => { $textarea.val(ev.target.result); updateState(); toastr.success("Imported"); }; r.readAsText(e.target.files[0]); $fileInput.val(''); });
-    $container.find('.wf-export').on('click', () => { try { JSON.parse(currentJsonText); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([currentJsonText], {type:"application/json"})); a.download = name; a.click(); } catch(e) { toastr.warning("Invalid content"); } });
+    $container.find('.wf-export').on('click', () => { try { JSON.parse(currentJsonText); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([currentJsonText], { type: "application/json" })); a.download = name; a.click(); } catch (e) { toastr.warning("Invalid content"); } });
 
     const popup = new Popup($container, POPUP_TYPE.CONFIRM, '', { okButton: 'Save Changes', cancelButton: 'Cancel', wide: true, large: true, onClosing: () => { try { JSON.parse(currentJsonText); return true; } catch (e) { toastr.error("Invalid JSON."); return false; } } });
     if (await popup.show()) {
@@ -1786,7 +1900,7 @@ function showKazumaProgress(text = "Processing...") {
 async function igManualGenerate() {
     const s = localProfile?.imageGen;
     if (!s || !s.enabled) return;
-    
+
     showKazumaProgress("Analyzing Scene...");
 
     try {
@@ -1807,7 +1921,7 @@ async function igManualGenerate() {
         toastr.info("Sending to ComfyUI...", "Megumin Suite");
         igGenerateWithComfy(promptText, null);
 
-    } catch(e) {
+    } catch (e) {
         console.error(e);
         $("#kazuma_progress_overlay").hide();
         toastr.error("Manual generation failed.");
@@ -1827,12 +1941,12 @@ async function generateImagePromptText() {
         text = text.replace(badStuffRegex, "").replace(/<details>[\s\S]*?<\/details>/gs, "").replace(/<summary>[\s\S]*?<\/summary>/gs, "").replace(/<[^>]*>?/gm, "");
         return `${m.name}: ${text.trim()}`;
     }).join("\n\n");
-    
+
     let styleStr = s.promptStyle === "illustrious" ? "Use Danbooru-style tags separated by commas." : (s.promptStyle === "sdxl" ? "Use natural, descriptive prose and full sentences." : "Use a comma-separated list of detailed keywords and visual descriptors.");
     let perspStr = s.promptPerspective === "pov" ? "Frame the scene strictly from a First-Person (POV) perspective." : (s.promptPerspective === "character" ? "Focus intensely on the character's appearance." : "Describe the entire environment and atmosphere.");
-    
+
     activeImageGenRequest = { chatText: lastMessages, styleStr: styleStr, perspStr: perspStr, extraStr: s.promptExtra || "None" };
-    
+
     let rawOutput = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
     return rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
@@ -1844,32 +1958,32 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
     // --- INTERCEPT PROMPT IF PREVIEW IS ENABLED ---
     if (s.previewPrompt) {
         $("#kazuma_progress_overlay").hide(); // Hide the progress bar temporarily
-        
+
         const $content = $(`
             <div style="display:flex; flex-direction:column; gap:10px; font-family: 'Inter', sans-serif;">
                 <div style="font-size: 0.85rem; color: var(--text-muted);">Review or modify the prompt before it goes to ComfyUI.</div>
                 <textarea class="ps-modern-input ig-preview-textarea" style="height: 150px; resize: vertical; font-family: monospace; font-size: 0.85rem; padding: 10px;">${finalPrompt}</textarea>
             </div>
         `);
-        
+
         // CRITICAL FIX: SillyTavern destroys the popup HTML when it closes. 
         // We MUST capture the text while the user is typing!
         let liveText = finalPrompt;
-        $content.find(".ig-preview-textarea").on("input", function() { 
-            liveText = $(this).val(); 
+        $content.find(".ig-preview-textarea").on("input", function () {
+            liveText = $(this).val();
         });
-        
+
         const popup = new Popup($content, POPUP_TYPE.CONFIRM, "Preview Image Prompt", { okButton: "Send to ComfyUI", cancelButton: "Cancel", wide: true });
         const confirmed = await popup.show();
-        
+
         if (!confirmed) {
             toastr.info("Generation cancelled.");
             return;
         }
-        
+
         finalPrompt = liveText.trim();
         if (!finalPrompt) return toastr.warning("Prompt cannot be empty.");
-        
+
         showKazumaProgress("Preparing to Render..."); // Bring progress bar back
     }
 
@@ -1914,9 +2028,9 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
 
     try {
         const res = await fetch(`${s.comfyUrl}/prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: workflow }) });
-        if(!res.ok) throw new Error("Failed");
+        if (!res.ok) throw new Error("Failed");
         const data = await res.json();
-        
+
         showKazumaProgress("Rendering Image...");
         const checkInterval = setInterval(async () => {
             try {
@@ -1931,7 +2045,7 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                     if (finalImage) {
                         showKazumaProgress("Downloading...");
                         const imgUrl = `${s.comfyUrl}/view?filename=${finalImage.filename}&subfolder=${finalImage.subfolder}&type=${finalImage.type}`;
-                        
+
                         // Download & Compress
                         const response = await fetch(imgUrl); const blob = await response.blob();
                         const base64Raw = await new Promise((res) => { const r = new FileReader(); r.onloadend = () => res(r.result); r.readAsDataURL(blob); });
@@ -1940,20 +2054,20 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                             base64Clean = await new Promise((res) => { const img = new Image(); img.src = base64Raw; img.onload = () => { const cvs = document.createElement('canvas'); cvs.width = img.width; cvs.height = img.height; cvs.getContext('2d').drawImage(img, 0, 0); res(cvs.toDataURL("image/jpeg", 0.9)); }; img.onerror = () => res(base64Raw); });
                             format = "jpeg";
                         }
-                        
+
                         // Insert to Chat
                         const charName = getContext().characters[getContext().characterId]?.name || "User";
                         const savedPath = await saveBase64AsFile(base64Clean.split(',')[1], charName, `${charName}_${humanizedDateTime()}`, format);
-                        const mediaAttach = { 
-                            url: savedPath, 
-                            type: "image", 
+                        const mediaAttach = {
+                            url: savedPath,
+                            type: "image",
                             source: "generated",
-                            title: finalPrompt, 
+                            title: finalPrompt,
                             generation_type: "free"
                         };
 
                         if (target && target.message) {
-                            if (!target.message.extra) target.message.extra = {}; if (!target.message.extra.media) target.message.extra.media =[];
+                            if (!target.message.extra) target.message.extra = {}; if (!target.message.extra.media) target.message.extra.media = [];
                             target.message.extra.media_display = "gallery"; target.message.extra.media.push(mediaAttach); target.message.extra.media_index = target.message.extra.media.length - 1;
                             if (typeof appendMediaToMessage === "function") appendMediaToMessage(target.message, target.element);
                             await saveChat(); toastr.success("Gallery updated!");
@@ -1966,9 +2080,9 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                         $("#kazuma_progress_overlay").hide();
                     } else { $("#kazuma_progress_overlay").hide(); }
                 }
-            } catch (e) {}
+            } catch (e) { }
         }, 1000);
-    } catch(e) { $("#kazuma_progress_overlay").hide(); toastr.error("Comfy Error: " + e.message); }
+    } catch (e) { $("#kazuma_progress_overlay").hide(); toastr.error("Comfy Error: " + e.message); }
 }
 
 // -------------------------------------------------------------
@@ -2011,7 +2125,7 @@ async function analyzeSlopWithPreset(chatText) {
     let result = null;
     await useMeguminEngine(async () => {
         // We still use the interceptor! This just makes the engine switch first.
-        result = await analyzeSlopDirectly(chatText); 
+        result = await analyzeSlopDirectly(chatText);
     });
     return result;
 }
@@ -2062,26 +2176,26 @@ function buildBaseDict() {
     if (!localProfile) return dict;
 
     // 1. GLOBAL DEFAULTS (Language, Pronouns, Word Count)
-    const targetLang = (localProfile.userLanguage && localProfile.userLanguage.trim() !== "") 
-                        ? localProfile.userLanguage.toUpperCase() 
-                        : "ENGLISH";
+    const targetLang = (localProfile.userLanguage && localProfile.userLanguage.trim() !== "")
+        ? localProfile.userLanguage.toUpperCase()
+        : "ENGLISH";
     dict["[[Language]]"] = `[LANGUAGE RULE]\nALL OUTPUT EXCEPT THINKING MUST BE IN ${targetLang} ONLY.`;
 
     if (localProfile.userPronouns === "male") dict["[[pronouns]]"] = `{{user}} is male. Always portray and address him as such.`;
     else if (localProfile.userPronouns === "female") dict["[[pronouns]]"] = `{{user}} is female. Always portray and address her as such.`;
-    
-    const wordCountStr = (localProfile.userWordCount && String(localProfile.userWordCount).trim() !== "") 
-        ? String(localProfile.userWordCount).trim() 
+
+    const wordCountStr = (localProfile.userWordCount && String(localProfile.userWordCount).trim() !== "")
+        ? String(localProfile.userWordCount).trim()
         : null;
-    
+
     if (wordCountStr) {
         dict["[[count]]"] = `— maximum ${wordCountStr} words`;
-    } else { 
-        dict["[[count]]"] = ""; 
+    } else {
+        dict["[[count]]"] = "";
     }
 
     // 2. STANDARD STAGE SELECTIONS (Stage 2, 4, 5, 6)
-    
+
     // Personality (Stage 2) - Will be overwritten later if Custom Engine is active
     const pData = hardcodedLogic.personalities.find(p => p.id === localProfile.personality);
     dict["[[main]]"] = pData ? pData.content : "";
@@ -2097,15 +2211,15 @@ function buildBaseDict() {
     if (localProfile.toggles.ooc) dict["[[OOC]]"] = hardcodedLogic.toggles.ooc.content;
     if (localProfile.toggles.control) dict["[[control]]"] = hardcodedLogic.toggles.control.content;
     if (localProfile.aiRule) dict["[[aiprompt]]"] = localProfile.aiRule;
-    localProfile.addons.forEach(aId => { 
-        const item = hardcodedLogic.addons.find(a => a.id === aId); 
-        if(item) dict[item.trigger] = item.content; 
+    localProfile.addons.forEach(aId => {
+        const item = hardcodedLogic.addons.find(a => a.id === aId);
+        if (item) dict[item.trigger] = item.content;
     });
 
     // Stage 5 Defaults (Format Blocks)
-    localProfile.blocks.forEach(bId => { 
-        const item = hardcodedLogic.blocks.find(b => b.id === bId); 
-        if(item) dict[item.trigger] = item.content; 
+    localProfile.blocks.forEach(bId => {
+        const item = hardcodedLogic.blocks.find(b => b.id === bId);
+        if (item) dict[item.trigger] = item.content;
     });
 
     // Stage 6 Defaults (CoT Framework & Language)
@@ -2116,7 +2230,13 @@ function buildBaseDict() {
     }
 
     if (localProfile.model !== "cot-off") {
-        dict["[[THINK]]"] = "<think>\n{Thinking}\n</think>";
+        let thinkExt = "";
+        let effort = localProfile.thinkEffort || "unspecified";
+        if (effort !== "unspecified") {
+            let words = effort === "custom" ? (localProfile.customThinkEffort || "100") : effort;
+            thinkExt = ` - maximum ${words} words.`;
+        }
+        dict["[[THINK]]"] = `<think>\n<think>\n<think>\n{Thinking${thinkExt}}\n</think>`;
     } else {
         dict["[[THINK]]"] = "";
     }
@@ -2171,18 +2291,41 @@ function buildBaseDict() {
         if (activeEngine.A1) dict["[[AI1]]"] = activeEngine.A1;
         if (activeEngine.A2) dict["[[AI2]]"] = activeEngine.A2;
 
-        // Engine-specific Block Overwrites (Summary, CoT, etc.)
-        if (activeEngine.cot && activeEngine.cot.trim() !== "") dict["[[COT]]"] = activeEngine.cot;
-        if (activeEngine.prefill && activeEngine.prefill.trim() !== "") dict["[[prefill]]"] = activeEngine.prefill;
-        if (localProfile.blocks.includes("info") && activeEngine.info) dict["[[infoblock]]"] = activeEngine.info;
-        if (localProfile.blocks.includes("summary") && activeEngine.summary) dict["[[summary]]"] = activeEngine.summary;
-        if (localProfile.blocks.includes("cyoa") && activeEngine.cyoa) dict["[[cyoa]]"] = activeEngine.cyoa;
+        // Engine-specific Block Overwrites
+        const overrides = [
+            { key: "cot", trigger: "[[COT]]", condition: true },
+            { key: "prefill", trigger: "[[prefill]]", condition: true },
+            { key: "think", trigger: "[[THINK]]", condition: localProfile.model !== "cot-off" },
+            { key: "info", trigger: "[[infoblock]]", condition: localProfile.blocks.includes("info") },
+            { key: "summary", trigger: "[[summary]]", condition: localProfile.blocks.includes("summary") },
+            { key: "cyoa", trigger: "[[cyoa]]", condition: localProfile.blocks.includes("cyoa") },
+            { key: "mvu", trigger: "[[MVU]]", condition: localProfile.blocks.includes("mvu") },
+            { key: "death", trigger: "[[death]]", condition: localProfile.addons.includes("death") },
+            { key: "combat", trigger: "[[combat]]", condition: localProfile.addons.includes("combat") },
+            { key: "direct", trigger: "[[Direct]]", condition: localProfile.addons.includes("direct") },
+            { key: "dn", trigger: "[[DN]]", condition: localProfile.addons.includes("dn") },
+            { key: "dialogueColor", trigger: "[[COLOR]]", condition: localProfile.addons.includes("color") }, // FIXED NAME COLLISION
+            { key: "storytracker", trigger: "[[storytracker]]", condition: localProfile.storyPlan && localProfile.storyPlan.enabled },
+            { key: "language", trigger: "[[Language]]", condition: true },
+            { key: "pronouns", trigger: "[[pronouns]]", condition: true },
+            { key: "count", trigger: "[[count]]", condition: true },
+            { key: "dnratio", trigger: "[[DNRATIO]]", condition: localProfile.dnRatio && localProfile.dnRatio.enabled },
+            { key: "onomato", trigger: "[[onomato]]", condition: localProfile.onomatopoeia && localProfile.onomatopoeia.enabled },
+            { key: "banlist", trigger: "[[banlist]]", condition: true }
+        ];
+
+        overrides.forEach(o => {
+            // Only inject the override if the toggle is ON (or if it's a global setting)
+            if (o.condition && activeEngine[o.key] && activeEngine[o.key].trim() !== "") {
+                dict[o.trigger] = activeEngine[o.key];
+            }
+        });
 
         // Custom Toggles Appender
         if (activeEngine.customToggles) {
             activeEngine.customToggles.forEach(ct => {
                 if (localProfile.toggles[ct.id]) {
-                    const targetKey = "[[prompt" + ct.attachPoint.replace('p','') + "]]";
+                    const targetKey = "[[prompt" + ct.attachPoint.replace('p', '') + "]]";
                     if (dict[targetKey] !== undefined) {
                         dict[targetKey] += `\n\n${ct.content}`;
                     }
@@ -2203,7 +2346,7 @@ function buildBaseDict() {
         } else {
             dict["[[storyplan]]"] = "";
         }
-        
+
         // The refined tracker block you asked for
         dict["[[storytracker]]"] = `<Story_Tracker>\narc: The Arc that is now active.\nchapter: The chapter that is now active.\nEpisode: The episode that is now active.\nSecrets: Any secret that the user/{{user}} doesn't know.\n</Story_Tracker>`;
     } else {
@@ -2247,7 +2390,11 @@ function buildBaseDict() {
     } else {
         dict["[[img1]]"] = ""; dict["[[img2]]"] = "";
     }
-    
+
+    if (localProfile.thinkingV2 && dict["[[prefill]]"]) {
+        dict["[[prefill]]"] = dict["[[prefill]]"].replace(/\n<think>[\s\S]*/, "\n<think>\n<think>");
+    }
+
     return dict;
 }
 
@@ -2260,70 +2407,70 @@ function handlePromptInjection(data) {
 
     // --- INJECT STORY PLANNER PROMPT ---
     if (activeStoryPlanRequest) {
-        messages.length = 0; 
-        
+        messages.length = 0;
+
         // SillyTavern macro substitutions to get Lore and Persona
         const charLore = typeof substituteParams === 'function' ? substituteParams('{{description}}') : "No character description found.";
         const userPersona = typeof substituteParams === 'function' ? substituteParams('{{persona}}') : "No user persona found.";
 
-        messages.push({ 
-            "role": "system", 
-            "content": `Role: You are an expert Story Architect and Plot Planner.\n\n<lore>\n${charLore}\n</lore>\n\nUser Persona ({{user}}):\n<user_persona>\n${userPersona}\n</user_persona>\n\n<Story>\n${activeStoryPlanRequest}\n</Story>` 
+        messages.push({
+            "role": "system",
+            "content": `Role: You are an expert Story Architect and Plot Planner.\n\n<lore>\n${charLore}\n</lore>\n\nUser Persona ({{user}}):\n<user_persona>\n${userPersona}\n</user_persona>\n\n<Story>\n${activeStoryPlanRequest}\n</Story>`
         });
-        messages.push({ 
-            "role": "user", 
-            "content": `Task: Brainstorm a minimum of 10 theoretical, medium-to-long-term plot developments based on the story so far.\n\nStrict Rules & Constraints:\n1. DO NOT write the immediate next scene. Skip past the current moment and look ahead to future structural milestones.\n2. Use Narrative Structure, NOT Timeframes: Do not use phrases like "three days later" or "next month." Instead, frame every idea as a theoretical future Arc, Chapter, or Episode.\n3. Create a Menu of Possibilities: Treat this list as a theoretical menu of branching paths. Focus on major plot shifts, new character introductions, or escalating conflicts that could anchor a future chapter.\n4. Zero Agency Theft: You are STRICTLY FORBIDDEN from writing dialogue, actions, thoughts, or emotional reactions for {{user}}. You must never describe what {{user}} does, feels, or says under any circumstances.\n5. No Assumptions or Suggestions: Do not predict, suggest, or assume what {{user}} will do next. Never end a response by telling or hinting at what {{user}} should do.\n\nFormat & Style: Keep the ideas punchy, plot-focused, and clearly labeled by narrative structure.` 
+        messages.push({
+            "role": "user",
+            "content": `Task: Brainstorm a minimum of 10 theoretical, medium-to-long-term plot developments based on the story so far.\n\nStrict Rules & Constraints:\n1. DO NOT write the immediate next scene. Skip past the current moment and look ahead to future structural milestones.\n2. Use Narrative Structure, NOT Timeframes: Do not use phrases like "three days later" or "next month." Instead, frame every idea as a theoretical future Arc, Chapter, or Episode.\n3. Create a Menu of Possibilities: Treat this list as a theoretical menu of branching paths. Focus on major plot shifts, new character introductions, or escalating conflicts that could anchor a future chapter.\n4. Zero Agency Theft: You are STRICTLY FORBIDDEN from writing dialogue, actions, thoughts, or emotional reactions for {{user}}. You must never describe what {{user}} does, feels, or says under any circumstances.\n5. No Assumptions or Suggestions: Do not predict, suggest, or assume what {{user}} will do next. Never end a response by telling or hinting at what {{user}} should do.\n\nFormat & Style: Keep the ideas punchy, plot-focused, and clearly labeled by narrative structure.`
         });
-        messages.push({ 
-            "role": "system", 
-            "content": "<thinking_steps>\nBefore creating the response, think deeply.\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main text must immediately follow </think>.\n<think>\nReflect in approximately 100–150 words as a seamless paragraph.\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\nEvery response must follow this exact structure in this exact order:\n<think>\n{Thinking}\n</think>\n<plot>\n{main response}\n</plot>" 
+        messages.push({
+            "role": "system",
+            "content": "<thinking_steps>\nBefore creating the response, think deeply.\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main text must immediately follow </think>.\n<think>\nReflect in approximately 100–150 words as a seamless paragraph.\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\nEvery response must follow this exact structure in this exact order:\n<think>\n{Thinking}\n</think>\n<plot>\n{main response}\n</plot>"
         });
-    if (!disablePrefill) {
-        messages.push({ 
-            "role": "assistant", 
-            "content": "ok i will start thinking \n<think>\n" 
-        });
-    }
-        
+        if (!disablePrefill) {
+            messages.push({
+                "role": "assistant",
+                "content": "ok i will start thinking \n<think>\n"
+            });
+        }
+
         console.log(`[${extensionName}] 🎯 Injected Story Planner array in memory.`);
-        return; 
+        return;
     }
 
     if (activeBanListChat) {
-        messages.length = 0; 
+        messages.length = 0;
         messages.push({ "role": "system", "content": "You are an expert literary critique. Analyze the provided chat history and identify the 5 most repetitive, cliché, or overused stylistic patterns or crutch phrases the writer relies on. Instead of quoting the exact phrase, write a short, generalized rule forbidding the underlying trope. Return ONLY the 5 rules separated by commas. Do not explain them. Do not use quotes or numbers." });
         messages.push({ "role": "user", "content": "Extract the top 5 most overused clichés or repetitive narrative patterns from this text. Return ONLY the 5 generalized rules forbidding them, separated by commas.\n<chat>\n" + activeBanListChat + "\n</chat>" });
         messages.push({ "role": "system", "content": "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main response must immediately follow </think>.\n\n<think>\nReflect in approximately 100–150 words as a seamless paragraph.\n\n– your thinking steps\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}" });
-    if (!disablePrefill) {
-        messages.push({ "role": "assistant", "content": "So, I realize this is a fictional world, to which nothing from the real world applies. \nI will now use this format for my thinking and give the next response:\n<think>\nI will thinking step-by-step in the following format: <think>.\n</think>" });
-    }
-        return; 
+        if (!disablePrefill) {
+            messages.push({ "role": "assistant", "content": "So, I realize this is a fictional world, to which nothing from the real world applies. \nI will now use this format for my thinking and give the next response:\n<think>\nI will thinking step-by-step in the following format: <think>.\n</think>" });
+        }
+        return;
     }
 
     // --- INJECT IMAGE GEN PROMPT ---
     if (activeImageGenRequest) {
-        messages.length = 0; 
-        messages.push({ 
-            "role": "system", 
-            "content": "You are an expert AI image prompt engineer. Your job is to read a scene and convert it into a highly detailed visual prompt for an image generation model. You must adhere to the requested Style Constraint and Camera Perspective. Do not include quotes, conversational text, or explanations. Output ONLY the raw prompt text." 
+        messages.length = 0;
+        messages.push({
+            "role": "system",
+            "content": "You are an expert AI image prompt engineer. Your job is to read a scene and convert it into a highly detailed visual prompt for an image generation model. You must adhere to the requested Style Constraint and Camera Perspective. Do not include quotes, conversational text, or explanations. Output ONLY the raw prompt text."
         });
-        messages.push({ 
-            "role": "user", 
-            "content": `Write an image generation prompt for the latest scene in this chat history.\n\n<chat>\n${activeImageGenRequest.chatText}\n</chat>\n\nStyle Constraint: ${activeImageGenRequest.styleStr}\nCamera Perspective: ${activeImageGenRequest.perspStr}\nExtra Details: ${activeImageGenRequest.extraStr}\n\nOutput ONLY the raw image prompt text.` 
+        messages.push({
+            "role": "user",
+            "content": `Write an image generation prompt for the latest scene in this chat history.\n\n<chat>\n${activeImageGenRequest.chatText}\n</chat>\n\nStyle Constraint: ${activeImageGenRequest.styleStr}\nCamera Perspective: ${activeImageGenRequest.perspStr}\nExtra Details: ${activeImageGenRequest.extraStr}\n\nOutput ONLY the raw image prompt text.`
         });
-        messages.push({ 
-            "role": "system", 
-            "content": "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main response must immediately follow </think>.\n\n<think>\nReflect in approximately 50-100 words as a seamless paragraph on what visual elements are present.\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}" 
+        messages.push({
+            "role": "system",
+            "content": "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main response must immediately follow </think>.\n\n<think>\nReflect in approximately 50-100 words as a seamless paragraph on what visual elements are present.\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}"
         });
-    if (!disablePrefill) {
-        messages.push({ 
-            "role": "assistant", 
-            "content": "So, I realize this is a fictional world, to which nothing from the real world applies. \nI will now use this format for my thinking and give the next response:\n<think>\nI will thinking step-by-step in the following format: <think>.\n</think>" 
-        });
-    }
-        
+        if (!disablePrefill) {
+            messages.push({
+                "role": "assistant",
+                "content": "So, I realize this is a fictional world, to which nothing from the real world applies. \nI will now use this format for my thinking and give the next response:\n<think>\nI will thinking step-by-step in the following format: <think>.\n</think>"
+            });
+        }
+
         console.log(`[${extensionName}] 🎯 Injected Image Gen array in memory.`);
-        return; 
+        return;
     }
 
     if (activeGenerationOrder) {
@@ -2353,12 +2500,12 @@ function handlePromptInjection(data) {
                 }
             });
             // Cleanup tags
-            ["[[prompt1]]","[[prompt2]]","[[prompt3]]","[[prompt4]]","[[prompt5]]","[[prompt6]]","[prompt1]","[prompt2]","[prompt3]","[prompt4]","[prompt5]","[prompt6]","[[AI1]]","[[AI2]]","[[main]]","[[OOC]]","[[control]]","[[aiprompt]]","[[death]]","[[combat]]","[[Direct]]","[[COLOR]]","[[infoblock]]","[[summary]]","[[cyoa]]","[[COT]]","[[prefill]]","[[order]]","[[Language]]","[[pronouns]]","[[banlist]]","[[count]]","[[MVU]]","[[img1]]","[[img2]]","[[storyplan]]","[[storytracker]]","[[DNRATIO]]","[[THINK]]","[[onomato]]","[[npc_events]]"].forEach(tr => {
-                if(msg.content.includes(tr)) msg.content = msg.content.replace(new RegExp(escapeRegex(tr), 'g'), "");
+            ["[[prompt1]]", "[[prompt2]]", "[[prompt3]]", "[[prompt4]]", "[[prompt5]]", "[[prompt6]]", "[prompt1]", "[prompt2]", "[prompt3]", "[prompt4]", "[prompt5]", "[prompt6]", "[[AI1]]", "[[AI2]]", "[[main]]", "[[OOC]]", "[[control]]", "[[aiprompt]]", "[[death]]", "[[combat]]", "[[Direct]]", "[[DN]]", "[[COLOR]]", "[[infoblock]]", "[[summary]]", "[[cyoa]]", "[[COT]]", "[[prefill]]", "[[order]]", "[[Language]]", "[[pronouns]]", "[[banlist]]", "[[count]]", "[[MVU]]", "[[img1]]", "[[img2]]", "[[storyplan]]", "[[storytracker]]", "[[DNRATIO]]", "[[THINK]]", "[[onomato]]", "[[npc_events]]"].forEach(tr => {
+                if (msg.content.includes(tr)) msg.content = msg.content.replace(new RegExp(escapeRegex(tr), 'g'), "");
             });
         }
     }
-    
+
     if (replacementsMade > 0 && !activeGenerationOrder) {
         console.log(`[${extensionName}] ✅ Executed ${replacementsMade} block replacements.`);
     }
@@ -2372,9 +2519,9 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
     const c = $("#ps_stage_content");
     c.empty();
     c.off(".devDirty");
-    
+
     // Hide the dock and the apply to all button
-    $(".dock").hide(); 
+    $(".dock").hide();
     $("#btn_apply_tab_all").hide();
     $("#ps_btn_save_close").hide();
 
@@ -2382,7 +2529,7 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
     $("#ps_btn_dev_mode").html(`<i class="fa-solid fa-right-from-bracket"></i> Exit Dev`).css("color", "#10b981");
 
     if (!extension_settings[extensionName].customModes) extension_settings[extensionName].customModes = [];
-    
+
     // Inject custom headers depending on which Dev view we are in
     const devTitle = view === "landing" ? "Engine Builder" : "Visual Engine Builder";
     const devSub = view === "landing" ? "Design your own chronological AI logic flow. Clone an existing template or start from scratch." : "Configure your custom engine blocks.";
@@ -2411,11 +2558,11 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
         // Event Listeners for Top Bar
         $("#dev_btn_new").on("click", () => renderDevMode("editor", "NEW"));
         $("#dev_btn_import").on("click", () => $("#dev_import_file").click());
-        $("#dev_import_file").on("change", function(e) {
+        $("#dev_import_file").on("change", function (e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const imported = JSON.parse(e.target.result);
                     imported.id = "custom_" + Date.now(); // Ensure unique ID on import
@@ -2423,7 +2570,7 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
                     saveSettingsDebounced();
                     toastr.success(`Imported ${imported.label}!`);
                     renderDevMode("landing"); // Refresh UI
-                } catch(e) { toastr.error("Invalid JSON file."); }
+                } catch (e) { toastr.error("Invalid JSON file."); }
             };
             reader.readAsText(file);
         });
@@ -2451,7 +2598,7 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
         // --- SECTION 2: YOUR CUSTOM ENGINES ---
         const customModes = extension_settings[extensionName].customModes || [];
         c.append(`<div class="ps-rule-title" style="color: #10b981; margin-bottom: 12px;"><i class="fa-solid fa-microchip"></i> Your Custom Engines</div>`);
-        
+
         if (customModes.length === 0) {
             c.append(`<div style="padding: 20px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: 12px; margin-bottom: 30px;">No custom engines yet. Create or import one above!</div>`);
         } else {
@@ -2470,7 +2617,7 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
                         </div>
                     </div>
                 `);
-                
+
                 card.find(".dev-edit").on("click", () => renderDevMode("editor", m.id));
                 card.find(".dev-export").on("click", () => {
                     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(m));
@@ -2499,17 +2646,17 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
     if (view === "editor") {
         let modeData;
         let isNew = false;
-        if (passedModeData) { 
-            modeData = passedModeData; 
-        } else if (selectedModeId === "NEW") { 
-            isNew = true; 
-            modeData = { 
-                id: "custom_" + Date.now(), 
-                label: "New Custom Engine", 
+        if (passedModeData) {
+            modeData = passedModeData;
+        } else if (selectedModeId === "NEW") {
+            isNew = true;
+            modeData = {
+                id: "custom_" + Date.now(),
+                label: "New Custom Engine",
                 isCoreClone: false,
                 p1: "", p2: "", p3: "", p4: "", p5: "", p6: "",
-                cot: "", prefill: "", cyoa: "", info: "", summary: "", 
-                customToggles: [] 
+                cot: "", prefill: "", cyoa: "", info: "", summary: "",
+                customToggles: []
             };
         } else {
             const coreMatch = hardcodedLogic.modes.find(m => m.id === selectedModeId);
@@ -2517,13 +2664,13 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
                 isNew = true; modeData = JSON.parse(JSON.stringify(coreMatch));
                 modeData.id = "custom_" + Date.now(); modeData.label = coreMatch.label + " (Copy)";
                 modeData.isCoreClone = true;
-                if(!modeData.cot) modeData.cot = "";
-                if(!modeData.prefill) modeData.prefill = "";
-                if(!modeData.cyoa) modeData.cyoa = "";
-                if(!modeData.info) modeData.info = "";
-                if(!modeData.summary) modeData.summary = "";
-            } else { 
-                modeData = extension_settings[extensionName].customModes.find(m => m.id === selectedModeId); 
+                if (!modeData.cot) modeData.cot = "";
+                if (!modeData.prefill) modeData.prefill = "";
+                if (!modeData.cyoa) modeData.cyoa = "";
+                if (!modeData.info) modeData.info = "";
+                if (!modeData.summary) modeData.summary = "";
+            } else {
+                modeData = extension_settings[extensionName].customModes.find(m => m.id === selectedModeId);
             }
         }
         if (!modeData.customToggles) modeData.customToggles = [];
@@ -2537,7 +2684,7 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
         `);
 
         // NEW: Track if the user types anything
-        c.off("input.devDirty change.devDirty").on("input.devDirty change.devDirty", "input, textarea, select", function() {
+        c.off("input.devDirty change.devDirty").on("input.devDirty change.devDirty", "input, textarea, select", function () {
             isDevEngineDirty = true;
         });
 
@@ -2553,11 +2700,15 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
 
         const saveCurrentTextState = () => {
             modeData.label = $("#dev_mode_name").val();
-            if ($("#dev_edit_p1").length) modeData.p1 = $("#dev_edit_p1").val(); 
+            if ($("#dev_edit_p1").length) modeData.p1 = $("#dev_edit_p1").val();
             modeData.p3 = $("#dev_edit_p3").val();
             modeData.p4 = $("#dev_edit_p4").val(); modeData.p5 = $("#dev_edit_p5").val(); modeData.p6 = $("#dev_edit_p6").val();
-            modeData.cot = $("#dev_edit_cot").val(); modeData.cyoa = $("#dev_edit_cyoa").val();
-            modeData.info = $("#dev_edit_info").val(); modeData.summary = $("#dev_edit_summary").val(); modeData.prefill = $("#dev_edit_prefill").val();
+
+            // Loop through all override fields
+            const fields = ["cot", "prefill", "cyoa", "info", "summary", "death", "combat", "direct", "dn", "dialogueColor", "mvu", "storytracker", "think", "language", "pronouns", "count", "dnratio", "onomato", "banlist"];
+            fields.forEach(f => {
+                if ($(`#dev_edit_${f}`).length) modeData[f] = $(`#dev_edit_${f}`).val();
+            });
         };
 
         // UI Helpers
@@ -2580,20 +2731,38 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
             </div>`;
         };
 
+        // Special Dropdown for CoT Languages
+        const createCotDropdownBlock = (t, k, v, type) => {
+            let options = `<option value="">[ Clear Box ]</option>`;
+            hardcodedLogic.models.forEach(m => {
+                if (m.id === "cot-off") return;
+                const val = (type === "cot") ? m.content : m.prefill;
+                options += `<option value="${encodeURIComponent(val || '')}">${m.id}</option>`;
+            });
+
+            return `<div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <div style="font-weight: bold; color: var(--accent-color); font-size: 0.8rem;">${t}</div>
+                    <select class="ps-modern-input dev-preset-dropdown" data-target="dev_edit_${k}" style="width: 250px; padding: 4px; font-size: 0.75rem; cursor: pointer; color: var(--gold); border-color: var(--gold);">
+                        <option value="" disabled selected>✨ Load Language Template...</option>
+                        ${options}
+                    </select>
+                </div>
+                <textarea id="dev_edit_${k}" class="ps-modern-input" style="height: 120px; resize: vertical; font-family: monospace; font-size: 0.8rem;">${v || ""}</textarea>
+            </div>`;
+        };
+
         const flow = $(`<div style="display: flex; flex-direction: column;"></div>`);
-        
+
         if (modeData.isCoreClone) {
-            // Cloned Core Engine: P1 and P2 are locked and visible.
             flow.append(createLockedBlock("[[prompt1]]", modeData.p1));
             flow.append(createLockedBlock("[[prompt2]]", modeData.p2));
         } else {
-            // Brand New Engine: P1 is editable. P2 does not exist.
             flow.append(createEditableBlock("[[prompt1]]", "p1", modeData.p1));
         }
-
         flow.append(createEditableBlock("[[prompt3]]", "p3", modeData.p3));
-        
-        // Modules
+
+        // Custom Modules Logic
         const modRender = (ap) => {
             const wrap = $("<div></div>");
             modeData.customToggles.filter(t => t.attachPoint === ap).forEach(m => {
@@ -2609,37 +2778,14 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
                         <div style="font-size:0.7rem; opacity:0.8; font-family: monospace; white-space: pre-wrap;">${m.content}</div>
                     </div>
                 `);
-                
-                // DELETE LOGIC
-                div.find(".ps-btn-del-mod").on("click", () => { 
-                    modeData.customToggles = modeData.customToggles.filter(x => x.id !== m.id); 
-                    saveCurrentTextState(); renderDevMode("editor", modeData.id, modeData); 
-                    isDevEngineDirty = true;
-                });
-
-                // EDIT LOGIC
+                div.find(".ps-btn-del-mod").on("click", () => { modeData.customToggles = modeData.customToggles.filter(x => x.id !== m.id); saveCurrentTextState(); renderDevMode("editor", modeData.id, modeData); isDevEngineDirty = true; });
                 div.find(".ps-btn-edit-mod").on("click", async () => {
                     saveCurrentTextState();
-                    const $p = $(`<div style="display:flex; flex-direction:column; gap:10px;">
-                        <input type="text" id="m_n" class="ps-modern-input" value="${m.name}" />
-                        <select id="m_l" class="ps-modern-input">
-                            <option value="settings" ${m.location==='settings'?'selected':''}>Stage 4: Settings</option>
-                            <option value="addons" ${m.location==='addons'?'selected':''}>Stage 5: Add-ons</option>
-                        </select>
-                        <textarea id="m_c" class="ps-modern-input" style="height:150px;">${m.content}</textarea>
-                    </div>`);
-                    
-                    if (await new Popup($p, POPUP_TYPE.CONFIRM, "Edit Module", { okButton: "Save", cancelButton: "Cancel", wide: true }).show()) {
-                        m.name = $p.find("#m_n").val() || "Module";
-                        m.location = $p.find("#m_l").val();
-                        m.content = $p.find("#m_c").val();
-                        renderDevMode("editor", modeData.id, modeData);
-                        isDevEngineDirty = true;
-                    }
+                    const $p = $(`<div style="display:flex; flex-direction:column; gap:10px;"><input type="text" id="m_n" class="ps-modern-input" value="${m.name}" /><select id="m_l" class="ps-modern-input"><option value="settings" ${m.location === 'settings' ? 'selected' : ''}>Stage 4: Settings</option><option value="addons" ${m.location === 'addons' ? 'selected' : ''}>Stage 5: Add-ons</option></select><textarea id="m_c" class="ps-modern-input" style="height:150px;">${m.content}</textarea></div>`);
+                    if (await new Popup($p, POPUP_TYPE.CONFIRM, "Edit Module", { okButton: "Save", cancelButton: "Cancel", wide: true }).show()) { m.name = $p.find("#m_n").val() || "Module"; m.location = $p.find("#m_l").val(); m.content = $p.find("#m_c").val(); renderDevMode("editor", modeData.id, modeData); isDevEngineDirty = true; }
                 });
-
                 wrap.append(div);
-            }); 
+            });
             return wrap;
         };
 
@@ -2651,46 +2797,60 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
         flow.append(createEditableBlock("[[prompt6]]", "p6", modeData.p6));
         flow.append(modRender("p6")); flow.append(createInsertPoint("p6"));
         flow.append(createLockedBlock("[[AI2]]", "Understood."));
-        // Fetch raw template data for our presets
-        const cotV1 = hardcodedLogic.models.find(m => m.id === "cot-v1-english")?.content || "";
-        const cotV2 = hardcodedLogic.models.find(m => m.id === "cot-v2-english")?.content || "";
-        const preV1 = hardcodedLogic.models.find(m => m.id === "cot-v1-english")?.prefill || "";
-        const preV2 = hardcodedLogic.models.find(m => m.id === "cot-v2-english")?.prefill || "";
-        const bCyoa = hardcodedLogic.blocks.find(b => b.id === "cyoa")?.content || "";
-        const bInfo = hardcodedLogic.blocks.find(b => b.id === "info")?.content || "";
-        const bSumm = hardcodedLogic.blocks.find(b => b.id === "summary")?.content || "";
 
-        flow.append(createOverrideBlock("[[COT]]", "cot", modeData.cot, [
-            { label: "No Change", value: "" }, { label: "V1 Classic", value: cotV1 }, { label: "V2 New", value: cotV2 }
-        ]));
-        flow.append(createOverrideBlock("[[prefill]]", "prefill", modeData.prefill, [
-            { label: "No Change", value: "" }, { label: "V1 Classic", value: preV1 }, { label: "V2 New", value: preV2 }
-        ]));
-        flow.append(createOverrideBlock("[[cyoa]]", "cyoa", modeData.cyoa, [
-            { label: "No Change", value: "" }, { label: "Default", value: bCyoa }
-        ]));
-        flow.append(createOverrideBlock("[[infoblock]]", "info", modeData.info, [
-            { label: "No Change", value: "" }, { label: "Default", value: bInfo }
-        ]));
-        flow.append(createOverrideBlock("[[summary]]", "summary", modeData.summary, [
-            { label: "No Change", value: "" }, { label: "Default", value: bSumm }
-        ]));
+        // Fetch raw template data for overrides
+        const getAddon = id => hardcodedLogic.addons.find(a => a.id === id)?.content || "";
+        const getBlock = id => hardcodedLogic.blocks.find(b => b.id === id)?.content || "";
+
+        // Section 1: CoT & Logic Overrides
+        flow.append(`<div class="ps-rule-title" style="margin: 30px 0 10px 0; color: #3b82f6;"><i class="fa-solid fa-brain"></i> CoT & Logic Overrides</div>`);
+        flow.append(createCotDropdownBlock("[[COT]]", "cot", modeData.cot, "cot"));
+        flow.append(createCotDropdownBlock("[[prefill]]", "prefill", modeData.prefill, "prefill"));
+        flow.append(createOverrideBlock("[[THINK]]", "think", modeData.think, [{ label: "No Change", value: "" }, { label: "Default", value: "<think>\n<think>\n<think>\n{Thinking}\n</think>" }]));
+
+        // Section 2: Add-ons & Formatting
+        flow.append(`<div class="ps-rule-title" style="margin: 30px 0 10px 0; color: #10b981;"><i class="fa-solid fa-puzzle-piece"></i> Add-ons & Formatting Overrides</div>`);
+        flow.append(createOverrideBlock("[[cyoa]]", "cyoa", modeData.cyoa, [{ label: "No Change", value: "" }, { label: "Default", value: getBlock("cyoa") }]));
+        flow.append(createOverrideBlock("[[infoblock]]", "info", modeData.info, [{ label: "No Change", value: "" }, { label: "Default", value: getBlock("info") }]));
+        flow.append(createOverrideBlock("[[summary]]", "summary", modeData.summary, [{ label: "No Change", value: "" }, { label: "Default", value: getBlock("summary") }]));
+        flow.append(createOverrideBlock("[[death]]", "death", modeData.death, [{ label: "No Change", value: "" }, { label: "Default", value: getAddon("death") }]));
+        flow.append(createOverrideBlock("[[combat]]", "combat", modeData.combat, [{ label: "No Change", value: "" }, { label: "Default", value: getAddon("combat") }]));
+        flow.append(createOverrideBlock("[[Direct]]", "direct", modeData.direct, [{ label: "No Change", value: "" }, { label: "Default", value: getAddon("direct") }]));
+        flow.append(createOverrideBlock("[[DN]]", "dn", modeData.dn, [{ label: "No Change", value: "" }, { label: "Default", value: getAddon("dn") }]));
+        flow.append(createOverrideBlock("[[COLOR]]", "dialogueColor", modeData.dialogueColor, [{ label: "No Change", value: "" }, { label: "Default", value: getAddon("color") }])); flow.append(createOverrideBlock("[[MVU]]", "mvu", modeData.mvu, [{ label: "No Change", value: "" }, { label: "Default", value: getBlock("mvu") }]));
+        flow.append(createOverrideBlock("[[storytracker]]", "storytracker", modeData.storytracker, [{ label: "No Change", value: "" }, { label: "Default", value: "# at the very end of the response put this block:\n<Story_Tracker>\narc: The Arc that is now active.\nchapter: The chapter that is now active.\nEpisode: The episode that is now active.\nSecrets: Any secret that the user/{{user}} doesn't know.\n</Story_Tracker>" }]));
+
+        // Section 3: Global Variables
+        flow.append(`<div class="ps-rule-title" style="margin: 30px 0 10px 0; color: #f59e0b;"><i class="fa-solid fa-earth-americas"></i> Global Variables Overrides</div>`);
+        flow.append(createOverrideBlock("[[Language]]", "language", modeData.language, [{ label: "No Change", value: "" }, { label: "English Template", value: "[LANGUAGE RULE]\nALL OUTPUT EXCEPT THINKING MUST BE IN ENGLISH ONLY." }]));
+        flow.append(createOverrideBlock("[[pronouns]]", "pronouns", modeData.pronouns, [{ label: "No Change", value: "" }, { label: "Male Template", value: "{{user}} is male. Always portray and address him as such." }]));
+        flow.append(createOverrideBlock("[[count]]", "count", modeData.count, [{ label: "No Change", value: "" }, { label: "Example 400", value: "— maximum 400 words" }]));
+        flow.append(createOverrideBlock("[[DNRATIO]]", "dnratio", modeData.dnratio, [{ label: "No Change", value: "" }, { label: "Example 50/50", value: "- Ratio: Maintain a balance of 50% Dialogue and 50% Narration." }]));
+        flow.append(createOverrideBlock("[[onomato]]", "onomato", modeData.onomato, [{ label: "No Change", value: "" }, { label: "Default", value: "- Narration must utilize onomatopoeia. Use precise, context-specific phonetic representations for physical interactions (e.g., the click of a latch, the thud of a heavy object, the soughing of wind) rather than abstract descriptions of sound." }]));
+        flow.append(createOverrideBlock("[[banlist]]", "banlist", modeData.banlist, [{ label: "No Change", value: "" }, { label: "Example", value: "[BAN LIST]\nNever rely on these clichés, tropes, or repetitive patterns. They are dead language:\n- A shiver ran down their spine." }]));
 
         c.append(flow);
 
-        // Bind preset button click logic
-        c.find(".dev-preset-btn").on("click", function() {
+        // Events for Buttons & Dropdowns
+        c.find(".dev-preset-btn").on("click", function () {
             const targetId = $(this).attr("data-target");
             const val = decodeURIComponent($(this).attr("data-val"));
             $("#" + targetId).val(val);
-
-            // Visual toggle update
-            $(this).siblings().css({"background": "transparent", "border-color": "var(--border-color)", "color": "var(--text-main)"});
-            $(this).css({"background": "rgba(16, 185, 129, 0.15)", "border-color": "#10b981", "color": "#10b981"});
+            $(this).siblings().css({ "background": "transparent", "border-color": "var(--border-color)", "color": "var(--text-main)" });
+            $(this).css({ "background": "rgba(16, 185, 129, 0.15)", "border-color": "#10b981", "color": "#10b981" });
         });
 
-        // Insertion Point Click
-        flow.find(".dev-insert-point").on("click", async function() {
+        c.off("change.devPreset").on("change.devPreset", ".dev-preset-dropdown", function () {
+            const targetId = $(this).attr("data-target");
+            const val = decodeURIComponent($(this).val());
+            if (val !== "null" && val !== undefined) {
+                $("#" + targetId).val(val);
+                isDevEngineDirty = true;
+            }
+            $(this).prop('selectedIndex', 0); // Reset dropdown
+        });
+
+        flow.find(".dev-insert-point").on("click", async function () {
             const ap = $(this).attr("data-attach"); saveCurrentTextState();
             const $p = $(`<div style="display:flex; flex-direction:column; gap:10px;"><input type="text" id="m_n" class="ps-modern-input" placeholder="Module Name" /><select id="m_l" class="ps-modern-input"><option value="settings">Stage 4: Settings</option><option value="addons">Stage 5: Add-ons</option></select><textarea id="m_c" class="ps-modern-input" placeholder="Prompt Content" style="height:100px;"></textarea></div>`);
             if (await new Popup($p, POPUP_TYPE.CONFIRM, "Add Module", { wide: true }).show()) {
@@ -2699,32 +2859,30 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
             }
         });
 
-        // Final Save Click
         $("#dev_save_mode").on("click", () => {
             saveCurrentTextState();
             isDevEngineDirty = false;
-            if (isNew) { extension_settings[extensionName].customModes.push(modeData); } 
-            else { const idx = extension_settings[extensionName].customModes.findIndex(m => m.id === modeData.id); if(idx > -1) extension_settings[extensionName].customModes[idx] = modeData; }
-            saveSettingsDebounced(); toastr.success("Engine Flow Saved!"); 
-            
+            if (isNew) { extension_settings[extensionName].customModes.push(modeData); }
+            else { const idx = extension_settings[extensionName].customModes.findIndex(m => m.id === modeData.id); if (idx > -1) extension_settings[extensionName].customModes[idx] = modeData; }
+            saveSettingsDebounced(); toastr.success("Engine Flow Saved!");
             if (returnTo === "tab") { $(".ps-sidebar").show(); switchTab(0); }
             else { renderDevMode("landing"); }
         });
     }
 }
 // UNIFIED DEV BUTTON CLICK LISTENER
-$("body").off("click", "#ps_btn_dev_mode").on("click", "#ps_btn_dev_mode", function(e) { 
-        e.preventDefault();
-        if ($(this).text().includes("Exit Dev")) {
-            if (isDevEngineDirty) {
-                if (!confirm("You have unsaved changes in your custom engine. Are you sure you want to exit? Changes will be lost.")) return;
-            }
-            isDevEngineDirty = false;
-            switchTab(0); 
-        } else {
-            renderDevMode("landing"); 
+$("body").off("click", "#ps_btn_dev_mode").on("click", "#ps_btn_dev_mode", function (e) {
+    e.preventDefault();
+    if ($(this).text().includes("Exit Dev")) {
+        if (isDevEngineDirty) {
+            if (!confirm("You have unsaved changes in your custom engine. Are you sure you want to exit? Changes will be lost.")) return;
         }
-    });
+        isDevEngineDirty = false;
+        switchTab(0);
+    } else {
+        renderDevMode("landing");
+    }
+});
 
 jQuery(async () => {
     try {
@@ -2734,38 +2892,38 @@ jQuery(async () => {
         // Modify DOM to transition from Wizard -> Tabs
         $(".ps-breadcrumbs").hide();
         $("#ps_btn_prev, #ps_btn_next").hide();
-        
+
         $("body").off("click", "#btn_apply_tab_all").on("click", "#btn_apply_tab_all", applyTabToAll);
-        
-        $("body").on("mouseenter", ".ps-modern-tag", function() { const hint = $(this).attr("data-hint"); if (!hint) return; const title = $(this).text().trim(); $("#ps-global-tooltip").html(`<span class="ps-tooltip-title">${title}:</span> ${hint}`).addClass("visible"); });
-        $("body").on("mouseenter", "#ps_live_token_count", function(e) {
+
+        $("body").on("mouseenter", ".ps-modern-tag", function () { const hint = $(this).attr("data-hint"); if (!hint) return; const title = $(this).text().trim(); $("#ps-global-tooltip").html(`<span class="ps-tooltip-title">${title}:</span> ${hint}`).addClass("visible"); });
+        $("body").on("mouseenter", "#ps_live_token_count", function (e) {
             const hint = $(this).attr("data-breakdown");
             if (!hint) return;
             $("#ps-global-tooltip").html(hint).addClass("visible");
         });
-        $("body").on("mousemove", "#ps_live_token_count", function(e) {
-            const tooltip = $("#ps-global-tooltip"); 
+        $("body").on("mousemove", "#ps_live_token_count", function (e) {
+            const tooltip = $("#ps-global-tooltip");
             // Position to the left of the mouse so it doesn't go off the screen!
-            let x = e.clientX - tooltip.outerWidth() - 15; 
-            let y = e.clientY + 15; 
+            let x = e.clientX - tooltip.outerWidth() - 15;
+            let y = e.clientY + 15;
             tooltip.css({ left: x + 'px', top: y + 'px' });
         });
-        $("body").on("mouseleave", "#ps_live_token_count", function() {
+        $("body").on("mouseleave", "#ps_live_token_count", function () {
             $("#ps-global-tooltip").removeClass("visible");
         });
-        $("body").on("mousemove", ".ps-modern-tag", function(e) { if (!$(this).attr("data-hint")) return; const tooltip = $("#ps-global-tooltip"); let x = e.clientX + 15; let y = e.clientY + 15; if (x + tooltip.outerWidth() > window.innerWidth) x = e.clientX - tooltip.outerWidth() - 15; if (y + tooltip.outerHeight() > window.innerHeight) y = e.clientY - tooltip.outerHeight() - 15; tooltip.css({ left: x + 'px', top: y + 'px' }); });
-        $("body").on("mouseleave", ".ps-modern-tag", function() { $("#ps-global-tooltip").removeClass("visible"); });
+        $("body").on("mousemove", ".ps-modern-tag", function (e) { if (!$(this).attr("data-hint")) return; const tooltip = $("#ps-global-tooltip"); let x = e.clientX + 15; let y = e.clientY + 15; if (x + tooltip.outerWidth() > window.innerWidth) x = e.clientX - tooltip.outerWidth() - 15; if (y + tooltip.outerHeight() > window.innerHeight) y = e.clientY - tooltip.outerHeight() - 15; tooltip.css({ left: x + 'px', top: y + 'px' }); });
+        $("body").on("mouseleave", ".ps-modern-tag", function () { $("#ps-global-tooltip").removeClass("visible"); });
 
-        $("body").on("click", ".sidebar-step", function() { const index = parseInt($(this).attr("id").replace("dot_", "")); if(!isNaN(index)) switchTab(index); });
+        $("body").on("click", ".sidebar-step", function () { const index = parseInt($(this).attr("id").replace("dot_", "")); if (!isNaN(index)) switchTab(index); });
 
-        $("body").on("click", "#ps_btn_reset", function() {
-            if(confirm("Are you sure you want to completely reset this character's profile to the default template?")) {
+        $("body").on("click", "#ps_btn_reset", function () {
+            if (confirm("Are you sure you want to completely reset this character's profile to the default template?")) {
                 const key = getCharacterKey() || "default"; delete extension_settings[extensionName].profiles[key]; saveSettingsDebounced();
                 initProfile(); switchTab(0); toastr.info("Profile has been reset to defaults.");
             }
         });
 
-        $("body").on("click", "#ps_btn_save_close", function() { saveProfileToMemory(); $("#prompt-slot-modal-overlay").fadeOut(200); toastr.success("Workflow Configured & Applied Successfully!"); });
+        $("body").on("click", "#ps_btn_save_close", function () { saveProfileToMemory(); $("#prompt-slot-modal-overlay").fadeOut(200); toastr.success("Workflow Configured & Applied Successfully!"); });
 
         if (typeof eventSource !== 'undefined' && typeof event_types !== 'undefined') {
             eventSource.on(event_types.APP_READY, () => {
@@ -2775,41 +2933,41 @@ jQuery(async () => {
             eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, handlePromptInjection);
             eventSource.on(event_types.CHAT_CHANGED, () => {
                 initProfile(); updateCharacterDisplay();
-                if($("#prompt-slot-modal-overlay").is(":visible")) switchTab(currentTab);
+                if ($("#prompt-slot-modal-overlay").is(":visible")) switchTab(currentTab);
             });
             // IMAGE GEN AUTO-GEN & SWIPE TRIGGERS
-            eventSource.on(event_types.MESSAGE_RECEIVED, async () => { 
-// AUTO-TRIGGER STORY PLANNER
-            const sp = localProfile?.storyPlan;
-            if (sp && sp.enabled && sp.triggerMode === 'frequency') {
-                const chat = getContext().chat;
-                const aiMsgCount = chat.filter(m => !m.is_user && !m.is_system).length;
-                if (aiMsgCount > 0 && aiMsgCount % sp.autoFreq === 0) {
-                    toastr.info("Auto-Generating new Story Plan...", "Megumin Suite");
-                    setTimeout(async () => {
-                        const chatText = getCleanedChatHistory();
-                        if (chatText.length < 100) return;
-                        try {
-                            let output = sp.backend === "direct" ? await generateStoryPlanLogic(chatText) : await new Promise(r => useMeguminEngine(async () => r(await generateStoryPlanLogic(chatText))));
-                            const plotMatch = output?.match(/<plot>([\s\S]*?)<\/plot>/i);
-                            if (plotMatch) {
-                                sp.currentPlan = plotMatch[1].trim();
-                                saveProfileToMemory();
-                                if ($("#sp_current_plan").length) $("#sp_current_plan").val(sp.currentPlan);
-                                toastr.success("Story Plan Updated silently!");
-                            }
-                        } catch (e) { console.error("Story Plan auto-gen failed", e); }
-                    }, 2000); // Small delay to let chat save first
+            eventSource.on(event_types.MESSAGE_RECEIVED, async () => {
+                // AUTO-TRIGGER STORY PLANNER
+                const sp = localProfile?.storyPlan;
+                if (sp && sp.enabled && sp.triggerMode === 'frequency') {
+                    const chat = getContext().chat;
+                    const aiMsgCount = chat.filter(m => !m.is_user && !m.is_system).length;
+                    if (aiMsgCount > 0 && aiMsgCount % sp.autoFreq === 0) {
+                        toastr.info("Auto-Generating new Story Plan...", "Megumin Suite");
+                        setTimeout(async () => {
+                            const chatText = getCleanedChatHistory();
+                            if (chatText.length < 100) return;
+                            try {
+                                let output = sp.backend === "direct" ? await generateStoryPlanLogic(chatText) : await new Promise(r => useMeguminEngine(async () => r(await generateStoryPlanLogic(chatText))));
+                                const plotMatch = output?.match(/<plot>([\s\S]*?)<\/plot>/i);
+                                if (plotMatch) {
+                                    sp.currentPlan = plotMatch[1].trim();
+                                    saveProfileToMemory();
+                                    if ($("#sp_current_plan").length) $("#sp_current_plan").val(sp.currentPlan);
+                                    toastr.success("Story Plan Updated silently!");
+                                }
+                            } catch (e) { console.error("Story Plan auto-gen failed", e); }
+                        }, 2000); // Small delay to let chat save first
+                    }
                 }
-            }
                 const s = localProfile?.imageGen;
-                if (!s || !s.enabled) return; 
-                
-                const chat = getContext().chat; 
-                if (!chat || !chat.length) return; 
-                
+                if (!s || !s.enabled) return;
+
+                const chat = getContext().chat;
+                if (!chat || !chat.length) return;
+
                 const lastMsg = chat[chat.length - 1];
-                if (lastMsg.is_user || lastMsg.is_system) return; 
+                if (lastMsg.is_user || lastMsg.is_system) return;
 
                 // Look for the <img prompt="..."> tag in the AI's response
                 const imgRegex = /<img\s+prompt=["'](.*?)["']\s*\/?>/i;
@@ -2817,38 +2975,38 @@ jQuery(async () => {
 
                 if (match) {
                     const extractedPrompt = match[1];
-                    
+
                     // 1. Remove the raw tag from the chat text so the user doesn't see it
                     lastMsg.mes = lastMsg.mes.replace(imgRegex, "").trim();
                     await saveChat();
                     reloadCurrentChat(); // Refreshes the chat window instantly
-                    
+
                     // 2. Send the extracted prompt to ComfyUI!
                     setTimeout(() => {
                         toastr.info("Image tag detected. Sending to ComfyUI...");
                         igGenerateWithComfy(extractedPrompt, null);
                     }, 500);
-                } 
+                }
             });
             const meguminSwipeHandler = async (data) => {
                 const s = localProfile?.imageGen;
                 if (!s || !s.enabled) return;
-                
+
                 const { message, direction, element } = data;
-                
+
                 // Only trigger on right swipes
                 if (direction !== "right") return;
-                
-                const media = message.extra?.media ||[]; 
+
+                const media = message.extra?.media || [];
                 const idx = message.extra?.media_index || 0;
-                
+
                 // Only trigger on the LAST image in the gallery (overswipe)
                 if (idx < media.length - 1) return;
-                
-                const mediaObj = media[idx]; 
-                
+
+                const mediaObj = media[idx];
+
                 // If there is no title (prompt), we can't regenerate it.
-                if (!mediaObj || !mediaObj.title) return; 
+                if (!mediaObj || !mediaObj.title) return;
 
                 // PRIORITY HACK: Temporarily stun both old and new ST Image Gen settings
                 // so the native ST listener aborts itself!
@@ -2857,7 +3015,7 @@ jQuery(async () => {
                     ogPower = window.power_user.image_overswipe;
                     window.power_user.image_overswipe = "off";
                 }
-                
+
                 let ogExt = null;
                 if (extension_settings.image_generation && extension_settings.image_generation.overswipe) {
                     ogExt = extension_settings.image_generation.overswipe;
@@ -2865,8 +3023,8 @@ jQuery(async () => {
                 }
 
                 // Restore ST's native settings 200ms later after the default listener aborts
-                setTimeout(() => { 
-                    if (ogPower && window.power_user) window.power_user.image_overswipe = ogPower; 
+                setTimeout(() => {
+                    if (ogPower && window.power_user) window.power_user.image_overswipe = ogPower;
                     if (ogExt && extension_settings.image_generation) extension_settings.image_generation.overswipe = ogExt;
                 }, 200);
 
@@ -2876,7 +3034,7 @@ jQuery(async () => {
 
             // Bind the listener
             eventSource.on(event_types.IMAGE_SWIPED, meguminSwipeHandler);
-            
+
             // FORCE IT TO THE FRONT OF THE REAL ARRAY
             // This ensures our extension evaluates the swipe BEFORE SillyTavern does.
             if (eventSource._events && Array.isArray(eventSource._events[event_types.IMAGE_SWIPED])) {
@@ -2887,39 +3045,39 @@ jQuery(async () => {
             }
         }
 
-        $("body").on("click", "#prompt-slot-fixed-btn", function() { initProfile(); updateCharacterDisplay(); switchTab(0); $("#prompt-slot-modal-overlay").fadeIn(250).css("display", "flex"); });
-        $("body").off("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay").on("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay", function(e) { 
-        if (e.target === this) { 
-            if (isDevEngineDirty) {
-                if (!confirm("You have unsaved changes in your custom engine. Are you sure you want to close? Changes will be lost.")) return;
-                isDevEngineDirty = false;
+        $("body").on("click", "#prompt-slot-fixed-btn", function () { initProfile(); updateCharacterDisplay(); switchTab(0); $("#prompt-slot-modal-overlay").fadeIn(250).css("display", "flex"); });
+        $("body").off("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay").on("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay", function (e) {
+            if (e.target === this) {
+                if (isDevEngineDirty) {
+                    if (!confirm("You have unsaved changes in your custom engine. Are you sure you want to close? Changes will be lost.")) return;
+                    isDevEngineDirty = false;
+                }
+                saveProfileToMemory();
+                $("#prompt-slot-modal-overlay").fadeOut(200);
             }
-            saveProfileToMemory(); 
-            $("#prompt-slot-modal-overlay").fadeOut(200); 
-        } 
-    });
-        let att = 0; 
-        const int = setInterval(() => { 
-            if ($("#kazuma_quick_gen").length > 0) { 
-                clearInterval(int); 
-                return; 
-            } 
-            const b = `<div id="kazuma_quick_gen" class="interactable" title="Visualize Last Scene (Manual)" style="cursor: pointer; width: 35px; height: 35px; display: none; align-items: center; justify-content: center; margin-right: 5px; color: var(--gold);"><i class="fa-solid fa-image fa-lg"></i></div>`; 
-            let t = $("#send_but_sheld"); 
-            if (!t.length) t = $("#send_textarea"); 
-            if (t.length) { 
-                t.attr("id") === "send_textarea" ? t.before(b) : t.prepend(b); 
+        });
+        let att = 0;
+        const int = setInterval(() => {
+            if ($("#kazuma_quick_gen").length > 0) {
+                clearInterval(int);
+                return;
+            }
+            const b = `<div id="kazuma_quick_gen" class="interactable" title="Visualize Last Scene (Manual)" style="cursor: pointer; width: 35px; height: 35px; display: none; align-items: center; justify-content: center; margin-right: 5px; color: var(--gold);"><i class="fa-solid fa-image fa-lg"></i></div>`;
+            let t = $("#send_but_sheld");
+            if (!t.length) t = $("#send_textarea");
+            if (t.length) {
+                t.attr("id") === "send_textarea" ? t.before(b) : t.prepend(b);
                 toggleQuickGenButton(); // Ensure correct visibility immediately upon injection
                 clearInterval(int);
             }
-            att++; 
-            if (att > 10) clearInterval(int); 
+            att++;
+            if (att > 10) clearInterval(int);
         }, 1000);
-        
-        $(document).on("click", "#kazuma_quick_gen", function(e) { 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-            igManualGenerate(); 
+
+        $(document).on("click", "#kazuma_quick_gen", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            igManualGenerate();
         });
 
     } catch (e) { console.error(`[${extensionName}] Failed to load:`, e); }

@@ -1,3 +1,14 @@
+# beta 26/04/26
+* fixed multi thinking box with models like GLM and Deepseek.
+* fixed thinking for GLM and DS 4.
+* DeepSeek 4 support test.
+* Dialogue & Narration Format toggle for better narration style adherence in some models recommended.
+* fixed color charcater in DS4 *maybe*.
+* added thinking effort control.
+* you can now edit every thing inside dev mode i mean every thing all.
+* added export/import to banlist. and fixed banlist ui.
+* added thinking v2 in cot this give more freedom to the ai thinking while following the cot. only for gemini 3.1 pro and 3 flash. put <think> and </think> inside the Reasoning Formatting.
+Note: use only english COT for deepseek 4.
 # beta 23/04/26
 * added Dream team v6 and v6 lite.
 * fixed some under the hood stuff.
