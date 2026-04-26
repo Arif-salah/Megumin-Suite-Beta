@@ -2395,6 +2395,19 @@ function buildBaseDict() {
         dict["[[prefill]]"] = dict["[[prefill]]"].replace(/\n<think>[\s\S]*/, "\n<think>\n<think>");
     }
 
+    // Resolve early-evaluated tokens inside all other strings to prevent them from being missed and then cleaned up
+    const earlyTokens = ["[[count]]", "[[Language]]", "[[pronouns]]", "[[DNRATIO]]"];
+    earlyTokens.forEach(et => {
+        if (dict[et] !== undefined) {
+            const val = dict[et];
+            Object.keys(dict).forEach(k => {
+                if (k !== et && typeof dict[k] === 'string' && dict[k].includes(et)) {
+                    dict[k] = dict[k].split(et).join(val);
+                }
+            });
+        }
+    });
+
     return dict;
 }
 
