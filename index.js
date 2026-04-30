@@ -2227,18 +2227,15 @@ function buildBaseDict() {
     if (modData) {
         dict["[[COT]]"] = modData.content;
         if (modData.prefill) dict["[[prefill]]"] = modData.prefill;
+    } else {
+        dict["[[COT]]"] = "";
     }
 
-    if (localProfile.thinkingV2) {
-        let thinkExt = "";
-        let effort = localProfile.thinkEffort || "unspecified";
-        if (effort !== "unspecified") {
-            let words = effort === "custom" ? (localProfile.customThinkEffort || "100") : effort;
-            thinkExt = ` - maximum ${words} words.`;
-        }
-        dict["[[THINK]]"] = `<think>\n<think>\n<think>\n{Thinking${thinkExt}}\n</think>`;
+    // [[THINK]] Macro Logic (Only injects if Thinking V2 is ENABLED)
+    if (localProfile.thinkingV2 && localProfile.model !== "cot-off") {
+        dict["[[THINK]]"] = `<think>\n<think>\n<think>\n{Thinking}\n</think>`;
     } else {
-        dict["[[THINK]]"] = ""; // Stays empty if V2 is off
+        dict["[[THINK]]"] = "";
     }
 
     if (localProfile.dnRatio && localProfile.dnRatio.enabled) {
@@ -2336,6 +2333,13 @@ function buildBaseDict() {
 
     if (localProfile.mode.includes("v6-dream-team")) {
         dict["[[main]]"] = "";
+    }
+
+    // NEW: Inject Thinking Effort to the absolute top of whatever [[COT]] is currently active
+    let effort = localProfile.thinkEffort || "unspecified";
+    if (effort !== "unspecified" && dict["[[COT]]"]) {
+        let words = effort === "custom" ? (localProfile.customThinkEffort || "100") : effort;
+        dict["[[COT]]"] = `Your Thinking must not be more than ${words} words.\n\n` + dict["[[COT]]"];
     }
 
     // Story Planner Injection
