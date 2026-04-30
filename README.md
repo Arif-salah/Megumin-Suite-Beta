@@ -1,3 +1,6 @@
+# beta 30/04/26
+* Fixes for GLM and DS4 thinking.
+note: enable prefill only for Gemini.
 # beta 26/04/26
 * fixed multi thinking box with models like GLM and Deepseek.
 * fixed thinking for GLM and DS 4.

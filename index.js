@@ -1131,8 +1131,8 @@ function renderModels(c) {
     const v2Card = $(`
         <div class="ps-toggle-card ${localProfile.thinkingV2 ? 'active' : ''}" style="margin-bottom: 20px; border-color: ${localProfile.thinkingV2 ? 'var(--gold)' : 'var(--border-color)'};">
             <div style="display:flex; flex-direction:column;">
-                <span style="font-weight:700; font-size: 1.05rem; color: ${localProfile.thinkingV2 ? 'var(--gold)' : 'var(--text-main)'};"><i class="fa-solid fa-brain"></i> Thinking v2</span>
-                <div style="margin-top:4px; font-size: 0.8rem; color: var(--text-muted);">This toggle is tested only for Gemini 3.1 Pro and 3 Flash. You can test it in other models but it may not work or make things worse.</div>
+                <span style="font-weight:700; font-size: 1.05rem; color: ${localProfile.thinkingV2 ? 'var(--gold)' : 'var(--text-main)'};"><i class="fa-solid fa-brain"></i> Gemini Thinking</span>
+                <div style="margin-top:4px; font-size: 0.8rem; color: var(--text-muted);">This toggle is only for Gemini 3.1 Pro and 3 Flash.</div>
             </div>
             <div class="ps-switch"></div>
         </div>
@@ -2229,7 +2229,7 @@ function buildBaseDict() {
         if (modData.prefill) dict["[[prefill]]"] = modData.prefill;
     }
 
-    if (localProfile.model !== "cot-off") {
+    if (localProfile.thinkingV2) {
         let thinkExt = "";
         let effort = localProfile.thinkEffort || "unspecified";
         if (effort !== "unspecified") {
@@ -2238,7 +2238,7 @@ function buildBaseDict() {
         }
         dict["[[THINK]]"] = `<think>\n<think>\n<think>\n{Thinking${thinkExt}}\n</think>`;
     } else {
-        dict["[[THINK]]"] = "";
+        dict["[[THINK]]"] = ""; // Stays empty if V2 is off
     }
 
     if (localProfile.dnRatio && localProfile.dnRatio.enabled) {
@@ -2295,7 +2295,7 @@ function buildBaseDict() {
         const overrides = [
             { key: "cot", trigger: "[[COT]]", condition: true },
             { key: "prefill", trigger: "[[prefill]]", condition: true },
-            { key: "think", trigger: "[[THINK]]", condition: localProfile.model !== "cot-off" },
+            { key: "think", trigger: "[[THINK]]", condition: localProfile.thinkingV2 },
             { key: "info", trigger: "[[infoblock]]", condition: localProfile.blocks.includes("info") },
             { key: "summary", trigger: "[[summary]]", condition: localProfile.blocks.includes("summary") },
             { key: "cyoa", trigger: "[[cyoa]]", condition: localProfile.blocks.includes("cyoa") },
