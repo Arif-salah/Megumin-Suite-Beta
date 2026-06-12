@@ -2183,3 +2183,186 @@
     padding-top: 10px;
     border-top: 1px solid var(--border-color);
 }
+/* ================================================================
+   WRITING STYLE TAB — Concept 1 (Sidebar Redesign)
+   ================================================================ */
+
+.ws-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    margin-top: 15px;
+}
+
+.ws-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 15px;
+    position: sticky;
+    top: 0;
+}
+
+.ws-sidebar-title {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 800;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+    padding-left: 5px;
+}
+
+.ws-nav-btn {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+    margin-bottom: 4px;
+}
+
+.ws-nav-btn i {
+    width: 20px;
+    text-align: center;
+}
+
+.ws-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+.ws-nav-btn.active {
+    background: rgba(168, 85, 247, 0.15);
+    color: var(--purple);
+}
+
+.ws-nav-btn.active-green {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.ws-badge {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+}
+
+.ws-main {
+    flex: 1;
+    min-width: 0; /* Prevents flex blowout */
+}
+
+.ws-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+}
+
+/* Compact Style Cards */
+.ws-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.ws-card:hover {
+    border-color: #52525b;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+.ws-card.active {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.ws-card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-main);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+}
+
+.ws-card-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    flex: 1;
+}
+
+.ws-card-rule {
+    margin-top: 12px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.3);
+    padding: 8px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.ws-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.ws-btn-small {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 6px 0;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ws-btn-small:hover {
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+}
+
+/* Mobile Responsiveness for Writing Style Tab */
+@media (max-width: 850px) {
+    .ws-layout {
+        flex-direction: column;
+    }
+    .ws-sidebar {
+        width: 100%;
+        position: relative;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+    .ws-main {
+        width: 100%;
+    }
+}

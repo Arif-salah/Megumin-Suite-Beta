@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 import { extension_settings, getContext } from "../../../extensions.js";
-import { saveSettingsDebounced, generateQuietPrompt, event_types, eventSource, substituteParams, saveChat, reloadCurrentChat, addOneMessage, getRequestHeaders, appendMediaToMessage } from "../../../../script.js";
+import { saveSettingsDebounced, generateQuietPrompt, event_types, eventSource, substituteParams, saveChat, reloadCurrentChat, addOneMessage, getRequestHeaders, appendMediaToMessage, updateMessageBlock } from "../../../../script.js";
 import { saveBase64AsFile } from "../../../utils.js";
 import { humanizedDateTime } from "../../../RossAscends-mods.js";
 import { Popup, POPUP_TYPE } from "../../../popup.js";
@@ -26,16 +26,23 @@ const DEFAULT_PROMPTS = {
         injectionTemplate: "[BAN LIST]\nNever rely on these clichés, tropes, or repetitive patterns. They are dead language:\n{{banItems}}"
     },
     imageGen: {
-        systemPrompt: "You are an expert AI image prompt engineer. Your job is to read a scene and convert it into a highly detailed visual prompt for an image generation model. You must adhere to the requested Style Constraint and Camera Perspective. Do not include quotes, conversational text, or explanations. Output ONLY the raw prompt text.",
-        userPrompt: "Write an image generation prompt for the latest scene in this chat history.\n\n<chat>\n{{chatHistory}}\n</chat>\n\nStyle Constraint: {{styleStr}}\nCamera Perspective: {{perspStr}}\nExtra Details: {{extraStr}}\n\nOutput ONLY the raw image prompt text.",
+        systemPrompt: "You are an expert AI image prompt engineer. Your job is to read a scene and convert it into a highly detailed visual prompt for an image generation model. You must adhere to the requested Rules and Constraints. Do not include quotes, conversational text, or explanations. Output ONLY the raw prompt text.",
+        userPrompt: "Write an image generation prompt for the latest scene in this chat history.\n\n<chat>\n{{chatHistory}}\n</chat>\n\n{{templateRules}}\n\n{{extraStr}}\n\n{{directLanguage}}\n\n{{npcImageTags}}\n\n{{templateExamples}}",
         thinkingPrompt: "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main response must immediately follow </think>.\n\n<think>\nReflect in approximately 50-100 words as a seamless paragraph on what visual elements are present.\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}",
-        injectionTemplate: "[IMAGE GENERATION]\n{{conditionalText}}Style: {{styleStr}}\nPerspective: {{perspStr}}{{promptExtra}}",
-        styleIllustrious: "Use Danbooru-style tags. Focus on anime.",
-        styleSdxl: "Use natural descriptive sentences. Focus on photorealism.",
-        styleDefault: "Use keywords.",
-        perspPov: "First-Person (POV).",
-        perspCharacter: "Focus on character appearance.",
-        perspDefault: "Describe environment."
+        injectionTemplate: "### IMAGE GENERATION:\n{{conditionalText}}Within your response, insert {{imageCount}} of this image tag: <img prompt=\"[prompt]\"> to illustrate the scene.\n{{templateRules}}\n\n{{promptExtra}}\n\n{{directLanguage}}\n\n{{npcImageTags}}\n\n{{templateExamples}}",
+
+        rulesIllusPov: "Build the prompt in this EXACT order. Do NOT rearrange sections.\n\n**SECTION 1 — Quality + POV:**\nStart: masterpiece, best quality, highly detailed,\nThen POV:\n• Observing: \"1st person pov, looking at viewer,\" + foreground anchor (e.g., \"foreground edge of a desk visible,\")\n• Interacting: \"1st person pov, pov hands,\" + hand action (e.g., \"male hands holding silver tray,\")\n• NEVER describe the user's face.\n\n**SECTION 2 — Character Count:**\nBooru tag for visible characters: \"1girl,\", \"3girls,\", \"1boy 1girl,\", etc.\n\n**SECTION 3 — Character Descriptions:**\n\nFOR SINGLE CHARACTER (1 person in frame):\nUse a flat comma-separated Booru tag string for appearance + action. Example:\nmature female, pale skin, dark eyes, long black hair, messy ponytail, dark wool coat, white silk blouse, tear-streaked face, anxious expression, sitting sideways, holding blanket, reaching toward viewer,\n\nFOR MULTIPLE CHARACTERS (2+ people in frame):\nYou MUST describe each character in a SEPARATE natural-language sentence/paragraph to prevent feature bleeding. Use Booru tags for appearance and clothing WITHIN each sentence, but separate characters with clear spatial language (\"on the left,\" \"in the center,\" \"behind her\").\n\nFormat per character: \"The [position] is a [gender/species] with [hair tags], [eye tags], [skin tags], wearing [clothing tags]. She has a [expression tag] and is [action/pose].\"\n\nEach character gets their OWN paragraph. Do NOT merge characters into one comma-separated list.\n\n**SECTION 4 — Scene + Lighting (always last):**\nEnd with background, lighting, atmosphere in natural language.\n\n**BANS:** No \"realistic\" or \"photographic\". No describing the user's face/body.",
+        examplesIllusPov: "EXAMPLE — Single Character:\n<img prompt=\"masterpiece, best quality, highly detailed, 1st person pov, looking at viewer, foreground edge of black leather car seat visible, 1girl, mature female, pale skin, dark eyes, long black hair, messy high ponytail, dark wool coat, white silk blouse, tear-streaked face, anxious expression, sitting sideways, holding blanket, reaching toward viewer, dark luxury SUV interior background, tinted windows, blurred city lights outside, soft amber interior lighting, depth of field\">\n\nEXAMPLE — Multiple Characters:\n<img prompt=\"masterpiece, best quality, highly detailed, 1st person pov, looking at viewer, foreground messy white bedsheets visible, 3girls, The woman on the left is a rabbit girl kemonomimi with long blonde hair, long white rabbit ears, pale skin, blue eyes, wearing short frilly black white french maid outfit, maid headdress. She has a nervous expression and her hands clasped near mouth. The woman in the center is a mature female human with black hair, tight hair bun, brown eyes, wearing strict long black white victorian maid uniform, high collar, long skirt. She has a serious expression and is holding a silver measuring tape. The woman on the right is a demon girl with pale skin, short black hair, red eyes, red oni horns, wearing dark blue maid dress, white apron. She has a stoic expression and is holding red velvet slippers. Lavish bedroom background with ornate furniture and glowing chandelier, warm golden lighting, depth of field\">",
+        rulesSdxlPov: "Build the prompt in this EXACT order. Do NOT rearrange sections.\n\n1. **Natural Language Architecture:** Write the prompt as highly detailed, grammatically complete sentences. Use a masterpiece. \n2. **Camera & Perspective:**\n   * Always establish the camera position and angle first (e.g., \"A 1st person pov from the bed looking up at...\").\n   * *If the user is passively observing:* Treat the perspective purely as a camera anchor. Do NOT describe the user's body or hands. Use an environmental anchor instead (e.g., \"The camera is positioned looking out over the white bed sheets in the foreground.\").\n   * *If the user is physically interacting in the narrative:* Describe the hands actively doing the task (e.g., \"In the foreground, 1st person male hands are holding a silver tray.\").\n3. **NPC Isolation & Details:** Dedicate a distinct sentence or paragraph to each NPC visible in the scene to prevent their features from bleeding together. You MUST explicitly describe their:\n   * Age bracket (e.g., mature, young)\n   * Gender (e.g., woman, girl, man, boy)\n   * Exact Race/Species (e.g., human, rabbit girl kemonomimi, demon girl with horns)\n   * Skin tone\n   * Eye color\n   * Hair length, style, and color\n   * Specific uniform/clothing details\n   * Current facial expression, held items, and posture\n4. **Environment:** Briefly describe the background setting, lighting, and atmosphere in the final sentence.",
+        examplesSdxlPov: "EXAMPLE — Single Character:\n<img prompt=\"A masterpiece in 1st person point of view. The camera is positioned at the edge of a black leather car seat, looking up. A mature woman with pale skin, dark eyes, and long black hair pulled into a messy high ponytail sits sideways in the back seat of a dark luxury SUV. She wears a dark wool coat over a white silk blouse. Her face is tear-streaked with an anxious expression as she reaches one hand toward the viewer while clutching a blanket with the other. Through the tinted windows behind her, blurred city lights streak past. Soft amber interior lighting illuminates the cabin with shallow depth of field.\">\n\nEXAMPLE — Multiple Characters:\n<img prompt=\"A masterpiece in 1st person point of view. The camera is positioned from a bed, looking out over messy white bedsheets in the foreground. Three women stand at the foot of the bed. On the left is a rabbit girl kemonomimi with long blonde hair, long white rabbit ears, pale skin, and blue eyes. She wears a short frilly black and white French maid outfit with a maid headdress. Her hands are clasped nervously near her mouth. In the center stands a mature human woman with black hair in a tight bun, brown eyes, wearing a strict long black and white Victorian maid uniform with a high collar and long skirt. Her expression is serious and she holds a silver measuring tape in both hands. On the right is a demon girl with pale skin, short black hair, red eyes, and red oni horns. She wears a dark blue maid dress with a white apron. Her expression is stoic and she holds a pair of red velvet slippers. Behind them is a lavish bedroom with ornate furniture and a glowing crystal chandelier. Warm golden lighting fills the room with soft depth of field.\">",
+        rulesIllusCinematic: "Build the prompt in this EXACT order. Do NOT rearrange sections.\n\n**SECTION 1 — Quality + Camera:**\nStart: masterpiece, best quality, highly detailed, cinematic composition,\nThen camera type (pick one):\n- Wide: wide shot, full body,\n- Medium: medium shot, upper body,\n- Close: close-up, face focus,\n- Dramatic: dutch angle, or low angle, or high angle,\n\n**SECTION 2 — Character Count:**\nBooru tag for visible characters: 1girl,, 2boys,, 1boy 1girl,, etc.\n\n**SECTION 3 — Character Descriptions (anti-bleed rules):**\n\nFOR SINGLE CHARACTER (1 person in frame):\nUse a flat comma-separated Booru tag string for appearance + action. Example:\nmature female, pale skin, dark eyes, long black hair, messy ponytail, dark wool coat, white silk blouse, tear-streaked face, anxious expression, sitting sideways, holding blanket, reaching toward viewer,\n\nFOR MULTIPLE CHARACTERS (2+ people in frame):\nYou MUST describe each character in a SEPARATE natural-language sentence/paragraph to prevent feature bleeding. Use Booru tags for appearance and clothing WITHIN each sentence, but separate characters with clear spatial language (\"on the left,\" \"in the center,\" \"behind her\").\n\nFormat per character: \"The [position] is a [gender/species] with [hair tags], [eye tags], [skin tags], wearing [clothing tags]. She has a [expression tag] and is [action/pose].\"\n\nEach character gets their OWN paragraph. Do NOT merge characters into one comma-separated list.\n\n**SECTION 4 — Scene + Lighting (always last):**\nEnd with background, lighting, atmosphere. Cinematic lighting tags: volumetric lighting, rim lighting, god rays, lens flare, dramatic shadows, backlighting, silhouette,\n\n**BANS:** No \"realistic\" or \"photographic\". No first-person POV tags in this template.",
+        examplesIllusCinematic: "EXAMPLE — Single Character Cinematic:\n<img prompt=\"masterpiece, best quality, highly detailed, cinematic composition, low angle, full body, 1girl, young woman, dark skin, amber eyes, long white hair, loose waves, gold circlet on forehead, white draped toga, gold belt, bare feet, determined expression, standing on cliff edge, arms at sides, fists clenched, wind blowing hair and fabric, mountainous desert landscape, ancient ruins in background, golden hour sunlight, volumetric lighting, rim lighting, dramatic shadows, dust particles in air\">\n\nEXAMPLE — Multiple Characters Cinematic:\n<img prompt=\"masterpiece, best quality, highly detailed, cinematic composition, wide shot, 2girls, The figure on the left is a tall elf woman with long silver hair, pointed ears, pale skin, green eyes, wearing dark leather armor, hooded cloak pushed back. She has a cautious expression and is gripping a bow at her side. The figure on the right is a short dwarf woman with tan skin, brown eyes, thick red braided hair, wearing dented iron plate armor, fur-lined pauldrons. She has a grinning expression and is resting a warhammer over her shoulder. Rain-soaked cobblestone street, medieval town at night, glowing tavern windows in background, volumetric fog, rim lighting from streetlamp, puddle reflections, dramatic shadows\">",
+        rulesSdxlCinematic: "Build the prompt in this EXACT order. Do NOT rearrange sections.\n\n1. **Natural Language Architecture:** Write the prompt as highly detailed, grammatically complete sentences. Use a masterpiece.\n2. **Camera & Composition:**\n   - Establish the camera angle, distance, and framing first (e.g., \"A cinematic wide shot from a low angle looking up at...\").\n   - Do NOT use first-person POV. Frame the scene as a film camera would.\n   - Specify shot type: wide shot, medium shot, close-up, over-the-shoulder, tracking shot, Dutch angle.\n3. **NPC Isolation & Details:** Dedicate a distinct sentence or paragraph to each character visible in the scene. You MUST explicitly describe their:\n   - Age bracket, gender, exact race/species\n   - Skin tone, eye color, hair length/style/color\n   - Specific clothing details\n   - Current facial expression, held items, and posture\n4. **Environment & Cinematic Lighting:** Describe the background setting in the final sentence. Emphasize cinematic lighting: volumetric light, rim lighting, god rays, lens flare, dramatic shadows, backlighting, silhouette, color grading.",
+        examplesSdxlCinematic: "EXAMPLE — Single Character Cinematic:\n<img prompt=\"A cinematic masterpiece. A low-angle medium shot looking up at a young woman with dark skin, amber eyes, and long white hair blowing in the wind. She wears a white draped toga with a gold belt and a gold circlet on her forehead. Her expression is fierce and determined, fists clenched at her sides. She stands at the edge of a sandstone cliff overlooking a vast desert valley with crumbling ancient ruins below. Golden hour sunlight casts volumetric god rays through dust in the air, rim lighting outlines her figure, and dramatic long shadows stretch across the rock.\">\n\nEXAMPLE — Multiple Characters Cinematic:\n<img prompt=\"A cinematic masterpiece. A wide shot of a rain-soaked medieval cobblestone street at night. On the left stands a tall elf woman with long silver hair, pointed ears, pale skin, and green eyes. She wears dark leather armor under a hooded cloak pushed back from her face. Her expression is cautious, and she grips a longbow at her side. On the right stands a short, stocky dwarf woman with tan skin, brown eyes, and thick red hair in twin braids. She wears dented iron plate armor with fur-lined pauldrons and grins broadly, resting a heavy warhammer over her right shoulder. Behind them, warm orange light spills from tavern windows. Volumetric fog drifts through the street, rim lighting catches the rain, and puddles reflect the scene.\">",
+        rulesIllusPortrait: "Build the prompt in this EXACT order. Do NOT rearrange sections.\n\n**SECTION 1 — Quality + Framing:**\nStart: masterpiece, best quality, highly detailed, portrait,\nThen framing (pick one):\n- upper body, (chest and up)\n- head and shoulders, (shoulders and up)\n- close up, face only, (face only)\n- full body, (Full body)\n\n**SECTION 2 — Character Count:**\nAlways 1girl, or 1boy, or 1other,.\n\n**SECTION 3 — Character Description:**\nFlat comma-separated Booru tag string covering ALL of:\n- Species/race, age bracket, body type\n- Skin tone, eye color and shape, hair color/length/style\n- Clothing and accessories visible in frame\n- Facial expression, head tilt, gaze direction\n- Any held items visible in frame\n\n**SECTION 4 — Background + Lighting (always last):**\nUse simple or abstract backgrounds: simple background, gradient background, dark background, blurred background,\nThen lighting: soft lighting, studio lighting, natural lighting, side lighting,\n\n**BANS:** No \"realistic\" or \"photographic\". No full-body shots. No complex scenes. One character only.",
+        examplesIllusPortrait: "EXAMPLE — Character Portrait:\n<img prompt=\"masterpiece, best quality, highly detailed, portrait, upper body, 1girl, young woman, elf, pointed ears, pale skin, freckles across nose, bright green eyes, long auburn hair, loose side braid over left shoulder, small silver leaf earrings, wearing dark green wool tunic, brown leather vest, high collar, slight smile, head tilted slightly right, looking at viewer, holding a small glowing blue flower near her chin, blurred forest background, dappled natural lighting, soft focus\">",
+        rulesSdxlPortrait: "Build the prompt in this EXACT order. Do NOT rearrange sections.\n\n1. **Natural Language Architecture:** Write the prompt as highly detailed, grammatically complete sentences. Use a masterpiece.\n2. **Framing:** Establish that this is a portrait. Specify the crop: upper body, head and shoulders, or face close-up, full body. One character only.\n3. **Character Details:** Dedicate the full body of the prompt to the single character. You MUST explicitly describe:\n   - Age bracket, gender, exact race/species\n   - Skin tone, distinguishing marks (scars, freckles, tattoos)\n   - Eye color and shape, hair length/style/color\n   - Visible clothing and accessories within the frame\n   - Facial expression, gaze direction, head angle\n   - Any held items near the face or upper body\n4. **Background & Lighting:** Use a simple, non-distracting background. Describe studio-style or natural portrait lighting in the final sentence.",
+        examplesSdxlPortrait: "EXAMPLE — Character Portrait:\n<img prompt=\"A masterpiece portrait. An upper-body shot of a young elf woman with pale skin and a light dusting of freckles across her nose. She has bright green eyes and long auburn hair pulled into a loose side braid draped over her left shoulder. Small silver leaf-shaped earrings catch the light. She wears a dark green wool tunic under a fitted brown leather vest with a high collar. She holds a small glowing blue flower near her chin and smiles gently, her head tilted slightly to the right, looking directly at the viewer. The background is a soft blur of green forest. Dappled natural light filters through unseen canopy above, creating warm highlights on her hair and soft shadows under her jaw.\">"
     },
     memoryCore: {
         systemPrompt: "You are an expert narrative condenser. Your task is to read a chunk of chat history and summarize exactly what happened. Preserve important story details, but aggressively remove all 'purple prose' and flowery descriptions.\n\nFocus ONLY on impactful actions and meaningful dialogue:\n- Condense small talk (e.g., summarize a long, drawn-out greeting simply as 'He said hello').\n- Ignore trivial, unnecessary physical actions (e.g., grabbing a glass of water, shifting in a chair) unless they directly impact the story.\n- Do not quote dialogue directly; summarize the core point of the conversation.\n\nWrite a direct, clear narrative summary of what the characters did and what was communicated.\n\nCRITICAL: You must write the summary in {{targetLang}}.",
@@ -47,7 +54,7 @@ const DEFAULT_PROMPTS = {
         systemPrompt: "You are an expert AI image prompt engineer specializing in character portraits. Your job is to read a character's dossier and convert their visual description into a highly detailed image generation prompt for a portrait. You must adhere to the requested Style Constraint and Camera Perspective. Do not include quotes, conversational text, or explanations. Output ONLY the raw prompt text.",
         userPrompt: "Write a character portrait image generation prompt based on this NPC's dossier:\n\n<npc_dossier>\n{{npcText}}\n</npc_dossier>\n\nStyle Constraint: {{styleStr}}\nCamera Perspective: {{perspStr}}\nExtra Details: {{extraStr}}\n\nUse the character's appearance, age, sex, occupation, and personality to inform the visual. Output ONLY the raw image prompt text.",
         thinkingPrompt: "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main response must immediately follow </think>.\n\n<think>\nReflect in approximately 50-100 words on what this character looks like and what visual elements best capture them.\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}",
-        dossierTemplate: `<npc_dossier>\n  trigger: "Generates ONLY when a new significant NPC is introduced not cashiers, bartenders, random passersby, or one-line background faces. A 'significant NPC' is one with a name, meaningful dialogue, and likely recurrence."\nformat: "Collapsible HTML details block. Dense, dashboard-style no prose."\n\n  template: |\n    <details>\n    <summary>🆕 <b>New NPC: [Full Name]</b></summary>\n\n    **Name:** [Full name, nickname if used] | **Age:** [Age] | **Sex:** [M/F/Other]\n    **Appearance:**  [Hair, body, skin....etc]\n    **Occupation:** [Specific current job/role]\n\n    **Background:** [3–5 sentences. Where they grew up, how they got here, what shaped them. A life sketch not a résumé. Include details the PC may never learn.]\n\n    **Inner Circle:**\n    * [Name] — [Relationship] | [One-line: age, status, dynamic e.g., "Younger sister, 19, uni student in another city they text daily"]\n    * [Name] — [Relationship] | [Same format]\n    * [Name] — [Relationship] | [Include people the PC hasn't met and may never meet]\n\n    **Personality Snapshot:** [2–3 contradictions or defining traits as behavior, not labels.]\n    **Current Agenda:** [What they want RIGHT NOW in the story's context]\n    **Hidden Layer:** [Something the PC doesn't know a secret, a motive.]\n\n    </details>\n\n  guidelines:\n    inner_circle_rule: "Include 2–5 people. At least one must be unknown to the story a mother, an ex, a childhood friend. These are future plot seeds."\n    hidden_layer: "For YOUR use as narrative engine. Drives NPC behavior the PC can't predict. Never reveal in narration unless the NPC actually discloses it."\n</npc_dossier>`
+        dossierTemplate: `<npc_dossier>\n  trigger: >\n    Generate EXACTLY ONCE when an NPC meets ALL three conditions in a single scene:\n      1. NAMED  — given a proper name or a name the PC will use again.\n      2. VOICED — speaks more than a transactional line (not "That'll be 5 credits").\n      3. STAKED — has a want, opinion, or role that can affect the story later.\n    DO NOT generate for: cashiers, bartenders, guards, crowds, one-line faces,\n    or anyone whose only function is set dressing.\n    NEVER regenerate for an NPC who already has a dossier.\n    treat the original dossier as locked canon.\n\n  format: >\n    Collapsible HTML details block. Dense, dashboard-style. No prose paragraphs\n    except the Background and Secrets fields. Everything else is fragments.\n\n  template: |\n    <details>\n    <summary>🆕 <b>New NPC: [Full Name]</b></summary>\n\n    **Name:** [Full name + nickname/alias] | **Age:** [#] | **Sex:** [M/F/Other] | **Orientation:** [if relevant to plot]\n    **Role:** [Specific current job or function in the scene]\n    **Where to Find Them:** [Default location / when they appear / how to reach them again]\n\n    **Appearance:** [2–3 sentences a reader can picture: build, face, hair, distinguishing marks, how they carry themselves.]\n\n    **Image Tags:** [Booru-style appearance tags — see image_tag_rule. Body & face only.]\n\n    **Voice:** [How they speak — cadence, accent, verbal tics, topics they dodge.]\n\n    **Background:** [3–5 sentences. Origin, how they got here, the event that shaped them. A life sketch, not a résumé. Include facts the PC may never learn.]\n\n    **Inner Circle:**\n    * [Name] — [Relationship] | [Age, status, current dynamic in one line]\n    * [Name] — [Relationship] | [Same format]\n    * [Name] — [Relationship] | [At least one the PC has not met and may never meet]\n\n    **Personality:**\n    * Defining traits: [2–3 contradictions shown as behavior, not labels]\n    * Core flaw: [The thing that gets them in trouble]\n    * Core fear: [What they protect against]\n    * Tell: [A physical/verbal tell when lying, nervous, or attracted]\n\n    **Read on the PC:** [What this NPC currently thinks of the player character + how that could shift]\n\n    **Current Agenda:** [Their main agenda in the story]\n\n    **Secrets (never narrated unless disclosed):**\n    * Tier 1 (semi-public): [Rumored or guessable with effort]\n    * Tier 2 (private): [Known only to inner circle]\n    * Tier 3 (buried): [The big one. Drives unpredictable behavior.]\n    * Reveal hook: [What event or pressure could surface these]\n\n    **Canon Lock:** [3–5 immutable facts that must never change across appearances — name, key relationships, defining marks, the buried secret.]\n\n    </details>\n\n  guidelines:\n    inner_circle_rule: >\n      Include 2–5 people. At least one must be off-screen and unknown to the\n      story (a mother, an ex, a childhood friend, a rival). These are future\n      plot seeds, not just flavor.\n    secrets_rule: >\n      Secrets are for YOU as the narrative engine. They drive behavior the PC\n      can't predict. Never reveal in narration unless the NPC actually discloses\n      them through action or dialogue. Higher tiers stay buried longer.\n    canon_lock_rule: >\n      Once written, these facts are fixed. Future scenes must stay consistent\n      with them. If a later scene needs a contradiction, surface it as a\n      revelation (the earlier info was a lie/misunderstanding), never a silent retcon.\n    image_tags: 12-20 comma-separated Booru tags. PHYSICAL ONLY. NO clothes/accessories/weapons/bg/pose/expression. MUST read as adult. Order: anchor(1girl/1boy/1other) -> hair(len,style,col) -> eyes(col,shape) -> skin tone -> body(type,build) -> age-app -> marks(scars,freckles,moles,tattoos,birthmarks).\n</npc_dossier>`
     }
 };
 
@@ -57,7 +64,6 @@ const DEFAULT_PROMPTS = {
 let currentTab = 0;
 let localProfile = {};
 let activeGenerationOrder = null;
-let currentQueryVector = null;
 let lastPromptPreviewTime = 0;
 let activeMemorySummarizationRequest = null;
 let activeBanListChat = null;
@@ -142,6 +148,7 @@ function initProfile() {
         banList: [],
         banListBackend: "direct",
         banListCustomPrompts: null,
+        banListCustomPromptsEnabled: false,
         customModes: [],
         thinkEffort: "unspecified",
         customThinkEffort: "100",
@@ -151,11 +158,14 @@ function initProfile() {
             triggerMode: "manual",
             autoFreq: 10,
             currentPlan: "",
-            customPrompts: null
+            customPrompts: null,
+            customPromptsEnabled: false
         },
         imageGen: {
             enabled: false,
             generatorBackend: "direct",
+            injectMode: "inline",
+            imageCount: 1,
             comfyUrl: "http://127.0.0.1:8188",
             currentWorkflowName: "",
             selectedModel: "",
@@ -167,14 +177,17 @@ function initProfile() {
             selectedSampler: "euler",
             compressImages: true,
             steps: 20, cfg: 7.0, denoise: 0.5, clipSkip: 1,
-            promptStyle: "standard",
-            promptPerspective: "scene",
+            promptTemplate: "illus_cinematic",
+            includeExamples: true,
+            directLanguage: false,
+            injectNpcTags: false,
             promptExtra: "",
             triggerMode: "always",
             autoGenFreq: 1,
             previewPrompt: false,
             savedWorkflowStates: {},
-            customPrompts: null
+            customPrompts: null,
+            customPromptsEnabled: false
         },
         memoryCore: {
             enabled: false,
@@ -188,12 +201,15 @@ function initProfile() {
             autoFreq: 10,
             shortTermChunks: [],
             longTermVault: [],
-            customPrompts: null
+            customPrompts: null,
+            customPromptsEnabled: false
         },
         npcBank: {
             enabled: false,
+            oocTrigger: false,
             npcs: [],
             customPrompts: null,
+            customPromptsEnabled: false,
             scanDepth: 60
         }
     };
@@ -225,8 +241,34 @@ function initProfile() {
     });
     if (!localProfile.toggles) localProfile.toggles = defaults.toggles;
     if (!localProfile.imageGen) localProfile.imageGen = defaults.imageGen;
+    if (localProfile.imageGen.directLanguage === undefined) localProfile.imageGen.directLanguage = false;
+    if (localProfile.imageGen.imageCount === undefined) localProfile.imageGen.imageCount = 1;
+    if (localProfile.imageGen.promptStyle !== undefined) {
+        let style = localProfile.imageGen.promptStyle; 
+        let persp = localProfile.imageGen.promptPerspective;
+
+        if (style === "standard") style = "sdxl"; // Fallback standard to sdxl
+
+        if (style === "illustrious" && persp === "pov") localProfile.imageGen.promptTemplate = "illus_pov";
+        else if (style === "illustrious" && persp === "character") localProfile.imageGen.promptTemplate = "illus_portrait";
+        else if (style === "illustrious") localProfile.imageGen.promptTemplate = "illus_cinematic";
+        else if (persp === "pov") localProfile.imageGen.promptTemplate = "sdxl_pov";
+        else if (persp === "character") localProfile.imageGen.promptTemplate = "sdxl_portrait";
+        else localProfile.imageGen.promptTemplate = "sdxl_cinematic";
+
+        delete localProfile.imageGen.promptStyle;
+        delete localProfile.imageGen.promptPerspective;
+    }
+    if (localProfile.imageGen.includeExamples === undefined) localProfile.imageGen.includeExamples = true;
     if (!localProfile.storyPlan) localProfile.storyPlan = defaults.storyPlan;
     if (localProfile.npcBank && localProfile.npcBank.scanDepth === undefined) localProfile.npcBank.scanDepth = 60;
+    if (localProfile.banListCustomPromptsEnabled === undefined) localProfile.banListCustomPromptsEnabled = false;
+    if (localProfile.imageGen.injectNpcTags === undefined) localProfile.imageGen.injectNpcTags = false;
+    if (localProfile.storyPlan && localProfile.storyPlan.customPromptsEnabled === undefined) localProfile.storyPlan.customPromptsEnabled = false;
+    if (localProfile.imageGen && localProfile.imageGen.customPromptsEnabled === undefined) localProfile.imageGen.customPromptsEnabled = false;
+    if (localProfile.memoryCore && localProfile.memoryCore.customPromptsEnabled === undefined) localProfile.memoryCore.customPromptsEnabled = false;
+    if (localProfile.npcBank && localProfile.npcBank.customPromptsEnabled === undefined) localProfile.npcBank.customPromptsEnabled = false;
+    if (localProfile.npcBank && localProfile.npcBank.oocTrigger === undefined) localProfile.npcBank.oocTrigger = false;
     if (!localProfile.memoryCore) {
         localProfile.memoryCore = defaults.memoryCore;
     } else {
@@ -322,11 +364,11 @@ function updateLiveTokenCount() {
         }
     });
 
-    // Estimate tokens (4.0 chars per token is the standard English NLP ratio)
-    const estEngine = Math.ceil(engineStr.replace(/\s+/g, ' ').length / 4.0);
-    const estCot = Math.ceil(cotStr.replace(/\s+/g, ' ').length / 4.0);
-    const estStyle = Math.ceil(styleStr.replace(/\s+/g, ' ').length / 4.0);
-    const estAddons = Math.ceil(addonsStr.replace(/\s+/g, ' ').length / 4.0);
+    // Estimate tokens (Adjusted to 4.8 chars per token to match modern, highly-efficient tokenizers)
+    const estEngine = Math.ceil(engineStr.replace(/\s+/g, ' ').length / 4.8);
+    const estCot = Math.ceil(cotStr.replace(/\s+/g, ' ').length / 4.8);
+    const estStyle = Math.ceil(styleStr.replace(/\s+/g, ' ').length / 4.8);
+    const estAddons = Math.ceil(addonsStr.replace(/\s+/g, ' ').length / 4.8);
 
     const total = estEngine + estCot + estStyle + estAddons;
 
@@ -402,7 +444,12 @@ function meguminCleanChatHistoryText(text) {
     if (!text) return "";
     let cleaned = text;
 
-    // 1. Remove Specific Megumin Suite Blocks (Inner Chatter, World State, CYOA, NPC Dossiers)
+    // 1. Remove Specific Megumin Suite Blocks (Inner Chatter, World State, CYOA, NPC Dossiers, Inline Images)
+    cleaned = cleaned.replace(/<img[^>]*?alt=["']KazumaInline["'][^>]*?>/gi, "");
+    cleaned = cleaned.replace(/<div[^>]*?title=["']KazumaFail\|[^>]*?>.*?<\/div>/gi, "");
+    
+    // Comprehensive Image Block Cleanup
+    cleaned = cleaned.replace(/<img\s+[^>]*\/>|<div class="kazuma-img-placeholder"[^>]*>[\s\S]*?<\/div>|<!-- kazuma-inline-start:[^>]*-->[\s\S]*?<!-- kazuma-inline-end:[^>]*-->/gi, "");
     cleaned = cleaned.replace(/<details>\s*<summary>.*?💭.*?<b>NPC Inner Chatter<\/b><\/summary>\s*([\s\S]*?)\s*<\/details>/gi, "");
     cleaned = cleaned.replace(/<details>\s*<summary>.*?📌.*?<b>World State<\/b><\/summary>\s*([\s\S]*?)\s*<\/details>/gi, "");
     cleaned = cleaned.replace(/<details>\s*<summary>.*?🆕.*?<b>New NPC:.*?<\/b><\/summary>\s*([\s\S]*?)\s*<\/details>/gi, ""); // <-- NEW
@@ -524,7 +571,10 @@ function renderMode(c) {
         "v6-dream-team-lite": "A streamlined version of the Dream Team. Faster generation with lower token overhead.",
         "v7-core": "The V7 Core engine. The perfect middle ground: cinematic pacing, realistic friction, and relentless world progression.",
         "v7-reality": "The V7 Reality engine. Grounded, unrelenting simulation with zero narrative protection.",
-        "v7-gentle": "The V7 Gentle engine. A softer, For pussies."
+        "v7-gentle": "The V7 Gentle engine. A softer, For pussies.",
+        "v7.5": "The Kismet engine. Focused purely on inescapable narrative momentum, pushing the story forward as the unseen author of fate.",
+        "v8-m": "The absolute pinnacle of the Megumin Suite. Unmatched in complex human psychology, authentic flawed dialogue, and autonomous, multi-layered story plotting.",
+        "v8-lite": "A streamlined, highly efficient version of Obsidian. Retains the core rules of psychology, dialogue, and momentum with a much lighter token footprint."
     };
 
     // Active engine name
@@ -532,12 +582,13 @@ function renderMode(c) {
     const activeLabel = activeEng ? activeEng.label : localProfile.mode;
 
     // Count by version
-    let v4Count = 0, v5Count = 0, v6Count = 0, v7Count = 0;
+    let v4Count = 0, v5Count = 0, v6Count = 0, v7Count = 0, v8Count = 0;
     hardcodedLogic.modes.forEach(m => {
         if (m.label.includes("V4")) v4Count++;
         else if (m.label.includes("V5")) v5Count++;
         else if (m.id.includes("v6")) v6Count++;
         else if (m.id.includes("v7")) v7Count++;
+        else if (m.id.includes("v8")) v8Count++;
     });
     const totalCount = hardcodedLogic.modes.length;
 
@@ -567,6 +618,7 @@ function renderMode(c) {
             <button class="wstyle-filter-pill" data-filter="V5">V5 <span class="pill-count">${v5Count}</span></button>
             <button class="wstyle-filter-pill" data-filter="V6"><i class="fa-solid fa-lock" style="font-size:0.6rem;"></i> V6 <span class="pill-count">${v6Count}</span></button>
             <button class="wstyle-filter-pill" data-filter="V7">V7 <span class="pill-count">${v7Count}</span></button>
+            <button class="wstyle-filter-pill" data-filter="V8">V8 <span class="pill-count">${v8Count}</span></button>
         </div>
     `);
     c.append(filterBar);
@@ -581,6 +633,7 @@ function renderMode(c) {
         else if (m.label.includes("V5")) version = "V5";
         else if (m.id.includes("v6")) version = "V6";
         else if (m.id.includes("v7")) version = "V7";
+        else if (m.id.includes("v8")) version = "V8";
 
         const isLocked = m.locked === true;
         const isSel = localProfile.mode === m.id;
@@ -624,6 +677,10 @@ function renderMode(c) {
                 } else if (m.id.startsWith("v7")) { // Catch-all for Reality and others
                     localProfile.activeStyleId = "dir_v7";
                     const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v7");
+                    if (ds) localProfile.aiRule = ds.rule;
+                } else if (m.id.startsWith("v8")) {
+                    localProfile.activeStyleId = "dir_v8";
+                    const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v8");
                     if (ds) localProfile.aiRule = ds.rule;
                 }
 
@@ -722,7 +779,8 @@ function renderPersonality(c) {
     const isV6DreamTeam = localProfile.mode.includes("v6-dream-team");
     const activeEngineForPersona = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
     const isV7 = activeEngineForPersona ? (activeEngineForPersona.id.startsWith("v7") || activeEngineForPersona.isV7 === true) : false;
-    const isLockedPersona = isV6DreamTeam || isV7;
+    const isV8 = activeEngineForPersona ? (activeEngineForPersona.id.startsWith("v8") || activeEngineForPersona.isV8 === true) : false;
+    const isLockedPersona = isV6DreamTeam || isV7 || isV8;
 
     // ── HEADER ──
     c.append(`
@@ -742,7 +800,16 @@ function renderPersonality(c) {
         </div>
     `);
 
-    if (isV6DreamTeam) {
+    if (isV8) {
+        c.append(`
+            <div class="mtab-locked-state">
+                <i class="fa-solid fa-user-lock" style="color: #f59e0b;"></i>
+                <h3>Persona & Toggles Locked</h3>
+                <p>The V8 engine manages its own internal persona and strictly enforces narrative toggles natively. Standard injections are completely disabled.</p>
+            </div>
+        `);
+        return;
+    } else if (isV6DreamTeam) {
         c.append(`
             <div class="mtab-locked-state">
                 <i class="fa-solid fa-user-lock" style="color: #a855f7;"></i>
@@ -814,15 +881,19 @@ function renderPersonality(c) {
 
 function renderStyleLibrary(c) {
     c.empty();
-    const root = $(`<div style="display: flex; flex-direction: column;"></div>`);
+    const root = $(`<div style="display: flex; flex-direction: column; height: 100%;"></div>`);
 
     const activeEngineForStyle = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
     const isV7ForStyle = activeEngineForStyle ? (activeEngineForStyle.id.startsWith("v7") || activeEngineForStyle.isV7 === true) : false;
-    if (isV7ForStyle && !localProfile.activeStyleId) {
+    const isV8ForStyle = activeEngineForStyle ? (activeEngineForStyle.id.startsWith("v8") || activeEngineForStyle.isV8 === true) : false;
+    const isLockedStyleEngine = isV7ForStyle || isV8ForStyle;
+
+    if (isLockedStyleEngine && !localProfile.activeStyleId) {
         let targetStyle = "dir_v7";
         if (localProfile.mode === "v7-core") targetStyle = "dir_v7_core";
         else if (localProfile.mode === "v7-gentle") targetStyle = "dir_v7_gentle";
         else if (localProfile.mode === "v7.5") targetStyle = "dir_v7.5";
+        else if (isV8ForStyle) targetStyle = "dir_v8";
 
         localProfile.activeStyleId = targetStyle;
         const ds = hardcodedLogic.directStyles.find(x => x.id === targetStyle);
@@ -836,7 +907,6 @@ function renderStyleLibrary(c) {
     const genCount = hardcodedLogic.styleTemplates.filter(t => !existingNames.includes(t.name)).length;
     const precookedCount = hardcodedLogic.directStyles.length;
 
-    // Find active style name
     let activeStyleName = "Off";
     if (!isOff) {
         const ds = hardcodedLogic.directStyles.find(d => d.id === localProfile.activeStyleId);
@@ -864,145 +934,118 @@ function renderStyleLibrary(c) {
         </div>
     `);
 
-    // ── OFF CARD ──
-    const offCard = $(`
-        <div class="wstyle-off-card ${isOff ? 'active' : ''}">
-            <div class="off-left">
-                <div class="off-icon"><i class="fa-solid fa-power-off"></i></div>
-                <div>
-                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">No Style (Off)</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">Let the engine decide — no extra style directives injected.</div>
-                </div>
-            </div>
-            ${isOff ? `<span class="card-status active-status"><i class="fa-solid fa-check"></i> Active</span>` : ''}
-        </div>
-    `);
-    offCard.on("click", () => { localProfile.activeStyleId = null; localProfile.aiRule = ""; saveProfileToMemory(); renderStyleLibrary(c); });
+    // ── TWO COLUMN LAYOUT ──
+    const layout = $(`<div class="ws-layout"></div>`);
+    const sidebar = $(`<div class="ws-sidebar"></div>`);
+    const mainArea = $(`<div class="ws-main"></div>`);
 
-    if (!isV7ForStyle) {
-        root.append(offCard);
+    // --- BUILD SIDEBAR ---
+    sidebar.append(`<div class="ws-sidebar-title">Library Navigation</div>`);
+    
+    // Off Button
+    const btnOff = $(`<button class="ws-nav-btn ${isOff ? 'active-green' : ''}"><span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-power-off" style="color:${isLockedStyleEngine ? '#ef4444' : ''}"></i> No Style (Off)</span> ${isLockedStyleEngine ? '<i class="fa-solid fa-lock" style="color:#ef4444; font-size:0.7rem;"></i>' : ''}</button>`);
+    if (!isLockedStyleEngine) {
+        btnOff.on("click", () => { localProfile.activeStyleId = null; localProfile.aiRule = ""; saveProfileToMemory(); renderStyleLibrary(c); });
     } else {
-        const v7LockCard = $(`
-            <div class="wstyle-off-card locked-card" style="opacity: 0.7; cursor: not-allowed; border: 1px solid rgba(59,130,246,0.3);">
-                <div class="off-left">
-                    <div class="off-icon" style="background: rgba(59,130,246,0.2); color: #3b82f6;"><i class="fa-solid fa-lock"></i></div>
-                    <div>
-                        <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">No Style (Off) - Locked</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">V7 Engines require a narrative style directive. Defaulting to V7 Recommended.</div>
-                    </div>
-                </div>
-            </div>
-        `);
-        root.append(v7LockCard);
+        btnOff.css({"opacity":"0.6", "cursor":"not-allowed"}).attr("title", "Modern Engines require a narrative style directive.");
     }
+    sidebar.append(btnOff);
+    sidebar.append(`<div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>`);
 
-    // ── DIALOGUE / NARRATION RATIO ──
+    // Nav Buttons
+    const btnPrecooked = $(`<button class="ws-nav-btn active"><span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-fire-burner"></i> Precooked</span> <span class="ws-badge">${precookedCount}</span></button>`);
+    const btnCustom = $(`<button class="ws-nav-btn"><span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-book"></i> My Library</span> <span class="ws-badge">${customCount}</span></button>`);
+    const btnGenerators = $(`<button class="ws-nav-btn"><span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Generators</span> <span class="ws-badge">${genCount}</span></button>`);
+
+    sidebar.append(btnPrecooked).append(btnCustom).append(btnGenerators);
+
+    // DN Ratio Integrated into Sidebar Bottom
     if (!localProfile.dnRatio) localProfile.dnRatio = { enabled: false, dialogue: 50 };
     const isDNR = localProfile.dnRatio.enabled;
     const dVal = localProfile.dnRatio.dialogue;
 
-    const dnrPanel = $(`
-        <div class="wstyle-dnr-panel">
-            <div class="wstyle-dnr-header" id="dnr_header_toggle">
-                <div class="dnr-info">
-                    <div class="dnr-icon"><i class="fa-solid fa-scale-balanced"></i></div>
-                    <div>
-                        <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">Dialogue / Narration Ratio</div>
-                        <div style="font-size: 0.73rem; color: var(--text-muted);">Fine‑tune the balance between spoken dialogue and descriptive prose.</div>
-                    </div>
-                </div>
-                <div class="ps-toggle-card ${isDNR ? 'active' : ''}" id="dnr_toggle" style="padding: 8px; min-width: 56px; justify-content: center; cursor: pointer;">
-                    <div class="ps-switch"></div>
+    const dnPanel = $(`
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-scale-balanced" style="color: #3b82f6; margin-right: 5px;"></i> DN Ratio</span>
+                <div class="ps-toggle-card ${isDNR ? 'active' : ''}" id="dnr_toggle_sb" style="padding: 2px; min-width: 36px; background: transparent; border-color: ${isDNR ? '#10b981' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
+                    <div class="ps-switch" style="transform: scale(0.65); ${isDNR ? 'background: #10b981;' : ''}"></div>
                 </div>
             </div>
-            <div class="wstyle-dnr-body ${isDNR ? 'open' : ''}" id="dnr_body">
-                <div class="wstyle-dnr-slider-track">
-                    <span class="wstyle-dnr-label narr"><span id="lbl_narr">${100 - dVal}</span>% Narration</span>
-                    <input type="range" id="dnr_slider" min="0" max="100" step="10" value="${dVal}">
-                    <span class="wstyle-dnr-label dial"><span id="lbl_dial">${dVal}</span>% Dialogue</span>
-                </div>
-                <div style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 10px; font-family: monospace; opacity: 0.7;">
-                    Preview → "Maintain a balance of <span id="lbl_prev_d">${dVal}</span>% Dialogue and <span id="lbl_prev_n">${100 - dVal}</span>% Narration."
+            <div id="dnr_body_sb" style="display: ${isDNR ? 'block' : 'none'};">
+                <div style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <span style="font-size: 0.65rem; font-weight:bold; color: #a855f7; width:25px; text-align:right;"><span id="lbl_narr">${100 - dVal}</span>%</span>
+                    <input type="range" id="dnr_slider" min="0" max="100" step="10" value="${dVal}" style="flex: 1; accent-color: var(--gold); height: 4px;">
+                    <span style="font-size: 0.65rem; font-weight:bold; color: #10b981; width:25px;"><span id="lbl_dial">${dVal}</span>%</span>
                 </div>
             </div>
         </div>
     `);
-    dnrPanel.find("#dnr_toggle").on("click", function (e) {
-        e.stopPropagation();
-        localProfile.dnRatio.enabled = !localProfile.dnRatio.enabled; saveProfileToMemory(); renderStyleLibrary(c);
+
+    dnPanel.find("#dnr_toggle_sb").on("click", function (e) {
+        e.stopPropagation(); localProfile.dnRatio.enabled = !localProfile.dnRatio.enabled; saveProfileToMemory(); renderStyleLibrary(c);
     });
-    dnrPanel.find("#dnr_slider").on("input", function () {
+    dnPanel.find("#dnr_slider").on("input", function () {
         let d = parseInt($(this).val()); let n = 100 - d;
-        $("#lbl_dial, #lbl_prev_d").text(d); $("#lbl_narr, #lbl_prev_n").text(n);
+        $("#lbl_dial").text(d); $("#lbl_narr").text(n);
     });
-    dnrPanel.find("#dnr_slider").on("change", function () {
+    dnPanel.find("#dnr_slider").on("change", function () {
         localProfile.dnRatio.dialogue = parseInt($(this).val()); saveProfileToMemory();
     });
-    root.append(dnrPanel);
+    sidebar.append(dnPanel);
+    layout.append(sidebar);
 
-    // ── FILTER PILLS ──
-    const filterBar = $(`
-        <div class="wstyle-filters">
-            <button class="wstyle-filter-pill active" data-filter="all">All <span class="pill-count">${precookedCount + customCount + genCount}</span></button>
-            <button class="wstyle-filter-pill" data-filter="precooked"><i class="fa-solid fa-fire-burner" style="font-size:0.7rem;"></i> Precooked <span class="pill-count">${precookedCount}</span></button>
-            <button class="wstyle-filter-pill" data-filter="custom"><i class="fa-solid fa-book" style="font-size:0.7rem;"></i> My Library <span class="pill-count">${customCount}</span></button>
-            <button class="wstyle-filter-pill" data-filter="generators"><i class="fa-solid fa-wand-magic-sparkles" style="font-size:0.7rem;"></i> AI Generators <span class="pill-count">${genCount}</span></button>
-        </div>
-    `);
-    root.append(filterBar);
+    // --- BUILD MAIN CONTENT SECTIONS ---
+    const secPrecooked = $(`<div class="ws-section" id="sec-precooked"></div>`);
+    const secCustom = $(`<div class="ws-section" id="sec-custom" style="display:none;"></div>`);
+    const secGenerators = $(`<div class="ws-section" id="sec-generators" style="display:none;"></div>`);
 
-    // ── SECTIONS ──
-    const secPrecooked = $(`<div class="style-section" data-section="precooked"></div>`);
-    const secCustom = $(`<div class="style-section" data-section="custom"></div>`);
-    const secGenerators = $(`<div class="style-section" data-section="generators"></div>`);
-
-    // —— A. PRECOOKED STYLES ——
-    secPrecooked.append(`<div class="wstyle-section-head gold"><i class="fa-solid fa-fire-burner"></i> Precooked Styles</div>`);
-    const precookedGrid = $(`<div style="display: flex; flex-direction: column; gap: 10px;"></div>`);
+    // A. PRECOOKED
+    secPrecooked.append(`<h3 style="margin-top: 0; color: var(--gold); font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-fire-burner"></i> Precooked Styles</h3>`);
+    const gridPre = $(`<div class="ws-grid"></div>`);
     hardcodedLogic.directStyles.forEach(ds => {
         const isSel = localProfile.activeStyleId === ds.id;
         const card = $(`
-            <div class="wstyle-card ${isSel ? 'active' : ''}">
-                <div class="card-accent"></div>
-                <div class="card-body">
-                    <div class="card-top">
-                        <div style="flex:1;">
-                            <div class="card-title"><i class="fa-solid fa-bolt" style="font-size:0.7rem; color: var(--gold);"></i> ${ds.name}</div>
-                            <p class="card-desc">${ds.desc}</p>
-                        </div>
-                        ${isSel ? `<span class="card-status active-status"><i class="fa-solid fa-check"></i> Active</span>` : ''}
-                    </div>
-                    <div class="card-rule">${ds.rule}</div>
+            <div class="ws-card ${isSel ? 'active' : ''}">
+                <div class="ws-card-title">
+                    <span style="color:${isSel ? '#10b981' : 'var(--text-main)'};">${ds.name}</span>
+                    ${isSel ? '<i class="fa-solid fa-check" style="color:#10b981;"></i>' : ''}
                 </div>
+                <div class="ws-card-desc">${ds.desc}</div>
+                <div class="ws-card-rule">${ds.rule}</div>
             </div>
         `);
-        card.on("click", () => {
-            localProfile.activeStyleId = ds.id; localProfile.aiRule = ds.rule; saveProfileToMemory(); renderStyleLibrary(c);
-        });
-        precookedGrid.append(card);
+        card.on("click", () => { localProfile.activeStyleId = ds.id; localProfile.aiRule = ds.rule; saveProfileToMemory(); renderStyleLibrary(c); });
+        gridPre.append(card);
     });
-    secPrecooked.append(precookedGrid);
+    secPrecooked.append(gridPre);
 
-    // —— B. CUSTOM STYLES (My Library) ——
-    secCustom.append(`<div class="wstyle-section-head green"><i class="fa-solid fa-book"></i> My Library</div>`);
-    const customGrid = $(`<div style="display: flex; flex-direction: column; gap: 10px;"></div>`);
+    // B. CUSTOM
+    secCustom.append(`<h3 style="margin-top: 0; color: #10b981; font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-book"></i> My Library</h3>`);
+    const gridCust = $(`<div class="ws-grid"></div>`);
+    
+    const createCard = $(`
+        <div class="ws-card" style="border: 1px dashed rgba(16,185,129,0.5); background: transparent; justify-content: center; align-items: center; min-height: 120px;">
+            <div style="color: #10b981; font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-plus"></i> Create New Style</div>
+        </div>
+    `);
+    createCard.on("click", () => renderStyleEditor(c, null));
+    gridCust.append(createCard);
+
     if (localProfile.customStyles && localProfile.customStyles.length > 0) {
         localProfile.customStyles.forEach(style => {
             const isSel = localProfile.activeStyleId === style.id;
             const card = $(`
-                <div class="wstyle-card ${isSel ? 'active' : ''}">
-                    <div class="card-accent"></div>
-                    <div class="card-body">
-                        <div class="card-top">
-                            <div class="card-title">${style.name}</div>
-                            ${isSel ? `<span class="card-status active-status"><i class="fa-solid fa-check"></i> Active</span>` : ''}
-                        </div>
-                        <div class="card-rule">${style.rule || "No rule generated yet."}</div>
-                        <div class="card-actions">
-                            <button class="ps-btn-edit"><i class="fa-solid fa-pen"></i> Edit</button>
-                            <button class="act-regen ps-btn-regen"><i class="fa-solid fa-rotate-right"></i> Redo</button>
-                            <button class="act-delete ps-btn-delete"><i class="fa-solid fa-trash-can"></i> Delete</button>
-                        </div>
+                <div class="ws-card ${isSel ? 'active' : ''}">
+                    <div class="ws-card-title">
+                        <span style="color:${isSel ? '#10b981' : 'var(--text-main)'};">${style.name}</span>
+                        ${isSel ? '<i class="fa-solid fa-check" style="color:#10b981;"></i>' : ''}
+                    </div>
+                    <div class="ws-card-desc" style="max-height: 40px; overflow: hidden;">${style.notes || "Custom AI generated style."}</div>
+                    <div class="ws-card-actions">
+                        <button class="ws-btn-small ps-btn-edit"><i class="fa-solid fa-pen"></i> Edit</button>
+                        <button class="ws-btn-small ps-btn-regen" style="color: var(--gold); border-color: rgba(245,158,11,0.3);"><i class="fa-solid fa-rotate-right"></i></button>
+                        <button class="ws-btn-small ps-btn-delete" style="color: #ef4444; border-color: rgba(239,68,68,0.3);"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
             `);
@@ -1028,37 +1071,27 @@ function renderStyleLibrary(c) {
                     saveProfileToMemory(); renderStyleLibrary(c); toastr.success("Rule Regenerated!");
                 });
             });
-            customGrid.append(card);
+            gridCust.append(card);
         });
     }
-    // Create new style card
-    const createCard = $(`
-        <div class="wstyle-create-card">
-            <i class="fa-solid fa-plus"></i> Create Custom AI Style
-        </div>
-    `);
-    createCard.on("click", () => renderStyleEditor(c, null));
-    customGrid.append(createCard);
-    secCustom.append(customGrid);
+    secCustom.append(gridCust);
 
-    // —— C. AI GENERATORS ——
-    secGenerators.append(`<div class="wstyle-section-head purple"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Style Generators</div>`);
-    const genGrid = $(`<div style="display: flex; flex-direction: column; gap: 10px;"></div>`);
+    // C. GENERATORS
+    secGenerators.append(`<h3 style="margin-top: 0; color: #a855f7; font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Generators</h3>`);
+    const gridGen = $(`<div class="ws-grid"></div>`);
     hardcodedLogic.styleTemplates.forEach(tpl => {
         if (existingNames.includes(tpl.name)) return;
         const card = $(`
-            <div class="wstyle-gen-card">
-                <div class="gen-info">
-                    <div class="gen-title">${tpl.name}</div>
-                    <div class="gen-desc">${tpl.notes}</div>
-                </div>
-                <button class="wstyle-gen-btn ps-btn-tpl-gen">
-                    <i class="fa-solid fa-bolt"></i> Generate
+            <div class="ws-card" style="border-style: dashed; border-color: rgba(168,85,247,0.4); background: rgba(168,85,247,0.02);">
+                <div class="ws-card-title" style="color: #c084fc;">${tpl.name}</div>
+                <div class="ws-card-desc">${tpl.notes}</div>
+                <button class="ws-btn-small ps-btn-tpl-gen" style="margin-top: 12px; width: 100%; background: rgba(168,85,247,0.1); color: #c084fc; border-color: #a855f7;">
+                    <i class="fa-solid fa-bolt"></i> Generate This Style
                 </button>
             </div>
         `);
         card.find(".ps-btn-tpl-gen").on("click", async function () {
-            const btn = $(this); btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i>`);
+            const btn = $(this); btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Generating...`);
             await useMeguminEngine(async () => {
                 const orderText = `Inspired by ${tpl.notes}. Write a writing style rule based on: ${tpl.tags.join(", ")}. Direct instructions only. 2-3 paragraphs. No fluff.`;
                 let rule = await runMeguminTask(orderText);
@@ -1068,28 +1101,38 @@ function renderStyleLibrary(c) {
                 saveProfileToMemory(); renderStyleLibrary(c); toastr.success(`${tpl.name} Added!`);
             });
         });
-        genGrid.append(card);
+        gridGen.append(card);
     });
-    secGenerators.append(genGrid);
+    secGenerators.append(gridGen);
 
-    root.append(secPrecooked);
-    root.append(secCustom);
-    root.append(secGenerators);
+    mainArea.append(secPrecooked).append(secCustom).append(secGenerators);
+    layout.append(mainArea);
+    root.append(layout);
     c.append(root);
 
-    // ── FILTER LOGIC ──
-    filterBar.find('.wstyle-filter-pill').on('click', function () {
-        filterBar.find('.wstyle-filter-pill').removeClass('active');
-        $(this).addClass('active');
-        const filter = $(this).attr('data-filter');
-        if (filter === "all") {
-            secPrecooked.show(); secGenerators.show(); secCustom.show();
-        } else {
-            secPrecooked.toggle(filter === "precooked");
-            secGenerators.toggle(filter === "generators");
-            secCustom.toggle(filter === "custom");
-        }
-    });
+    // ── NAVIGATION LOGIC ──
+    const navButtons = [btnPrecooked, btnCustom, btnGenerators];
+    const sections = [secPrecooked, secCustom, secGenerators];
+
+    const switchSection = (index) => {
+        navButtons.forEach((btn, i) => {
+            if (i === index) btn.addClass('active');
+            else btn.removeClass('active');
+        });
+        sections.forEach((sec, i) => {
+            if (i === index) sec.show();
+            else sec.hide();
+        });
+    };
+
+    btnPrecooked.on('click', () => switchSection(0));
+    btnCustom.on('click', () => switchSection(1));
+    btnGenerators.on('click', () => switchSection(2));
+
+    // Smart logic: If user is actively using a custom style, open on the "My Library" tab automatically
+    if (localProfile.activeStyleId && localProfile.activeStyleId.startsWith("style_")) {
+        switchSection(1);
+    }
 }
 
 function renderStyleEditor(c, editId, presetData = null) {
@@ -1469,42 +1512,70 @@ function renderBlocks(c) {
         </div>
     `);
 
+    // Auto-scrub legacy conflicts upon rendering the tab
+    let cleanedConflicts = false;
+    if (localProfile.blocks.includes("mvu") && localProfile.blocks.includes("info")) {
+        localProfile.blocks = localProfile.blocks.filter(i => i !== "info");
+        cleanedConflicts = true;
+    }
+    if (localProfile.memoryCore && localProfile.memoryCore.enabled && localProfile.blocks.includes("summary")) {
+        localProfile.blocks = localProfile.blocks.filter(i => i !== "summary");
+        cleanedConflicts = true;
+    }
+    if (cleanedConflicts) saveProfileToMemory();
+
+    const isMvuActive = localProfile.blocks.includes("mvu");
+    const isMemActive = localProfile.memoryCore && localProfile.memoryCore.enabled;
+
     const grid = $(`<div class="mtab-card-grid"></div>`);
     hardcodedLogic.blocks.forEach(b => {
         const isSel = localProfile.blocks.includes(b.id);
         const isOverridden = activeEngine && activeEngine[b.id] && activeEngine[b.id].trim() !== "";
+        
+        let isLocked = false;
+        let lockReason = "";
+        
+        if (b.id === "info" && isMvuActive) { isLocked = true; lockReason = "Locked by MVU"; }
+        if (b.id === "summary" && isMemActive) { isLocked = true; lockReason = "Locked by Memory Core"; }
 
         let badges = '';
-        if (isOverridden) badges += `<span class="ecard-badge override"><i class="fa-solid fa-code-branch"></i> Engine Override</span>`;
+        if (isLocked) {
+            badges += `<span class="ecard-badge locked" style="background:rgba(239,68,68,0.15);color:#ef4444;"><i class="fa-solid fa-lock"></i> ${lockReason}</span>`;
+        } else if (isOverridden) {
+            badges += `<span class="ecard-badge override"><i class="fa-solid fa-code-branch"></i> Engine Override</span>`;
+        }
 
         const card = $(`
-            <div class="mtab-eng-card ${isSel ? 'active' : ''}" style="${isOverridden && !isSel ? 'border-color: rgba(16,185,129,0.4);' : ''}">
+            <div class="mtab-eng-card ${isSel ? 'active' : ''} ${isLocked ? 'locked-card' : ''}" style="${isOverridden && !isSel && !isLocked ? 'border-color: rgba(16,185,129,0.4);' : ''}">
                 <div class="ecard-accent"></div>
                 <div class="ecard-body">
                     <div class="ecard-title">
                         <span>${b.label}</span>
-                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
+                        ${isSel && !isLocked ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
                     </div>
                     <p class="ecard-desc">${descriptions[b.id] || ""}</p>
                     ${badges ? `<div style="margin-top:4px;">${badges}</div>` : ''}
                 </div>
             </div>
         `);
-        card.on("click", (e) => {
-            if ($(e.target).closest("a").length) return;
-            if (isSel) {
-                localProfile.blocks = localProfile.blocks.filter(i => i !== b.id);
-            } else {
-                localProfile.blocks.push(b.id);
-                // Make the two Inner Chatter versions mutually exclusive
-                if (b.id === "npc_inner_chatter") {
-                    localProfile.blocks = localProfile.blocks.filter(i => i !== "npc_inner_chatter_v2");
-                } else if (b.id === "npc_inner_chatter_v2") {
-                    localProfile.blocks = localProfile.blocks.filter(i => i !== "npc_inner_chatter");
+        
+        if (!isLocked) {
+            card.on("click", (e) => {
+                if ($(e.target).closest("a").length) return;
+                if (isSel) {
+                    localProfile.blocks = localProfile.blocks.filter(i => i !== b.id);
+                } else {
+                    localProfile.blocks.push(b.id);
+                    // Mutual exclusions
+                    if (b.id === "npc_inner_chatter") localProfile.blocks = localProfile.blocks.filter(i => i !== "npc_inner_chatter_v2");
+                    else if (b.id === "npc_inner_chatter_v2") localProfile.blocks = localProfile.blocks.filter(i => i !== "npc_inner_chatter");
+                    // Auto-disable info when clicking MVU
+                    else if (b.id === "mvu") localProfile.blocks = localProfile.blocks.filter(i => i !== "info");
                 }
-            }
-            saveProfileToMemory(); switchTab(currentTab);
-        }); grid.append(card);
+                saveProfileToMemory(); switchTab(currentTab);
+            }); 
+        }
+        grid.append(card);
     });
 
     if (activeEngine && activeEngine.customToggles) {
@@ -1549,6 +1620,26 @@ function renderModels(c) {
         </div>
     `);
 
+    if (localProfile.cotEnabled === undefined) localProfile.cotEnabled = true;
+
+    const cotToggle = $(`
+        <div class="mtab-toggle-row ${localProfile.cotEnabled ? 'active' : ''}" style="margin-bottom: 20px; border-color: ${localProfile.cotEnabled ? 'var(--gold)' : 'var(--border-color)'};">
+            <div class="toggle-info">
+                <div class="toggle-label" style="color: ${localProfile.cotEnabled ? 'var(--gold)' : 'var(--text-main)'};"><i class="fa-solid fa-power-off"></i> Enable Chain of Thought</div>
+                <div class="toggle-desc">Toggle the entire CoT system on or off.</div>
+            </div>
+            <div class="ps-switch" style="${localProfile.cotEnabled ? 'background:var(--gold);' : ''}"></div>
+        </div>
+    `);
+    cotToggle.on("click", function() {
+        localProfile.cotEnabled = !localProfile.cotEnabled;
+        saveProfileToMemory();
+        renderModels(c);
+    });
+    c.append(cotToggle);
+
+    if (!localProfile.cotEnabled) return;
+
     // Custom Engine override notice
     if (activeEngine && activeEngine.cot && activeEngine.cot.trim() !== "") {
         c.append(`
@@ -1565,6 +1656,13 @@ function renderModels(c) {
     };
     if (migrationMap[localProfile.model]) { localProfile.model = migrationMap[localProfile.model]; saveProfileToMemory(); }
 
+    if (localProfile.model === "cot-off") {
+        localProfile.cotEnabled = false;
+        localProfile.model = "cot-v7.5-english"; // Default fallback
+        saveProfileToMemory();
+        if (!localProfile.cotEnabled) return;
+    }
+
     let currentType = "off", currentLang = "english";
     if (localProfile.model && localProfile.model.startsWith("cot-v1-")) { currentType = "v1"; currentLang = localProfile.model.replace("cot-v1-", ""); }
     else if (localProfile.model && localProfile.model.startsWith("cot-v2-")) { currentType = "v2"; currentLang = localProfile.model.replace("cot-v2-", ""); }
@@ -1573,6 +1671,24 @@ function renderModels(c) {
     else if (localProfile.model && localProfile.model.startsWith("cot-v7.5-")) { currentType = "v7.5"; currentLang = localProfile.model.replace("cot-v7.5-", ""); }
     else if (localProfile.model && localProfile.model.startsWith("cot-v7-lite-")) { currentType = "v7-lite"; currentLang = localProfile.model.replace("cot-v7-lite-", ""); }
     else if (localProfile.model && localProfile.model.startsWith("cot-v7-")) { currentType = "v7"; currentLang = localProfile.model.replace("cot-v7-", ""); }
+    else if (localProfile.model && localProfile.model.startsWith("cot-v8-")) { currentType = "v8"; currentLang = localProfile.model.replace("cot-v8-", ""); }
+    // ── DETERMINE ALLOWED CoTs ──
+    let allowedCotTypes = null; // null means all allowed (V4, V5, custom)
+    if (localProfile.mode.includes("v6")) allowedCotTypes = ["v6", "v6-lite"];
+    else if (localProfile.mode === "v7.5") allowedCotTypes = ["v7.5"];
+    else if (localProfile.mode.includes("v7")) allowedCotTypes = ["v7", "v7-lite"];
+    else if (localProfile.mode.includes("v8")) allowedCotTypes = ["v8"];
+
+    // Auto-fix if current CoT is incompatible with the selected engine
+    if (allowedCotTypes && currentType !== "off" && !allowedCotTypes.includes(currentType)) {
+        currentType = allowedCotTypes[0];
+        if (currentType === "v7") localProfile.model = `cot-v7-english`;
+        else if (currentType === "v7.5") localProfile.model = `cot-v7.5-english`;
+        else if (currentType === "v7-lite") localProfile.model = `cot-v7-lite-english`;
+        else if (currentType === "v8") localProfile.model = `cot-v8-english`;
+        else localProfile.model = `cot-${currentType}-english`;
+        saveProfileToMemory();
+    }
 
     if (!localProfile.thinkEffort) localProfile.thinkEffort = "unspecified";
     if (!localProfile.customThinkEffort) localProfile.customThinkEffort = "100";
@@ -1646,42 +1762,50 @@ function renderModels(c) {
     </div>`);
     const typeGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 20px;"></div>`);
     const types = [
-        { id: "off", label: "CoT Off", desc: "No Chain of Thought or prefill. The AI will respond normally." },
         { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
         { id: "v2", label: "CoT V2 (New)", desc: "The new experimental framework. Stricter reality checks, info audits, better NPCs, and hook generation." },
         { id: "v6", label: "CoT V6 (Dream Team)", desc: "The full 4-phase sequence designed specifically for V6 engines. Specialized validation and modeling.", isNew: true },
         { id: "v6-lite", label: "CoT V6 (Lite)", desc: "A streamlined 3-phase sequence. Less token overhead while maintaining narrative rules.", isNew: true },
         { id: "v7", label: "CoT V7", desc: "The new V7 sequence with 5-phase strict ground truth rebuilding.", isNew: true },
         { id: "v7-lite", label: "CoT V7 (Lite)", desc: "A streamlined 5-phase sequence for V7.", isNew: true },
-        { id: "v7.5", label: "CoT V7.5 Kismet", desc: "The new V7.5 sequence focused on story engine mechanics.", isNew: true }
+        { id: "v7.5", label: "CoT V7.5 Kismet", desc: "The new V7.5 sequence focused on story engine mechanics.", isNew: true },
+        { id: "v8", label: "CoT V8", desc: "The new V8 narrative processing sequence.", isNew: true }
     ];
     types.forEach(t => {
         const isSel = currentType === t.id;
+        const isLocked = allowedCotTypes !== null && !allowedCotTypes.includes(t.id);
+        
         let badges = '';
-        if (t.isNew) badges = `<span class="ecard-badge new">New</span>`;
+        if (isLocked) badges = `<span class="ecard-badge locked" style="background:rgba(239,68,68,0.15);color:#ef4444;"><i class="fa-solid fa-lock"></i> Incompatible Engine</span>`;
+        else if (t.isNew) badges = `<span class="ecard-badge new">New</span>`;
 
         const card = $(`
-            <div class="mtab-eng-card ${isSel ? 'active' : ''}">
+            <div class="mtab-eng-card ${isSel && !isLocked ? 'active' : ''} ${isLocked ? 'locked-card' : ''}">
                 <div class="ecard-accent"></div>
                 <div class="ecard-body">
                     <div class="ecard-title">
                         <span>${t.label}</span>
-                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> Active</span>` : ''}
+                        ${isSel && !isLocked ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> Active</span>` : ''}
                     </div>
                     <p class="ecard-desc">${t.desc}</p>
                     ${badges ? `<div style="margin-top:4px;">${badges}</div>` : ''}
                 </div>
             </div>
         `);
-        card.on("click", () => {
-            if (t.id === "off") localProfile.model = "cot-off";
-            else if (t.id === "v7") localProfile.model = `cot-v7-english`;
-            else if (t.id === "v7.5") localProfile.model = `cot-v7.5-english`;
-            else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;
-            else localProfile.model = `cot-${t.id}-${currentLang}`;
-            saveProfileToMemory(); renderModels(c);
-        }); typeGrid.append(card);
-    }); c.append(typeGrid);
+        
+        if (!isLocked) {
+            card.on("click", () => {
+                if (t.id === "v7") localProfile.model = `cot-v7-english`;
+                else if (t.id === "v7.5") localProfile.model = `cot-v7.5-english`;
+                else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;
+                else if (t.id === "v8") localProfile.model = `cot-v8-english`;
+                else localProfile.model = `cot-${t.id}-${currentLang}`;
+                saveProfileToMemory(); renderModels(c);
+            }); 
+        }
+        typeGrid.append(card);
+    }); 
+    c.append(typeGrid);
 
     // ── LANGUAGE ──
     if (currentType !== "off") {
@@ -1692,7 +1816,7 @@ function renderModels(c) {
             { id: "french", label: "French (Français)" }, { id: "zh", label: "Mandarin (中文)" }, { id: "ru", label: "Russian (Русский)" },
             { id: "jp", label: "Japanese (日本語)" }, { id: "pt", label: "Portuguese (Português)" }
         ];
-        if (currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5") langs = [{ id: "english", label: "English" }];
+        if (currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8") langs = [{ id: "english", label: "English" }];
         langs.forEach(l => {
             const isSel = currentLang === l.id;
             let badges = '';
@@ -1718,19 +1842,20 @@ function renderModels(c) {
 
 // -------------------------------------------------------------
 function renderPromptEditor(config) {
-    const { id, title, defaultData, currentData, fields, onSave, onReset } = config;
+    const { id, title, defaultData, currentData, fields, onSave, onReset, enabled, onToggle } = config;
     let prompts = currentData || defaultData;
     if (typeof prompts !== 'object' || prompts === null) prompts = defaultData;
     
     let fieldsHtml = '';
+    const disabledAttr = enabled ? '' : 'disabled';
+    const opacityStyle = enabled ? '' : 'opacity: 0.5; pointer-events: none;';
+
     fields.forEach(f => {
-        // STRONG FALLBACK: If the saved data is empty/corrupt, force the default.
         let val = prompts[f.key];
         if (val === undefined || val === null || String(val).trim() === '') {
             val = defaultData[f.key] || '';
         }
         
-        // Safely escape HTML entities to inject safely into the textarea
         let escapedVal = String(val)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -1738,12 +1863,12 @@ function renderPromptEditor(config) {
             .replace(/"/g, '&quot;');
 
         fieldsHtml += `
-            <div class="ps-prompt-field">
+            <div class="ps-prompt-field" style="${opacityStyle}">
                 <div class="ps-prompt-field-label">
                     <span class="pf-name"><i class="fa-solid fa-code"></i> ${f.label}</span>
-                    <button class="pf-reset" data-key="${f.key}" title="Reset to default"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+                    <button class="pf-reset" data-key="${f.key}" title="Reset to default" ${disabledAttr}><i class="fa-solid fa-rotate-left"></i> Reset</button>
                 </div>
-                <textarea class="ps-prompt-textarea" data-key="${f.key}">${escapedVal}</textarea>
+                <textarea class="ps-prompt-textarea" data-key="${f.key}" ${disabledAttr}>${escapedVal}</textarea>
                 <div class="pf-hint">${f.hint}</div>
             </div>
         `;
@@ -1751,14 +1876,19 @@ function renderPromptEditor(config) {
 
     const html = `
         <div class="ps-prompt-editor" id="${id}">
-            <div class="ps-prompt-editor-toggle">
-                <span class="pe-title"><i class="fa-solid fa-pen-to-square"></i> ${title}</span>
-                <i class="fa-solid fa-chevron-down pe-chevron"></i>
+            <div class="ps-prompt-editor-toggle" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span class="pe-title"><i class="fa-solid fa-pen-to-square"></i> ${title}</span>
+                    <div class="ps-toggle-card ${enabled ? 'active' : ''} pe-enable-toggle" style="padding: 2px; min-width: 36px; background: transparent; border-color: ${enabled ? '#10b981' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;" title="Enable custom prompts override">
+                        <div class="ps-switch" style="transform: scale(0.65); ${enabled ? 'background: #10b981;' : ''}"></div>
+                    </div>
+                </div>
+                <i class="fa-solid fa-chevron-down pe-chevron" style="cursor:pointer; padding:5px;"></i>
             </div>
             <div class="ps-prompt-editor-body">
                 ${fieldsHtml}
-                <div class="ps-prompt-editor-actions">
-                    <button class="ps-modern-btn secondary btn-reset-all" style="padding: 6px 12px; font-size: 0.75rem;"><i class="fa-solid fa-rotate-left"></i> Reset All Defaults</button>
+                <div class="ps-prompt-editor-actions" style="${opacityStyle}">
+                    <button class="ps-modern-btn secondary btn-reset-all" style="padding: 6px 12px; font-size: 0.75rem;" ${disabledAttr}><i class="fa-solid fa-rotate-left"></i> Reset All Defaults</button>
                 </div>
             </div>
         </div>
@@ -1766,8 +1896,31 @@ function renderPromptEditor(config) {
 
     const $el = $(html);
 
-    $el.find('.ps-prompt-editor-toggle').on('click', function() {
+    // Open/Close Accordion
+    $el.find('.ps-prompt-editor-toggle').on('click', function(e) {
+        if ($(e.target).closest('.pe-enable-toggle').length) return; // Don't trigger if clicking the switch
         $el.toggleClass('open');
+    });
+
+    // Toggle Enable Switch
+    $el.find('.pe-enable-toggle').on('click', function(e) {
+        e.stopPropagation();
+        const $toggle = $(this);
+        const isNowEnabled = !$toggle.hasClass('active');
+        
+        if (isNowEnabled) {
+            $toggle.addClass('active').css('border-color', '#10b981');
+            $toggle.find('.ps-switch').css('background', '#10b981');
+            $el.find('.ps-prompt-field, .ps-prompt-editor-actions').css({'opacity': '', 'pointer-events': ''});
+            $el.find('textarea, button').prop('disabled', false);
+        } else {
+            $toggle.removeClass('active').css('border-color', 'var(--border-color)');
+            $toggle.find('.ps-switch').css('background', '');
+            $el.find('.ps-prompt-field, .ps-prompt-editor-actions').css({'opacity': '0.5', 'pointer-events': 'none'});
+            $el.find('textarea, button').prop('disabled', true);
+        }
+        
+        if (onToggle) onToggle(isNowEnabled);
     });
 
     $el.find('.ps-prompt-textarea').on('input', function() {
@@ -1873,6 +2026,8 @@ function renderStoryPlanner(c) {
         title: "Advanced: Edit Prompts",
         defaultData: DEFAULT_PROMPTS.storyPlan,
         currentData: sp.customPrompts,
+        enabled: sp.customPromptsEnabled, // <-- NEW
+        onToggle: (val) => { sp.customPromptsEnabled = val; saveProfileToMemory(); }, // <-- NEW
         fields: [
             { key: "systemPrompt", label: "System Prompt", hint: "Tokens: <code>{{charLore}}</code>, <code>{{userPersona}}</code>, <code>{{chatHistory}}</code>" },
             { key: "userPrompt", label: "User Task Prompt", hint: "Tokens: <code>{{user}}</code>" },
@@ -2016,6 +2171,8 @@ function renderBanList(c) {
         title: "Advanced: Edit Prompts",
         defaultData: DEFAULT_PROMPTS.banList,
         currentData: localProfile.banListCustomPrompts,
+        enabled: localProfile.banListCustomPromptsEnabled, // <-- NEW
+        onToggle: (val) => { localProfile.banListCustomPromptsEnabled = val; saveProfileToMemory(); }, // <-- NEW
         fields: [
             { key: "systemPrompt", label: "System Prompt", hint: "AI role definition." },
             { key: "userPrompt", label: "User Task Prompt", hint: "Tokens: <code>{{chatHistory}}</code>" },
@@ -2194,13 +2351,29 @@ function renderImageGen(c) {
             <div class="mtab-panel" style="margin-bottom:16px;">
                 <div class="mtab-panel-title gold"><i class="fa-solid fa-pen-nib"></i> Triggers & Formatting</div>
                 <div style="display: flex; gap: 15px; margin-bottom: 15px;">
-                    <div style="flex: 2;">
+                    <div style="flex: 1;">
                         <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Trigger Mode</div>
                         <select id="ig_trigger_mode" class="ps-modern-input" style="padding: 8px; font-size: 0.8rem; cursor: pointer;">
                             <option value="always" ${s.triggerMode === 'always' ? 'selected' : ''}>Always (Every Reply)</option>
                             <option value="frequency" ${s.triggerMode === 'frequency' ? 'selected' : ''}>After X Replies</option>
                             <option value="conditional" ${s.triggerMode === 'conditional' ? 'selected' : ''}>Only when character sends a pic</option>
                             <option value="manual" ${s.triggerMode === 'manual' ? 'selected' : ''}>Manual Button Only</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Inject Mode</div>
+                        <select id="ig_inject_mode" class="ps-modern-input" style="padding: 8px; font-size: 0.8rem; cursor: pointer;">
+                            <option value="new_msg" ${s.injectMode === 'new_msg' || !s.injectMode ? 'selected' : ''}>New Message (Gallery)</option>
+                            <option value="inline" ${s.injectMode === 'inline' ? 'selected' : ''}>Inline (Inside AI Reply)</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Image Count</div>
+                        <select id="ig_image_count" class="ps-modern-input" style="padding: 8px; font-size: 0.8rem; cursor: pointer;">
+                            <option value="1" ${s.imageCount == 1 ? 'selected' : ''}>1 Image</option>
+                            <option value="2" ${s.imageCount == 2 ? 'selected' : ''}>2 Images</option>
+                            <option value="3" ${s.imageCount == 3 ? 'selected' : ''}>3 Images</option>
+                            <option value="4" ${s.imageCount == 4 ? 'selected' : ''}>4 Images</option>
                         </select>
                     </div>
                     <div style="flex: 1; display: ${s.triggerMode === 'frequency' ? 'block' : 'none'};" id="ig_freq_container">
@@ -2218,27 +2391,45 @@ function renderImageGen(c) {
                 </div>
 
                 <div id="ig_prompt_builder" style="background: rgba(0,0,0,0.15); padding: 15px; border-radius: 10px; border-left: 3px solid var(--gold);">
-                    <div style="display: flex; gap: 15px; margin-bottom: 10px;">
-                        <div style="flex: 1;">
-                            <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Model Style Format</div>
-                            <select id="ig_style" class="ps-modern-input" style="padding: 8px; font-size: 0.8rem;">
-                                <option value="standard" ${s.promptStyle === 'standard' ? 'selected' : ''}>Standard (Descriptive)</option>
-                                <option value="illustrious" ${s.promptStyle === 'illustrious' ? 'selected' : ''}>Illustrious/Pony (Tags)</option>
-                                <option value="sdxl" ${s.promptStyle === 'sdxl' ? 'selected' : ''}>SDXL (Natural Prose)</option>
+                    <div style="display: flex; gap: 15px; margin-bottom: 10px; align-items: center; flex-wrap: wrap;">
+                        <div style="flex: 2; min-width: 150px;">
+                            <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Prompt Template</div>
+                            <select id="ig_template" class="ps-modern-input" style="padding: 8px; font-size: 0.8rem; cursor: pointer;">
+                                <option value="illus_cinematic" ${s.promptTemplate === 'illus_cinematic' ? 'selected' : ''}>Illustrious + Cinematic</option>
+                                <option value="sdxl_cinematic" ${s.promptTemplate === 'sdxl_cinematic' ? 'selected' : ''}>SDXL + Cinematic</option>
+                                <option value="illus_pov" ${s.promptTemplate === 'illus_pov' ? 'selected' : ''}>Illustrious + POV</option>
+                                <option value="sdxl_pov" ${s.promptTemplate === 'sdxl_pov' ? 'selected' : ''}>SDXL + POV</option>
+                                <option value="illus_portrait" ${s.promptTemplate === 'illus_portrait' ? 'selected' : ''}>Illustrious + Portrait</option>
+                                <option value="sdxl_portrait" ${s.promptTemplate === 'sdxl_portrait' ? 'selected' : ''}>SDXL + Portrait</option>
                             </select>
                         </div>
-                        <div style="flex: 1;">
-                            <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Camera Perspective</div>
-                            <select id="ig_persp" class="ps-modern-input" style="padding: 8px; font-size: 0.8rem;">
-                                <option value="scene" ${s.promptPerspective === 'scene' ? 'selected' : ''}>Cinematic Scene</option>
-                                <option value="pov" ${s.promptPerspective === 'pov' ? 'selected' : ''}>First Person (POV)</option>
-                                <option value="character" ${s.promptPerspective === 'character' ? 'selected' : ''}>Character Portrait</option>
-                            </select>
+                        <div style="flex: 1; min-width: 100px;">
+                            <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
+                                Include Examples <i class="fa-solid fa-circle-question" title="Make the image prompt better but increase input token." style="cursor: help; color: var(--gold);"></i>
+                            </div>
+                            <div class="ps-toggle-card ${s.includeExamples ? 'active' : ''}" id="ig_examples_toggle" style="padding: 4px; min-width: 44px; justify-content: center; background: transparent; border-color: ${s.includeExamples ? '#10b981' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
+                                <div class="ps-switch" style="transform: scale(0.75); ${s.includeExamples ? 'background: #10b981;' : ''}"></div>
+                            </div>
+                        </div>
+                        <div style="flex: 1; min-width: 100px;">
+                            <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
+                                Better Booru tags <i class="fa-solid fa-circle-question" title="It may increase empty responses." style="cursor: help; color: var(--gold);"></i>
+                            </div>
+                            <div class="ps-toggle-card ${s.directLanguage ? 'active' : ''}" id="ig_direct_toggle" style="padding: 4px; min-width: 44px; justify-content: center; background: transparent; border-color: ${s.directLanguage ? '#10b981' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;" title="Forces the AI to only use exact Booru tags">
+                                <div class="ps-switch" style="transform: scale(0.75); ${s.directLanguage ? 'background: #10b981;' : ''}"></div>
+                            </div>
+                        </div>
+                        <div style="flex: 1; min-width: 100px;">
+                            <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
+                                Inject NPC Tags <i class="fa-solid fa-circle-question" title="Automatically attach saved NPC image tags to the prompt if they are in the scene." style="cursor: help; color: var(--gold);"></i>
+                            </div>
+                            <div class="ps-toggle-card ${s.injectNpcTags ? 'active' : ''}" id="ig_npc_tags_toggle" style="padding: 4px; min-width: 44px; justify-content: center; background: transparent; border-color: ${s.injectNpcTags ? '#10b981' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
+                                <div class="ps-switch" style="transform: scale(0.75); ${s.injectNpcTags ? 'background: #10b981;' : ''}"></div>
+                            </div>
                         </div>
                     </div>
                     <input type="text" id="ig_extra" class="ps-modern-input" placeholder="Extra Instructions (e.g. moody lighting, dark atmosphere...)" value="${s.promptExtra}" style="padding: 8px; font-size: 0.8rem;" />
                 </div>
-            </div>
 
             <!-- Parameters -->
             <div class="mtab-panel" style="margin-bottom:16px;">
@@ -2305,17 +2496,25 @@ function renderImageGen(c) {
         title: "Advanced: Edit Prompts",
         defaultData: DEFAULT_PROMPTS.imageGen,
         currentData: s.customPrompts,
+        enabled: s.customPromptsEnabled, // <-- NEW
+        onToggle: (val) => { s.customPromptsEnabled = val; saveProfileToMemory(); }, // <-- NEW
         fields: [
             { key: "systemPrompt", label: "System Prompt", hint: "AI role definition." },
-            { key: "userPrompt", label: "User Task Prompt", hint: "Tokens: <code>{{chatHistory}}</code>, <code>{{styleStr}}</code>, <code>{{perspStr}}</code>, <code>{{extraStr}}</code>" },
+            { key: "userPrompt", label: "User Task Prompt", hint: "Tokens: <code>{{chatHistory}}</code>, <code>{{templateRules}}</code>, <code>{{extraStr}}</code>, <code>{{directLanguage}}</code>, <code>{{npcImageTags}}</code>, <code>{{templateExamples}}</code>" },
             { key: "thinkingPrompt", label: "Thinking Instructions", hint: "Must include output ordering instructions." },
-            { key: "injectionTemplate", label: "Image Injection Template", hint: "Tokens: <code>{{conditionalText}}</code>, <code>{{styleStr}}</code>, <code>{{perspStr}}</code>, <code>{{promptExtra}}</code>" },
-            { key: "styleIllustrious", label: "Style: Illustrious", hint: "Danbooru style rules." },
-            { key: "styleSdxl", label: "Style: SDXL", hint: "SDXL style rules." },
-            { key: "styleDefault", label: "Style: Default", hint: "Default style rules." },
-            { key: "perspPov", label: "Perspective: POV", hint: "First-Person rules." },
-            { key: "perspCharacter", label: "Perspective: Character", hint: "Character focus rules." },
-            { key: "perspDefault", label: "Perspective: Default", hint: "Environment focus rules." }
+            { key: "injectionTemplate", label: "Image Injection Template", hint: "Tokens: <code>{{conditionalText}}</code>, <code>{{templateRules}}</code>, <code>{{promptExtra}}</code>, <code>{{directLanguage}}</code>, <code>{{npcImageTags}}</code>, <code>{{templateExamples}}</code>" },
+            { key: "rulesIllusPov", label: "Rules: Illustrious + POV", hint: "" },
+            { key: "examplesIllusPov", label: "Examples: Illustrious + POV", hint: "" },
+            { key: "rulesSdxlPov", label: "Rules: SDXL + POV", hint: "" },
+            { key: "examplesSdxlPov", label: "Examples: SDXL + POV", hint: "" },
+            { key: "rulesIllusCinematic", label: "Rules: Illustrious + Cinematic", hint: "" },
+            { key: "examplesIllusCinematic", label: "Examples: Illustrious + Cinematic", hint: "" },
+            { key: "rulesSdxlCinematic", label: "Rules: SDXL + Cinematic", hint: "" },
+            { key: "examplesSdxlCinematic", label: "Examples: SDXL + Cinematic", hint: "" },
+            { key: "rulesIllusPortrait", label: "Rules: Illustrious + Portrait", hint: "" },
+            { key: "examplesIllusPortrait", label: "Examples: Illustrious + Portrait", hint: "" },
+            { key: "rulesSdxlPortrait", label: "Rules: SDXL + Portrait", hint: "" },
+            { key: "examplesSdxlPortrait", label: "Examples: SDXL + Portrait", hint: "" }
         ],
         onSave: (val, key) => {
             if (!s.customPrompts) s.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.imageGen));
@@ -2337,7 +2536,9 @@ function renderImageGen(c) {
         toggleQuickGenButton();
         if (s.enabled) {
             $(this).addClass("active"); $(this).css("border-color", "var(--gold)"); $(this).find("span").css("color", "var(--gold)");
-            $("#ig_main_content").slideDown(200); igFetchComfyLists();
+            $("#ig_main_content").slideDown(200); 
+            igPopulateWorkflows(); // <-- ADDED THIS!
+            igFetchComfyLists();
             $("#ig_header_badge").css({ background: 'rgba(16,185,129,0.12)', color: '#10b981', 'border-color': 'rgba(16,185,129,0.25)' }).html(`<i class="fa-solid fa-circle-check" style="font-size:0.6rem;"></i> Enabled`);
         } else {
             $(this).removeClass("active"); $(this).css("border-color", "var(--border-color)"); $(this).find("span").css("color", "var(--text-main)");
@@ -2345,11 +2546,49 @@ function renderImageGen(c) {
             $("#ig_header_badge").css({ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', 'border-color': 'var(--border-color)' }).html(`<i class="fa-solid fa-circle-xmark" style="font-size:0.6rem;"></i> Disabled`);
         }
     });
+    $("#ig_template").on("change", (e) => { s.promptTemplate = $(e.target).val(); saveProfileToMemory(); });
+    $("#ig_extra").on("input", (e) => { s.promptExtra = $(e.target).val(); saveProfileToMemory(); });
+    $("#ig_image_count").on("change", (e) => { s.imageCount = parseInt($(e.target).val()); saveProfileToMemory(); });
+    
+    $("#ig_examples_toggle").on("click", function() {
+        s.includeExamples = !s.includeExamples;
+        saveProfileToMemory();
+        if (s.includeExamples) {
+            $(this).addClass("active").css("border-color", "#10b981");
+            $(this).find(".ps-switch").css("background", "#10b981");
+        } else {
+            $(this).removeClass("active").css("border-color", "var(--border-color)");
+            $(this).find(".ps-switch").css("background", "");
+        }
+    });
+    $("#ig_direct_toggle").on("click", function() {
+        s.directLanguage = !s.directLanguage;
+        saveProfileToMemory();
+        if (s.directLanguage) {
+            $(this).addClass("active").css("border-color", "#10b981");
+            $(this).find(".ps-switch").css("background", "#10b981");
+        } else {
+            $(this).removeClass("active").css("border-color", "var(--border-color)");
+            $(this).find(".ps-switch").css("background", "");
+        }
+    });
+    $("#ig_npc_tags_toggle").on("click", function() {
+        s.injectNpcTags = !s.injectNpcTags;
+        saveProfileToMemory();
+        if (s.injectNpcTags) {
+            $(this).addClass("active").css("border-color", "#10b981");
+            $(this).find(".ps-switch").css("background", "#10b981");
+        } else {
+            $(this).removeClass("active").css("border-color", "var(--border-color)");
+            $(this).find(".ps-switch").css("background", "");
+        }
+    });
     $("#img_gen_backend").on("change", function () {
         s.generatorBackend = $(this).val();
         saveProfileToMemory();
     });
 
+    $("#ig_inject_mode").on("change", (e) => { s.injectMode = $(e.target).val(); saveProfileToMemory(); });
     $("#ig_trigger_mode").on("change", (e) => {
         s.triggerMode = $(e.target).val();
         saveProfileToMemory();
@@ -2480,14 +2719,23 @@ async function igFetchComfyLists() {
 // Reconstruct a plain-text dossier from structured NPC data for injection into [[npc list]]
 function npcBuildTextFromData(n) {
     let lines = [];
-    lines.push(`**Name:** ${n.name || "Unknown"} | **Age:** ${n.age || "?"} | **Sex:** ${n.sex || "?"}`);
+    lines.push(`**Name:** ${n.name || "Unknown"} | **Age:** ${n.age || "?"} | **Sex:** ${n.sex || "?"} | **Orientation:** ${n.orientation || "?"}`);
+    if (n.role) lines.push(`**Role:** ${n.role}`);
+    if (n.whereToFind) lines.push(`**Where to Find Them:** ${n.whereToFind}`);
     if (n.appearance) lines.push(`**Appearance:** ${n.appearance}`);
-    if (n.occupation) lines.push(`**Occupation:** ${n.occupation}`);
-    if (n.background) lines.push(`**Background:** ${n.background}`);
+    
+    // DELIBERATELY SKIPPED: n.imageTags
+    // Image tags are for ComfyUI only. Hiding them saves tokens and prevents the AI from mimicking Booru formatting.
+    
+    if (n.voice) lines.push(`**Voice:** ${n.voice}`);
+    if (n.background) lines.push(`**Background:**\n${n.background}`);
     if (n.innerCircle) lines.push(`**Inner Circle:**\n${n.innerCircle}`);
-    if (n.personality) lines.push(`**Personality Snapshot:** ${n.personality}`);
+    if (n.personality) lines.push(`**Personality:**\n${n.personality}`);
+    if (n.readOnPc) lines.push(`**Read on the PC:** ${n.readOnPc}`);
     if (n.agenda) lines.push(`**Current Agenda:** ${n.agenda}`);
-    if (n.hiddenLayer) lines.push(`**Hidden Layer:** ${n.hiddenLayer}`);
+    if (n.secrets) lines.push(`**Secrets:**\n${n.secrets}`);
+    if (n.canonLock) lines.push(`**Canon Lock:**\n${n.canonLock}`);
+    
     return lines.join("\n");
 }
 
@@ -2496,28 +2744,46 @@ function npcParseBlock(rawBlock) {
     const strip = (s) => (s || "").replace(/\*\*/g, "").replace(/<\/?[^>]+>/g, "").trim();
     const data = {};
 
-    // Name / Age / Sex line
-    const nameLine = rawBlock.match(/\*\*Name:\*\*\s*(.*?)(?:\||$)/im);
-    if (nameLine) data.name = strip(nameLine[1]);
-    const ageLine = rawBlock.match(/\*\*Age:\*\*\s*(.*?)(?:\||$)/im);
-    if (ageLine) data.age = strip(ageLine[1]);
-    const sexLine = rawBlock.match(/\*\*Sex:\*\*\s*(.*?)(?:\||$|\n)/im);
-    if (sexLine) data.sex = strip(sexLine[1]);
+    // Single line headers
+    const nameMatch = rawBlock.match(/\*\*Name:\*\*\s*(.*?)(?:\||\n|$)/i);
+    if (nameMatch) data.name = strip(nameMatch[1]);
+    const ageMatch = rawBlock.match(/\*\*Age:\*\*\s*(.*?)(?:\||\n|$)/i);
+    if (ageMatch) data.age = strip(ageMatch[1]);
+    const sexMatch = rawBlock.match(/\*\*Sex:\*\*\s*(.*?)(?:\||\n|$)/i);
+    if (sexMatch) data.sex = strip(sexMatch[1]);
+    const orientationMatch = rawBlock.match(/\*\*Orientation:\*\*\s*(.*?)(?:\||\n|$)/i);
+    if (orientationMatch) data.orientation = strip(orientationMatch[1]);
 
-    // Simple single-value fields — NOTE: no 'm' flag so $ means end-of-string, not end-of-line
+    // Multi-line blocks up to the next ** or </details>
     const fields = [
-        { key: "appearance", regex: /\*\*Appearance:\*\*\s*([\s\S]*?)(?=\n\s*\*\*[A-Z])/i },
-        { key: "occupation", regex: /\*\*Occupation:\*\*\s*([\s\S]*?)(?=\n\s*\*\*[A-Z])/i },
-        { key: "background", regex: /\*\*Background:\*\*\s*([\s\S]*?)(?=\n\s*\*\*[A-Z])/i },
-        { key: "innerCircle", regex: /\*\*Inner Circle:\*\*\s*([\s\S]*?)(?=\n\s*\*\*[A-Z])/i },
-        { key: "personality", regex: /\*\*Personality Snapshot:\*\*\s*([\s\S]*?)(?=\n\s*\*\*[A-Z])/i },
-        { key: "agenda", regex: /\*\*Current Agenda:\*\*\s*([\s\S]*?)(?=\n\s*\*\*[A-Z])/i },
-        { key: "hiddenLayer", regex: /\*\*Hidden Layer:\*\*\s*([\s\S]*?)(?=\n\s*<\/details>|<\/details>)/i }
+        { key: "role", regex: /\*\*Role:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "whereToFind", regex: /\*\*Where to Find Them:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "appearance", regex: /\*\*Appearance:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "imageTags", regex: /\*\*Image Tags:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "voice", regex: /\*\*Voice:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "background", regex: /\*\*Background:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "innerCircle", regex: /\*\*Inner Circle:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "personality", regex: /\*\*Personality.*?\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "readOnPc", regex: /\*\*Read on the PC:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "agenda", regex: /\*\*Current Agenda:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "secrets", regex: /\*\*Secrets.*?\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "canonLock", regex: /\*\*Canon Lock:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i }
     ];
+
     fields.forEach(f => {
         const m = rawBlock.match(f.regex);
         if (m) data[f.key] = m[1].trim();
     });
+
+    // Fallbacks for older NPC saves
+    if (!data.role) {
+        const oldOcc = rawBlock.match(/\*\*Occupation:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i);
+        if (oldOcc) data.role = oldOcc[1].trim();
+    }
+    if (!data.secrets) {
+        const oldHid = rawBlock.match(/\*\*Hidden Layer:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i);
+        if (oldHid) data.secrets = oldHid[1].trim();
+    }
 
     return data;
 }
@@ -2553,9 +2819,9 @@ async function npcGeneratePfp(npcName) {
         promptText = rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
         // Try to extract <img prompt="..."> if the AI wrapped it
-        const imgRegex = /<img\s+prompt=["'](.*?)["']\s*\/?>/i;
+        const imgRegex = /<img[^>]*?prompt=(["']?)([\s\S]*?)(?:\1\s*\/?>|\1\s*>|\1\s+[a-zA-Z]+=| \/>|>|$)/i;
         const match = promptText.match(imgRegex);
-        if (match) promptText = match[1];
+        if (match) promptText = match[2];
     } catch (e) {
         console.error("NPC PFP prompt generation failed:", e);
         $("#kazuma_progress_overlay").hide();
@@ -2696,6 +2962,13 @@ function renderNpcBank(c) {
             </div>
             <div class="ps-switch"></div>
         </div>
+        <div class="mtab-toggle-row ${nb.oocTrigger ? 'active' : ''}" id="npc_ooc_trigger" style="margin-bottom: 10px;">
+            <div class="toggle-info">
+                <div class="toggle-label"><i class="fa-solid fa-comment-slash" style="color:#a855f7;"></i> OOC Trigger (Save Tokens)</div>
+                <div class="toggle-desc">When enabled, the blank NPC Dossier template (used to capture NEW characters) will ONLY be injected if the word <b>"NPC"</b> or <b>"dossier"</b> is detected in your latest message. example: (OOC: Make Npc doosier for luna.) <br><span style="color:var(--text-muted); font-size:0.7rem;"><i>(Known NPCs will still be injected normally to provide context).</i></span></div>
+            </div>
+            <div class="ps-switch"></div>
+        </div>
 
         <div id="npc_main_content" style="display: ${nb.enabled ? 'block' : 'none'};">
             
@@ -2730,6 +3003,8 @@ function renderNpcBank(c) {
             title: "Advanced: Edit NPC Prompts",
             defaultData: DEFAULT_PROMPTS.npcBank,
             currentData: nb.customPrompts,
+            enabled: nb.customPromptsEnabled, // <-- NEW
+            onToggle: (val) => { nb.customPromptsEnabled = val; saveProfileToMemory(); }, // <-- NEW
             fields: [
                 { key: "systemPrompt", label: "Portrait AI: System Prompt", hint: "AI role definition for image generation." },
                 { key: "userPrompt", label: "Portrait AI: User Task Prompt", hint: "Tokens: <code>{{npcText}}</code>, <code>{{styleStr}}</code>, <code>{{perspStr}}</code>, <code>{{extraStr}}</code>" },
@@ -2761,6 +3036,15 @@ function renderNpcBank(c) {
             $(this).removeClass("active").css("border-color", "var(--border-color)");
             $("#npc_main_content").slideUp(200);
             $("#npc_header_badge").css({ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', 'border-color': 'var(--border-color)' }).html(`<i class="fa-solid fa-circle-xmark" style="font-size:0.6rem;"></i> Disabled`);
+        }
+    });
+
+    $("#npc_ooc_trigger").on("click", function () {
+        nb.oocTrigger = !nb.oocTrigger; saveProfileToMemory();
+        if (nb.oocTrigger) {
+            $(this).addClass("active").css("border-color", "var(--gold)");
+        } else {
+            $(this).removeClass("active").css("border-color", "var(--border-color)");
         }
     });
 
@@ -2799,13 +3083,20 @@ function renderNpcBank(c) {
                         name: parsed.name || npcName,
                         age: parsed.age || "",
                         sex: parsed.sex || "",
+                        orientation: parsed.orientation || "",
+                        role: parsed.role || "",
+                        whereToFind: parsed.whereToFind || "",
                         appearance: parsed.appearance || "",
-                        occupation: parsed.occupation || "",
+                        imageTags: parsed.imageTags || "",
+                        imageOnly: false,
+                        voice: parsed.voice || "",
                         background: parsed.background || "",
                         innerCircle: parsed.innerCircle || "",
                         personality: parsed.personality || "",
+                        readOnPc: parsed.readOnPc || "",
                         agenda: parsed.agenda || "",
-                        hiddenLayer: parsed.hiddenLayer || "",
+                        secrets: parsed.secrets || "",
+                        canonLock: parsed.canonLock || "",
                         pfp: "",
                         timestamp: Date.now()
                     });
@@ -2861,13 +3152,18 @@ function renderNpcList() {
     }
 
     const npcFieldMeta = [
+        { key: "role", label: "Role", icon: "fa-briefcase", color: "#60a5fa" },
+        { key: "whereToFind", label: "Where to Find", icon: "fa-map-location-dot", color: "#34d399" },
         { key: "appearance", label: "Appearance", icon: "fa-eye", color: "#a78bfa" },
-        { key: "occupation", label: "Occupation", icon: "fa-briefcase", color: "#60a5fa" },
+        { key: "imageTags", label: "Image Tags", icon: "fa-tags", color: "#f472b6" },
+        { key: "voice", label: "Voice", icon: "fa-comment-dots", color: "#fbbf24" },
         { key: "background", label: "Background", icon: "fa-book", color: "#34d399" },
         { key: "innerCircle", label: "Inner Circle", icon: "fa-people-group", color: "#fbbf24" },
         { key: "personality", label: "Personality", icon: "fa-masks-theater", color: "#f472b6" },
+        { key: "readOnPc", label: "Read on PC", icon: "fa-magnifying-glass", color: "#60a5fa" },
         { key: "agenda", label: "Current Agenda", icon: "fa-bullseye", color: "#fb923c" },
-        { key: "hiddenLayer", label: "Hidden Layer", icon: "fa-eye-slash", color: "#ef4444" }
+        { key: "secrets", label: "Secrets", icon: "fa-user-secret", color: "#ef4444" },
+        { key: "canonLock", label: "Canon Lock", icon: "fa-lock", color: "#a855f7" }
     ];
 
     [...npcs].reverse().forEach((n, revIdx) => {
@@ -2893,7 +3189,7 @@ function renderNpcList() {
                         <i class="fa-solid ${fm.icon}" style="font-size: 0.6rem;"></i> ${fm.label}
                     </div>
                     <textarea class="ps-modern-input npc_field_edit" data-idx="${idx}" data-field="${fm.key}" 
-                        style="height: ${fm.key === 'background' || fm.key === 'innerCircle' ? '60' : '32'}px; resize: vertical; font-size: 0.7rem; padding: 4px 6px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; line-height: 1.3;"
+                        style="height: ${['background', 'innerCircle', 'personality', 'secrets', 'canonLock', 'imageTags'].includes(fm.key) ? '60' : '32'}px; resize: vertical; font-size: 0.7rem; padding: 4px 6px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; line-height: 1.3;"
                     >${val}</textarea>
                 </div>`;
         });
@@ -2911,7 +3207,15 @@ function renderNpcList() {
                         <button class="npc_edit_name_btn" data-idx="${idx}" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.7rem; padding: 2px 4px; margin-left: -4px;" title="Edit Name"><i class="fa-solid fa-pen"></i></button>
                         <span style="font-size: 0.6rem; color: var(--text-muted); background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">${n.age || "?"} · ${n.sex || "?"}</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <!-- New Image Tags Only Toggle -->
+                        <div class="npc_img_only_toggle" data-idx="${idx}" style="display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 8px; border: 1px solid ${n.imageOnly ? 'rgba(16,185,129,0.3)' : 'transparent'};" title="If enabled, hides the text dossier from the AI to save tokens, but still sends Image Tags to ComfyUI.">
+                            <span style="font-size: 0.65rem; font-weight: 700; color: ${n.imageOnly ? '#10b981' : 'var(--text-muted)'};">Image Tags Only</span>
+                            <div class="ps-toggle-card ${n.imageOnly ? 'active' : ''}" style="padding: 2px; min-width: 36px; background: transparent; border-color: ${n.imageOnly ? '#10b981' : 'rgba(255,255,255,0.1)'}; border-radius: 8px;">
+                                <div class="ps-switch" style="transform: scale(0.65); ${n.imageOnly ? 'background: #10b981;' : ''}"></div>
+                            </div>
+                        </div>
+
                         <span style="color: var(--text-muted); font-size: 0.6rem;">${dateStr}</span>
                         <button class="npc_del_btn" data-idx="${idx}" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 0.75rem; padding: 2px 4px;" title="Delete NPC"><i class="fa-solid fa-trash"></i></button>
                     </div>
@@ -2961,6 +3265,23 @@ function renderNpcList() {
             if (localProfile.npcBank.npcs[i]) {
                 localProfile.npcBank.npcs[i][field] = $(this).val();
                 saveProfileToMemory();
+            }
+        });
+
+        // Image Tags Only Toggle
+        card.find(".npc_img_only_toggle").on("click", function (e) {
+            e.stopPropagation(); // Prevents the accordion from collapsing when clicking the toggle
+            const i = parseInt($(this).attr("data-idx"));
+            if (localProfile.npcBank.npcs[i]) {
+                localProfile.npcBank.npcs[i].imageOnly = !localProfile.npcBank.npcs[i].imageOnly;
+                saveProfileToMemory();
+                renderNpcList();
+                
+                if (localProfile.npcBank.npcs[i].imageOnly) {
+                    toastr.info("Image Tags Only enabled. Text dossier will be hidden from AI.");
+                } else {
+                    toastr.info("Full Sync enabled. Text dossier will be sent to AI.");
+                }
             }
         });
 
@@ -3283,6 +3604,8 @@ function renderMemoryCore(c) {
         title: "Advanced: Edit Prompts",
         defaultData: DEFAULT_PROMPTS.memoryCore,
         currentData: mem.customPrompts,
+        enabled: mem.customPromptsEnabled, // <-- NEW
+        onToggle: (val) => { mem.customPromptsEnabled = val; saveProfileToMemory(); }, // <-- NEW
         fields: [
             { key: "systemPrompt", label: "System Prompt", hint: "Summarizer system prompt." },
             { key: "userPrompt", label: "User Task Prompt", hint: "Tokens: <code>{{chatHistory}}</code>, <code>{{targetLang}}</code>" },
@@ -3306,7 +3629,6 @@ function renderMemoryCore(c) {
     $("#mem_enable_card").on("click", function () {
         mem.enabled = !mem.enabled;
         
-        // Auto-set trigger mode to "every" on first enable
         let isFirstEnable = false;
         if (mem.enabled) {
             if ((!mem.shortTermChunks || mem.shortTermChunks.length === 0) && 
@@ -3314,6 +3636,11 @@ function renderMemoryCore(c) {
                 mem.triggerMode === "frequency") {
                 mem.triggerMode = "every";
                 isFirstEnable = true;
+            }
+            // Auto-disable Summary Block to prevent conflicts
+            if (localProfile.blocks && localProfile.blocks.includes("summary")) {
+                localProfile.blocks = localProfile.blocks.filter(i => i !== "summary");
+                toastr.info("Summary Block automatically disabled to prevent conflicts with Memory Core.", "Megumin Suite");
             }
         }
         
@@ -4057,7 +4384,8 @@ function isMessageArchived(mesId, mem) {
     if (!mem) return false;
 
     // Lazy load the cached Set of archived message IDs for O(1) lookups
-    if (!mem._archivedSet) {
+    // Using instanceof Set prevents crashes after JSON deserialization turns it into {}
+    if (!(mem._archivedSet instanceof Set)) {
         mem._archivedSet = new Set();
         const addChunk = (c) => {
             const parts = c.id.split("-");
@@ -4226,18 +4554,6 @@ function memStringHash(str) {
         hash = hash & hash; // Convert to 32bit integer
     }
     return Math.abs(hash);
-}
-
-// Math: Calculates how similar two semantic vectors are (0.0 to 1.0)
-function cosineSimilarity(vecA, vecB) {
-    let dotProduct = 0; let normA = 0; let normB = 0;
-    for (let i = 0; i < vecA.length; i++) {
-        dotProduct += vecA[i] * vecB[i];
-        normA += vecA[i] * vecA[i];
-        normB += vecB[i] * vecB[i];
-    }
-    if (normA === 0 || normB === 0) return 0;
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
 // NOTE: memGetEmbedding / memUpdateCurrentQueryVector / memUpdateVaultEmbeddings removed.
@@ -4610,9 +4926,10 @@ async function igManualGenerate() {
             }, "Megumin Image");
         }
 
-        const imgRegex = /<img\s+prompt=["'](.*?)["']\s*\/?>/i;
+        // Use capturing group 1 for the quote type, group 2 for the actual prompt text
+        const imgRegex = /<img[^>]*?prompt=(["']?)([\s\S]*?)(?:\1\s*\/?>|\1\s*>|\1\s+[a-zA-Z]+=| \/>|>|$)/i;
         const match = promptText.match(imgRegex);
-        if (match) promptText = match[1];
+        if (match) promptText = match[2];
 
         toastr.info("Sending to ComfyUI...", "Megumin Suite");
         igGenerateWithComfy(promptText, null);
@@ -4628,21 +4945,141 @@ async function igManualGenerate() {
 
 // New Helper Function for generating the prompt text
 async function generateImagePromptText() {
-    const s = localProfile.imageGen;
+    const ig = localProfile.imageGen;
     const chat = getContext().chat;
-    const badStuffRegex = /(<disclaimer>.*?<\/disclaimer>)|(<guifan>.*?<\/guifan>)|(<danmu>.*?<\/danmu>)|(<options>.*?<\/options>)|```start|```end|<done>|`<done>`|(.*?<\/(?:ksc??|think(?:ing)?)>(\n)?)|(<(?:ksc??|think(?:ing)?)>[\s\S]*?<\/(?:ksc??|think(?:ing)?)>(\n)?)/gs;
-
-    const lastMessages = chat.filter(m => !m.is_system).slice(-5).map(m => {
+    const lastMessages = chat.filter(m => !m.is_user && !m.is_system).slice(-5).map(m => {
         return `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`;
     }).join("\n\n");
 
-    let styleStr = s.promptStyle === "illustrious" ? "Use Danbooru-style tags separated by commas." : (s.promptStyle === "sdxl" ? "Use natural, descriptive prose and full sentences." : "Use a comma-separated list of detailed keywords and visual descriptors.");
-    let perspStr = s.promptPerspective === "pov" ? "Frame the scene strictly from a First-Person (POV) perspective." : (s.promptPerspective === "character" ? "Focus intensely on the character's appearance." : "Describe the entire environment and atmosphere.");
+    const customIg = ig.customPromptsEnabled ? (ig.customPrompts || {}) : {};
+    const defIg = DEFAULT_PROMPTS.imageGen;
 
-    activeImageGenRequest = { chatText: lastMessages, styleStr: styleStr, perspStr: perspStr, extraStr: s.promptExtra || "None" };
+    let rules = "", examples = "";
+    const tmpl = ig.promptTemplate || "illus_cinematic";
+
+    const map = {
+        "illus_pov": ["rulesIllusPov", "examplesIllusPov"],
+        "sdxl_pov": ["rulesSdxlPov", "examplesSdxlPov"],
+        "illus_cinematic": ["rulesIllusCinematic", "examplesIllusCinematic"],
+        "sdxl_cinematic": ["rulesSdxlCinematic", "examplesSdxlCinematic"],
+        "illus_portrait": ["rulesIllusPortrait", "examplesIllusPortrait"],
+        "sdxl_portrait": ["rulesSdxlPortrait", "examplesSdxlPortrait"]
+    };
+
+    const keys = map[tmpl];
+    if (keys) {
+        rules = customIg[keys[0]] || defIg[keys[0]];
+        examples = customIg[keys[1]] || defIg[keys[1]];
+    }
+
+    if (!ig.includeExamples) examples = "";
+
+    let directLangStr = ig.directLanguage ? "**DIRECT LANGUAGE:** Use exact Booru tags only. \"naked\" not \"wearing nothing.\" \"erection\" not \"visible arousal.\"\n\n**NSFW TAG REFERENCE (use when scene is explicit):**\nBody: naked, nude, topless, exposed nipples, small breasts, medium breasts, large breasts, spread legs, ass, erection, veins, veiny penis\nActions: hetero, sex, vaginal, anal, oral, fellatio, after fellatio, paizuri, straddling, riding, missionary, doggystyle, cowgirl position, moaning, open mouth, tongue out, ahegao, clenching teeth\nFluids: cum, cum on body, cum on breasts, cum on face, cum on hair, cum on tongue, cum in mouth, cum inside, ejaculation, facial, saliva, sweat\nState: flushed face, heavy breathing, trembling, crying with eyes open, half-closed eyes, solo focus" : "";
+    let npcTagsStr = getRelevantNpcImageTags(); // <-- GET THE TAGS
+
+    activeImageGenRequest = { 
+        chatText: lastMessages, 
+        templateRules: rules, 
+        templateExamples: examples, 
+        extraStr: ig.promptExtra || "",
+        directLanguageStr: directLangStr,
+        npcTagsStr: npcTagsStr // <-- ADD TO REQUEST
+    };
 
     let rawOutput = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
     return rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+}
+
+// ── Inline Image Retry: DOM-based button injection ──
+// SillyTavern's HTML sanitizer renames custom CSS classes (e.g. "kazuma-foo" → "custom-kazuma-foo")
+// when rendering message.mes. This means buttons stored in mes will never match click handlers.
+// Instead, we inject buttons via direct DOM manipulation AFTER ST renders, like ComfyInject does.
+function addKazumaRetryButtons(msgIndex) {
+    const context = getContext();
+    const message = context.chat[msgIndex];
+    if (!message) return;
+
+    const messageNode = document.querySelector(`[mesid="${msgIndex}"]`);
+    if (!messageNode) return;
+
+    // ST's sanitizer prefixes custom classes with "custom-" in the rendered DOM
+    const images = messageNode.querySelectorAll('img[alt="KazumaInline"]');
+    if (images.length === 0) return;
+
+    images.forEach((img) => {
+        // Find the wrapper div (ST may rename the class, but the structure is preserved)
+        const wrapper = img.closest('div');
+        if (!wrapper) return;
+
+        // Don't add a second retry button if one already exists
+        if (wrapper.querySelector('.kazuma-regen-btn')) return;
+
+        // Get the wrapperId — try data attr first, then wrapper's id
+        const wrapperId = img.getAttribute('data-kazumaid') || img.dataset?.kazumaid || wrapper.id || '';
+
+        // Get the prompt — try title attr from DOM, then parse from message.mes
+        let prompt = (img.getAttribute('title') || '').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+        if (!prompt && wrapperId && message.mes) {
+            // Extract prompt from the raw mes using the wrapperId
+            const mesMatch = message.mes.match(new RegExp(`<img[^>]*?title="([^"]*)"[^>]*?data-kazumaid="${wrapperId}"`));
+            if (mesMatch) prompt = mesMatch[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+        }
+
+        if (!prompt || !wrapperId) return;
+
+        // Style the wrapper for absolute positioning of the button
+        wrapper.style.position = 'relative';
+        wrapper.style.display = 'inline-block';
+
+        // Create the retry button
+        const btn = document.createElement('div');
+        btn.className = 'kazuma-regen-btn';
+        btn.title = 'Regenerate this image';
+        btn.style.cssText = 'position:absolute; top:8px; right:8px; cursor:pointer; background:rgba(0,0,0,0.65); color:#ffcc00; border-radius:6px; padding:5px 8px; font-size:14px; z-index:10; border:1px solid rgba(255,204,0,0.5); opacity:0; transition:opacity 0.2s ease; line-height:1;';
+        btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i>';
+
+        // Show/hide on hover
+        wrapper.addEventListener('mouseenter', () => { btn.style.opacity = '1'; });
+        wrapper.addEventListener('mouseleave', () => { btn.style.opacity = '0'; });
+
+        // Click handler — directly attached, no delegation needed
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+
+            const s = localProfile?.imageGen;
+            if (!s || !s.enabled) { toastr.warning("Image Generation is disabled."); return; }
+
+            // Re-find the message dynamically (index may have shifted)
+            const ctx = getContext();
+            const currentMsgIndex = ctx.chat.findIndex(m => m.mes && m.mes.includes(wrapperId));
+            if (currentMsgIndex === -1) { toastr.warning("Could not find the original message for this image."); return; }
+            const msg = ctx.chat[currentMsgIndex];
+
+            // Replace the HTML block back to the loading placeholder
+            const regenRegex = new RegExp(`<!-- kazuma-inline-start:${wrapperId} -->[\\s\\S]*?<!-- kazuma-inline-end:${wrapperId} -->`, "g");
+            const placeholder = `<div id="${wrapperId}" class="kazuma-img-placeholder" style="color:var(--gold); font-style: italic; margin: 10px 0;">[Regenerating Image...]</div>`;
+
+            if (msg.mes.includes(`kazuma-inline-start:${wrapperId}`)) {
+                msg.mes = msg.mes.replace(regenRegex, placeholder);
+            } else {
+                toastr.warning("Could not find the original image block to replace.");
+                return;
+            }
+
+            await saveChat();
+            if (typeof updateMessageBlock === "function") {
+                updateMessageBlock(currentMsgIndex, msg);
+            } else {
+                reloadCurrentChat();
+            }
+
+            toastr.info("Regenerating inline image...");
+            igGenerateWithComfy(prompt, { message: msg, index: currentMsgIndex, mode: "inline", isInlineAuto: true, placeholderId: wrapperId });
+        });
+
+        wrapper.appendChild(btn);
+    });
 }
 
 async function igGenerateWithComfy(positivePrompt, target = null) {
@@ -4760,7 +5197,36 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                             generation_type: "free"
                         };
 
-                        if (target && target.message) {
+                        if (target && target.isInlineAuto && target.mode === "inline") {
+                            const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
+                            const imgTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper">
+<img src="${savedPath}" title="${safePrompt}" alt="KazumaInline" data-kazumaid="${wrapperId}" style="max-width: 100%; border-radius: 8px; display: block;" />
+</div><!-- kazuma-inline-end:${wrapperId} -->`;
+                            
+                            if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
+                                const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}"[^>]*>.*?<\/div>`, "g");
+                                target.message.mes = target.message.mes.replace(specificPlaceholderRegex, imgTag);
+                            } else {
+                                const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
+                                if (placeholderRegex.test(target.message.mes)) {
+                                    target.message.mes = target.message.mes.replace(placeholderRegex, imgTag);
+                                } else {
+                                    target.message.mes += `\n\n${imgTag}`;
+                                }
+                            }
+                            
+                            await saveChat();
+                            if (typeof updateMessageBlock === "function") {
+                                updateMessageBlock(target.index, target.message);
+                            } else {
+                                await reloadCurrentChat();
+                            }
+                            toastr.success("Image injected inline!");
+                            
+                            // Add retry buttons via DOM manipulation (after ST renders)
+                            setTimeout(() => addKazumaRetryButtons(target.index), 150);
+                        } else if (target && target.message && !target.isInlineAuto) {
                             if (!target.message.extra) target.message.extra = {}; if (!target.message.extra.media) target.message.extra.media = [];
                             target.message.extra.media_display = "gallery"; target.message.extra.media.push(mediaAttach); target.message.extra.media_index = target.message.extra.media.length - 1;
                             if (typeof appendMediaToMessage === "function") appendMediaToMessage(target.message, target.element);
@@ -4772,11 +5238,52 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                             toastr.success("Image inserted!");
                         }
                         $("#kazuma_progress_overlay").hide();
-                    } else { $("#kazuma_progress_overlay").hide(); }
+                    } else { 
+                        $("#kazuma_progress_overlay").hide(); 
+                        if (target && target.isInlineAuto && target.mode === "inline") {
+                            const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
+                            const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:#ef4444; font-style: italic; margin: 10px 0;"><span>[Image Generation Failed]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
+                            
+                            if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
+                                const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}" class="kazuma-img-placeholder"[^>]*>.*?<\\/div>`, "g");
+                                target.message.mes = target.message.mes.replace(specificPlaceholderRegex, failTag);
+                            } else {
+                                const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
+                                target.message.mes = target.message.mes.replace(placeholderRegex, failTag);
+                            }
+                            saveChat();
+                            if (typeof updateMessageBlock === "function") {
+                                updateMessageBlock(target.index, target.message);
+                            }
+                            setTimeout(() => addKazumaRetryButtons(target.index), 150);
+                        }
+                    }
                 }
             } catch (e) { }
         }, 1000);
-    } catch (e) { $("#kazuma_progress_overlay").hide(); toastr.error("Comfy Error: " + e.message); }
+    } catch (e) { 
+        $("#kazuma_progress_overlay").hide(); 
+        toastr.error("Comfy Error: " + e.message); 
+        if (target && target.isInlineAuto && target.mode === "inline") {
+            const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
+            const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:#ef4444; font-style: italic; margin: 10px 0;"><span>[Image Generation Failed: ${e.message}]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
+            
+            if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
+                const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}" class="kazuma-img-placeholder"[^>]*>.*?<\\/div>`, "g");
+                target.message.mes = target.message.mes.replace(specificPlaceholderRegex, failTag);
+            } else {
+                const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
+                target.message.mes = target.message.mes.replace(placeholderRegex, failTag);
+            }
+            saveChat();
+            if (typeof updateMessageBlock === "function") {
+                updateMessageBlock(target.index, target.message);
+            }
+            setTimeout(() => addKazumaRetryButtons(target.index), 150);
+        }
+    }
 }
 
 // -------------------------------------------------------------
@@ -4864,6 +5371,45 @@ $("body").on("input", "#ps_main_current_rule", function () {
     localProfile.aiRule = $(this).val(); saveProfileToMemory();
 });
 
+// Scans the chat and extracts Image Tags for relevant NPCs
+function getRelevantNpcImageTags() {
+    const s = localProfile?.imageGen;
+    if (!s || !s.injectNpcTags) return "";
+    
+    const nb = localProfile?.npcBank;
+    if (!nb || !nb.npcs || nb.npcs.length === 0) return "";
+    
+    const context = typeof getContext === 'function' ? getContext() : null;
+    if (!context || !context.chat) return "";
+
+    // Scan the last 4 messages for keywords
+    const recentText = context.chat.filter(m => !m.is_system).slice(-4).map(m => meguminCleanChatHistoryText(m.mes)).join(" ").toLowerCase();
+    const keywords = typeof memExtractKeywords === 'function' ? memExtractKeywords(recentText) : [];
+    if (keywords.length === 0) return "";
+
+    let scoredNpcs = [];
+    nb.npcs.forEach(n => {
+        if (!n.imageTags || n.imageTags.trim() === "") return; // Skip NPCs with no image tags
+        
+        let score = 0;
+        const contentLower = npcBuildTextFromData(n).toLowerCase();
+        keywords.forEach(kw => {
+            if (contentLower.includes(kw)) score++;
+        });
+        
+        if (score >= 1) {
+            scoredNpcs.push({ name: n.name, tags: n.imageTags, score: score });
+        }
+    });
+
+    if (scoredNpcs.length === 0) return "";
+    
+    scoredNpcs.sort((a, b) => b.score - a.score);
+    const topNpcs = scoredNpcs.slice(0, 3); // Grab the top 3 relevant NPCs
+    
+    return "**RELEVANT NPC IMAGE TAGS:**\n" + topNpcs.map(n => `[${n.name}]: ${n.tags}`).join("\n");
+}
+
 // -------------------------------------------------------------
 // EVENT LISTENERS & INITS
 // -------------------------------------------------------------
@@ -4874,6 +5420,7 @@ function buildBaseDict() {
     const allAvailableModes = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])];
     const activeEngine = allAvailableModes.find(m => m.id === localProfile.mode);
     const isV7 = activeEngine ? (activeEngine.id.startsWith("v7") || activeEngine.isV7 === true) : false;
+    const isV8 = activeEngine ? (activeEngine.id.startsWith("v8") || activeEngine.isV8 === true) : false;
 
     // 1. GLOBAL DEFAULTS (Language, Pronouns, Word Count)
     const targetLang = (localProfile.userLanguage && localProfile.userLanguage.trim() !== "")
@@ -4930,30 +5477,28 @@ function buildBaseDict() {
 
     // Stage 5 Defaults (Format Blocks)
     localProfile.blocks.forEach(bId => {
+        // Prevent conflicts natively
+        if (bId === "info" && localProfile.blocks.includes("mvu")) return;
+        if (bId === "summary" && localProfile.memoryCore && localProfile.memoryCore.enabled) return;
+
         const item = hardcodedLogic.blocks.find(b => b.id === bId);
         if (item) dict[item.trigger] = item.content;
     });
 
     // Stage 6 Defaults (CoT Framework & Language)
     const modData = hardcodedLogic.models.find(m => m.id === localProfile.model);
-    if (modData) {
+    if (localProfile.cotEnabled !== false && modData) {
         dict["[[COT]]"] = modData.content;
         if (modData.prefill) dict["[[prefill]]"] = modData.prefill;
     } else {
         dict["[[COT]]"] = "";
-    }
-
-    // [[THINK]] Macro Logic (Only injects if Thinking V2 is ENABLED)
-    if (localProfile.thinkingV2 && localProfile.model !== "cot-off") {
-        dict["[[THINK]]"] = `<think>\n<think>\n<think>\n{Thinking}\n</think>`;
-    } else {
-        dict["[[THINK]]"] = "";
+        dict["[[prefill]]"] = "";
     }
 
     if (localProfile.dnRatio && localProfile.dnRatio.enabled) {
         const d = localProfile.dnRatio.dialogue;
         const n = 100 - d;
-        dict["[[DNRATIO]]"] = `Ratio: Maintain a balance of ${d}% Dialogue and ${n}% Narration.`;
+        dict["[[DNRATIO]]"] = `- Ratio: Maintain a balance of ${d}% Dialogue and ${n}% Narration.`;
     } else {
         dict["[[DNRATIO]]"] = "";
     }
@@ -4971,10 +5516,15 @@ function buildBaseDict() {
     // MVU Logic
     if (localProfile.blocks.includes("mvu")) {
         let baseMvu = hardcodedLogic.blocks.find(b => b.id === "mvu").content;
+        
+        // Inject [[img2]] into the gametxt block so it can be resolved if Image Gen is active
+        baseMvu = baseMvu.replace("<gametxt>[[count]]</gametxt>", "<gametxt>[[count]][[img2]]</gametxt>");
+        
         if (wordCountStr) dict["[[MVU]]"] = baseMvu.replace("[[count]]", `${countType} ${wordCountStr} words`);
         else dict["[[MVU]]"] = baseMvu.replace("[[count]]", "...");
     } else {
-        dict["[[MVU]]"] = wordCountStr ? `{main response — ${countType} ${wordCountStr} words}` : `{main response}`;
+        // Embed [[img2]] into the standard curly brace format
+        dict["[[MVU]]"] = wordCountStr ? `{main response — ${countType} ${wordCountStr} words[[img2]]}` : `{main response[[img2]]}`;
     }
 
     // 3. ENGINE OVERRIDES (The "Superior" Layer)
@@ -5063,8 +5613,17 @@ function buildBaseDict() {
         }
     }
 
-    if (localProfile.mode.includes("v6-dream-team") || isV7) {
+    // Wipe main persona for V6, V7, and V8
+    if (localProfile.mode.includes("v6-dream-team") || isV7 || isV8) {
         dict["[[main]]"] = "";
+    }
+
+    // Wipe Persona & Toggle tags entirely for V8
+    if (isV8) {
+        dict["[[OOC]]"] = "";
+        dict["[[control]]"] = "";
+        dict["[[AI1]]"] = "";
+        dict["[[AI2]]"] = "";
     }
 
     // NEW: Inject Thinking Effort to the absolute top of whatever [[COT]] is currently active
@@ -5074,18 +5633,31 @@ function buildBaseDict() {
         dict["[[COT]]"] = `Your Thinking must not be more than ${words} words.\n\n` + dict["[[COT]]"];
     }
 
+    // [[THINK]] Macro Logic
+    if (localProfile.cotEnabled !== false && dict["[[COT]]"]) {
+        if (localProfile.thinkingV2) {
+            dict["[[THINK]]"] = `<think>\n<think>\n<think>\n${dict["[[COT]]"]}\n</think>`;
+        } else {
+            dict["[[THINK]]"] = `<think>\n${dict["[[COT]]"]}\n</think>`;
+        }
+        dict["[[COT]]"] = ""; // Clear COT so it's not injected twice
+    } else {
+        dict["[[THINK]]"] = "";
+    }
+
     // Story Planner Injection
     if (localProfile.storyPlan && localProfile.storyPlan.enabled) {
         const planText = localProfile.storyPlan.currentPlan;
+        const spCustom = localProfile.storyPlan.customPromptsEnabled ? localProfile.storyPlan.customPrompts : null;
         if (planText && planText.trim() !== "") {
-            const template = (localProfile.storyPlan.customPrompts && localProfile.storyPlan.customPrompts.injectionTemplate) || DEFAULT_PROMPTS.storyPlan.injectionTemplate;
+            const template = (spCustom && spCustom.injectionTemplate) || DEFAULT_PROMPTS.storyPlan.injectionTemplate;
             dict["[[storyplan]]"] = template.replace('{{planText}}', planText);
         } else {
             dict["[[storyplan]]"] = "";
         }
 
         // The refined tracker block you asked for
-        const trackerTemplate = (localProfile.storyPlan.customPrompts && localProfile.storyPlan.customPrompts.trackerTemplate) || DEFAULT_PROMPTS.storyPlan.trackerTemplate;
+        const trackerTemplate = (spCustom && spCustom.trackerTemplate) || DEFAULT_PROMPTS.storyPlan.trackerTemplate;
         dict["[[storytracker]]"] = trackerTemplate;
     } else {
         dict["[[storyplan]]"] = "";
@@ -5095,7 +5667,8 @@ function buildBaseDict() {
     // 4. FINAL INJECTIONS (Banlist & Image Gen)
     if (localProfile.banList && localProfile.banList.length > 0) {
         const banStr = localProfile.banList.map(b => `- ${b}`).join("\n");
-        const template = (localProfile.banListCustomPrompts && localProfile.banListCustomPrompts.injectionTemplate) || DEFAULT_PROMPTS.banList.injectionTemplate;
+        const banCustom = localProfile.banListCustomPromptsEnabled ? localProfile.banListCustomPrompts : null;
+        const template = (banCustom && banCustom.injectionTemplate) || DEFAULT_PROMPTS.banList.injectionTemplate;
         dict["[[banlist]]"] = template.replace('{{banItems}}', banStr);
     } else {
         dict["[[banlist]]"] = "";
@@ -5119,15 +5692,48 @@ function buildBaseDict() {
         }
 
         if (shouldInject) {
-            const customIg = localProfile.imageGen.customPrompts || {};
+            const customIg = localProfile.imageGen.customPromptsEnabled ? (localProfile.imageGen.customPrompts || {}) : {};
             const defIg = DEFAULT_PROMPTS.imageGen;
-            let styleStr = ig.promptStyle === "illustrious" ? (customIg.styleIllustrious || defIg.styleIllustrious) : (ig.promptStyle === "sdxl" ? (customIg.styleSdxl || defIg.styleSdxl) : (customIg.styleDefault || defIg.styleDefault));
-            let perspStr = ig.promptPerspective === "pov" ? (customIg.perspPov || defIg.perspPov) : (ig.promptPerspective === "character" ? (customIg.perspCharacter || defIg.perspCharacter) : (customIg.perspDefault || defIg.perspDefault));
+            
+            const tmpl = ig.promptTemplate || "illus_cinematic";
+            const map = {
+                "illus_pov": ["rulesIllusPov", "examplesIllusPov"],
+                "sdxl_pov": ["rulesSdxlPov", "examplesSdxlPov"],
+                "illus_cinematic": ["rulesIllusCinematic", "examplesIllusCinematic"],
+                "sdxl_cinematic": ["rulesSdxlCinematic", "examplesSdxlCinematic"],
+                "illus_portrait": ["rulesIllusPortrait", "examplesIllusPortrait"],
+                "sdxl_portrait": ["rulesSdxlPortrait", "examplesSdxlPortrait"]
+            };
+
+            let rules = "", examples = "";
+            const keys = map[tmpl];
+            if (keys) {
+                rules = customIg[keys[0]] || defIg[keys[0]];
+                examples = customIg[keys[1]] || defIg[keys[1]];
+            }
+
+            if (!ig.includeExamples) examples = "";
+
             const template = customIg.injectionTemplate || defIg.injectionTemplate;
-            dict["[[img1]]"] = template.replace('{{conditionalText}}', conditionalText).replace('{{styleStr}}', styleStr).replace('{{perspStr}}', perspStr).replace('{{promptExtra}}', ig.promptExtra ? `\nExtra: ${ig.promptExtra}` : "");
-            dict["[[img2]]"] = `<img prompt="prompt">`;
+            let extraSection = ig.promptExtra ? `Extra Instructions: ${ig.promptExtra}` : "";
+            let directLangStr = ig.directLanguage ? "**DIRECT LANGUAGE:** Use exact Booru tags only. \"naked\" not \"wearing nothing.\" \"erection\" not \"visible arousal.\"\n\n**NSFW TAG REFERENCE (use when scene is explicit):**\nBody: naked, nude, topless, exposed nipples, small breasts, medium breasts, large breasts, spread legs, ass, erection, veins, veiny penis\nActions: hetero, sex, vaginal, anal, oral, fellatio, after fellatio, paizuri, straddling, riding, missionary, doggystyle, cowgirl position, moaning, open mouth, tongue out, ahegao, clenching teeth\nFluids: cum, cum on body, cum on breasts, cum on face, cum on hair, cum on tongue, cum in mouth, cum inside, ejaculation, facial, saliva, sweat\nState: flushed face, heavy breathing, trembling, crying with eyes open, half-closed eyes, solo focus" : "";
+            let npcTagsStr = getRelevantNpcImageTags(); // <-- GET THE TAGS
+            const imageCountStr = ig.imageCount || 1; 
+
+            dict["[[img1]]"] = template
+                .replace('{{conditionalText}}', conditionalText)
+                .replace('{{imageCount}}', imageCountStr)
+                .replace('{{templateRules}}', rules)
+                .replace('{{promptExtra}}', extraSection)
+                .replace('{{directLanguage}}', directLangStr)
+                .replace('{{npcImageTags}}', npcTagsStr) // <-- INJECT THEM
+                .replace('{{templateExamples}}', examples);
+            
+            // Set the new value for img2 dynamically based on the count!
+            dict["[[img2]]"] = ` and the ${imageCountStr} image tag`;
         } else {
-            dict["[[img1]]"] = ""; dict["[[img2]]"] = "";
+            dict["[[img1]]"] = ""; 
+            dict["[[img2]]"] = "";
         }
     } else {
         dict["[[img1]]"] = ""; dict["[[img2]]"] = "";
@@ -5144,7 +5750,7 @@ function buildBaseDict() {
     if (dict["[[npc_inner_chatter]]"]) dict["[[npc_inner_chatter2]]"] = "[Npc inner chatter here]"; else dict["[[npc_inner_chatter2]]"] = "";
 
     // Resolve early-evaluated tokens inside all other strings to prevent them from being missed and then cleaned up
-    const earlyTokens = ["[[count]]", "[[Language]]", "[[pronouns]]", "[[DNRATIO]]"];
+    const earlyTokens = ["[[count]]", "[[Language]]", "[[pronouns]]", "[[DNRATIO]]", "[[img2]]"];
     earlyTokens.forEach(et => {
         if (dict[et] !== undefined) {
             const val = dict[et];
@@ -5164,6 +5770,8 @@ function buildBaseDict() {
     if (localProfile.memoryCore && localProfile.memoryCore.enabled) {
         const mem = localProfile.memoryCore;
 
+        const memCustom = mem.customPromptsEnabled ? mem.customPrompts : null;
+
         // A. Retrieve Long-Term Memories (Local TF-IDF Keyword Scoring)
         if (mem.longTermVault && mem.longTermVault.length > 0) {
             const retrieved = memGetRelevantVaultEntries();
@@ -5176,7 +5784,7 @@ function buildBaseDict() {
                 });
                 longXML += "</retrieved_archives>";
 
-                const template = (mem.customPrompts && mem.customPrompts.longTermTemplate) || DEFAULT_PROMPTS.memoryCore.longTermTemplate;
+                const template = (memCustom && memCustom.longTermTemplate) || DEFAULT_PROMPTS.memoryCore.longTermTemplate;
                 dict["[[long-Memory]]"] = template.replace('{{archiveXML}}', longXML);
             }
         }
@@ -5190,8 +5798,8 @@ function buildBaseDict() {
             });
             shortXML += "</recent_state_extracts>";
 
-            const template = (mem.customPrompts && mem.customPrompts.shortTermTemplate) || DEFAULT_PROMPTS.memoryCore.shortTermTemplate;
-            dict["[[Short-memory]]"] = template.replace('{{shortXML}}', shortXML);
+            const templateShort = (memCustom && memCustom.shortTermTemplate) || DEFAULT_PROMPTS.memoryCore.shortTermTemplate;
+            dict["[[Short-memory]]"] = templateShort.replace('{{shortXML}}', shortXML);
         }
     }
 
@@ -5201,12 +5809,32 @@ function buildBaseDict() {
     dict["[[npc list]]"] = "";
 
     if (localProfile.npcBank && localProfile.npcBank.enabled) {
-        // Use custom prompt if it exists, otherwise use default
-        const nbPrompts = (localProfile.npcBank.customPrompts) ? localProfile.npcBank.customPrompts : DEFAULT_PROMPTS.npcBank;
         
-        dict["[[npc_dossier]]"] = nbPrompts.dossierTemplate;
-        dict["[[npc_dossier2]]"] = "[NPC Dossier block here]";
+        // --- OOC Trigger Check (Applies ONLY to the Dossier Template) ---
+        let allowDossierInjection = true;
+        if (localProfile.npcBank.oocTrigger) {
+            allowDossierInjection = false;
+            const context = typeof getContext === 'function' ? getContext() : null;
+            if (context && context.chat) {
+                const lastUserMsg = context.chat.slice().reverse().find(m => m.is_user);
+                if (lastUserMsg && lastUserMsg.mes) {
+                    const msgLower = lastUserMsg.mes.toLowerCase();
+                    if (msgLower.includes("npc") || msgLower.includes("dossier")) {
+                        allowDossierInjection = true;
+                    }
+                }
+            }
+        }
 
+        if (allowDossierInjection) {
+            // Use custom prompt if it exists, otherwise use default
+            const nbPrompts = (localProfile.npcBank.customPromptsEnabled && localProfile.npcBank.customPrompts) ? localProfile.npcBank.customPrompts : DEFAULT_PROMPTS.npcBank;
+            
+            dict["[[npc_dossier]]"] = nbPrompts.dossierTemplate;
+            dict["[[npc_dossier2]]"] = "[NPC Dossier block here]";
+        }
+
+        // --- NPC List Injection (Always runs to provide context of known NPCs) ---
         if (localProfile.npcBank.npcs && localProfile.npcBank.npcs.length > 0) {
             const context = typeof getContext === 'function' ? getContext() : null;
             if (context && context.chat) {
@@ -5215,6 +5843,8 @@ function buildBaseDict() {
                 if (keywords.length > 0) {
                     let scoredNpcs = [];
                     localProfile.npcBank.npcs.forEach(n => {
+                        if (n.imageOnly) return;
+                        
                         let score = 0;
                         let matchedWords = [];
                         const contentLower = npcBuildTextFromData(n).toLowerCase();
@@ -5266,9 +5896,10 @@ async function handlePromptInjection(data, type) {
         const charLore = typeof substituteParams === 'function' ? substituteParams('{{description}}') : "No character description found.";
         const userPersona = typeof substituteParams === 'function' ? substituteParams('{{persona}}') : "No user persona found.";
 
-        const sys = (localProfile.storyPlan.customPrompts && localProfile.storyPlan.customPrompts.systemPrompt) || DEFAULT_PROMPTS.storyPlan.systemPrompt;
-        const userTask = (localProfile.storyPlan.customPrompts && localProfile.storyPlan.customPrompts.userPrompt) || DEFAULT_PROMPTS.storyPlan.userPrompt;
-        const thinking = (localProfile.storyPlan.customPrompts && localProfile.storyPlan.customPrompts.thinkingPrompt) || DEFAULT_PROMPTS.storyPlan.thinkingPrompt;
+        const spCustom = localProfile.storyPlan.customPromptsEnabled ? localProfile.storyPlan.customPrompts : null;
+        const sys = (spCustom && spCustom.systemPrompt) || DEFAULT_PROMPTS.storyPlan.systemPrompt;
+        const userTask = (spCustom && spCustom.userPrompt) || DEFAULT_PROMPTS.storyPlan.userPrompt;
+        const thinking = (spCustom && spCustom.thinkingPrompt) || DEFAULT_PROMPTS.storyPlan.thinkingPrompt;
 
         messages.push({
             "role": "system",
@@ -5296,7 +5927,7 @@ async function handlePromptInjection(data, type) {
     // --- INJECT NPC SCAN PROMPT ---
     if (activeNpcScanRequest) {
         messages.length = 0;
-        const nbPrompts = (localProfile.npcBank && localProfile.npcBank.customPrompts) ? localProfile.npcBank.customPrompts : DEFAULT_PROMPTS.npcBank;
+        const nbPrompts = (localProfile.npcBank && localProfile.npcBank.customPromptsEnabled && localProfile.npcBank.customPrompts) ? localProfile.npcBank.customPrompts : DEFAULT_PROMPTS.npcBank;
         const formatTemplate = nbPrompts.dossierTemplate;
         
         messages.push({
@@ -5324,9 +5955,10 @@ async function handlePromptInjection(data, type) {
     if (activeBanListChat) {
         messages.length = 0;
         
-        const sys = (localProfile.banListCustomPrompts && localProfile.banListCustomPrompts.systemPrompt) || DEFAULT_PROMPTS.banList.systemPrompt;
-        const userTask = (localProfile.banListCustomPrompts && localProfile.banListCustomPrompts.userPrompt) || DEFAULT_PROMPTS.banList.userPrompt;
-        const thinking = (localProfile.banListCustomPrompts && localProfile.banListCustomPrompts.thinkingPrompt) || DEFAULT_PROMPTS.banList.thinkingPrompt;
+        const banCustom = localProfile.banListCustomPromptsEnabled ? localProfile.banListCustomPrompts : null;
+        const sys = (banCustom && banCustom.systemPrompt) || DEFAULT_PROMPTS.banList.systemPrompt;
+        const userTask = (banCustom && banCustom.userPrompt) || DEFAULT_PROMPTS.banList.userPrompt;
+        const thinking = (banCustom && banCustom.thinkingPrompt) || DEFAULT_PROMPTS.banList.thinkingPrompt;
 
         messages.push({ "role": "system", "content": sys });
         messages.push({ "role": "user", "content": userTask.replace('{{chatHistory}}', activeBanListChat) });
@@ -5341,9 +5973,13 @@ async function handlePromptInjection(data, type) {
     if (activeImageGenRequest) {
         messages.length = 0;
         
-        const sys = (localProfile.imageGen.customPrompts && localProfile.imageGen.customPrompts.systemPrompt) || DEFAULT_PROMPTS.imageGen.systemPrompt;
-        const userTask = (localProfile.imageGen.customPrompts && localProfile.imageGen.customPrompts.userPrompt) || DEFAULT_PROMPTS.imageGen.userPrompt;
-        const thinking = (localProfile.imageGen.customPrompts && localProfile.imageGen.customPrompts.thinkingPrompt) || DEFAULT_PROMPTS.imageGen.thinkingPrompt;
+        const igCustom = localProfile.imageGen.customPromptsEnabled ? localProfile.imageGen.customPrompts : null;
+        const sys = (igCustom && igCustom.systemPrompt) || DEFAULT_PROMPTS.imageGen.systemPrompt;
+        const userTask = (igCustom && igCustom.userPrompt) || DEFAULT_PROMPTS.imageGen.userPrompt;
+        const thinking = (igCustom && igCustom.thinkingPrompt) || DEFAULT_PROMPTS.imageGen.thinkingPrompt;
+
+        // Ensure extra instructions format gracefully
+        let extraSection = activeImageGenRequest.extraStr ? `Extra Instructions: ${activeImageGenRequest.extraStr}` : "";
 
         messages.push({
             "role": "system",
@@ -5352,9 +5988,11 @@ async function handlePromptInjection(data, type) {
         messages.push({
             "role": "user",
             "content": userTask.replace('{{chatHistory}}', activeImageGenRequest.chatText)
-                               .replace('{{styleStr}}', activeImageGenRequest.styleStr)
-                               .replace('{{perspStr}}', activeImageGenRequest.perspStr)
-                               .replace('{{extraStr}}', activeImageGenRequest.extraStr)
+                               .replace('{{templateRules}}', activeImageGenRequest.templateRules)
+                               .replace('{{extraStr}}', extraSection)
+                               .replace('{{directLanguage}}', activeImageGenRequest.directLanguageStr)
+                               .replace('{{npcImageTags}}', activeImageGenRequest.npcTagsStr) // <-- INJECT THEM
+                               .replace('{{templateExamples}}', activeImageGenRequest.templateExamples)
         });
         messages.push({
             "role": "system",
@@ -5374,7 +6012,7 @@ async function handlePromptInjection(data, type) {
     // --- INJECT NPC PORTRAIT PROMPT ---
     if (activeNpcPfpRequest) {
         messages.length = 0;
-        const nbPrompts = (localProfile.npcBank && localProfile.npcBank.customPrompts) ? localProfile.npcBank.customPrompts : DEFAULT_PROMPTS.npcBank;
+        const nbPrompts = (localProfile.npcBank && localProfile.npcBank.customPromptsEnabled && localProfile.npcBank.customPrompts) ? localProfile.npcBank.customPrompts : DEFAULT_PROMPTS.npcBank;
 
         messages.push({
             "role": "system",
@@ -5412,8 +6050,9 @@ async function handlePromptInjection(data, type) {
             ? localProfile.userLanguage
             : "the same language used in the chat history";
 
-        const sys = (localProfile.memoryCore.customPrompts && localProfile.memoryCore.customPrompts.systemPrompt) || DEFAULT_PROMPTS.memoryCore.systemPrompt;
-        const userTask = (localProfile.memoryCore.customPrompts && localProfile.memoryCore.customPrompts.userPrompt) || DEFAULT_PROMPTS.memoryCore.userPrompt;
+        const memCustom = localProfile.memoryCore.customPromptsEnabled ? localProfile.memoryCore.customPrompts : null;
+        const sys = (memCustom && memCustom.systemPrompt) || DEFAULT_PROMPTS.memoryCore.systemPrompt;
+        const userTask = (memCustom && memCustom.userPrompt) || DEFAULT_PROMPTS.memoryCore.userPrompt;
 
         messages.push({
             "role": "system",
@@ -5476,6 +6115,13 @@ async function handlePromptInjection(data, type) {
                     msg.content = msg.content.replace(new RegExp(escapeRegex(tr), 'g'), ""); // Catch-all for inline tags
                 }
             });
+
+            // Cleanup Inline Image Artifacts so the AI doesn't see raw HTML
+            msg.content = msg.content.replace(/<img[^>]*?alt=["']KazumaInline["'][^>]*?>/gi, "");
+            msg.content = msg.content.replace(/<div[^>]*?title=["']KazumaFail\|[^>]*?>.*?<\/div>/gi, "");
+            
+            // Comprehensive Image Block Cleanup
+            msg.content = msg.content.replace(/<img\s+[^>]*\/>|<div class="kazuma-img-placeholder"[^>]*>[\s\S]*?<\/div>|<!-- kazuma-inline-start:[^>]*-->[\s\S]*?<!-- kazuma-inline-end:[^>]*-->/gi, "");
 
             // Final Sweep: Collapse 3 or more blank lines into a standard double line break
             msg.content = msg.content.replace(/(?:\r?\n[ \t]*){3,}/g, '\n\n');
@@ -5563,10 +6209,6 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
     $("#ps_btn_dev_mode").html(`<i class="fa-solid fa-right-from-bracket"></i> Exit Dev`).css("color", "#10b981");
 
     if (!extension_settings[extensionName].customModes) extension_settings[extensionName].customModes = [];
-
-    // Inject custom headers depending on which Dev view we are in
-    const devTitle = view === "landing" ? "Engine Builder" : "Visual Engine Builder";
-    const devSub = view === "landing" ? "Design your own chronological AI logic flow. Clone an existing template or start from scratch." : "Configure your custom engine blocks.";
 
     // Update Dev button visuals
     $("#ps_btn_dev_mode")
@@ -5865,7 +6507,7 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
         flow.append(createOverrideBlock("[[pronouns]]", "pronouns", modeData.pronouns, [{ label: "No Change", value: "" }, { label: "Male Template", value: "{{user}} is male. Always portray and address him as such." }]));
         flow.append(createOverrideBlock("[[count]]", "count", modeData.count, [{ label: "No Change", value: "" }, { label: "Example 400", value: "— maximum 400 words" }]));
         flow.append(createOverrideBlock("[[DNRATIO]]", "dnratio", modeData.dnratio, [{ label: "No Change", value: "" }, { label: "Example 50/50", value: "Ratio: Maintain a balance of 50% Dialogue and 50% Narration." }]));
-        flow.append(createOverrideBlock("[[onomato]]", "onomato", modeData.onomato, [{ label: "No Change", value: "" }, { label: "Default", value: "Narration must utilize onomatopoeia. Use precise, context-specific phonetic representations for physical interactions (e.g., the click of a latch, the thud of a heavy object, the soughing of wind) rather than abstract descriptions of sound." }]));
+        flow.append(createOverrideBlock("[[onomato]]", "onomato", modeData.onomato, [{ label: "No Change", value: "" }, { label: "Default", value: "- Narration must utilize onomatopoeia. Use precise, context-specific phonetic representations for physical interactions (e.g., the click of a latch, the thud of a heavy object, the soughing of wind) rather than abstract descriptions of sound." }]));
         flow.append(createOverrideBlock("[[banlist]]", "banlist", modeData.banlist, [{ label: "No Change", value: "" }, { label: "Example", value: "[BAN LIST]\nNever rely on these clichés, tropes, or repetitive patterns. They are dead language:\n- A shiver ran down their spine." }]));
 
         c.append(flow);
@@ -6242,13 +6884,20 @@ jQuery(async () => {
                                         name: parsed.name || npcName,
                                         age: parsed.age || "",
                                         sex: parsed.sex || "",
+                                        orientation: parsed.orientation || "",
+                                        role: parsed.role || "",
+                                        whereToFind: parsed.whereToFind || "",
                                         appearance: parsed.appearance || "",
-                                        occupation: parsed.occupation || "",
+                                        imageTags: parsed.imageTags || "",
+                                        imageOnly: false,
+                                        voice: parsed.voice || "",
                                         background: parsed.background || "",
                                         innerCircle: parsed.innerCircle || "",
                                         personality: parsed.personality || "",
+                                        readOnPc: parsed.readOnPc || "",
                                         agenda: parsed.agenda || "",
-                                        hiddenLayer: parsed.hiddenLayer || "",
+                                        secrets: parsed.secrets || "",
+                                        canonLock: parsed.canonLock || "",
                                         pfp: "",
                                         timestamp: Date.now()
                                     });
@@ -6270,23 +6919,60 @@ jQuery(async () => {
                 const lastMsg = chat[chat.length - 1];
                 if (lastMsg.is_user || lastMsg.is_system) return;
 
-                // Look for the <img prompt="..."> tag in the AI's response
-                const imgRegex = /<img\s+prompt=["'](.*?)["']\s*\/?>/i;
-                const match = lastMsg.mes.match(imgRegex);
+                // Look for the <img prompt="..."> tags in the AI's response (supports multiple)
+                const imgRegexGlobal = /<img[^>]*?prompt=(["']?)([\s\S]*?)(?:\1\s*\/?>|\1\s*>|\1\s+[a-zA-Z]+=| \/>|>|$)/ig;
+                const matches = [...lastMsg.mes.matchAll(imgRegexGlobal)];
 
-                if (match) {
-                    const extractedPrompt = match[1];
+                if (matches.length > 0) {
+                    const msgIndex = chat.length - 1;
+                    const injectMode = s.injectMode || "new_msg";
+                    const batchId = Date.now();
+                    
+                    let modifiedMes = lastMsg.mes;
 
-                    // 1. Remove the raw tag from the chat text so the user doesn't see it
-                    lastMsg.mes = lastMsg.mes.replace(imgRegex, "").trim();
+                    matches.forEach((match, idx) => {
+                        const uniquePlaceholderId = `kazuma-img-${batchId}-${idx}`;
+                        const placeholder = `<div id="${uniquePlaceholderId}" class="kazuma-img-placeholder" style="color:var(--gold); font-style: italic; margin: 10px 0;">[Generating Image...]</div>`;
+
+                        if (injectMode === "inline") {
+                            modifiedMes = modifiedMes.replace(match[0], placeholder);
+                        } else {
+                            // Remove the raw tag from the chat text so the user doesn't see it
+                            modifiedMes = modifiedMes.replace(match[0], "").trim();
+                        }
+                    });
+
+                    lastMsg.mes = modifiedMes;
                     await saveChat();
-                    reloadCurrentChat(); // Refreshes the chat window instantly
-
-                    // 2. Send the extracted prompt to ComfyUI!
+                    
+                    // Delay UI update slightly so SillyTavern's internal handlers (like Reasoning) 
+                    // finish rendering the DOM before we attempt to update the block.
                     setTimeout(() => {
-                        toastr.info("Image tag detected. Sending to ComfyUI...");
-                        igGenerateWithComfy(extractedPrompt, null);
-                    }, 500);
+                        if (typeof SillyTavern !== 'undefined' && SillyTavern.getContext && typeof SillyTavern.getContext().updateMessageBlock === "function") {
+                            SillyTavern.getContext().updateMessageBlock(msgIndex, lastMsg);
+                        } else if (typeof updateMessageBlock === "function") {
+                            updateMessageBlock(msgIndex, lastMsg);
+                        } else {
+                            reloadCurrentChat(); // Refreshes the chat window instantly
+                        }
+                    }, 100);
+
+                    // 2. Send the extracted prompts to ComfyUI!
+                    matches.forEach((match, idx) => {
+                        const extractedPrompt = match[2];
+                        const uniquePlaceholderId = `kazuma-img-${batchId}-${idx}`;
+                        
+                        setTimeout(() => {
+                            toastr.info(`Image tag ${idx + 1} detected. Sending to ComfyUI...`);
+                            igGenerateWithComfy(extractedPrompt, { 
+                                message: lastMsg, 
+                                index: msgIndex, 
+                                mode: injectMode, 
+                                isInlineAuto: true,
+                                placeholderId: uniquePlaceholderId 
+                            });
+                        }, 500 + (idx * 1500)); // Stagger calls slightly to prevent overloading ComfyUI
+                    });
                 }
             });
             const meguminSwipeHandler = async (data) => {
@@ -6381,5 +7067,21 @@ jQuery(async () => {
             igManualGenerate();
         });
 
+        // ── INLINE IMAGE RETRY: Add buttons to existing images on chat load ──
+        eventSource.on(event_types.CHAT_CHANGED, () => {
+            setTimeout(() => {
+                const context = getContext();
+                if (!context.chat) return;
+                for (let i = 0; i < context.chat.length; i++) {
+                    addKazumaRetryButtons(i);
+                }
+            }, 300);
+        });
+
+        // Re-add retry buttons after swipes and edits (ST re-renders the DOM)
+        const kazumaReAddRetry = (index) => setTimeout(() => addKazumaRetryButtons(index), 150);
+        eventSource.on(event_types.MESSAGE_SWIPED, kazumaReAddRetry);
+        eventSource.on(event_types.MESSAGE_UPDATED, kazumaReAddRetry);
+        eventSource.on(event_types.MESSAGE_EDITED, kazumaReAddRetry);
     } catch (e) { console.error(`[${extensionName}] Failed to load:`, e); }
 });

@@ -1,3 +1,26 @@
+# beta 12/06/26
+** Massive Feature Overhaul & V8 Engines**
+* **V8 Obsidian & V8 Spark Engines:** Added the absolute pinnacle of the Megumin Suite (Obsidian) for unmatched human psychology and story plotting, along with a highly efficient lite version (Spark). 
+* **Engine Strict-Locking:** The UI now actively prevents you from breaking the AI. Selecting V8 completely locks the Persona & Toggles tab. CoT models are now strictly locked to their compatible engines (V6 can only use V6 CoT, V8 can only use V8 CoT, etc.).
+* **Smart Block Conflicts:** The Add-ons tab now auto-locks conflicting blocks. Turning on MVU locks out the World State block. Turning on Memory Core locks out the Summary block.
+* **Master Prompt Switches:** Added a master "Enable/Disable" toggle to all Advanced Prompt Editors across every tab. Keeps the engine safe from half-edited or broken prompt fields.
+* **Token Counter Calibration:** Calibrated the live token counter math to better match real API tokenizers. 
+
+** Image Generation Upgrades**
+* **Prompt Templates:** Replaced the old style dropdowns with 6 highly optimized templates (Illustrious + POV, SDXL + Cinematic, etc.).
+* **Dynamic Image Count:** You can now generate 1, 2, 3, or 4 images at a time (automatically syncs with MVU output!).
+* **Token Saver Toggles:** Added "Include Examples" and "Better Booru tags" toggles to let you customize prompt injection and save tokens.
+* **Inject NPC Tags:** The Image Generator can now automatically scan the scene and pull exact physical Booru tags from your saved NPCs!
+
+** NPC Bank Overhaul**
+* **Dossier 2.0:** Upgraded the NPC extraction format with strict, detailed fields (Orientation, Voice, Secrets, Canon Lock, and dedicated Image Tags).
+* **OOC Trigger:** Save massive amounts of input tokens! The dossier template is now hidden from the AI *unless* you type "NPC" or "dossier" in your chat message.
+* **Image Tags Only Toggle:** Every saved NPC now has a button to hide their text dossier from the AI, while still allowing the Image Generator to read their physical appearance tags.
+
+** UI & Regex Polish**
+* **Writing Style Redesign:** Completely redesigned the Writing Style tab into a sleek "Sidebar Dashboard" with a compact masonry grid and an integrated Dialogue/Narration Ratio slider.
+* **Aggressive Chat Cleaner:** Upgraded the internal regex cleaner to flawlessly scrub all ComfyUI wrappers, placeholders, and raw HTML from the chat history before the AI reads it.
+* Fixed a bug where ComfyUI workflows wouldn't populate instantly when toggling Image Gen on.
 # beta 26/05/26
 * fixed memory core
 * added scan history to NPC Bank
