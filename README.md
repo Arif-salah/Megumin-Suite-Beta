@@ -1,4 +1,10 @@
 # beta 12/06/26
+bug fixes and one change
+* fixed a bug when sometimes the wrong cot get injected
+* fixed a bug where image tag <img prompt="[prompt]"> get generated inside the thinking
+changes:
+* removed all the locks and put a warning system Instead
+# beta 12/06/26
 ** Massive Feature Overhaul & V8 Engines**
 * **V8 Obsidian & V8 Spark Engines:** Added the absolute pinnacle of the Megumin Suite (Obsidian) for unmatched human psychology and story plotting, along with a highly efficient lite version (Spark). 
 * **Engine Strict-Locking:** The UI now actively prevents you from breaking the AI. Selecting V8 completely locks the Persona & Toggles tab. CoT models are now strictly locked to their compatible engines (V6 can only use V6 CoT, V8 can only use V8 CoT, etc.).
@@ -8,6 +14,7 @@
 
 ** Image Generation Upgrades**
 * **Prompt Templates:** Replaced the old style dropdowns with 6 highly optimized templates (Illustrious + POV, SDXL + Cinematic, etc.).
+* **new inline Injection:** send the pic in the response
 * **Dynamic Image Count:** You can now generate 1, 2, 3, or 4 images at a time (automatically syncs with MVU output!).
 * **Token Saver Toggles:** Added "Include Examples" and "Better Booru tags" toggles to let you customize prompt injection and save tokens.
 * **Inject NPC Tags:** The Image Generator can now automatically scan the scene and pull exact physical Booru tags from your saved NPCs!

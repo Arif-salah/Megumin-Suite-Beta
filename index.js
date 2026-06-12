@@ -667,22 +667,32 @@ function renderMode(c) {
                     const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v7_core");
                     if (ds) localProfile.aiRule = ds.rule;
                 } else if (m.id === "v7-gentle") {
-                    localProfile.activeStyleId = "dir_v7_gentle";
-                    const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v7_gentle");
-                    if (ds) localProfile.aiRule = ds.rule;
-                } else if (m.id === "v7.5") {
-                    localProfile.activeStyleId = "dir_v7.5";
-                    const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v7.5");
-                    if (ds) localProfile.aiRule = ds.rule;
-                } else if (m.id.startsWith("v7")) { // Catch-all for Reality and others
-                    localProfile.activeStyleId = "dir_v7";
-                    const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v7");
-                    if (ds) localProfile.aiRule = ds.rule;
+                    // ... (keep all the existing style mapping code) ...
                 } else if (m.id.startsWith("v8")) {
                     localProfile.activeStyleId = "dir_v8";
                     const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v8");
                     if (ds) localProfile.aiRule = ds.rule;
                 }
+
+                // ==========================================
+                // ADD THIS NEW BLOCK RIGHT HERE
+                // ==========================================
+                const currentLang = (localProfile.model && localProfile.model.includes("-")) ? localProfile.model.split('-').pop() : "english";
+                let targetCotPrefix = null;
+                
+                if (m.id.includes("v6")) targetCotPrefix = "cot-v6";
+                else if (m.id === "v7.5") targetCotPrefix = "cot-v7.5";
+                else if (m.id.includes("v7")) targetCotPrefix = "cot-v7";
+                else if (m.id.includes("v8")) targetCotPrefix = "cot-v8";
+                
+                if (targetCotPrefix) {
+                    if (targetCotPrefix.includes("v7") || targetCotPrefix.includes("v8")) {
+                        localProfile.model = `${targetCotPrefix}-english`;
+                    } else {
+                        localProfile.model = `${targetCotPrefix}-${currentLang}`;
+                    }
+                }
+                // ==========================================
 
                 saveProfileToMemory();
                 switchTab(currentTab);
@@ -1512,18 +1522,6 @@ function renderBlocks(c) {
         </div>
     `);
 
-    // Auto-scrub legacy conflicts upon rendering the tab
-    let cleanedConflicts = false;
-    if (localProfile.blocks.includes("mvu") && localProfile.blocks.includes("info")) {
-        localProfile.blocks = localProfile.blocks.filter(i => i !== "info");
-        cleanedConflicts = true;
-    }
-    if (localProfile.memoryCore && localProfile.memoryCore.enabled && localProfile.blocks.includes("summary")) {
-        localProfile.blocks = localProfile.blocks.filter(i => i !== "summary");
-        cleanedConflicts = true;
-    }
-    if (cleanedConflicts) saveProfileToMemory();
-
     const isMvuActive = localProfile.blocks.includes("mvu");
     const isMemActive = localProfile.memoryCore && localProfile.memoryCore.enabled;
 
@@ -1532,26 +1530,26 @@ function renderBlocks(c) {
         const isSel = localProfile.blocks.includes(b.id);
         const isOverridden = activeEngine && activeEngine[b.id] && activeEngine[b.id].trim() !== "";
         
-        let isLocked = false;
-        let lockReason = "";
+        let isWarned = false;
+        let warnReason = "";
         
-        if (b.id === "info" && isMvuActive) { isLocked = true; lockReason = "Locked by MVU"; }
-        if (b.id === "summary" && isMemActive) { isLocked = true; lockReason = "Locked by Memory Core"; }
+        if (b.id === "info" && isMvuActive) { isWarned = true; warnReason = "Conflict with MVU"; }
+        if (b.id === "summary" && isMemActive) { isWarned = true; warnReason = "Conflict with Memory Core"; }
 
         let badges = '';
-        if (isLocked) {
-            badges += `<span class="ecard-badge locked" style="background:rgba(239,68,68,0.15);color:#ef4444;"><i class="fa-solid fa-lock"></i> ${lockReason}</span>`;
+        if (isWarned) {
+            badges += `<span class="ecard-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><i class="fa-solid fa-triangle-exclamation"></i> ${warnReason}</span>`;
         } else if (isOverridden) {
             badges += `<span class="ecard-badge override"><i class="fa-solid fa-code-branch"></i> Engine Override</span>`;
         }
 
         const card = $(`
-            <div class="mtab-eng-card ${isSel ? 'active' : ''} ${isLocked ? 'locked-card' : ''}" style="${isOverridden && !isSel && !isLocked ? 'border-color: rgba(16,185,129,0.4);' : ''}">
+            <div class="mtab-eng-card ${isSel ? 'active' : ''}" style="${isOverridden && !isSel ? 'border-color: rgba(16,185,129,0.4);' : ''}">
                 <div class="ecard-accent"></div>
                 <div class="ecard-body">
                     <div class="ecard-title">
                         <span>${b.label}</span>
-                        ${isSel && !isLocked ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
+                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
                     </div>
                     <p class="ecard-desc">${descriptions[b.id] || ""}</p>
                     ${badges ? `<div style="margin-top:4px;">${badges}</div>` : ''}
@@ -1559,22 +1557,19 @@ function renderBlocks(c) {
             </div>
         `);
         
-        if (!isLocked) {
-            card.on("click", (e) => {
-                if ($(e.target).closest("a").length) return;
-                if (isSel) {
-                    localProfile.blocks = localProfile.blocks.filter(i => i !== b.id);
-                } else {
-                    localProfile.blocks.push(b.id);
-                    // Mutual exclusions
-                    if (b.id === "npc_inner_chatter") localProfile.blocks = localProfile.blocks.filter(i => i !== "npc_inner_chatter_v2");
-                    else if (b.id === "npc_inner_chatter_v2") localProfile.blocks = localProfile.blocks.filter(i => i !== "npc_inner_chatter");
-                    // Auto-disable info when clicking MVU
-                    else if (b.id === "mvu") localProfile.blocks = localProfile.blocks.filter(i => i !== "info");
-                }
-                saveProfileToMemory(); switchTab(currentTab);
-            }); 
-        }
+        card.on("click", (e) => {
+            if ($(e.target).closest("a").length) return;
+            if (isSel) {
+                localProfile.blocks = localProfile.blocks.filter(i => i !== b.id);
+            } else {
+                localProfile.blocks.push(b.id);
+                // Mutual exclusions for inner chatter ONLY
+                if (b.id === "npc_inner_chatter") localProfile.blocks = localProfile.blocks.filter(i => i !== "npc_inner_chatter_v2");
+                else if (b.id === "npc_inner_chatter_v2") localProfile.blocks = localProfile.blocks.filter(i => i !== "npc_inner_chatter");
+            }
+            saveProfileToMemory(); switchTab(currentTab);
+        }); 
+        
         grid.append(card);
     });
 
@@ -1679,17 +1674,6 @@ function renderModels(c) {
     else if (localProfile.mode.includes("v7")) allowedCotTypes = ["v7", "v7-lite"];
     else if (localProfile.mode.includes("v8")) allowedCotTypes = ["v8"];
 
-    // Auto-fix if current CoT is incompatible with the selected engine
-    if (allowedCotTypes && currentType !== "off" && !allowedCotTypes.includes(currentType)) {
-        currentType = allowedCotTypes[0];
-        if (currentType === "v7") localProfile.model = `cot-v7-english`;
-        else if (currentType === "v7.5") localProfile.model = `cot-v7.5-english`;
-        else if (currentType === "v7-lite") localProfile.model = `cot-v7-lite-english`;
-        else if (currentType === "v8") localProfile.model = `cot-v8-english`;
-        else localProfile.model = `cot-${currentType}-english`;
-        saveProfileToMemory();
-    }
-
     if (!localProfile.thinkEffort) localProfile.thinkEffort = "unspecified";
     if (!localProfile.customThinkEffort) localProfile.customThinkEffort = "100";
 
@@ -1773,19 +1757,19 @@ function renderModels(c) {
     ];
     types.forEach(t => {
         const isSel = currentType === t.id;
-        const isLocked = allowedCotTypes !== null && !allowedCotTypes.includes(t.id);
+        const isWarned = allowedCotTypes !== null && !allowedCotTypes.includes(t.id);
         
         let badges = '';
-        if (isLocked) badges = `<span class="ecard-badge locked" style="background:rgba(239,68,68,0.15);color:#ef4444;"><i class="fa-solid fa-lock"></i> Incompatible Engine</span>`;
+        if (isWarned) badges = `<span class="ecard-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><i class="fa-solid fa-triangle-exclamation"></i> May be Incompatible</span>`;
         else if (t.isNew) badges = `<span class="ecard-badge new">New</span>`;
 
         const card = $(`
-            <div class="mtab-eng-card ${isSel && !isLocked ? 'active' : ''} ${isLocked ? 'locked-card' : ''}">
+            <div class="mtab-eng-card ${isSel ? 'active' : ''}">
                 <div class="ecard-accent"></div>
                 <div class="ecard-body">
                     <div class="ecard-title">
                         <span>${t.label}</span>
-                        ${isSel && !isLocked ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> Active</span>` : ''}
+                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> Active</span>` : ''}
                     </div>
                     <p class="ecard-desc">${t.desc}</p>
                     ${badges ? `<div style="margin-top:4px;">${badges}</div>` : ''}
@@ -1793,18 +1777,17 @@ function renderModels(c) {
             </div>
         `);
         
-        if (!isLocked) {
-            card.on("click", () => {
-                if (t.id === "v7") localProfile.model = `cot-v7-english`;
-                else if (t.id === "v7.5") localProfile.model = `cot-v7.5-english`;
-                else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;
-                else if (t.id === "v8") localProfile.model = `cot-v8-english`;
-                else localProfile.model = `cot-${t.id}-${currentLang}`;
-                saveProfileToMemory(); renderModels(c);
-            }); 
-        }
+        card.on("click", () => {
+            if (t.id === "v7") localProfile.model = `cot-v7-english`;
+            else if (t.id === "v7.5") localProfile.model = `cot-v7.5-english`;
+            else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;
+            else if (t.id === "v8") localProfile.model = `cot-v8-english`;
+            else localProfile.model = `cot-${t.id}-${currentLang}`;
+            saveProfileToMemory(); renderModels(c);
+        }); 
+        
         typeGrid.append(card);
-    }); 
+    });
     c.append(typeGrid);
 
     // ── LANGUAGE ──
@@ -2395,12 +2378,12 @@ function renderImageGen(c) {
                         <div style="flex: 2; min-width: 150px;">
                             <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Prompt Template</div>
                             <select id="ig_template" class="ps-modern-input" style="padding: 8px; font-size: 0.8rem; cursor: pointer;">
-                                <option value="illus_cinematic" ${s.promptTemplate === 'illus_cinematic' ? 'selected' : ''}>Illustrious + Cinematic</option>
-                                <option value="sdxl_cinematic" ${s.promptTemplate === 'sdxl_cinematic' ? 'selected' : ''}>SDXL + Cinematic</option>
-                                <option value="illus_pov" ${s.promptTemplate === 'illus_pov' ? 'selected' : ''}>Illustrious + POV</option>
-                                <option value="sdxl_pov" ${s.promptTemplate === 'sdxl_pov' ? 'selected' : ''}>SDXL + POV</option>
-                                <option value="illus_portrait" ${s.promptTemplate === 'illus_portrait' ? 'selected' : ''}>Illustrious + Portrait</option>
-                                <option value="sdxl_portrait" ${s.promptTemplate === 'sdxl_portrait' ? 'selected' : ''}>SDXL + Portrait</option>
+                                <option value="illus_cinematic" ${s.promptTemplate === 'illus_cinematic' ? 'selected' : ''}>Illustrious/Anima + Cinematic</option>
+                                <option value="sdxl_cinematic" ${s.promptTemplate === 'sdxl_cinematic' ? 'selected' : ''}>Z Image + Cinematic</option>
+                                <option value="illus_pov" ${s.promptTemplate === 'illus_pov' ? 'selected' : ''}>Illustrious/Anima + POV</option>
+                                <option value="sdxl_pov" ${s.promptTemplate === 'sdxl_pov' ? 'selected' : ''}>Z Image + POV</option>
+                                <option value="illus_portrait" ${s.promptTemplate === 'illus_portrait' ? 'selected' : ''}>Illustrious/Anima + Portrait</option>
+                                <option value="sdxl_portrait" ${s.promptTemplate === 'sdxl_portrait' ? 'selected' : ''}>Z Image + Portrait</option>
                             </select>
                         </div>
                         <div style="flex: 1; min-width: 100px;">
@@ -2505,16 +2488,16 @@ function renderImageGen(c) {
             { key: "injectionTemplate", label: "Image Injection Template", hint: "Tokens: <code>{{conditionalText}}</code>, <code>{{templateRules}}</code>, <code>{{promptExtra}}</code>, <code>{{directLanguage}}</code>, <code>{{npcImageTags}}</code>, <code>{{templateExamples}}</code>" },
             { key: "rulesIllusPov", label: "Rules: Illustrious + POV", hint: "" },
             { key: "examplesIllusPov", label: "Examples: Illustrious + POV", hint: "" },
-            { key: "rulesSdxlPov", label: "Rules: SDXL + POV", hint: "" },
-            { key: "examplesSdxlPov", label: "Examples: SDXL + POV", hint: "" },
+            { key: "rulesSdxlPov", label: "Rules: Z Image + POV", hint: "" },
+            { key: "examplesSdxlPov", label: "Examples: Z Image + POV", hint: "" },
             { key: "rulesIllusCinematic", label: "Rules: Illustrious + Cinematic", hint: "" },
             { key: "examplesIllusCinematic", label: "Examples: Illustrious + Cinematic", hint: "" },
-            { key: "rulesSdxlCinematic", label: "Rules: SDXL + Cinematic", hint: "" },
-            { key: "examplesSdxlCinematic", label: "Examples: SDXL + Cinematic", hint: "" },
+            { key: "rulesSdxlCinematic", label: "Rules: Z Image + Cinematic", hint: "" },
+            { key: "examplesSdxlCinematic", label: "Examples: Z Image + Cinematic", hint: "" },
             { key: "rulesIllusPortrait", label: "Rules: Illustrious + Portrait", hint: "" },
             { key: "examplesIllusPortrait", label: "Examples: Illustrious + Portrait", hint: "" },
-            { key: "rulesSdxlPortrait", label: "Rules: SDXL + Portrait", hint: "" },
-            { key: "examplesSdxlPortrait", label: "Examples: SDXL + Portrait", hint: "" }
+            { key: "rulesSdxlPortrait", label: "Rules: Z Image + Portrait", hint: "" },
+            { key: "examplesSdxlPortrait", label: "Examples: Z Image + Portrait", hint: "" }
         ],
         onSave: (val, key) => {
             if (!s.customPrompts) s.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.imageGen));
@@ -3636,11 +3619,6 @@ function renderMemoryCore(c) {
                 mem.triggerMode === "frequency") {
                 mem.triggerMode = "every";
                 isFirstEnable = true;
-            }
-            // Auto-disable Summary Block to prevent conflicts
-            if (localProfile.blocks && localProfile.blocks.includes("summary")) {
-                localProfile.blocks = localProfile.blocks.filter(i => i !== "summary");
-                toastr.info("Summary Block automatically disabled to prevent conflicts with Memory Core.", "Megumin Suite");
             }
         }
         
@@ -6921,7 +6899,11 @@ jQuery(async () => {
 
                 // Look for the <img prompt="..."> tags in the AI's response (supports multiple)
                 const imgRegexGlobal = /<img[^>]*?prompt=(["']?)([\s\S]*?)(?:\1\s*\/?>|\1\s*>|\1\s+[a-zA-Z]+=| \/>|>|$)/ig;
-                const matches = [...lastMsg.mes.matchAll(imgRegexGlobal)];
+                const allMatches = [...lastMsg.mes.matchAll(imgRegexGlobal)];
+
+                // FILTER: Ignore any image tags that appear inside the <think>...</think> block
+                const lastThinkEnd = lastMsg.mes.lastIndexOf("</think>");
+                const matches = allMatches.filter(m => m.index > lastThinkEnd);
 
                 if (matches.length > 0) {
                     const msgIndex = chat.length - 1;
@@ -6930,19 +6912,20 @@ jQuery(async () => {
                     
                     let modifiedMes = lastMsg.mes;
 
-                    matches.forEach((match, idx) => {
-                        const uniquePlaceholderId = `kazuma-img-${batchId}-${idx}`;
+                    // Iterate backwards so we can replace by exact index without shifting string positions
+                    for (let i = matches.length - 1; i >= 0; i--) {
+                        const match = matches[i];
+                        const uniquePlaceholderId = `kazuma-img-${batchId}-${i}`;
                         const placeholder = `<div id="${uniquePlaceholderId}" class="kazuma-img-placeholder" style="color:var(--gold); font-style: italic; margin: 10px 0;">[Generating Image...]</div>`;
 
                         if (injectMode === "inline") {
-                            modifiedMes = modifiedMes.replace(match[0], placeholder);
+                            modifiedMes = modifiedMes.substring(0, match.index) + placeholder + modifiedMes.substring(match.index + match[0].length);
                         } else {
-                            // Remove the raw tag from the chat text so the user doesn't see it
-                            modifiedMes = modifiedMes.replace(match[0], "").trim();
+                            modifiedMes = modifiedMes.substring(0, match.index) + modifiedMes.substring(match.index + match[0].length);
                         }
-                    });
+                    }
 
-                    lastMsg.mes = modifiedMes;
+                    lastMsg.mes = modifiedMes.trim();
                     await saveChat();
                     
                     // Delay UI update slightly so SillyTavern's internal handlers (like Reasoning) 
