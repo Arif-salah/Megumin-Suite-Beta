@@ -144,6 +144,7 @@ function initProfile() {
         userWordCountType: "max",
         userLanguage: "",
         userPronouns: "off",
+        userPov: "",
         devOverrides: {},
         banList: [],
         banListBackend: "direct",
@@ -264,6 +265,7 @@ function initProfile() {
     if (localProfile.npcBank && localProfile.npcBank.scanDepth === undefined) localProfile.npcBank.scanDepth = 60;
     if (localProfile.banListCustomPromptsEnabled === undefined) localProfile.banListCustomPromptsEnabled = false;
     if (localProfile.imageGen.injectNpcTags === undefined) localProfile.imageGen.injectNpcTags = false;
+    if (localProfile.userPov === undefined) localProfile.userPov = "";
     if (localProfile.storyPlan && localProfile.storyPlan.customPromptsEnabled === undefined) localProfile.storyPlan.customPromptsEnabled = false;
     if (localProfile.imageGen && localProfile.imageGen.customPromptsEnabled === undefined) localProfile.imageGen.customPromptsEnabled = false;
     if (localProfile.memoryCore && localProfile.memoryCore.customPromptsEnabled === undefined) localProfile.memoryCore.customPromptsEnabled = false;
@@ -573,8 +575,9 @@ function renderMode(c) {
         "v7-reality": "The V7 Reality engine. Grounded, unrelenting simulation with zero narrative protection.",
         "v7-gentle": "The V7 Gentle engine. A softer, For pussies.",
         "v7.5": "The Kismet engine. Focused purely on inescapable narrative momentum, pushing the story forward as the unseen author of fate.",
-        "v8-m": "The absolute pinnacle of the Megumin Suite. Unmatched in complex human psychology, authentic flawed dialogue, and autonomous, multi-layered story plotting.",
-        "v8-lite": "A streamlined, highly efficient version of Obsidian. Retains the core rules of psychology, dialogue, and momentum with a much lighter token footprint."
+        "v8-m": "Unmatched in complex human psychology, authentic flawed dialogue, and autonomous, multi-layered story plotting.",
+        "v8-lite": "A streamlined, highly efficient version of Obsidian. Retains the core rules of psychology, dialogue, and momentum with a much lighter token footprint.",
+        "v8-fusion": "The absolute pinnacle of the Megumin Suite. A hybrid engine mixing V8 Obsidian's deep psychology with V6 Dream Team's specialist writer room framework."
     };
 
     // Active engine name
@@ -1003,6 +1006,28 @@ function renderStyleLibrary(c) {
         localProfile.dnRatio.dialogue = parseInt($(this).val()); saveProfileToMemory();
     });
     sidebar.append(dnPanel);
+    // POV Selection Dropdown
+    const povPanel = $(`
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+            <div style="margin-bottom: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-eye" style="color: #a855f7; margin-right: 5px;"></i> Point of View</span>
+            </div>
+            <select id="ws_pov_select" class="ps-modern-input" style="padding: 6px; font-size: 0.75rem; cursor: pointer;">
+                <option value="" ${!localProfile.userPov ? 'selected' : ''}>Engine Default</option>
+                <option value="First-Person (I/me)" ${localProfile.userPov === 'First-Person (I/me)' ? 'selected' : ''}>First-Person (I/me)</option>
+                <option value="Second-Person (You)" ${localProfile.userPov === 'Second-Person (You)' ? 'selected' : ''}>Second-Person (You)</option>
+                <option value="Third-Person Limited" ${localProfile.userPov === 'Third-Person Limited' ? 'selected' : ''}>Third-Person Limited</option>
+                <option value="Third-Person Omniscient" ${localProfile.userPov === 'Third-Person Omniscient' ? 'selected' : ''}>Third-Person Omniscient</option>
+            </select>
+            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 5px;">Injects POV into Precooked Styles only.</div>
+        </div>
+    `);
+
+    povPanel.find("#ws_pov_select").on("change", function () {
+        localProfile.userPov = $(this).val(); 
+        saveProfileToMemory(); 
+    });
+    sidebar.append(povPanel);
     layout.append(sidebar);
 
     // --- BUILD MAIN CONTENT SECTIONS ---
@@ -1435,7 +1460,7 @@ function renderAddons(c) {
             <div class="mtab-toggle-row ${localProfile.toggles.promptPreview ? 'active' : ''}" id="ps_toggle_prompt_preview" style="margin-bottom: 16px;">
                 <div class="toggle-info">
                     <div class="toggle-label"><i class="fa-solid fa-magnifying-glass"></i> Prompt Payload Preview</div>
-                    <div class="toggle-desc">Show a popup of the final constructed prompt right before it is sent to the AI. only enable if you know what you doing it maybe buggy.</div>
+                    <div class="toggle-desc">Show a popup of the final constructed prompt right before it is sent to the AI.</div>
                 </div>
                 <div class="ps-switch"></div>
             </div>
@@ -1666,13 +1691,15 @@ function renderModels(c) {
     else if (localProfile.model && localProfile.model.startsWith("cot-v7.5-")) { currentType = "v7.5"; currentLang = localProfile.model.replace("cot-v7.5-", ""); }
     else if (localProfile.model && localProfile.model.startsWith("cot-v7-lite-")) { currentType = "v7-lite"; currentLang = localProfile.model.replace("cot-v7-lite-", ""); }
     else if (localProfile.model && localProfile.model.startsWith("cot-v7-")) { currentType = "v7"; currentLang = localProfile.model.replace("cot-v7-", ""); }
+    else if (localProfile.model && localProfile.model.startsWith("cot-v8-fusion-")) { currentType = "v8-fusion"; currentLang = localProfile.model.replace("cot-v8-fusion-", ""); }
     else if (localProfile.model && localProfile.model.startsWith("cot-v8-")) { currentType = "v8"; currentLang = localProfile.model.replace("cot-v8-", ""); }
     // ── DETERMINE ALLOWED CoTs ──
     let allowedCotTypes = null; // null means all allowed (V4, V5, custom)
     if (localProfile.mode.includes("v6")) allowedCotTypes = ["v6", "v6-lite"];
     else if (localProfile.mode === "v7.5") allowedCotTypes = ["v7.5"];
     else if (localProfile.mode.includes("v7")) allowedCotTypes = ["v7", "v7-lite"];
-    else if (localProfile.mode.includes("v8")) allowedCotTypes = ["v8"];
+    else if (localProfile.mode === "v8-fusion") allowedCotTypes = ["v8-fusion"]; 
+    else if (localProfile.mode.includes("v8")) allowedCotTypes = ["v8"]; 
 
     if (!localProfile.thinkEffort) localProfile.thinkEffort = "unspecified";
     if (!localProfile.customThinkEffort) localProfile.customThinkEffort = "100";
@@ -1740,10 +1767,6 @@ function renderModels(c) {
 
     // ── THINKING FRAMEWORK ──
     c.append(`<div class="wstyle-section-head purple"><i class="fa-solid fa-diagram-project"></i> Thinking Framework</div>`);
-    c.append(`<div class="mtab-callout" style="margin-bottom:12px; background: rgba(245,158,11,0.1); border-left: 3px solid #f59e0b; padding: 8px 12px; font-size: 0.8rem; color: var(--text-main);">
-        <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b; margin-right: 6px;"></i>
-        <strong>Important:</strong> When using GLM or DS4 models, you must disable "Main 3" and enable "Main 3 DS4 + GLM" in the Megumin Suite preset.
-    </div>`);
     const typeGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 20px;"></div>`);
     const types = [
         { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
@@ -1753,7 +1776,8 @@ function renderModels(c) {
         { id: "v7", label: "CoT V7", desc: "The new V7 sequence with 5-phase strict ground truth rebuilding.", isNew: true },
         { id: "v7-lite", label: "CoT V7 (Lite)", desc: "A streamlined 5-phase sequence for V7.", isNew: true },
         { id: "v7.5", label: "CoT V7.5 Kismet", desc: "The new V7.5 sequence focused on story engine mechanics.", isNew: true },
-        { id: "v8", label: "CoT V8", desc: "The new V8 narrative processing sequence.", isNew: true }
+        { id: "v8", label: "CoT V8", desc: "The new V8 narrative processing sequence.", isNew: true },
+        { id: "v8-fusion", label: "CoT V8 Fusion", desc: "The new V8 Fusion narrative processing sequence.", isNew: true }
     ];
     types.forEach(t => {
         const isSel = currentType === t.id;
@@ -1782,6 +1806,7 @@ function renderModels(c) {
             else if (t.id === "v7.5") localProfile.model = `cot-v7.5-english`;
             else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;
             else if (t.id === "v8") localProfile.model = `cot-v8-english`;
+            else if (t.id === "v8-fusion") localProfile.model = `cot-v8-fusion-english`;
             else localProfile.model = `cot-${t.id}-${currentLang}`;
             saveProfileToMemory(); renderModels(c);
         }); 
@@ -1799,7 +1824,7 @@ function renderModels(c) {
             { id: "french", label: "French (Français)" }, { id: "zh", label: "Mandarin (中文)" }, { id: "ru", label: "Russian (Русский)" },
             { id: "jp", label: "Japanese (日本語)" }, { id: "pt", label: "Portuguese (Português)" }
         ];
-        if (currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8") langs = [{ id: "english", label: "English" }];
+        if (currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8" || currentType === "v8-fusion") langs = [{ id: "english", label: "English" }];
         langs.forEach(l => {
             const isSel = currentLang === l.id;
             let badges = '';
@@ -5437,15 +5462,24 @@ function buildBaseDict() {
     // Standard Toggles & Addons
     if (localProfile.toggles.ooc) dict["[[OOC]]"] = hardcodedLogic.toggles.ooc.content;
     if (localProfile.toggles.control) dict["[[control]]"] = hardcodedLogic.toggles.control.content;
+    let povInjectionStr = "";
+    if (localProfile.aiRule) {
+        // Check if the current style is from the Precooked array
+        const isPrecooked = hardcodedLogic.directStyles.some(ds => ds.id === localProfile.activeStyleId);
+        if (isPrecooked && localProfile.userPov) {
+            povInjectionStr = `POV: ${localProfile.userPov}\n`;
+        }
+    }
+
     if (localProfile.mode === "v7.5") {
         let narratorPersona = localProfile.aiRule ? localProfile.aiRule : "Adopt the narration of an unseen, witty observer who is vividly present in the scene. The narrator has a distinct personality—dry, occasionally judgmental, quietly amused, or sharply critical. Feel free to throw subtle shade at terrible decisions, point out the absurdity of a situation, or comment on the scene's chaos with a bit of comedic flair.";
         
-        dict["[[aiprompt]]"] = `<Narration_style>\n narrator_persona: "${narratorPersona}"\n quarantine_rule: "CRITICAL: This opinionated voice applies STRICTLY and EXCLUSIVELY to the narration. It MUST NOT bleed into <NPC_dialogue>. NPCs do not share the narrator's wit or perspective; their dialogue remains entirely bound by their own demographics, stress levels, and individual flaws."\n proportional_prose: "Match narrative intensity to the event. A spilled coffee is just a minor annoyance, not a catalyst for dramatic prose. Zero purple prose. Use grounded metaphors sparingly to anchor a scene, not distract from it."\n</Narration_style>`;
+        dict["[[aiprompt]]"] = `<Narration_style>\n narrator_persona: "${povInjectionStr}${narratorPersona}"\n quarantine_rule: "CRITICAL: This opinionated voice applies STRICTLY and EXCLUSIVELY to the narration. It MUST NOT bleed into <NPC_dialogue>. NPCs do not share the narrator's wit or perspective; their dialogue remains entirely bound by their own demographics, stress levels, and individual flaws."\n proportional_prose: "Match narrative intensity to the event. A spilled coffee is just a minor annoyance, not a catalyst for dramatic prose. Zero purple prose. Use grounded metaphors sparingly to anchor a scene, not distract from it."\n</Narration_style>`;
     } else if (localProfile.aiRule) {
         if (isV7 && localProfile.activeStyleId !== "dir_v7" && localProfile.activeStyleId !== "dir_v7_core" && localProfile.activeStyleId !== "dir_v7_gentle") {
-            dict["[[aiprompt]]"] = `<narrative_style>\n voice: ${localProfile.aiRule}\n  pacing: "Unhurried where it should be. A quiet moment can take a paragraph. A violent one can take a sentence. Match the rhythm to the content."\n  length_directive: "Typical outputs should run 3–6 substantial paragraphs, scaling with scene density. Lean toward the higher end during rich, atmospheric, or multi-character scenes. Go shorter — even a single paragraph — only when the moment genuinely demands economy: a held breath, a door closing, a line that hits harder alone. Never pad, never rush."\n</narrative_style>`;
+            dict["[[aiprompt]]"] = `<narrative_style>\n voice: ${povInjectionStr}${localProfile.aiRule}\n  pacing: "Unhurried where it should be. A quiet moment can take a paragraph. A violent one can take a sentence. Match the rhythm to the content."\n  length_directive: "Typical outputs should run 3–6 substantial paragraphs, scaling with scene density. Lean toward the higher end during rich, atmospheric, or multi-character scenes. Go shorter — even a single paragraph — only when the moment genuinely demands economy: a held breath, a door closing, a line that hits harder alone. Never pad, never rush."\n</narrative_style>`;
         } else {
-            dict["[[aiprompt]]"] = localProfile.aiRule;
+            dict["[[aiprompt]]"] = povInjectionStr + localProfile.aiRule;
         }
     }
     localProfile.addons.forEach(aId => {
@@ -5455,9 +5489,9 @@ function buildBaseDict() {
 
     // Stage 5 Defaults (Format Blocks)
     localProfile.blocks.forEach(bId => {
-        // Prevent conflicts natively
-        if (bId === "info" && localProfile.blocks.includes("mvu")) return;
-        if (bId === "summary" && localProfile.memoryCore && localProfile.memoryCore.enabled) return;
+        // The UI handles the warning, so we allow the injection anyway:
+        // if (bId === "info" && localProfile.blocks.includes("mvu")) return;
+        // if (bId === "summary" && localProfile.memoryCore && localProfile.memoryCore.enabled) return;
 
         const item = hardcodedLogic.blocks.find(b => b.id === bId);
         if (item) dict[item.trigger] = item.content;
@@ -5588,6 +5622,18 @@ function buildBaseDict() {
                     dict["[[prompt4]]"] = dict["[[prompt4]]"].replace(/\s*introduction_protocol:\s*"[^"]*"/g, "");
                 }
             }
+        }
+        // V8 Dynamic Injection & Stripping
+        if (isV8) {
+            // 1. Inject [[aiprompt]] directly into the engine prompts (like p6) where the tag exists
+            const aiPromptVal = dict["[[aiprompt]]"] || "";
+            for (let i = 1; i <= 6; i++) {
+                if (dict[`[[prompt${i}]]`] && dict[`[[prompt${i}]]`].includes("[[aiprompt]]")) {
+                    dict[`[[prompt${i}]]`] = dict[`[[prompt${i}]]`].split("[[aiprompt]]").join(aiPromptVal);
+                }
+            }
+            // 2. Wipe [[aiprompt]] from the dictionary so it gets erased from the main ST Preset!
+            dict["[[aiprompt]]"] = "";
         }
     }
 
@@ -6163,8 +6209,20 @@ async function handlePromptInjection(data, type) {
         const confirmed = await popup.show();
 
         if (!confirmed) {
-            messages.length = 0; // Safely aborts ST generation
+            messages.length = 0; // Empty the payload
             toastr.info("Generation cancelled by user.");
+            
+            // FIX: Explicitly tell SillyTavern to abort to prevent Auto-Retry loops
+            if (typeof window.stopGeneration === 'function') {
+                window.stopGeneration();
+            }
+            // Fallback: visually click the stop buttons just in case
+            setTimeout(() => {
+                $("#mes_stop").trigger("click");
+                $("#send_but_sheld").trigger("click");
+            }, 10);
+            
+            return;
         }
     }
 }

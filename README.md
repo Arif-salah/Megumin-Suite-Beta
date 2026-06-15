@@ -1,3 +1,6 @@
+# beta 13/06/26
+* added v8 fusion.
+* added pov selection inside writing style tab for Precooked Styles only.
 # beta 12/06/26
 bug fixes and one change
 * fixed a bug when sometimes the wrong cot get injected
