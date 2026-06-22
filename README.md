@@ -1,3 +1,11 @@
+# beta 22/06/26
+* Custom Injection Thresholds: You can now manually set the maximum number of NPCs injected into a prompt using the UI.
+* Dynamic Blacklist: Added a text box to blacklist specific character names (e.g., pets, crowds) so the AI won't generate dossiers for them.
+* Automatic Blacklisting: In automatic mode (OOC Trigger Off), all currently saved NPCs are automatically ignored to prevent duplicate dossier generation.
+* TF-IDF Keyword Scoring Redesign:
+   * Exact NPC name matches receive a +50 score bonus to guarantee context injection.
+   * Generic keywords found in over 50% of saved NPCs are ignored to stop irrelevant character generation.
+* Better NPCs dossier for more NPC depth.
 # beta 13/06/26
 * added v8 fusion.
 * added pov selection inside writing style tab for Precooked Styles only.
@@ -8,28 +16,28 @@ bug fixes and one change
 changes:
 * removed all the locks and put a warning system Instead
 # beta 12/06/26
-** Massive Feature Overhaul & V8 Engines**
-* **V8 Obsidian & V8 Spark Engines:** Added the absolute pinnacle of the Megumin Suite (Obsidian) for unmatched human psychology and story plotting, along with a highly efficient lite version (Spark). 
-* **Engine Strict-Locking:** The UI now actively prevents you from breaking the AI. Selecting V8 completely locks the Persona & Toggles tab. CoT models are now strictly locked to their compatible engines (V6 can only use V6 CoT, V8 can only use V8 CoT, etc.).
-* **Smart Block Conflicts:** The Add-ons tab now auto-locks conflicting blocks. Turning on MVU locks out the World State block. Turning on Memory Core locks out the Summary block.
-* **Master Prompt Switches:** Added a master "Enable/Disable" toggle to all Advanced Prompt Editors across every tab. Keeps the engine safe from half-edited or broken prompt fields.
-* **Token Counter Calibration:** Calibrated the live token counter math to better match real API tokenizers. 
+ Massive Feature Overhaul & V8 Engines
+* V8 Obsidian & V8 Spark Engines: Added the absolute pinnacle of the Megumin Suite (Obsidian) for unmatched human psychology and story plotting, along with a highly efficient lite version (Spark). 
+* Engine Strict-Locking: The UI now actively prevents you from breaking the AI. Selecting V8 completely locks the Persona & Toggles tab. CoT models are now strictly locked to their compatible engines (V6 can only use V6 CoT, V8 can only use V8 CoT, etc.).
+* Smart Block Conflicts: The Add-ons tab now auto-locks conflicting blocks. Turning on MVU locks out the World State block. Turning on Memory Core locks out the Summary block.
+* Master Prompt Switches: Added a master "Enable/Disable" toggle to all Advanced Prompt Editors across every tab. Keeps the engine safe from half-edited or broken prompt fields.
+* Token Counter Calibration: Calibrated the live token counter math to better match real API tokenizers. 
 
-** Image Generation Upgrades**
-* **Prompt Templates:** Replaced the old style dropdowns with 6 highly optimized templates (Illustrious + POV, SDXL + Cinematic, etc.).
-* **new inline Injection:** send the pic in the response
-* **Dynamic Image Count:** You can now generate 1, 2, 3, or 4 images at a time (automatically syncs with MVU output!).
-* **Token Saver Toggles:** Added "Include Examples" and "Better Booru tags" toggles to let you customize prompt injection and save tokens.
-* **Inject NPC Tags:** The Image Generator can now automatically scan the scene and pull exact physical Booru tags from your saved NPCs!
+ Image Generation Upgrades
+* Prompt Templates: Replaced the old style dropdowns with 6 highly optimized templates (Illustrious + POV, SDXL + Cinematic, etc.).
+* new inline Injection: send the pic in the response
+* Dynamic Image Count: You can now generate 1, 2, 3, or 4 images at a time (automatically syncs with MVU output!).
+* Token Saver Toggles: Added "Include Examples" and "Better Booru tags" toggles to let you customize prompt injection and save tokens.
+* Inject NPC Tags: The Image Generator can now automatically scan the scene and pull exact physical Booru tags from your saved NPCs!
 
-** NPC Bank Overhaul**
-* **Dossier 2.0:** Upgraded the NPC extraction format with strict, detailed fields (Orientation, Voice, Secrets, Canon Lock, and dedicated Image Tags).
-* **OOC Trigger:** Save massive amounts of input tokens! The dossier template is now hidden from the AI *unless* you type "NPC" or "dossier" in your chat message.
-* **Image Tags Only Toggle:** Every saved NPC now has a button to hide their text dossier from the AI, while still allowing the Image Generator to read their physical appearance tags.
+ NPC Bank Overhaul
+* Dossier 2.0: Upgraded the NPC extraction format with strict, detailed fields (Orientation, Voice, Secrets, Canon Lock, and dedicated Image Tags).
+* OOC Trigger: Save massive amounts of input tokens! The dossier template is now hidden from the AI *unless* you type "NPC" or "dossier" in your chat message.
+* Image Tags Only Toggle: Every saved NPC now has a button to hide their text dossier from the AI, while still allowing the Image Generator to read their physical appearance tags.
 
-** UI & Regex Polish**
-* **Writing Style Redesign:** Completely redesigned the Writing Style tab into a sleek "Sidebar Dashboard" with a compact masonry grid and an integrated Dialogue/Narration Ratio slider.
-* **Aggressive Chat Cleaner:** Upgraded the internal regex cleaner to flawlessly scrub all ComfyUI wrappers, placeholders, and raw HTML from the chat history before the AI reads it.
+ UI & Regex Polish
+* Writing Style Redesign: Completely redesigned the Writing Style tab into a sleek "Sidebar Dashboard" with a compact masonry grid and an integrated Dialogue/Narration Ratio slider.
+* Aggressive Chat Cleaner: Upgraded the internal regex cleaner to flawlessly scrub all ComfyUI wrappers, placeholders, and raw HTML from the chat history before the AI reads it.
 * Fixed a bug where ComfyUI workflows wouldn't populate instantly when toggling Image Gen on.
 # beta 26/05/26
 * fixed memory core
@@ -97,9 +105,9 @@ Note: use only english COT for deepseek 4.
 # beta 01/04/26
 * fixed some misspelling.
 * redesigned the model tab to have more language options for the new v2 COT.
-* **Completely Overhauled Stage 3 (Writing Style):** Redesigned the UI from a grid into a clean, full-width list layout.
-* **Added Pre-Configured Templates:** Included 11 ready-to-use style templates (inspired by authors like George R.R. Martin, Stephen King, Jane Austen, etc.). You can now generate a complex rule directly from the library with one click!
-* **Added "No Style" Toggle:** Placed a convenient "Off" option at the top of the style library to easily disable extra writing directives without deleting your saved profiles.
+* Completely Overhauled Stage 3 (Writing Style): Redesigned the UI from a grid into a clean, full-width list layout.
+* Added Pre-Configured Templates: Included 11 ready-to-use style templates (inspired by authors like George R.R. Martin, Stephen King, Jane Austen, etc.). You can now generate a complex rule directly from the library with one click!
+* Added "No Style" Toggle: Placed a convenient "Off" option at the top of the style library to easily disable extra writing directives without deleting your saved profiles.
 
 # beta 31/03/26
 * added new test cot that aim for me NPCs agency and self goals.
@@ -109,23 +117,23 @@ Note: use only english COT for deepseek 4.
 * now the button is Draggable WOW
 # Beta 29/03/26
 
-**✨ New Features & Enhancements**
-*   **Style Profile Library:** Transitioned from a single writing style configuration to a comprehensive Library. Users can now create, save, and manage multiple style profiles for different needs.
-*   **Style Management:** Added quick-action buttons (**Regenerate, Edit, Delete**) to all style cards for faster workflow.
-*   **Iterative AI Refinement:** Introduced a new 7th stage (Beta) designed for AI self-correction, allowing the model to identify and rectify its own systemic writing habits.
-*   **Target Word Count Macro:** Added a new `[[count]]` macro in Stage 4 (Add-ons > Extra), allowing users to set specific maximum word counts for generated responses.
-*   **Advanced CoT Framework:** Completely overhauled the Chain of Thought (`<think>`) logic in Stage 6 for improved reasoning and output quality.
-*   **Multilingual Support:** Added full support for Japanese (日本語) within the Chain of Thought process.
-*   **Output Language Optimization:** The engine now defaults to English if the "Language Output" field is left blank, effectively preventing CoT leakage into the final response.
+✨ New Features & Enhancements
+*   Style Profile Library: Transitioned from a single writing style configuration to a comprehensive Library. Users can now create, save, and manage multiple style profiles for different needs.
+*   Style Management: Added quick-action buttons (Regenerate, Edit, Delete) to all style cards for faster workflow.
+*   Iterative AI Refinement: Introduced a new 7th stage (Beta) designed for AI self-correction, allowing the model to identify and rectify its own systemic writing habits.
+*   Target Word Count Macro: Added a new `[[count]]` macro in Stage 4 (Add-ons > Extra), allowing users to set specific maximum word counts for generated responses.
+*   Advanced CoT Framework: Completely overhauled the Chain of Thought (`<think>`) logic in Stage 6 for improved reasoning and output quality.
+*   Multilingual Support: Added full support for Japanese (日本語) within the Chain of Thought process.
+*   Output Language Optimization: The engine now defaults to English if the "Language Output" field is left blank, effectively preventing CoT leakage into the final response.
 
-**🛠️ Developer Tools & Safety**
-*   **Global Dev Mode Toggle:** Introduced a global override switch. When enabled, saving or restoring a prompt override applies the change across all profiles (Characters, Groups, and Defaults) simultaneously.
-*   **Prompt Safety Guard:** Implemented a fail-safe for the Global Dev Mode; `[[aiprompt]]` overrides are now restricted to local application to prevent the accidental erasure of unique style profiles.
+🛠️ Developer Tools & Safety
+*   Global Dev Mode Toggle: Introduced a global override switch. When enabled, saving or restoring a prompt override applies the change across all profiles (Characters, Groups, and Defaults) simultaneously.
+*   Prompt Safety Guard: Implemented a fail-safe for the Global Dev Mode; `[[aiprompt]]` overrides are now restricted to local application to prevent the accidental erasure of unique style profiles.
 
-**🐛 Bug Fixes & Optimizations**
-*   **Group Chat Compatibility:** Resolved issues preventing the extension from detecting group chat environments.
-*   **Stability Improvements:** Fixed a crash occurring when the "Generate Insights" button was triggered within the Style Editor during group chats.
-**Under-the-Hood Preset Improvements**
+🐛 Bug Fixes & Optimizations
+*   Group Chat Compatibility: Resolved issues preventing the extension from detecting group chat environments.
+*   Stability Improvements: Fixed a crash occurring when the "Generate Insights" button was triggered within the Style Editor during group chats.
+Under-the-Hood Preset Improvements
 Updated core prompting rules within `[[prompt3]]` to include:
 *   Better introduction of new NPCs
 *   Anti-passive voice enforcement

@@ -54,7 +54,7 @@ const DEFAULT_PROMPTS = {
         systemPrompt: "You are an expert AI image prompt engineer specializing in character portraits. Your job is to read a character's dossier and convert their visual description into a highly detailed image generation prompt for a portrait. You must adhere to the requested Style Constraint and Camera Perspective. Do not include quotes, conversational text, or explanations. Output ONLY the raw prompt text.",
         userPrompt: "Write a character portrait image generation prompt based on this NPC's dossier:\n\n<npc_dossier>\n{{npcText}}\n</npc_dossier>\n\nStyle Constraint: {{styleStr}}\nCamera Perspective: {{perspStr}}\nExtra Details: {{extraStr}}\n\nUse the character's appearance, age, sex, occupation, and personality to inform the visual. Output ONLY the raw image prompt text.",
         thinkingPrompt: "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main response must immediately follow </think>.\n\n<think>\nReflect in approximately 50-100 words on what this character looks like and what visual elements best capture them.\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}",
-        dossierTemplate: `<npc_dossier>\n  trigger: >\n    Generate EXACTLY ONCE when an NPC meets ALL three conditions in a single scene:\n      1. NAMED  — given a proper name or a name the PC will use again.\n      2. VOICED — speaks more than a transactional line (not "That'll be 5 credits").\n      3. STAKED — has a want, opinion, or role that can affect the story later.\n    DO NOT generate for: cashiers, bartenders, guards, crowds, one-line faces,\n    or anyone whose only function is set dressing.\n    NEVER regenerate for an NPC who already has a dossier.\n    treat the original dossier as locked canon.\n\n  format: >\n    Collapsible HTML details block. Dense, dashboard-style. No prose paragraphs\n    except the Background and Secrets fields. Everything else is fragments.\n\n  template: |\n    <details>\n    <summary>🆕 <b>New NPC: [Full Name]</b></summary>\n\n    **Name:** [Full name + nickname/alias] | **Age:** [#] | **Sex:** [M/F/Other] | **Orientation:** [if relevant to plot]\n    **Role:** [Specific current job or function in the scene]\n    **Where to Find Them:** [Default location / when they appear / how to reach them again]\n\n    **Appearance:** [2–3 sentences a reader can picture: build, face, hair, distinguishing marks, how they carry themselves.]\n\n    **Image Tags:** [Booru-style appearance tags — see image_tag_rule. Body & face only.]\n\n    **Voice:** [How they speak — cadence, accent, verbal tics, topics they dodge.]\n\n    **Background:** [3–5 sentences. Origin, how they got here, the event that shaped them. A life sketch, not a résumé. Include facts the PC may never learn.]\n\n    **Inner Circle:**\n    * [Name] — [Relationship] | [Age, status, current dynamic in one line]\n    * [Name] — [Relationship] | [Same format]\n    * [Name] — [Relationship] | [At least one the PC has not met and may never meet]\n\n    **Personality:**\n    * Defining traits: [2–3 contradictions shown as behavior, not labels]\n    * Core flaw: [The thing that gets them in trouble]\n    * Core fear: [What they protect against]\n    * Tell: [A physical/verbal tell when lying, nervous, or attracted]\n\n    **Read on the PC:** [What this NPC currently thinks of the player character + how that could shift]\n\n    **Current Agenda:** [Their main agenda in the story]\n\n    **Secrets (never narrated unless disclosed):**\n    * Tier 1 (semi-public): [Rumored or guessable with effort]\n    * Tier 2 (private): [Known only to inner circle]\n    * Tier 3 (buried): [The big one. Drives unpredictable behavior.]\n    * Reveal hook: [What event or pressure could surface these]\n\n    **Canon Lock:** [3–5 immutable facts that must never change across appearances — name, key relationships, defining marks, the buried secret.]\n\n    </details>\n\n  guidelines:\n    inner_circle_rule: >\n      Include 2–5 people. At least one must be off-screen and unknown to the\n      story (a mother, an ex, a childhood friend, a rival). These are future\n      plot seeds, not just flavor.\n    secrets_rule: >\n      Secrets are for YOU as the narrative engine. They drive behavior the PC\n      can't predict. Never reveal in narration unless the NPC actually discloses\n      them through action or dialogue. Higher tiers stay buried longer.\n    canon_lock_rule: >\n      Once written, these facts are fixed. Future scenes must stay consistent\n      with them. If a later scene needs a contradiction, surface it as a\n      revelation (the earlier info was a lie/misunderstanding), never a silent retcon.\n    image_tags: 12-20 comma-separated Booru tags. PHYSICAL ONLY. NO clothes/accessories/weapons/bg/pose/expression. MUST read as adult. Order: anchor(1girl/1boy/1other) -> hair(len,style,col) -> eyes(col,shape) -> skin tone -> body(type,build) -> age-app -> marks(scars,freckles,moles,tattoos,birthmarks).\n</npc_dossier>`
+        dossierTemplate: `### NPC DOSSIER:\n  trigger: >\n    Generate EXACTLY ONCE when an NPC meets ALL three conditions in a single scene:\n      1. NAMED  — given a proper name or a name the PC will use again.\n      2. VOICED — speaks more than a transactional line (not "That'll be 5 credits").\n      3. STAKED — has a want, opinion, or role that can affect the story later.\n    DO NOT generate for: cashiers, bartenders, guards, crowds, one-line faces,\n    or anyone whose only function is set dressing.\n    NEVER regenerate for an NPC who already has a dossier.\n    treat the original dossier as locked canon.\n\n  format: >\n    Collapsible HTML details block. Dense, dashboard-style. No prose paragraphs\n    except the Background and Secrets fields. Everything else is fragments.\n\n  template: |\n    <details>\n    <summary>🆕 <b>New NPC: [Full Name]</b></summary>\n\n    **Name:** [Full name + nickname/alias] | **Age:** [#] | **Sex:** [M/F/Other] | **Orientation:** [if relevant to plot]\n    **Role:** [Their actual occupation or place in the world, not just their immediate scene function]\n    **Where to Find Them:** [Where they live, work, or hang out off-screen. Extrapolate their general life. NEVER use temporary scene locations like 'the PC's bed' or 'the alley'.]\n\n    **Appearance:** [2–3 sentences a reader can picture: build, face, hair, distinguishing marks, how they carry themselves.]\n\n    **Image Tags:** [Booru-style appearance tags — see image_tag_rule. Body & face only.]\n\n    **Voice:** [How they speak — cadence, accent, verbal tics, topics they dodge.]\n\n    **Background:** [3–5 sentences. Origin, how they got here, the event that shaped them. A life sketch, not a résumé. Include facts the PC may never learn.]\n\n    **Inner Circle:**\n    * [Name] — [Relationship] | [Age, status, current dynamic in one line]\n    * [Name] — [Relationship] | [Same format]\n    * [Name] — [Relationship] | [At least one the PC has not met and may never meet]\n\n    **Personality:**\n    * Defining traits: [2–3 contradictions shown as behavior, not labels]\n    * Core flaw: [The thing that gets them in trouble]\n    * Core fear: [What they protect against]\n    * Tell: [A physical/verbal tell when lying, nervous, or attracted]\n\n    **Read on the PC:** [What this NPC currently thinks of the player character + how that could shift]\n\n    **Current Agenda:** [Their main agenda in the story]\n\n    **Secrets (never narrated unless disclosed):**\n    * Tier 1 (semi-public): [Rumored or guessable with effort]\n    * Tier 2 (private): [Known only to inner circle]\n    * Tier 3 (buried): [The big one. Drives unpredictable behavior.]\n    * Reveal hook: [What event or pressure could surface these]\n\n    **Canon Lock:** [3–5 immutable facts that must never change across appearances — name, key relationships, defining marks, the buried secret.]\n\n    </details>\n\n  guidelines:\n    standalone_person_rule: >\n      Treat the NPC as a persistent, living person with a life OUTSIDE the current scene.\n      Extrapolate their actual home, occupation, and daily routines based on context clues.\n      DO NOT define their existence solely by what they are doing right now.\n    inner_circle_rule: >\n      Include 2–5 people. At least one must be off-screen and unknown to the\n      story (a mother, an ex, a childhood friend, a rival). These are future\n      plot seeds, not just flavor.\n    secrets_rule: >\n      Secrets are for YOU as the narrative engine. They drive behavior the PC\n      can't predict. Never reveal in narration unless the NPC actually discloses\n      them through action or dialogue. Higher tiers stay buried longer.\n    canon_lock_rule: >\n      Once written, these facts are fixed. Future scenes must stay consistent\n      with them. If a later scene needs a contradiction, surface it as a\n      revelation (the earlier info was a lie/misunderstanding), never a silent retcon.\n    image_tags: 12-20 comma-separated Booru tags. PHYSICAL ONLY. NO clothes/accessories/weapons/bg/pose/expression. MUST read as adult. Order: anchor(1girl/1boy/1other) -> hair(len,style,col) -> eyes(col,shape) -> skin tone -> body(type,build) -> age-app -> marks(scars,freckles,moles,tattoos,birthmarks).\n`
     }
 };
 
@@ -208,10 +208,13 @@ function initProfile() {
         npcBank: {
             enabled: false,
             oocTrigger: false,
+            sendPortraitsToAi: false,
             npcs: [],
             customPrompts: null,
             customPromptsEnabled: false,
-            scanDepth: 60
+            scanDepth: 60,
+            ignoredNames: "",
+            injectionLimit: 3
         }
     };
 
@@ -271,6 +274,8 @@ function initProfile() {
     if (localProfile.memoryCore && localProfile.memoryCore.customPromptsEnabled === undefined) localProfile.memoryCore.customPromptsEnabled = false;
     if (localProfile.npcBank && localProfile.npcBank.customPromptsEnabled === undefined) localProfile.npcBank.customPromptsEnabled = false;
     if (localProfile.npcBank && localProfile.npcBank.oocTrigger === undefined) localProfile.npcBank.oocTrigger = false;
+    if (localProfile.npcBank && localProfile.npcBank.ignoredNames === undefined) localProfile.npcBank.ignoredNames = "";
+    if (localProfile.npcBank && localProfile.npcBank.injectionLimit === undefined) localProfile.npcBank.injectionLimit = 3;
     if (!localProfile.memoryCore) {
         localProfile.memoryCore = defaults.memoryCore;
     } else {
@@ -2938,6 +2943,7 @@ async function npcGeneratePfp(npcName) {
 function renderNpcBank(c) {
     c.empty();
     const nb = localProfile.npcBank;
+    if (nb.injectionLimit === undefined) nb.injectionLimit = 3;
 
     c.append(`
         <div class="mtab-header">
@@ -2955,43 +2961,73 @@ function renderNpcBank(c) {
             </div>
         </div>
 
-        <div class="mtab-toggle-row ${nb.enabled ? 'active' : ''}" id="npc_enable_card" style="margin-bottom: 10px;">
+        <!-- ROOT LEVEL ENABLE TOGGLE -->
+        <div class="mtab-toggle-row ${nb.enabled ? 'active' : ''}" id="npc_enable_card" style="margin-bottom: 20px;">
             <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-users" style="color:#f43f5e;"></i> Enable NPC Bank</div>
-                <div class="toggle-desc">When enabled, the AI generates detailed dossiers for new NPCs, which are saved here and injected when relevant.</div>
+                <div class="toggle-label" style="font-size: 1.05rem;"><i class="fa-solid fa-users" style="color:#f43f5e;"></i> Enable NPC Bank</div>
+                <div class="toggle-desc">When enabled, the AI generates detailed dossiers for new NPCs and injects them when relevant.</div>
             </div>
             <div class="ps-switch"></div>
         </div>
 
-        <div class="mtab-toggle-row ${nb.sendPortraitsToAi ? 'active' : ''}" id="npc_send_portraits" style="margin-bottom: 20px;">
-            <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-image" style="color:#a855f7;"></i> Send Portraits to AI</div>
-                <div class="toggle-desc">If an injected NPC has a portrait, send the image to the AI to help it visualize the character.</div>
-            </div>
-            <div class="ps-switch"></div>
-        </div>
-        <div class="mtab-toggle-row ${nb.oocTrigger ? 'active' : ''}" id="npc_ooc_trigger" style="margin-bottom: 10px;">
-            <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-comment-slash" style="color:#a855f7;"></i> OOC Trigger (Save Tokens)</div>
-                <div class="toggle-desc">When enabled, the blank NPC Dossier template (used to capture NEW characters) will ONLY be injected if the word <b>"NPC"</b> or <b>"dossier"</b> is detected in your latest message. example: (OOC: Make Npc doosier for luna.) <br><span style="color:var(--text-muted); font-size:0.7rem;"><i>(Known NPCs will still be injected normally to provide context).</i></span></div>
-            </div>
-            <div class="ps-switch"></div>
-        </div>
-
+        <!-- MAIN CONTENT BLOCK -->
         <div id="npc_main_content" style="display: ${nb.enabled ? 'block' : 'none'};">
             
-            <!-- Scanner Settings -->
-            <div class="mtab-panel" style="margin-top: 15px; margin-bottom: 16px;">
+            <!-- NEW CORE SETTINGS PANEL -->
+            <div class="mtab-panel" style="margin-bottom: 16px;">
+                <div class="mtab-panel-title purple" style="margin-bottom: 14px;"><i class="fa-solid fa-sliders"></i> Injection Settings</div>
+                
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="font-size: 0.75rem; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            OOC Trigger <i class="fa-solid fa-circle-question" title="When ON, Dossier Template ONLY injects if 'NPC' or 'dossier' is in your latest message." style="cursor: help; color: #a855f7;"></i>
+                        </div>
+                        <div class="ps-toggle-card ${nb.oocTrigger ? 'active' : ''}" id="npc_ooc_trigger" style="padding: 10px 14px; justify-content: space-between; background: rgba(0,0,0,0.2); border-color: ${nb.oocTrigger ? '#a855f7' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
+                            <span style="font-size: 0.75rem; color: ${nb.oocTrigger ? '#a855f7' : 'var(--text-muted)'}; font-weight: 600;">Manual Extract</span>
+                            <div class="ps-switch" style="transform: scale(0.8); ${nb.oocTrigger ? 'background: #a855f7;' : ''}"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="font-size: 0.75rem; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            Send Portraits <i class="fa-solid fa-circle-question" title="If an injected NPC has a portrait, send the image to the AI vision model." style="cursor: help; color: #a855f7;"></i>
+                        </div>
+                        <div class="ps-toggle-card ${nb.sendPortraitsToAi ? 'active' : ''}" id="npc_send_portraits" style="padding: 10px 14px; justify-content: space-between; background: rgba(0,0,0,0.2); border-color: ${nb.sendPortraitsToAi ? '#a855f7' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
+                            <span style="font-size: 0.75rem; color: ${nb.sendPortraitsToAi ? '#a855f7' : 'var(--text-muted)'}; font-weight: 600;">Multimodal</span>
+                            <div class="ps-switch" style="transform: scale(0.8); ${nb.sendPortraitsToAi ? 'background: #a855f7;' : ''}"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="font-size: 0.75rem; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            Max Injections <i class="fa-solid fa-circle-question" title="Limit how many NPCs are injected into the prompt at once." style="cursor: help; color: #a855f7;"></i>
+                        </div>
+                        <input type="number" id="npc_injection_limit" class="ps-modern-input" value="${nb.injectionLimit}" min="1" max="20" style="padding: 10px 14px; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2);" />
+                    </div>
+                </div>
+
+                <div class="mtab-setting-row" style="padding-bottom: 0; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.05); align-items: flex-start; flex-direction: column;">
+                    <div class="set-info" style="width: 100%; margin-bottom: 8px;">
+                        <div class="set-label" style="color: #ef4444;"><i class="fa-solid fa-user-slash"></i> Ignore List (Do Not Extract)</div>
+                        <div class="set-desc">Comma-separated names the AI should NEVER make a dossier for (e.g., background characters).</div>
+                    </div>
+                    <input type="text" id="npc_ignored_names" class="ps-modern-input" value="${nb.ignoredNames || ''}" placeholder="e.g. Fluffy, Guards, The Bartender..." style="width: 100%; background: rgba(0,0,0,0.2);" />
+                </div>
+            </div>
+
+            <!-- SCANNER SETTINGS PANEL -->
+            <div class="mtab-panel" style="margin-bottom: 16px;">
                 <div class="mtab-panel-title gold" style="margin-bottom: 10px;"><i class="fa-solid fa-gears"></i> Scanner Settings</div>
                 <div class="mtab-setting-row" style="padding-bottom: 0; border: none;">
                     <div class="set-info">
                         <div class="set-label">Scan Depth (Messages)</div>
                         <div class="set-desc">How many recent messages to read when clicking "Scan Story".<br><span style="color:var(--gold); font-weight: 600;">⚠️ Note: High numbers consume massive context limits and API tokens!</span></div>
                     </div>
-                    <input type="number" id="npc_scan_depth" class="ps-modern-input" value="${nb.scanDepth || 60}" min="10" style="width: 90px; text-align: center;" />
+                    <input type="number" id="npc_scan_depth" class="ps-modern-input" value="${nb.scanDepth || 60}" min="10" style="width: 90px; text-align: center; background: rgba(0,0,0,0.2);" />
                 </div>
             </div>
 
+            <!-- SAVED NPCs -->
             <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <div style="color: #f43f5e; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-address-card"></i> Saved NPCs <span id="npc_count" style="color: var(--text-muted); font-size: 0.75rem; margin-left: 8px;">(${(nb.npcs || []).length})</span></div>
@@ -3005,34 +3041,31 @@ function renderNpcBank(c) {
             </div>
         </div>
     `);
+
     // --- PROMPT EDITOR UI ---
-        const npcEditor = renderPromptEditor({
-            id: "npc_prompt_editor",
-            title: "Advanced: Edit NPC Prompts",
-            defaultData: DEFAULT_PROMPTS.npcBank,
-            currentData: nb.customPrompts,
-            enabled: nb.customPromptsEnabled, // <-- NEW
-            onToggle: (val) => { nb.customPromptsEnabled = val; saveProfileToMemory(); }, // <-- NEW
-            fields: [
-                { key: "systemPrompt", label: "Portrait AI: System Prompt", hint: "AI role definition for image generation." },
-                { key: "userPrompt", label: "Portrait AI: User Task Prompt", hint: "Tokens: <code>{{npcText}}</code>, <code>{{styleStr}}</code>, <code>{{perspStr}}</code>, <code>{{extraStr}}</code>" },
-                { key: "thinkingPrompt", label: "Portrait AI: Thinking Instructions", hint: "Must include output ordering instructions." },
-                { key: "dossierTemplate", label: "Chat AI: Dossier Injection Template", hint: "The strict format template the main AI uses to extract and format new NPCs into the chat." }
-            ],
-            onSave: (val, key) => {
-                if (!nb.customPrompts) nb.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.npcBank));
-                nb.customPrompts[key] = val;
-                saveProfileToMemory();
-                return nb.customPrompts;
-            },
-            onReset: () => {
-            nb.customPrompts = null;
-            saveProfileToMemory();
-        }
+    const npcEditor = renderPromptEditor({
+        id: "npc_prompt_editor",
+        title: "Advanced: Edit NPC Prompts",
+        defaultData: DEFAULT_PROMPTS.npcBank,
+        currentData: nb.customPrompts,
+        enabled: nb.customPromptsEnabled,
+        onToggle: (val) => { nb.customPromptsEnabled = val; saveProfileToMemory(); },
+        fields: [
+            { key: "systemPrompt", label: "Portrait AI: System Prompt", hint: "AI role definition for image generation." },
+            { key: "userPrompt", label: "Portrait AI: User Task Prompt", hint: "Tokens: <code>{{npcText}}</code>, <code>{{styleStr}}</code>, <code>{{perspStr}}</code>, <code>{{extraStr}}</code>" },
+            { key: "thinkingPrompt", label: "Portrait AI: Thinking Instructions", hint: "Must include output ordering instructions." },
+            { key: "dossierTemplate", label: "Chat AI: Dossier Injection Template", hint: "The strict format template the main AI uses to extract and format new NPCs into the chat." }
+        ],
+        onSave: (val, key) => {
+            if (!nb.customPrompts) nb.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.npcBank));
+            nb.customPrompts[key] = val; saveProfileToMemory(); return nb.customPrompts;
+        },
+        onReset: () => { nb.customPrompts = null; saveProfileToMemory(); }
     });
 
     c.find('#npc_main_content').append(npcEditor);
 
+    // --- EVENT LISTENERS ---
     $("#npc_enable_card").on("click", function () {
         nb.enabled = !nb.enabled; saveProfileToMemory();
         if (nb.enabled) {
@@ -3050,18 +3083,39 @@ function renderNpcBank(c) {
     $("#npc_ooc_trigger").on("click", function () {
         nb.oocTrigger = !nb.oocTrigger; saveProfileToMemory();
         if (nb.oocTrigger) {
-            $(this).addClass("active").css("border-color", "var(--gold)");
+            $(this).addClass("active").css("border-color", "#a855f7").find("span").css("color", "#a855f7");
+            $(this).find(".ps-switch").css("background", "#a855f7");
         } else {
-            $(this).removeClass("active").css("border-color", "var(--border-color)");
+            $(this).removeClass("active").css("border-color", "var(--border-color)").find("span").css("color", "var(--text-muted)");
+            $(this).find(".ps-switch").css("background", "");
         }
+    });
+
+    $("#npc_send_portraits").on("click", function () {
+        nb.sendPortraitsToAi = !nb.sendPortraitsToAi; saveProfileToMemory();
+        if (nb.sendPortraitsToAi) {
+            $(this).addClass("active").css("border-color", "#a855f7").find("span").css("color", "#a855f7");
+            $(this).find(".ps-switch").css("background", "#a855f7");
+        } else {
+            $(this).removeClass("active").css("border-color", "var(--border-color)").find("span").css("color", "var(--text-muted)");
+            $(this).find(".ps-switch").css("background", "");
+        }
+    });
+
+    $("#npc_injection_limit").on("input change", function() {
+        nb.injectionLimit = Math.max(1, parseInt($(this).val()) || 3);
+        saveProfileToMemory();
+    });
+
+    $("#npc_ignored_names").on("input", function() {
+        nb.ignoredNames = $(this).val();
+        saveProfileToMemory();
     });
 
     $("#npc_btn_clear_all").on("click", function () {
         if (!localProfile.npcBank.npcs || localProfile.npcBank.npcs.length === 0) return;
         if (confirm("Are you sure you want to delete all saved NPCs? This cannot be undone.")) {
-            localProfile.npcBank.npcs = [];
-            saveProfileToMemory();
-            renderNpcList();
+            localProfile.npcBank.npcs = []; saveProfileToMemory(); renderNpcList();
         }
     });
 
@@ -3079,8 +3133,7 @@ function renderNpcBank(c) {
             let rawOutput = await generateQuietPrompt({ prompt: "___PS_NPC_SCAN___" });
             
             const npcRegex = /<details>[\s\S]*?<summary>.*?New NPC:\s*(.*?)<\/summary>([\s\S]*?)<\/details>/ig;
-            let match;
-            let addedCount = 0;
+            let match; let addedCount = 0;
             while ((match = npcRegex.exec(rawOutput)) !== null) {
                 const npcName = match[1].trim().replace(/<\/?b>/ig, "");
                 const npcContent = match[0].trim();
@@ -3088,60 +3141,24 @@ function renderNpcBank(c) {
                 if (!localProfile.npcBank.npcs.find(n => (n.name || "").trim().toLowerCase() === npcName.toLowerCase())) {
                     const parsed = npcParseBlock(npcContent);
                     localProfile.npcBank.npcs.push({
-                        name: parsed.name || npcName,
-                        age: parsed.age || "",
-                        sex: parsed.sex || "",
-                        orientation: parsed.orientation || "",
-                        role: parsed.role || "",
-                        whereToFind: parsed.whereToFind || "",
-                        appearance: parsed.appearance || "",
-                        imageTags: parsed.imageTags || "",
-                        imageOnly: false,
-                        voice: parsed.voice || "",
-                        background: parsed.background || "",
-                        innerCircle: parsed.innerCircle || "",
-                        personality: parsed.personality || "",
-                        readOnPc: parsed.readOnPc || "",
-                        agenda: parsed.agenda || "",
-                        secrets: parsed.secrets || "",
-                        canonLock: parsed.canonLock || "",
-                        pfp: "",
-                        timestamp: Date.now()
+                        name: parsed.name || npcName, age: parsed.age || "", sex: parsed.sex || "", orientation: parsed.orientation || "",
+                        role: parsed.role || "", whereToFind: parsed.whereToFind || "", appearance: parsed.appearance || "", imageTags: parsed.imageTags || "",
+                        imageOnly: false, voice: parsed.voice || "", background: parsed.background || "", innerCircle: parsed.innerCircle || "",
+                        personality: parsed.personality || "", readOnPc: parsed.readOnPc || "", agenda: parsed.agenda || "", secrets: parsed.secrets || "",
+                        canonLock: parsed.canonLock || "", pfp: "", timestamp: Date.now()
                     });
                     addedCount++;
                 }
             }
-            
-            if (addedCount > 0) {
-                saveProfileToMemory();
-                renderNpcList();
-                toastr.success(`Found and added ${addedCount} new NPC(s)!`);
-            } else {
-                toastr.info("No new significant NPCs found in the story.");
-            }
-        } catch (e) {
-            console.error("NPC Scan Error:", e);
-            toastr.error("Failed to scan story for NPCs.");
-        } finally {
-            activeNpcScanRequest = null;
-            btn.prop("disabled", false).html(`<i class="fa-solid fa-radar"></i> Scan Story`);
-        }
-    });
-
-    $("#npc_send_portraits").on("click", function () {
-        nb.sendPortraitsToAi = !nb.sendPortraitsToAi; saveProfileToMemory();
-        if (nb.sendPortraitsToAi) {
-            $(this).addClass("active").css("border-color", "var(--gold)");
-        } else {
-            $(this).removeClass("active").css("border-color", "var(--border-color)");
-        }
+            if (addedCount > 0) { saveProfileToMemory(); renderNpcList(); toastr.success(`Found and added ${addedCount} new NPC(s)!`); } 
+            else { toastr.info("No new significant NPCs found in the story."); }
+        } catch (e) { toastr.error("Failed to scan story for NPCs."); } 
+        finally { activeNpcScanRequest = null; btn.prop("disabled", false).html(`<i class="fa-solid fa-radar"></i> Scan Story`); }
     });
 
     $("#npc_scan_depth").on("input change", function() {
-        let val = parseInt($(this).val());
-        if (isNaN(val) || val < 1) val = 60;
-        localProfile.npcBank.scanDepth = val;
-        saveProfileToMemory();
+        let val = parseInt($(this).val()); if (isNaN(val) || val < 1) val = 60;
+        localProfile.npcBank.scanDepth = val; saveProfileToMemory();
     });
 
     if (nb.enabled) renderNpcList();
@@ -5850,44 +5867,91 @@ function buildBaseDict() {
             }
         }
 
+        // --- Construct Ignore List ---
+        let knownNamesText = "";
+        let ignoredArr = [];
+        if (localProfile.npcBank.npcs && localProfile.npcBank.npcs.length > 0) {
+            ignoredArr.push(...localProfile.npcBank.npcs.map(n => n.name));
+        }
+        if (localProfile.npcBank.ignoredNames) {
+            ignoredArr.push(...localProfile.npcBank.ignoredNames.split(',').map(s => s.trim()).filter(s => s));
+        }
+        ignoredArr = [...new Set(ignoredArr)];
+        
+        if (ignoredArr.length > 0) {
+            knownNamesText = `[CRITICAL RULE: DO NOT generate a dossier for the following already-known or ignored characters: ${ignoredArr.join(", ")}]\n\n`;
+        }
+
         if (allowDossierInjection) {
-            // Use custom prompt if it exists, otherwise use default
             const nbPrompts = (localProfile.npcBank.customPromptsEnabled && localProfile.npcBank.customPrompts) ? localProfile.npcBank.customPrompts : DEFAULT_PROMPTS.npcBank;
             
-            dict["[[npc_dossier]]"] = nbPrompts.dossierTemplate;
+            // Inject Ignore List alongside the Dossier Rules!
+            dict["[[npc_dossier]]"] = nbPrompts.dossierTemplate + knownNamesText;
             dict["[[npc_dossier2]]"] = "[NPC Dossier block here]";
         }
 
-        // --- NPC List Injection (Always runs to provide context of known NPCs) ---
+        // --- NPC List Injection (TF-IDF Context Recall) ---
         if (localProfile.npcBank.npcs && localProfile.npcBank.npcs.length > 0) {
             const context = typeof getContext === 'function' ? getContext() : null;
             if (context && context.chat) {
                 const recentText = context.chat.filter(m => !m.is_system).slice(-4).map(m => meguminCleanChatHistoryText(m.mes)).join(" ").toLowerCase();
                 const keywords = typeof memExtractKeywords === 'function' ? memExtractKeywords(recentText) : [];
+                
                 if (keywords.length > 0) {
                     let scoredNpcs = [];
+                    const totalNpcs = localProfile.npcBank.npcs.length;
+
                     localProfile.npcBank.npcs.forEach(n => {
-                        if (n.imageOnly) return;
+                        if (n.imageOnly) return; // Skip if "Image Tags Only" is toggled
                         
                         let score = 0;
                         let matchedWords = [];
                         const contentLower = npcBuildTextFromData(n).toLowerCase();
+                        
                         keywords.forEach(kw => {
-                            if (contentLower.includes(kw)) { score++; matchedWords.push(kw); }
+                            if (contentLower.includes(kw)) {
+                                // TF-IDF Anti-Spam: How many NPCs share this word?
+                                let occurrences = 0;
+                                localProfile.npcBank.npcs.forEach(doc => {
+                                    if (npcBuildTextFromData(doc).toLowerCase().includes(kw)) occurrences++;
+                                });
+
+                                // If the word is too common (>50% of NPCs have it), ignore it completely!
+                                if (totalNpcs <= 2 || occurrences <= Math.ceil(totalNpcs * 0.5)) {
+                                    // Weight the score: rare words give more points
+                                    let weight = Math.max(1, Math.round(10 / occurrences));
+                                    
+                                    // Massive bonus if the keyword matches the NPC's actual name
+                                    if (n.name.toLowerCase().includes(kw)) {
+                                        weight += 50;
+                                    }
+                                    
+                                    score += weight;
+                                    matchedWords.push(`${kw}(+${weight})`);
+                                }
+                            }
                         });
+                        
+                        // Require at least 1 point to be considered "relevant"
                         if (score >= 1) {
                             scoredNpcs.push({ ...n, score, matchedWords });
                         }
                     });
-                    scoredNpcs.sort((a, b) => b.score - a.score);
-                    const topNpcs = scoredNpcs.slice(0, 3);
-                    if (topNpcs.length > 0) {
+                    
+                    if (scoredNpcs.length > 0) {
+                        // Sort by highest score
+                        scoredNpcs.sort((a, b) => b.score - a.score);
+                        
+                        // Enforce the Injection Limit chosen in the UI
+                        const limit = localProfile.npcBank.injectionLimit || 3;
+                        const topNpcs = scoredNpcs.slice(0, limit);
+                        
                         let npcXML = "<retrieved_npcs>\n";
                         topNpcs.forEach(n => { npcXML += `<${n.name}>\n${npcBuildTextFromData(n)}\n</${n.name}>\n\n`; });
                         npcXML += "</retrieved_npcs>";
+                        
                         dict["[[npc list]]"] = `[RELEVANT NPCs]\nThe following are details of known NPCs relevant to the current context:\n${npcXML}`;
 
-                        // Collect pfp images for multimodal injection if enabled
                         activeNpcImages = [];
                         if (localProfile.npcBank.sendPortraitsToAi) {
                             topNpcs.forEach(n => {
