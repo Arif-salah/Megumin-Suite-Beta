@@ -1,3 +1,8 @@
+# beta 24/06/26
+ImageGen Fixes
+* Positive Prefix Box: Added a special text box to insert global tags (like `score_9, masterpiece,`) right at the start of your prompt before it reaches ComfyUI.
+* Smart LoRA “Trigger Words” Memory: Added text boxes for trigger words underneath each of the 4 LoRA slots. and the system will remembers your trigger words: whenever you select one of your used LoRAs from the dropdown list, it will fill the corresponding trigger words automatically!
+* “Dice” Seed Button: Added a convenient dice icon next to the Seed input that sets the seed to `-1` (Random).
 # beta 22/06/26
 * Custom Injection Thresholds: You can now manually set the maximum number of NPCs injected into a prompt using the UI.
 * Dynamic Blacklist: Added a text box to blacklist specific character names (e.g., pets, crowds) so the AI won't generate dossiers for them.

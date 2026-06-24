@@ -54,7 +54,7 @@ const DEFAULT_PROMPTS = {
         systemPrompt: "You are an expert AI image prompt engineer specializing in character portraits. Your job is to read a character's dossier and convert their visual description into a highly detailed image generation prompt for a portrait. You must adhere to the requested Style Constraint and Camera Perspective. Do not include quotes, conversational text, or explanations. Output ONLY the raw prompt text.",
         userPrompt: "Write a character portrait image generation prompt based on this NPC's dossier:\n\n<npc_dossier>\n{{npcText}}\n</npc_dossier>\n\nStyle Constraint: {{styleStr}}\nCamera Perspective: {{perspStr}}\nExtra Details: {{extraStr}}\n\nUse the character's appearance, age, sex, occupation, and personality to inform the visual. Output ONLY the raw image prompt text.",
         thinkingPrompt: "<thinking_steps>\nBefore creating the response, think deeply.\n\nThoughts must be wrapped in <think></think>. The first token must be <think>. The main response must immediately follow </think>.\n\n<think>\nReflect in approximately 50-100 words on what this character looks like and what visual elements best capture them.\n\n</think>\n</thinking_steps>\n\n[OUTPUT ORDER]\n    Every response must follow this exact structure in this exact order:\n\n    <think>\n    {Thinking}\n    </think>\n\n    {Main response}",
-        dossierTemplate: `### NPC DOSSIER:\n  trigger: >\n    Generate EXACTLY ONCE when an NPC meets ALL three conditions in a single scene:\n      1. NAMED  — given a proper name or a name the PC will use again.\n      2. VOICED — speaks more than a transactional line (not "That'll be 5 credits").\n      3. STAKED — has a want, opinion, or role that can affect the story later.\n    DO NOT generate for: cashiers, bartenders, guards, crowds, one-line faces,\n    or anyone whose only function is set dressing.\n    NEVER regenerate for an NPC who already has a dossier.\n    treat the original dossier as locked canon.\n\n  format: >\n    Collapsible HTML details block. Dense, dashboard-style. No prose paragraphs\n    except the Background and Secrets fields. Everything else is fragments.\n\n  template: |\n    <details>\n    <summary>🆕 <b>New NPC: [Full Name]</b></summary>\n\n    **Name:** [Full name + nickname/alias] | **Age:** [#] | **Sex:** [M/F/Other] | **Orientation:** [if relevant to plot]\n    **Role:** [Their actual occupation or place in the world, not just their immediate scene function]\n    **Where to Find Them:** [Where they live, work, or hang out off-screen. Extrapolate their general life. NEVER use temporary scene locations like 'the PC's bed' or 'the alley'.]\n\n    **Appearance:** [2–3 sentences a reader can picture: build, face, hair, distinguishing marks, how they carry themselves.]\n\n    **Image Tags:** [Booru-style appearance tags — see image_tag_rule. Body & face only.]\n\n    **Voice:** [How they speak — cadence, accent, verbal tics, topics they dodge.]\n\n    **Background:** [3–5 sentences. Origin, how they got here, the event that shaped them. A life sketch, not a résumé. Include facts the PC may never learn.]\n\n    **Inner Circle:**\n    * [Name] — [Relationship] | [Age, status, current dynamic in one line]\n    * [Name] — [Relationship] | [Same format]\n    * [Name] — [Relationship] | [At least one the PC has not met and may never meet]\n\n    **Personality:**\n    * Defining traits: [2–3 contradictions shown as behavior, not labels]\n    * Core flaw: [The thing that gets them in trouble]\n    * Core fear: [What they protect against]\n    * Tell: [A physical/verbal tell when lying, nervous, or attracted]\n\n    **Read on the PC:** [What this NPC currently thinks of the player character + how that could shift]\n\n    **Current Agenda:** [Their main agenda in the story]\n\n    **Secrets (never narrated unless disclosed):**\n    * Tier 1 (semi-public): [Rumored or guessable with effort]\n    * Tier 2 (private): [Known only to inner circle]\n    * Tier 3 (buried): [The big one. Drives unpredictable behavior.]\n    * Reveal hook: [What event or pressure could surface these]\n\n    **Canon Lock:** [3–5 immutable facts that must never change across appearances — name, key relationships, defining marks, the buried secret.]\n\n    </details>\n\n  guidelines:\n    standalone_person_rule: >\n      Treat the NPC as a persistent, living person with a life OUTSIDE the current scene.\n      Extrapolate their actual home, occupation, and daily routines based on context clues.\n      DO NOT define their existence solely by what they are doing right now.\n    inner_circle_rule: >\n      Include 2–5 people. At least one must be off-screen and unknown to the\n      story (a mother, an ex, a childhood friend, a rival). These are future\n      plot seeds, not just flavor.\n    secrets_rule: >\n      Secrets are for YOU as the narrative engine. They drive behavior the PC\n      can't predict. Never reveal in narration unless the NPC actually discloses\n      them through action or dialogue. Higher tiers stay buried longer.\n    canon_lock_rule: >\n      Once written, these facts are fixed. Future scenes must stay consistent\n      with them. If a later scene needs a contradiction, surface it as a\n      revelation (the earlier info was a lie/misunderstanding), never a silent retcon.\n    image_tags: 12-20 comma-separated Booru tags. PHYSICAL ONLY. NO clothes/accessories/weapons/bg/pose/expression. MUST read as adult. Order: anchor(1girl/1boy/1other) -> hair(len,style,col) -> eyes(col,shape) -> skin tone -> body(type,build) -> age-app -> marks(scars,freckles,moles,tattoos,birthmarks).\n`
+        dossierTemplate: `### NPC DOSSIER:\n  trigger: >\n    Generate EXACTLY ONCE when an NPC meets ALL three conditions in a single scene:\n      1. NAMED  — given a proper name or a name the PC will use again.\n      2. VOICED — speaks more than a transactional line (not "That'll be 5 credits").\n      3. STAKED — has a want, opinion, or role that can affect the story later.\n    DO NOT generate for: cashiers, bartenders, guards, crowds, one-line faces,\n    or anyone whose only function is set dressing.\n    NEVER regenerate for an NPC who already has a dossier.\n    treat the original dossier as locked canon.\n\n  format: >\n    Collapsible HTML details block. Dense, dashboard-style. No prose paragraphs\n    except the Background and Secrets fields. Everything else is fragments.\n\n  template: |\n    <details>\n    <summary>🆕 <b>New NPC: [Full Name]</b></summary>\n\n    **Name:** [Full name + nickname/alias] | **Age:** [#] | **Sex:** [M/F/Other] | **Orientation:** [if relevant to plot]\n    **Role:** [Their actual occupation or place in the world, not just their immediate scene function]\n    **Where to Find Them:** [Where they live, work, or hang out off-screen. Extrapolate their general life. NEVER use temporary scene locations like 'the PC's bed' or 'the alley'.]\n\n    **Appearance:** [2–3 sentences a reader can picture: build, face, hair, distinguishing marks, how they carry themselves.]\n\n    **Image Tags:** [Booru-style appearance tags — see image_tag_rule. Body & face only.]\n\n    **Voice:** [How they speak — cadence, accent, verbal tics, topics they dodge.]\n\n    **Background:** [3–5 sentences. Origin, how they got here, the event that shaped them. A life sketch, not a résumé. Include facts the PC may never learn.]\n\n    **Inner Circle:**\n    * [Name] — [Relationship] | [Age, status, current dynamic in one line]\n    * [Name] — [Relationship] | [Same format]\n    * [Name] — [Relationship] | [At least one the PC has not met and may never meet]\n\n    **Personality:**\n    * Defining traits: [2–3 contradictions shown as behavior, not labels]\n    * Core flaw: [The thing that gets them in trouble]\n    * Core fear: [What they protect against]\n    * Tell: [A physical/verbal tell when lying, nervous, or attracted]\n\n    **Read on the PC:** [What this NPC currently thinks of the player character + how that could shift]\n\n    **Agenda:** [Their main agenda in the story]\n\n    **Secrets (never narrated unless disclosed):**\n    * Tier 1 (semi-public): [Rumored or guessable with effort]\n    * Tier 2 (private): [Known only to inner circle]\n    * Tier 3 (buried): [The big one. Drives unpredictable behavior.]\n    * Reveal hook: [What event or pressure could surface these]\n\n    **Canon Lock:** [3–5 immutable facts that must never change across appearances — name, key relationships, defining marks, the buried secret.]\n\n    </details>\n\n  guidelines:\n    standalone_person_rule: >\n      Treat the NPC as a persistent, living person with a life OUTSIDE the current scene.\n      Extrapolate their actual home, occupation, and daily routines based on context clues.\n      DO NOT define their existence solely by what they are doing right now.\n    inner_circle_rule: >\n      Include 2–5 people. At least one must be off-screen and unknown to the\n      story (a mother, an ex, a childhood friend, a rival). These are future\n      plot seeds, not just flavor.\n    secrets_rule: >\n      Secrets are for YOU as the narrative engine. They drive behavior the PC\n      can't predict. Never reveal in narration unless the NPC actually discloses\n      them through action or dialogue. Higher tiers stay buried longer.\n    canon_lock_rule: >\n      Once written, these facts are fixed. Future scenes must stay consistent\n      with them. If a later scene needs a contradiction, surface it as a\n      revelation (the earlier info was a lie/misunderstanding), never a silent retcon.\n    image_tags: 12-20 comma-separated Booru tags. PHYSICAL ONLY. NO clothes/accessories/weapons/bg/pose/expression. MUST read as adult. Order: anchor(1girl/1boy/1other) -> hair(len,style,col) -> eyes(col,shape) -> skin tone -> body(type,build) -> age-app -> marks(scars,freckles,moles,tattoos,birthmarks).\n`
     }
 };
 
@@ -247,6 +247,12 @@ function initProfile() {
     if (!localProfile.imageGen) localProfile.imageGen = defaults.imageGen;
     if (localProfile.imageGen.directLanguage === undefined) localProfile.imageGen.directLanguage = false;
     if (localProfile.imageGen.imageCount === undefined) localProfile.imageGen.imageCount = 1;
+    if (localProfile.imageGen.promptPrefix === undefined) localProfile.imageGen.promptPrefix = "";
+    if (localProfile.imageGen.loraTrigger1 === undefined) localProfile.imageGen.loraTrigger1 = "";
+    if (localProfile.imageGen.loraTrigger2 === undefined) localProfile.imageGen.loraTrigger2 = "";
+    if (localProfile.imageGen.loraTrigger3 === undefined) localProfile.imageGen.loraTrigger3 = "";
+    if (localProfile.imageGen.loraTrigger4 === undefined) localProfile.imageGen.loraTrigger4 = "";
+    if (localProfile.imageGen.loraTriggersMap === undefined) localProfile.imageGen.loraTriggersMap = {};
     if (localProfile.imageGen.promptStyle !== undefined) {
         let style = localProfile.imageGen.promptStyle; 
         let persp = localProfile.imageGen.promptPerspective;
@@ -2448,8 +2454,8 @@ function renderImageGen(c) {
             <div class="mtab-panel" style="margin-bottom:16px;">
                 <div class="mtab-panel-title gold"><i class="fa-solid fa-sliders"></i> Image Parameters</div>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <select id="ig_model" class="ps-modern-input" style="flex: 2;"><option value="">Loading Models...</option></select>
-                    <select id="ig_sampler" class="ps-modern-input" style="flex: 1;"><option value="">Loading Samplers...</option></select>
+                    <select id="ig_model" class="ps-modern-input" style="flex: 2; cursor: pointer;"><option value="">Loading Models...</option></select>
+                    <select id="ig_sampler" class="ps-modern-input" style="flex: 1; cursor: pointer;"><option value="">Loading Samplers...</option></select>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; background: rgba(0,0,0,0.1); padding: 15px; border-radius: 10px; border: 1px solid var(--border-color);">
@@ -2471,14 +2477,24 @@ function renderImageGen(c) {
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 10px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <div style="flex: 1;">
                         <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">Seed (-1 for random)</div>
-                        <input type="number" id="ig_seed" class="ps-modern-input" value="${s.customSeed}" style="padding: 8px; font-size: 0.8rem;" />
+                        <div style="display: flex; gap: 5px;">
+                            <input type="number" id="ig_seed" class="ps-modern-input" value="${s.customSeed}" style="padding: 8px; font-size: 0.8rem; flex: 1;" />
+                            <button id="ig_seed_dice" class="ps-modern-btn secondary" style="padding: 8px 12px;" title="Set to Random (-1)"><i class="fa-solid fa-dice"></i></button>
+                        </div>
                     </div>
                     <div style="flex: 2;">
                         <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">Negative Prompt Override</div>
                         <input type="text" id="ig_neg" class="ps-modern-input" value="${s.customNegative}" style="padding: 8px; font-size: 0.8rem;" />
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">Positive Prefix (Auto-Added to Front)</div>
+                        <input type="text" id="ig_prefix" class="ps-modern-input" value="${s.promptPrefix || ''}" placeholder="e.g. score_9, score_8_up, masterpiece..." style="padding: 8px; font-size: 0.8rem;" />
                     </div>
                 </div>
             </div>
@@ -2487,17 +2503,27 @@ function renderImageGen(c) {
             <div class="mtab-panel">
                 <div class="mtab-panel-title purple"><i class="fa-solid fa-flask"></i> LoRA Lab</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    ${[1, 2, 3, 4].map(i => `
+                    ${[1, 2, 3, 4].map(i => {
+                        const wtVal = i === 1 ? s.selectedLoraWt : s[`selectedLoraWt${i}`];
+                        const trigVal = i === 1 ? s.loraTrigger1 : s[`loraTrigger${i}`];
+                        return `
                         <div style="background: rgba(0,0,0,0.1); border: 1px solid var(--border-color); padding: 12px; border-radius: 10px; border-left: 3px solid #a855f7;">
                             <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Slot ${i}</div>
-                            <select id="ig_lora_${i}" class="ps-modern-input" style="padding: 6px; font-size: 0.75rem; margin-bottom: 8px;"><option value="">Loading...</option></select>
+                            
+                            <select id="ig_lora_${i}" class="ps-modern-input" style="padding: 6px; font-size: 0.75rem; margin-bottom: 4px; width: 100%; box-sizing: border-box; cursor: pointer;">
+                                <option value="">Loading...</option>
+                            </select>
+                            
+                            <input type="text" id="ig_lora_trig_${i}" class="ps-modern-input" placeholder="Trigger words..." value="${trigVal || ''}" style="padding: 6px; font-size: 0.7rem; margin-bottom: 8px; width: 100%; box-sizing: border-box;" title="Words automatically injected into the prompt when this LoRA is active." />
+                            
                             <div class="mtab-param-row" style="padding:0;">
                                 <span class="param-label" style="min-width:30px;">Wt</span>
-                                <input type="range" id="ig_lorawt_${i}" min="-2" max="2" step="0.1" value="${i === 1 ? s.selectedLoraWt : i === 2 ? s.selectedLoraWt2 : i === 3 ? s.selectedLoraWt3 : s.selectedLoraWt4}">
-                                <span id="ig_lorawt_lbl_${i}" style="font-size:0.78rem; font-weight:600; color:var(--text-main); min-width:30px; text-align:center;">${i === 1 ? s.selectedLoraWt : i === 2 ? s.selectedLoraWt2 : i === 3 ? s.selectedLoraWt3 : s.selectedLoraWt4}</span>
+                                <input type="range" id="ig_lorawt_${i}" min="-2" max="2" step="0.1" value="${wtVal}">
+                                <span id="ig_lorawt_lbl_${i}" style="font-size:0.78rem; font-weight:600; color:var(--text-main); min-width:30px; text-align:center;">${wtVal}</span>
                             </div>
                         </div>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </div>
             </div>
         </div>
@@ -2625,6 +2651,12 @@ function renderImageGen(c) {
     $("#ig_w, #ig_h").on("input", (e) => { s[e.target.id === "ig_w" ? "imgWidth" : "imgHeight"] = parseInt($(e.target).val()); saveProfileToMemory(); });
     $("#ig_neg").on("input", (e) => { s.customNegative = $(e.target).val(); saveProfileToMemory(); });
     $("#ig_seed").on("input", (e) => { s.customSeed = parseInt($(e.target).val()); saveProfileToMemory(); });
+    $("#ig_seed_dice").on("click", () => {
+        s.customSeed = -1;
+        $("#ig_seed").val(-1);
+        saveProfileToMemory();
+    });
+    $("#ig_prefix").on("input", (e) => { s.promptPrefix = $(e.target).val(); saveProfileToMemory(); });
 
     // Sliders
     const bindSlider = (id, key, isFloat) => {
@@ -2642,11 +2674,41 @@ function renderImageGen(c) {
         if (!isNaN(idx) && RESOLUTIONS[idx]) { $("#ig_w").val(RESOLUTIONS[idx].w).trigger("input"); $("#ig_h").val(RESOLUTIONS[idx].h).trigger("input"); }
     });
 
-    // LoRAs
+    // LoRAs with Smart Dictionary Memory
     for (let i = 1; i <= 4; i++) {
         const key = i === 1 ? "selectedLora" : `selectedLora${i}`;
         const wtKey = i === 1 ? "selectedLoraWt" : `selectedLoraWt${i}`;
-        $(`#ig_lora_${i}`).on("change", (e) => { s[key] = $(e.target).val(); saveProfileToMemory(); });
+        const trigKey = i === 1 ? "loraTrigger1" : `loraTrigger${i}`;
+        
+        $(`#ig_lora_${i}`).on("change", (e) => { 
+            const selectedLoraName = $(e.target).val();
+            s[key] = selectedLoraName; 
+            
+            // Look up if we have saved trigger words for this specific LoRA
+            if (selectedLoraName && s.loraTriggersMap && s.loraTriggersMap[selectedLoraName] !== undefined) {
+                s[trigKey] = s.loraTriggersMap[selectedLoraName];
+            } else {
+                s[trigKey] = ""; // Clear box if no saved words
+            }
+            
+            // Update the UI box to reflect the loaded triggers
+            $(`#ig_lora_trig_${i}`).val(s[trigKey]);
+            saveProfileToMemory(); 
+        });
+
+        $(`#ig_lora_trig_${i}`).on("input", (e) => { 
+            const newTriggers = $(e.target).val();
+            s[trigKey] = newTriggers; 
+            
+            // Save to the global dictionary so it remembers it next time you select this LoRA
+            if (s[key] && s[key].trim() !== "") {
+                if (!s.loraTriggersMap) s.loraTriggersMap = {};
+                s.loraTriggersMap[s[key]] = newTriggers;
+            }
+            
+            saveProfileToMemory(); 
+        });
+
         $(`#ig_lorawt_${i}`).on("input", function () { let v = parseFloat(this.value); s[wtKey] = v; $(`#ig_lorawt_lbl_${i}`).text(v); saveProfileToMemory(); });
     }
 
@@ -2670,8 +2732,10 @@ function renderImageGen(c) {
                 selectedModel: s.selectedModel, selectedSampler: s.selectedSampler, steps: s.steps, cfg: s.cfg, denoise: s.denoise, clipSkip: s.clipSkip,
                 imgWidth: s.imgWidth, imgHeight: s.imgHeight, customSeed: s.customSeed, customNegative: s.customNegative,
                 promptStyle: s.promptStyle, promptPerspective: s.promptPerspective, promptExtra: s.promptExtra, previewPrompt: s.previewPrompt,
-                selectedLora: s.selectedLora, selectedLoraWt: s.selectedLoraWt, selectedLora2: s.selectedLora2, selectedLoraWt2: s.selectedLoraWt2,
-                selectedLora3: s.selectedLora3, selectedLoraWt3: s.selectedLoraWt3, selectedLora4: s.selectedLora4, selectedLoraWt4: s.selectedLoraWt4
+                selectedLora: s.selectedLora, selectedLoraWt: s.selectedLoraWt, loraTrigger1: s.loraTrigger1,
+                selectedLora2: s.selectedLora2, selectedLoraWt2: s.selectedLoraWt2, loraTrigger2: s.loraTrigger2,
+                selectedLora3: s.selectedLora3, selectedLoraWt3: s.selectedLoraWt3, loraTrigger3: s.loraTrigger3,
+                selectedLora4: s.selectedLora4, selectedLoraWt4: s.selectedLoraWt4, loraTrigger4: s.loraTrigger4
             };
         }
         if (s.savedWorkflowStates && s.savedWorkflowStates[newWorkflow]) {
@@ -2716,7 +2780,8 @@ async function igFetchComfyLists() {
             const json = await lRes.json();
             const files = json['LoraLoader'].input.required.lora_name[0];
             for (let i = 1; i <= 4; i++) {
-                const sel = $(`#ig_lora_${i}`); const val = i === 1 ? s.selectedLora : s[`selectedLora${i}`];
+                const sel = $(`#ig_lora_${i}`); 
+                const val = i === 1 ? s.selectedLora : s[`selectedLora${i}`];
                 sel.empty().append('<option value="">-- No LoRA --</option>');
                 files.forEach(f => sel.append(`<option value="${f}">${f}</option>`));
                 if (val) sel.val(val);
@@ -2745,7 +2810,7 @@ function npcBuildTextFromData(n) {
     if (n.innerCircle) lines.push(`**Inner Circle:**\n${n.innerCircle}`);
     if (n.personality) lines.push(`**Personality:**\n${n.personality}`);
     if (n.readOnPc) lines.push(`**Read on the PC:** ${n.readOnPc}`);
-    if (n.agenda) lines.push(`**Current Agenda:** ${n.agenda}`);
+    if (n.agenda) lines.push(`**Agenda:** ${n.agenda}`);
     if (n.secrets) lines.push(`**Secrets:**\n${n.secrets}`);
     if (n.canonLock) lines.push(`**Canon Lock:**\n${n.canonLock}`);
     
@@ -2778,7 +2843,7 @@ function npcParseBlock(rawBlock) {
         { key: "innerCircle", regex: /\*\*Inner Circle:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
         { key: "personality", regex: /\*\*Personality.*?\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
         { key: "readOnPc", regex: /\*\*Read on the PC:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
-        { key: "agenda", regex: /\*\*Current Agenda:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
+        { key: "agenda", regex: /\*\*Agenda:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
         { key: "secrets", regex: /\*\*Secrets.*?\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i },
         { key: "canonLock", regex: /\*\*Canon Lock:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|<\/details>)/i }
     ];
@@ -3186,7 +3251,7 @@ function renderNpcList() {
         { key: "innerCircle", label: "Inner Circle", icon: "fa-people-group", color: "#fbbf24" },
         { key: "personality", label: "Personality", icon: "fa-masks-theater", color: "#f472b6" },
         { key: "readOnPc", label: "Read on PC", icon: "fa-magnifying-glass", color: "#60a5fa" },
-        { key: "agenda", label: "Current Agenda", icon: "fa-bullseye", color: "#fb923c" },
+        { key: "agenda", label: "Agenda", icon: "fa-bullseye", color: "#fb923c" },
         { key: "secrets", label: "Secrets", icon: "fa-user-secret", color: "#ef4444" },
         { key: "canonLock", label: "Canon Lock", icon: "fa-lock", color: "#a855f7" }
     ];
@@ -5105,6 +5170,26 @@ function addKazumaRetryButtons(msgIndex) {
 async function igGenerateWithComfy(positivePrompt, target = null) {
     const s = localProfile.imageGen;
     let finalPrompt = positivePrompt;
+
+    // --- INJECT LORA TRIGGER WORDS ---
+    let loraTriggers = [];
+    if (s.selectedLora && s.selectedLora.trim() !== "" && s.loraTrigger1) loraTriggers.push(s.loraTrigger1.trim());
+    if (s.selectedLora2 && s.selectedLora2.trim() !== "" && s.loraTrigger2) loraTriggers.push(s.loraTrigger2.trim());
+    if (s.selectedLora3 && s.selectedLora3.trim() !== "" && s.loraTrigger3) loraTriggers.push(s.loraTrigger3.trim());
+    if (s.selectedLora4 && s.selectedLora4.trim() !== "" && s.loraTrigger4) loraTriggers.push(s.loraTrigger4.trim());
+
+    if (loraTriggers.length > 0) {
+        let combinedTriggers = loraTriggers.join(", ");
+        if (!combinedTriggers.endsWith(",")) combinedTriggers += ",";
+        finalPrompt = combinedTriggers + " " + finalPrompt;
+    }
+
+    // --- INJECT PREFIX ---
+    if (s.promptPrefix && s.promptPrefix.trim() !== "") {
+        let prefix = s.promptPrefix.trim();
+        if (!prefix.endsWith(",")) prefix += ",";
+        finalPrompt = prefix + " " + finalPrompt;
+    }
 
     // --- INTERCEPT PROMPT IF PREVIEW IS ENABLED ---
     if (s.previewPrompt) {
