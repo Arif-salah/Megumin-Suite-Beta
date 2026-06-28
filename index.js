@@ -3791,6 +3791,11 @@ function renderMemoryCore(c) {
         }
     });
 
+    $("#mem_backend").on("change", function () {
+        mem.backend = $(this).val();
+        saveProfileToMemory();
+    });
+
     // Trigger migration ONLY on 'change' (when they let go of the mouse click) to avoid spamming calculations
     $("#mem_work_slider").on("change", function () { memRunVaultMigration(); });
 
