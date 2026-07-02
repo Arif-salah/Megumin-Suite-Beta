@@ -2366,3 +2366,221 @@
         width: 100%;
     }
 }
+
+/* ================================================================
+   STORY DIRECTOR — UI Components
+   ================================================================ */
+
+/* — Setting Group Container — */
+.sd-setting-group {
+    margin-bottom: 18px;
+    padding-left: 2px;
+}
+
+/* — Setting Label — */
+.sd-setting-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #e4e4e7;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.sd-setting-label .sd-label-hint {
+    font-weight: 400;
+    color: #71717a;
+    font-size: 0.75rem;
+}
+
+/* — Rating Pills Container — */
+.sd-rating-pills {
+    display: flex;
+    gap: 8px;
+}
+
+/* — Individual Pill Toggle — */
+.sd-pill {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 8px 16px;
+    color: #a1a1aa;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sd-pill:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sd-pill.active {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #f59e0b;
+}
+
+/* — Pacing Selector Container — */
+.sd-pacing-selector {
+    display: flex;
+    gap: 8px;
+}
+
+/* — Pacing Option Button — */
+.sd-pacing-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    color: #a1a1aa;
+}
+
+.sd-pacing-btn:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sd-pacing-btn.active {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #f59e0b;
+}
+
+.sd-pacing-btn i {
+    font-size: 1.2rem;
+    margin-bottom: 6px;
+}
+
+.sd-pacing-btn .sd-pacing-name {
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+
+.sd-pacing-btn .sd-pacing-desc {
+    font-size: 0.68rem;
+    color: #71717a;
+    margin-top: 2px;
+}
+
+.sd-pacing-btn.active .sd-pacing-desc {
+    color: rgba(245, 158, 11, 0.7);
+}
+
+/* — Chip Container (Genre Flavors) — */
+.sd-chip-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* — Individual Chip/Tag — */
+.sd-chip {
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: inherit;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #a1a1aa;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sd-chip:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sd-chip.active {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #a78bfa;
+}
+
+/* — Genre Description Text — */
+.sd-genre-desc {
+    font-size: 0.73rem;
+    color: #71717a;
+    margin-top: 6px;
+    padding-left: 2px;
+    line-height: 1.4;
+}
+
+/* — Director's Note Hint Box — */
+.sd-directors-note-hint {
+    background: rgba(245, 158, 11, 0.06);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 0.78rem;
+    color: #b4935a;
+    line-height: 1.5;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.sd-directors-note-hint i {
+    color: #f59e0b;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* — Director's Note Textarea — */
+.sd-directors-note-input {
+    width: 100%;
+    height: 80px;
+    resize: vertical;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    font-family: inherit;
+    background: #0e0e11;
+    border: 1px solid #27272a;
+    color: #f4f4f5;
+    padding: 12px 16px;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.sd-directors-note-input:focus {
+    border-color: #52525b;
+    background: #18181b;
+}
+
+/* — Directive Output Textarea — */
+.sd-directive-output {
+    width: 100%;
+    height: 300px;
+    resize: vertical;
+    font-size: 0.83rem;
+    line-height: 1.6;
+    margin-bottom: 12px;
+    font-family: inherit;
+    background: #0e0e11;
+    border: 1px solid #27272a;
+    color: #f4f4f5;
+    padding: 12px 16px;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.sd-directive-output:focus {
+    border-color: #52525b;
+    background: #18181b;
+}
