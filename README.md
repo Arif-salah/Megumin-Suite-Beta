@@ -1,3 +1,9 @@
+# beta 3/07/26
+* added side panel thanks to Luka
+* added Export/inport to npc bank and memory core
+* a full Redesign of story planner with a lot more options
+* added edit prompt to npc bank portrait thanks to Lazerin Athania for the idea
+* new memory core Optimization x100 faster
 # beta 24/06/26
 * fixed memory core generator Backend not saving.
 # beta 24/06/26

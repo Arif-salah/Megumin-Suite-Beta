@@ -532,6 +532,7 @@ function initProfile() {
     toggleQuickGenButton();
     updateLiveTokenCount();
     pruneFutureData(); // Automatically prune out-of-bounds future data on load/initialization
+    if (typeof updateMemoryVisuals === "function") updateMemoryVisuals();
 }
 
 function pruneFutureData() {
@@ -3442,6 +3443,39 @@ async function npcGeneratePfp(npcName) {
     }
 
     console.log(`[Megumin-Suite] NPC PFP prompt for ${npcName}: ${promptText}`);
+    
+    // --- ALWAYS ON PROMPT PREVIEW / EDIT FOR NPC PORTRAITS ---
+    $("#kazuma_progress_overlay").hide(); // Hide progress bar temporarily
+
+    const $content = $(`
+        <div style="display:flex; flex-direction:column; gap:10px; font-family: 'Inter', sans-serif;">
+            <div style="font-size: 0.85rem; color: var(--text-muted);">Review or modify the character portrait prompt before rendering.</div>
+            <textarea class="ps-modern-input npc-preview-textarea" style="height: 150px; resize: vertical; font-family: monospace; font-size: 0.85rem; padding: 10px;">${promptText}</textarea>
+        </div>
+    `);
+
+    // Capture the text dynamically as the user types
+    let liveText = promptText;
+    $content.find(".npc-preview-textarea").on("input", function () {
+        liveText = $(this).val();
+    });
+
+    const popup = new Popup($content, POPUP_TYPE.CONFIRM, `Edit Portrait Prompt: ${npcName}`, { okButton: "Render Portrait", cancelButton: "Cancel", wide: true });
+    const confirmed = await popup.show();
+
+    if (!confirmed) {
+        toastr.info("Portrait generation cancelled.");
+        activeNpcPfpRequest = null;
+        return null;
+    }
+
+    promptText = liveText.trim();
+    if (!promptText) {
+        toastr.warning("Prompt cannot be empty.");
+        activeNpcPfpRequest = null;
+        return null;
+    }
+
     toastr.info("Sending portrait prompt to ComfyUI...", "NPC Bank");
     showKazumaProgress("Rendering NPC Portrait...");
 
@@ -3528,6 +3562,16 @@ async function npcGeneratePfp(npcName) {
             }, 1000);
         });
     } catch (e) { $("#kazuma_progress_overlay").hide(); toastr.error("ComfyUI Error: " + e.message); return null; }
+}
+
+function downloadJsonFile(filename, dataObj) {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataObj, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", filename);
+    document.body.appendChild(downloadAnchorNode); // required for firefox
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
 }
 
 function renderNpcBank(c) {
@@ -3622,6 +3666,9 @@ function renderNpcBank(c) {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <div style="color: #f43f5e; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-address-card"></i> Saved NPCs <span id="npc_count" style="color: var(--text-muted); font-size: 0.75rem; margin-left: 8px;">(${(nb.npcs || []).length})</span></div>
                     <div style="display: flex; gap: 8px;">
+                        <input type="file" id="npc_file_import" accept=".json" style="display: none;">
+                        <button id="npc_btn_import" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);" title="Import NPCs"><i class="fa-solid fa-file-import"></i></button>
+                        <button id="npc_btn_export" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Export All NPCs"><i class="fa-solid fa-download"></i></button>
                         <button id="npc_btn_scan_story" class="ps-modern-btn primary" style="padding: 4px 10px; font-size: 0.72rem; background: linear-gradient(135deg, #f43f5e, #e11d48); color: #fff; border: none;"><i class="fa-solid fa-radar"></i> Scan Story</button>
                         <button id="npc_btn_clear_all" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-trash-can"></i> Clear All</button>
                     </div>
@@ -3700,6 +3747,39 @@ function renderNpcBank(c) {
     $("#npc_ignored_names").on("input", function() {
         nb.ignoredNames = $(this).val();
         saveProfileToMemory();
+    });
+
+    $("#npc_btn_export").on("click", function () {
+        const data = localProfile.npcBank.npcs || [];
+        downloadJsonFile("megumin_npc_bank.json", data);
+    });
+
+    $("#npc_btn_import").on("click", () => $("#npc_file_import").click());
+    $("#npc_file_import").on("change", function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const data = JSON.parse(evt.target.result);
+                if (!Array.isArray(data)) {
+                    toastr.error("Invalid NPC Bank file format.");
+                    return;
+                }
+                if (confirm("Do you want to merge imported NPCs with your existing ones? (Click 'Cancel' to overwrite)")) {
+                    localProfile.npcBank.npcs = (localProfile.npcBank.npcs || []).concat(data);
+                } else {
+                    localProfile.npcBank.npcs = data;
+                }
+                saveProfileToMemory();
+                renderNpcList();
+                toastr.success("NPCs imported successfully!");
+            } catch (err) {
+                toastr.error("Failed to parse JSON file.");
+            }
+            $("#npc_file_import").val("");
+        };
+        reader.readAsText(file);
     });
 
     $("#npc_btn_clear_all").on("click", function () {
@@ -3835,6 +3915,7 @@ function renderNpcList() {
                         </div>
 
                         <span style="color: var(--text-muted); font-size: 0.6rem;">${dateStr}</span>
+                        <button class="npc_export_btn" data-idx="${idx}" style="background: transparent; border: none; color: #3b82f6; cursor: pointer; font-size: 0.75rem; padding: 2px 4px;" title="Export NPC"><i class="fa-solid fa-download"></i></button>
                         <button class="npc_del_btn" data-idx="${idx}" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 0.75rem; padding: 2px 4px;" title="Delete NPC"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
@@ -3916,8 +3997,20 @@ function renderNpcList() {
             }
         });
 
+        // Export
+        card.find(".npc_export_btn").on("click", function (e) {
+            e.stopPropagation();
+            const i = parseInt($(this).attr("data-idx"));
+            const n = localProfile.npcBank.npcs[i];
+            if (n) {
+                const safeName = (n.name || "npc").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                downloadJsonFile(`megumin_npc_${safeName}.json`, [n]);
+            }
+        });
+
         // Delete
-        card.find(".npc_del_btn").on("click", function () {
+        card.find(".npc_del_btn").on("click", function (e) {
+            e.stopPropagation();
             const i = parseInt($(this).attr("data-idx"));
             if (confirm(`Delete ${localProfile.npcBank.npcs[i]?.name || "this NPC"}?`)) {
                 localProfile.npcBank.npcs.splice(i, 1);
@@ -3979,7 +4072,7 @@ function renderSidePanelTab(c) {
     const cfg = getSidePanelSettings();
     const pb = getPresentBarSettings();
 
-    const enabledBadge = `<div class="mtab-header-badge" style="background: ${cfg.enabled ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.06)'}; color: ${cfg.enabled ? '#f59e0b' : 'var(--text-muted)'}; border: 1px solid ${cfg.enabled ? 'rgba(245,158,11,0.25)' : 'var(--border-color)'};">
+    const enabledBadge = `<div id="megsp_header_badge" class="mtab-header-badge" style="background: ${cfg.enabled ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.06)'}; color: ${cfg.enabled ? '#f59e0b' : 'var(--text-muted)'}; border: 1px solid ${cfg.enabled ? 'rgba(245,158,11,0.25)' : 'var(--border-color)'};">
         <i class="fa-solid fa-${cfg.enabled ? 'circle-check' : 'circle-xmark'}" style="font-size:0.6rem;"></i> ${cfg.enabled ? 'Enabled' : 'Disabled'}
     </div>`;
 
@@ -4007,171 +4100,181 @@ function renderSidePanelTab(c) {
             ${enabledBadge}
         </div>
 
-        <div class="meg-sp-group-head"><i class="fa-solid fa-window-maximize"></i> Panel</div>
-
-        <div class="mtab-toggle-row ${cfg.enabled ? 'active' : ''}" id="megsp_enabled_row">
+        <div class="mtab-toggle-row ${cfg.enabled ? 'active' : ''}" id="megsp_enabled_row" style="margin-bottom: 20px;">
             <div class="toggle-info">
-                <div class="toggle-label">Enable Side Panel</div>
+                <div class="toggle-label"><i class="fa-solid fa-table-columns" style="color:var(--gold);"></i> Enable Side Panel</div>
                 <div class="toggle-desc">Mounts the panel on the page. When off, trackers stay inline in the chat as usual.</div>
             </div>
             <div class="ps-switch"></div>
         </div>
 
-        <div class="meg-sp-settings-row">
-            <div>
-                <div class="label">Mode</div>
-                <div class="desc">Docked pins the panel to a screen edge; Floating turns it into a draggable, resizable window.</div>
-            </div>
-            <div class="control">
-                <select id="megsp_mode" class="ps-modern-input" style="min-width: 140px;">
-                    <option value="docked" ${isDocked ? "selected" : ""}>Docked</option>
-                    <option value="floating" ${!isDocked ? "selected" : ""}>Floating</option>
-                </select>
-            </div>
-        </div>
+        <div id="megsp_main_content" style="display: ${cfg.enabled ? 'block' : 'none'};">
+            <div class="meg-sp-group-head"><i class="fa-solid fa-window-maximize"></i> Panel</div>
 
-        <div class="meg-sp-settings-row" id="megsp_position_row" style="${isDocked ? "" : "display:none;"}">
-            <div>
-                <div class="label">Docked edge</div>
-                <div class="desc">Which edge of the screen the panel anchors to.</div>
+            <div class="meg-sp-settings-row">
+                <div>
+                    <div class="label">Mode</div>
+                    <div class="desc">Docked pins the panel to a screen edge; Floating turns it into a draggable, resizable window.</div>
+                </div>
+                <div class="control">
+                    <select id="megsp_mode" class="ps-modern-input" style="min-width: 140px;">
+                        <option value="docked" ${isDocked ? "selected" : ""}>Docked</option>
+                        <option value="floating" ${!isDocked ? "selected" : ""}>Floating</option>
+                    </select>
+                </div>
             </div>
-            <div class="control">
-                <select id="megsp_position" class="ps-modern-input" style="min-width: 140px;">
-                    <option value="right" ${cfg.position === "right" ? "selected" : ""}>Right</option>
-                    <option value="left" ${cfg.position === "left" ? "selected" : ""}>Left</option>
-                </select>
-            </div>
-        </div>
 
-        <div class="meg-sp-settings-row" id="megsp_width_row" style="${isDocked ? "" : "display:none;"}">
-            <div>
-                <div class="label">Docked width</div>
-                <div class="desc">You can also drag the panel's inner edge to resize. Mobile clamps to 94% of viewport.</div>
+            <div class="meg-sp-settings-row" id="megsp_position_row" style="${isDocked ? "" : "display:none;"}">
+                <div>
+                    <div class="label">Docked edge</div>
+                    <div class="desc">Which edge of the screen the panel anchors to.</div>
+                </div>
+                <div class="control">
+                    <select id="megsp_position" class="ps-modern-input" style="min-width: 140px;">
+                        <option value="right" ${cfg.position === "right" ? "selected" : ""}>Right</option>
+                        <option value="left" ${cfg.position === "left" ? "selected" : ""}>Left</option>
+                    </select>
+                </div>
             </div>
-            <div class="control">
-                <input id="megsp_width" type="number" min="320" max="1100" step="10" value="${cfg.width || 620}" class="ps-modern-input" style="width: 110px;" />
-                <span style="color: var(--text-muted); font-size: 12px;">px</span>
-            </div>
-        </div>
 
-        <div class="meg-sp-settings-row">
-            <div>
-                <div class="label">UI scale</div>
-                <div class="desc">Zoom the whole panel — text, cards, avatars, everything.</div>
+            <div class="meg-sp-settings-row" id="megsp_width_row" style="${isDocked ? "" : "display:none;"}">
+                <div>
+                    <div class="label">Docked width</div>
+                    <div class="desc">You can also drag the panel's inner edge to resize. Mobile clamps to 94% of viewport.</div>
+                </div>
+                <div class="control">
+                    <input id="megsp_width" type="number" min="320" max="1100" step="10" value="${cfg.width || 620}" class="ps-modern-input" style="width: 110px;" />
+                    <span style="color: var(--text-muted); font-size: 12px;">px</span>
+                </div>
             </div>
-            <div class="control">
-                <input id="megsp_scale" type="range" min="0.8" max="1.4" step="0.05" value="${cfg.scale || 1}" style="width: 140px;" />
-                <span id="megsp_scale_val" style="color: var(--text-muted); font-size: 12px; min-width: 42px; text-align: right;">${Math.round((cfg.scale || 1) * 100)}%</span>
-            </div>
-        </div>
 
-        <div class="meg-sp-settings-row">
-            <div>
-                <div class="label">Reset floating position</div>
-                <div class="desc">Brings a lost floating panel back on screen at the default spot and size.</div>
+            <div class="meg-sp-settings-row">
+                <div>
+                    <div class="label">UI scale</div>
+                    <div class="desc">Zoom the whole panel — text, cards, avatars, everything.</div>
+                </div>
+                <div class="control">
+                    <input id="megsp_scale" type="range" min="0.8" max="1.4" step="0.05" value="${cfg.scale || 1}" style="width: 140px;" />
+                    <span id="megsp_scale_val" style="color: var(--text-muted); font-size: 12px; min-width: 42px; text-align: right;">${Math.round((cfg.scale || 1) * 100)}%</span>
+                </div>
             </div>
-            <div class="control"><button id="megsp_float_reset" class="ps-modern-btn secondary"><i class="fa-solid fa-crosshairs"></i> Reset</button></div>
-        </div>
 
-        <div class="meg-sp-group-head"><i class="fa-solid fa-layer-group"></i> Sections</div>
+            <div class="meg-sp-settings-row">
+                <div>
+                    <div class="label">Reset floating position</div>
+                    <div class="desc">Brings a lost floating panel back on screen at the default spot and size.</div>
+                </div>
+                <div class="control"><button id="megsp_float_reset" class="ps-modern-btn secondary"><i class="fa-solid fa-crosshairs"></i> Reset</button></div>
+            </div>
 
-        <div class="meg-sp-settings-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
-            <div>
-                <div class="label">Sections to show</div>
-                <div class="desc">Toggle visibility. Numbers show current panel order — Alt+↑/↓ on a section's grip (in the panel) reorders it.</div>
-            </div>
-            <div class="meg-sp-section-grid">
-                ${sectionRows}
-            </div>
-        </div>
+            <div class="meg-sp-group-head"><i class="fa-solid fa-layer-group"></i> Sections</div>
 
-        <div class="mtab-toggle-row ${cfg.autoHideEmpty ? 'active' : ''}" id="megsp_autohide_row">
-            <div class="toggle-info">
-                <div class="toggle-label">Hide sections with no data</div>
-                <div class="toggle-desc">Sections with nothing to show disappear instead of rendering an empty shell.</div>
+            <div class="meg-sp-settings-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                <div>
+                    <div class="label">Sections to show</div>
+                    <div class="desc">Toggle visibility. Numbers show current panel order — Alt+↑/↓ on a section's grip (in the panel) reorders it.</div>
+                </div>
+                <div class="meg-sp-section-grid">
+                    ${sectionRows}
+                </div>
             </div>
-            <div class="ps-switch"></div>
-        </div>
 
-        <div class="meg-sp-settings-row">
-            <div>
-                <div class="label">Reset section layout</div>
-                <div class="desc">Restores default order, visibility, and open/closed states.</div>
+            <div class="mtab-toggle-row ${cfg.autoHideEmpty ? 'active' : ''}" id="megsp_autohide_row">
+                <div class="toggle-info">
+                    <div class="toggle-label">Hide sections with no data</div>
+                    <div class="toggle-desc">Sections with nothing to show disappear instead of rendering an empty shell.</div>
+                </div>
+                <div class="ps-switch"></div>
             </div>
-            <div class="control"><button id="megsp_sections_reset" class="ps-modern-btn secondary"><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
-        </div>
 
-        <div class="meg-sp-group-head"><i class="fa-solid fa-users"></i> Present Characters Bar</div>
+            <div class="meg-sp-settings-row">
+                <div>
+                    <div class="label">Reset section layout</div>
+                    <div class="desc">Restores default order, visibility, and open/closed states.</div>
+                </div>
+                <div class="control"><button id="megsp_sections_reset" class="ps-modern-btn secondary"><i class="fa-solid fa-rotate-left"></i> Reset</button></div>
+            </div>
 
-        <div class="mtab-toggle-row ${pb.enabled ? 'active' : ''}" id="megpb_enabled_row">
-            <div class="toggle-info">
-                <div class="toggle-label">Enable Present Characters Bar</div>
-                <div class="toggle-desc">A Doom-style horizontal portrait strip next to the chat input. Pulls the cast from the AI's World State NPCs Present, portraits from the NPC Bank.</div>
-            </div>
-            <div class="ps-switch"></div>
-        </div>
+            <div class="meg-sp-group-head"><i class="fa-solid fa-users"></i> Present Characters Bar</div>
 
-        <div class="meg-sp-settings-row">
-            <div>
-                <div class="label">Bar position</div>
-                <div class="desc">Where the strip mounts relative to SillyTavern's message input.</div>
+            <div class="mtab-toggle-row ${pb.enabled ? 'active' : ''}" id="megpb_enabled_row">
+                <div class="toggle-info">
+                    <div class="toggle-label">Enable Present Characters Bar</div>
+                    <div class="toggle-desc">A Doom-style horizontal portrait strip next to the chat input. Pulls the cast from the AI's World State NPCs Present, portraits from the NPC Bank.</div>
+                </div>
+                <div class="ps-switch"></div>
             </div>
-            <div class="control">
-                <select id="megpb_position" class="ps-modern-input" style="min-width: 160px;">
-                    <option value="above" ${pb.position === "above" ? "selected" : ""}>Above input</option>
-                    <option value="below" ${pb.position === "below" ? "selected" : ""}>Below input</option>
-                    <option value="off"   ${pb.position === "off"   ? "selected" : ""}>Off (hide)</option>
-                </select>
-            </div>
-        </div>
 
-        <div class="meg-sp-settings-row">
-            <div>
-                <div class="label">Card size</div>
-                <div class="desc">Width × height of each portrait card in the strip.</div>
+            <div class="meg-sp-settings-row">
+                <div>
+                    <div class="label">Bar position</div>
+                    <div class="desc">Where the strip mounts relative to SillyTavern's message input.</div>
+                </div>
+                <div class="control">
+                    <select id="megpb_position" class="ps-modern-input" style="min-width: 160px;">
+                        <option value="above" ${pb.position === "above" ? "selected" : ""}>Above input</option>
+                        <option value="below" ${pb.position === "below" ? "selected" : ""}>Below input</option>
+                        <option value="off"   ${pb.position === "off"   ? "selected" : ""}>Off (hide)</option>
+                    </select>
+                </div>
             </div>
-            <div class="control">
-                <input id="megpb_card_w" type="number" min="80" max="240" step="5" value="${pb.cardWidth || 120}" class="ps-modern-input" style="width: 80px;" />
-                <span style="color: var(--text-muted); font-size: 12px;">×</span>
-                <input id="megpb_card_h" type="number" min="100" max="320" step="5" value="${pb.cardHeight || 160}" class="ps-modern-input" style="width: 80px;" />
-                <span style="color: var(--text-muted); font-size: 12px;">px</span>
-            </div>
-        </div>
 
-        <div class="meg-sp-group-head"><i class="fa-solid fa-screwdriver-wrench"></i> Advanced</div>
-
-        <div class="mtab-toggle-row ${cfg.hideInline ? 'active' : ''}" id="megsp_hideinline_row">
-            <div class="toggle-info">
-                <div class="toggle-label">Hide inline tracker blocks in chat</div>
-                <div class="toggle-desc">Removes the <code>&lt;details&gt;</code> tracker blocks from the rendered chat DOM (they stay in the saved message so re-parsing keeps working).</div>
+            <div class="meg-sp-settings-row">
+                <div>
+                    <div class="label">Card size</div>
+                    <div class="desc">Width × height of each portrait card in the strip.</div>
+                </div>
+                <div class="control">
+                    <input id="megpb_card_w" type="number" min="80" max="240" step="5" value="${pb.cardWidth || 120}" class="ps-modern-input" style="width: 80px;" />
+                    <span style="color: var(--text-muted); font-size: 12px;">×</span>
+                    <input id="megpb_card_h" type="number" min="100" max="320" step="5" value="${pb.cardHeight || 160}" class="ps-modern-input" style="width: 80px;" />
+                    <span style="color: var(--text-muted); font-size: 12px;">px</span>
+                </div>
             </div>
-            <div class="ps-switch"></div>
-        </div>
 
-        <div class="meg-sp-settings-row">
-            <div>
-                <div class="label">Force refresh</div>
-                <div class="desc">Re-parse the latest assistant message and rebuild the panel right now.</div>
-            </div>
-            <div class="control"><button id="megsp_refresh" class="ps-modern-btn primary"><i class="fa-solid fa-rotate"></i> Refresh</button></div>
-        </div>
+            <div class="meg-sp-group-head"><i class="fa-solid fa-screwdriver-wrench"></i> Advanced</div>
 
-        <div class="meg-sp-settings-row">
-            <div>
-                <div class="label">Reset all side-panel settings</div>
-                <div class="desc">Wipes every setting on this tab back to defaults. Debug console handle: <code>window.LukaSuite</code></div>
+            <div class="mtab-toggle-row ${cfg.hideInline ? 'active' : ''}" id="megsp_hideinline_row">
+                <div class="toggle-info">
+                    <div class="toggle-label">Hide inline tracker blocks in chat</div>
+                    <div class="toggle-desc">Removes the <code>&lt;details&gt;</code> tracker blocks from the rendered chat DOM (they stay in the saved message so re-parsing keeps working).</div>
+                </div>
+                <div class="ps-switch"></div>
             </div>
-            <div class="control"><button id="megsp_reset_all" class="ps-modern-btn secondary" style="color: #ef4444; border-color: rgba(239,68,68,0.3);"><i class="fa-solid fa-trash"></i> Reset all</button></div>
+
+            <div class="meg-sp-settings-row">
+                <div>
+                    <div class="label">Force refresh</div>
+                    <div class="desc">Re-parse the latest assistant message and rebuild the panel right now.</div>
+                </div>
+                <div class="control"><button id="megsp_refresh" class="ps-modern-btn primary"><i class="fa-solid fa-rotate"></i> Refresh</button></div>
+            </div>
+
+            <div class="meg-sp-settings-row">
+                <div>
+                    <div class="label">Reset all side-panel settings</div>
+                    <div class="desc">Wipes every setting on this tab back to defaults. Debug console handle: <code>window.LukaSuite</code></div>
+                </div>
+                <div class="control"><button id="megsp_reset_all" class="ps-modern-btn secondary" style="color: #ef4444; border-color: rgba(239,68,68,0.3);"><i class="fa-solid fa-trash"></i> Reset all</button></div>
+            </div>
         </div>
     `);
 
     // ── Panel group ──
     c.find("#megsp_enabled_row").on("click", function () {
         cfg.enabled = !cfg.enabled;
-        $(this).toggleClass("active", cfg.enabled);
         saveSettingsDebounced();
         applyEnabledChange();
         refreshSidePanel();
+        if (cfg.enabled) {
+            $(this).addClass("active");
+            $("#megsp_main_content").slideDown(200);
+            $("#megsp_header_badge").css({ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', 'border-color': 'rgba(245,158,11,0.25)' }).html(`<i class="fa-solid fa-circle-check" style="font-size:0.6rem;"></i> Enabled`);
+        } else {
+            $(this).removeClass("active");
+            $("#megsp_main_content").slideUp(200);
+            $("#megsp_header_badge").css({ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', 'border-color': 'var(--border-color)' }).html(`<i class="fa-solid fa-circle-xmark" style="font-size:0.6rem;"></i> Disabled`);
+        }
     });
     c.find("#megsp_mode").on("change", function () {
         cfg.mode = $(this).val();
@@ -4316,7 +4419,12 @@ function renderMemoryCore(c) {
             <!-- Dashboard Progress Bar -->
             <div class="mtab-panel" style="margin-bottom:16px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-                    <div class="mtab-panel-title green" style="margin:0;"><i class="fa-solid fa-chart-gantt"></i> Context Allocation Dashboard</div>
+                    <div class="mtab-panel-title green" style="margin:0; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-chart-gantt"></i> Context Allocation Dashboard
+                        <input type="file" id="mem_file_import" accept=".json" style="display: none;">
+                        <button id="mem_btn_import" class="ps-modern-btn secondary" style="padding: 2px 6px; font-size: 0.65rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);" title="Import Memory Core"><i class="fa-solid fa-file-import"></i></button>
+                        <button id="mem_btn_export" class="ps-modern-btn secondary" style="padding: 2px 6px; font-size: 0.65rem; color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Export Memory Core"><i class="fa-solid fa-download"></i></button>
+                    </div>
                     <div style="font-size: 0.75rem; font-weight: 800; color: #10b981; background: rgba(16,185,129,0.1); padding: 4px 12px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.3); box-shadow: 0 0 10px rgba(16,185,129,0.2);">
                         <i class="fa-solid fa-floppy-disk"></i> <span id="mem_live_tokens_saved">~0</span> Tokens Saved
                     </div>
@@ -4503,6 +4611,49 @@ function renderMemoryCore(c) {
     });
 
     // Clear All Long-Term Vault
+    $("#mem_btn_export").on("click", function () {
+        const data = {
+            shortTermChunks: localProfile.memoryCore.shortTermChunks || [],
+            longTermVault: localProfile.memoryCore.longTermVault || []
+        };
+        downloadJsonFile("megumin_memory_core.json", data);
+    });
+
+    $("#mem_btn_import").on("click", () => $("#mem_file_import").click());
+    $("#mem_file_import").on("change", function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const data = JSON.parse(evt.target.result);
+                if (!data.shortTermChunks && !data.longTermVault) {
+                    toastr.error("Invalid Memory Core file format.");
+                    return;
+                }
+                if (confirm("Do you want to merge imported memories with your existing ones? (Click 'Cancel' to overwrite)")) {
+                    if (data.shortTermChunks) localProfile.memoryCore.shortTermChunks = (localProfile.memoryCore.shortTermChunks || []).concat(data.shortTermChunks);
+                    if (data.longTermVault) localProfile.memoryCore.longTermVault = (localProfile.memoryCore.longTermVault || []).concat(data.longTermVault);
+                } else {
+                    localProfile.memoryCore.shortTermChunks = data.shortTermChunks || [];
+                    localProfile.memoryCore.longTermVault = data.longTermVault || [];
+                }
+                delete localProfile.memoryCore._archivedSet;
+                localProfile.memoryCore._tokensDirty = true;
+                saveProfileToMemory();
+                if (typeof memRenderAccordion === "function") memRenderAccordion();
+                if (typeof memRenderVault === "function") memRenderVault($("#mem_vault_search").val() || "");
+                if (typeof memRenderDashboard === "function") memRenderDashboard();
+                updateMemoryVisuals();
+                toastr.success("Memories imported successfully!");
+            } catch (err) {
+                toastr.error("Failed to parse JSON file.");
+            }
+            $("#mem_file_import").val("");
+        };
+        reader.readAsText(file);
+    });
+
     $("#mem_btn_clear_vault").off("click").on("click", async function () {
         const mem = localProfile.memoryCore;
         if (!mem.longTermVault || mem.longTermVault.length === 0) return toastr.info("Vault is already empty.");

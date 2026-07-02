@@ -273,7 +273,7 @@ export const SECTION_REGISTRY = [
     },
     {
         id: "npcBank", icon: "fa-address-book", title: "NPC Bank",
-        defaultOpen: true, order: 5, render: renderNpcBank,
+        defaultOpen: false, order: 5, render: renderNpcBank,
         badge: (ctx) => ctx.profile?.npcBank?.npcs?.length || null,
     },
     {

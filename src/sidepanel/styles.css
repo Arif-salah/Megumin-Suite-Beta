@@ -246,14 +246,40 @@ body.meg-sp-gesturing { user-select: none; }
    ============================================================= */
 .meg-sp-header {
     position: relative;
-    display: flex; align-items: center; justify-content: space-between;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
     gap: var(--meg-space-4);
-    min-height: 44px;
-    padding: 0 var(--meg-space-6);
+    min-height: 50px;
+    padding: 0 var(--meg-space-6) 12px var(--meg-space-6);
     background: transparent;
     border-bottom: 1px solid var(--meg-line-2);
     border-radius: var(--meg-r-lg) var(--meg-r-lg) 0 0;
     flex-shrink: 0;
+}
+.meg-sp-header-bg {
+    position: absolute;
+    inset: 0;
+    background-position: center 25%;
+    background-size: cover;
+    z-index: 0;
+}
+.meg-sp-header-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, rgba(24, 24, 27, 0.4) 50%, rgba(24, 24, 27, 0.8) 100%);
+    z-index: 1;
+}
+.meg-sp-header-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, var(--bg-panel) 0%, transparent 100%);
+}
+.meg-sp-title, .meg-sp-header-actions {
+    position: relative;
+    z-index: 2;
 }
 .meg-sp-header::after {
     display: none;

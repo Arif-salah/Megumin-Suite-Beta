@@ -143,6 +143,8 @@ function buildPanelSkeleton() {
     });
 
     const header = el("div", { class: "meg-sp-header" },
+        el("div", { class: "meg-sp-header-bg", id: "meg-sp-header-bg" }),
+        el("div", { class: "meg-sp-header-overlay" }),
         el("div", { class: "meg-sp-title" },
             el("i", { class: "fa-solid fa-wand-magic-sparkles" }),
             " Megumin Trackers"),
@@ -625,6 +627,23 @@ function installDebugHandle() {
     } catch (e) { /* non-fatal */ }
 }
 
+function updateHeaderImage() {
+    const bg = document.getElementById("meg-sp-header-bg");
+    if (!bg) return;
+    const ctx = getContext();
+    let imgUrl = "";
+    if (ctx.groupId !== undefined && ctx.groupId !== null) {
+        imgUrl = `/scripts/extensions/third-party/Megumin-Suite-Beta/img/group.png`;
+    } else if (ctx.characterId !== undefined && ctx.characterId !== null && ctx.characters && ctx.characters[ctx.characterId]) {
+        imgUrl = `/characters/${ctx.characters[ctx.characterId].avatar}`;
+    }
+    if (imgUrl) {
+        bg.style.backgroundImage = `url('${imgUrl}')`;
+    } else {
+        bg.style.backgroundImage = "none";
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Public API
 // -----------------------------------------------------------------------------
@@ -646,7 +665,10 @@ export function initSidePanel({ profileGetter } = {}) {
 
     const mount = () => {
         if (document.getElementById(PANEL_ID)) return;
+        settings().collapsed = true;
+        persist();
         buildPanelSkeleton();
+        updateHeaderImage();
         render();
         stripInlineFromAll();
         refreshPresentBar();
@@ -673,6 +695,7 @@ export function initSidePanel({ profileGetter } = {}) {
             setTimeout(stripInlineFromAll, 50);
         });
         eventSource.on(event_types.CHAT_CHANGED, () => {
+            updateHeaderImage();
             scheduleRender(50);
             setTimeout(stripInlineFromAll, 100);
         });

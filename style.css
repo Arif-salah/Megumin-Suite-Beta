@@ -2584,3 +2584,262 @@
     border-color: #52525b;
     background: #18181b;
 }
+
+/* =============================================================
+   AURA GLASS REDESIGN — Overrides
+   ============================================================= */
+:root {
+    /* Deepen the base colors to allow the image to shine through */
+    --meg-bg-glass: rgba(14, 14, 17, 0.45); 
+    --meg-sp-border: rgba(255, 255, 255, 0.08);
+    --meg-sp-border-soft: rgba(255, 255, 255, 0.04);
+    --meg-r-lg: 18px;  /* Softer pill-like sections */
+    --meg-r-xl: 24px;  /* Extremely rounded outer panel */
+    --meg-sp-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+/* 1. Base Panel Blur & Glow Orbs */
+#meg-sp-panel {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--meg-sp-shadow);
+    border-radius: var(--meg-r-xl);
+}
+
+/* The Glowing Aura Orbs behind the content (Now linked to ST colors) */
+#meg-sp-panel::before {
+    content: ''; position: absolute; top: -50px; left: -50px; width: 250px; height: 250px;
+    /* Links to SillyTavern's Primary UI Accent Color */
+    background: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))); 
+    filter: blur(80px); opacity: 0.15; z-index: 0; pointer-events: none; border-radius: 50%;
+}
+#meg-sp-panel::after {
+    content: ''; position: absolute; bottom: 50px; right: -50px; width: 300px; height: 300px;
+    /* Links to SillyTavern's Secondary/Text Accent Color */
+    background: var(--SmartTheme-quote-color, var(--text-main, #a855f7)); 
+    filter: blur(90px); opacity: 0.10; z-index: 0; pointer-events: none; border-radius: 50%;
+}
+
+/* 2. Release the background image from the header */
+.meg-sp-header {
+    position: static !important; /* Lets the background escape */
+    overflow: visible !important;
+    border-bottom: none !important; /* REMOVES THE DIVIDER LINE */
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 20px 24px 14px 24px;
+    min-height: auto;
+}
+
+/* The Character Image Background */
+.meg-sp-header-bg {
+    position: absolute !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    height: 100% !important; /* Forces it to the bottom of the panel */
+    z-index: 0;
+    opacity: 0.25; 
+    border-radius: inherit; 
+    pointer-events: none;
+}
+
+/* The Tint/Blur Overlay */
+.meg-sp-header-overlay {
+    position: absolute !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    height: 100% !important; /* Forces the blur to the bottom of the panel */
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(14, 14, 17, 0.2) 0%, rgba(14, 14, 17, 0.85) 100%) !important;
+    backdrop-filter: blur(12px) !important; 
+    -webkit-backdrop-filter: blur(12px) !important;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* Remove the old bottom fade gradient from the header overlay */
+.meg-sp-header-overlay::after {
+    display: none !important;
+}
+
+/* Ensure the scrollable body doesn't block the background */
+.meg-sp-body {
+    position: relative;
+    z-index: 2;
+    background: #00000000 !important;
+}
+
+/* Bring actual content above the new full-panel background layers */
+.meg-sp-title, .meg-sp-header-actions, .meg-sp-body {
+    position: relative;
+    z-index: 2;
+}
+
+/* 3. Aura Glass Section Cards */
+.meg-sp-section {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--meg-r-lg);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.meg-sp-section:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+}
+.meg-sp-section[open] {
+    border-color: color-mix(in srgb, var(--meg-gold-500) 30%, transparent);
+    background: rgba(255, 255, 255, 0.05);
+}
+/* Glowing edge instead of a harsh flat line (Now linked to ST colors) */
+.meg-sp-section[open]::before {
+    width: 3px;
+    left: 0; top: 16px; bottom: 16px;
+    border-radius: 0 4px 4px 0;
+    /* Links the Neon Bar to SillyTavern's Primary UI Accent Color */
+    background: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b)));
+    box-shadow: 0 0 12px var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b)));
+}
+
+/* 4. Deepen the inset for Inner Cards/Thought Bubbles for contrast */
+.meg-sp-card, .meg-sp-thought {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 14px;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+}
+
+/* Settings toggles matching the aesthetic */
+.meg-sp-settings-row {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+}
+
+/* Soften the header buttons */
+.meg-sp-header-actions .meg-sp-icon-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+.meg-sp-header-actions .meg-sp-icon-btn:hover {
+    background: var(--meg-gold-a20);
+    border-color: var(--meg-gold-a35);
+    color: var(--meg-gold-400);
+    box-shadow: 0 0 15px var(--meg-gold-a12);
+}
+
+/* =============================================================
+   PRESENT CHARACTERS BAR — Aura Glass Overrides
+   ============================================================= */
+
+/* 1. Main Bar and Toggle */
+.meg-pb-toggle {
+    background: rgba(14, 14, 17, 0.5) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.meg-pb-toggle:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+.meg-pb-bar {
+    background: rgba(14, 14, 17, 0.45) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.meg-pb-title {
+    color: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+}
+
+/* 2. Character Cards (Glass style) */
+.meg-pb-card {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-radius: 14px !important;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2) !important;
+}
+.meg-pb-card:hover {
+    border-color: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.3), 0 0 12px var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+    transform: translateY(-4px) !important;
+}
+
+/* Optional: Keep the male/female indicator lines, but soften them */
+.meg-pb-card.meg-pb-card-male { border-left-color: rgba(59, 130, 246, 0.6) !important; }
+.meg-pb-card.meg-pb-card-female { border-left-color: rgba(244, 63, 94, 0.6) !important; }
+
+/* 3. Empty Placeholder (Glowing letter instead of flat gradient) */
+.meg-pb-card-emoji {
+    background: rgba(0,0,0,0.2) !important;
+    color: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+    text-shadow: 0 0 15px var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+}
+
+/* 4. Character Sheet Popup (Matches the Side Panel aesthetic) */
+.meg-pb-sheet-card {
+    background: rgba(14, 14, 17, 0.65) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+.meg-pb-sheet-head {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    background: transparent !important;
+}
+.meg-pb-sheet-footer {
+    background: rgba(0,0,0,0.2) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.meg-pb-sheet-field {
+    background: rgba(0,0,0,0.3) !important;
+    border: 1px solid rgba(255,255,255,0.03) !important;
+    /* Links the accent edge to SillyTavern's color */
+    border-left: 2px solid var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+}
+/* 5. Round the Outer Edges of the Present Characters Bar */
+#meg-pb-wrapper {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    margin-bottom: 8px !important; /* Lifts it slightly so it floats */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Ensure the toggle button respects the rounded corners */
+.meg-pb-toggle {
+    border-radius: 16px 16px 0 0 !important;
+    border-top: none !important; /* Removed to prevent double-borders with the wrapper */
+}
+
+/* When collapsed, round all 4 corners of the toggle */
+.meg-pb-toggle:not(.meg-pb-open) {
+    border-radius: 16px !important;
+}
+
+/* Ensure the bottom of the main bar is rounded */
+.meg-pb-bar {
+    border-radius: 0 0 16px 16px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+/* =============================================================
+   DOCKED PANEL — Rounded Inner Corners
+   ============================================================= */
+
+/* When docked to the RIGHT: Round the Top-Left and Bottom-Left corners */
+#meg-sp-panel.meg-sp-pos-right:not([data-mode="floating"]) {
+    border-radius: var(--meg-r-xl) 0 0 var(--meg-r-xl) !important;
+}
+
+/* When docked to the LEFT: Round the Top-Right and Bottom-Right corners */
+#meg-sp-panel.meg-sp-pos-left:not([data-mode="floating"]) {
+    border-radius: 0 var(--meg-r-xl) var(--meg-r-xl) 0 !important;
+}
+
+/* Ensure the background image and blur overlay perfectly clip to these new corners */
+#meg-sp-panel:not([data-mode="floating"]) .meg-sp-header-bg,
+#meg-sp-panel:not([data-mode="floating"]) .meg-sp-header-overlay {
+    border-radius: inherit !important;
+}
