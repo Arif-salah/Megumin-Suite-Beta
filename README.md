@@ -11,10 +11,10 @@
 * added edit prompt to npc bank portrait thanks to Lazerin Athania for the idea
 * new memory core Optimization x100 faster
 * per chat save profile
-* Automatic Memory Pruning: If you branch a chat back to an earlier point (e.g., branching from message 50 instead of 100), the memory vault automatically prunes future summaries that haven't happened yet in the new timeline.
-* NPC Bank Timeline Correction: Branching back in history will automatically remove any characters that were introduced in the deleted future timeline, keeping your NPC list synchronized with where you are in the story.
-* Automatic Story Director Replanning: Going back in time before a directive/story plan was created will cleanly reset the current plan (while keeping your selected genres and tags) so the director can auto-generate a fresh, relevant plan for your new timeline.
-* Smart Chat Branching Inheritance: When you create a branch or checkpoint from an existing chat, the new branch automatically inherits all the settings of the parent chat.
+   Automatic Memory Pruning: If you branch a chat back to an earlier point (e.g., branching from message 50 instead of 100), the memory vault automatically prunes future summaries that haven't happened yet in the new timeline.
+   NPC Bank Timeline Correction: Branching back in history will automatically remove any characters that were introduced in the deleted future timeline, keeping your NPC list synchronized with where you are in the story.
+   Automatic Story Director Replanning: Going back in time before a directive/story plan was created will cleanly reset the current plan (while keeping your selected genres and tags) so the director can auto-generate a fresh, relevant plan for your new timeline.
+   Smart Chat Branching Inheritance: When you create a branch or checkpoint from an existing chat, the new branch automatically inherits all the settings of the parent chat.
 
 # beta 24/06/26
 * fixed memory core generator Backend not saving.
