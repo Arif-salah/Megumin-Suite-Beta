@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 import { extension_settings, getContext } from "../../../extensions.js";
-import { saveSettingsDebounced, generateQuietPrompt, event_types, eventSource, substituteParams, saveChat, reloadCurrentChat, addOneMessage, getRequestHeaders, appendMediaToMessage, updateMessageBlock } from "../../../../script.js";
+import { saveSettingsDebounced, generateQuietPrompt, event_types, eventSource, substituteParams, saveChat, reloadCurrentChat, addOneMessage, getRequestHeaders, appendMediaToMessage, updateMessageBlock, chat_metadata, saveMetadata } from "../../../../script.js";
 import { saveBase64AsFile } from "../../../utils.js";
 import { humanizedDateTime } from "../../../RossAscends-mods.js";
 import { Popup, POPUP_TYPE } from "../../../popup.js";
@@ -508,6 +508,32 @@ function initProfile() {
         saveSettingsDebounced();
     }
 
+    if (chat_metadata && chat_metadata["megumin_memory_core"]) {
+        if (localProfile.memoryCore) {
+            localProfile.memoryCore.shortTermChunks = chat_metadata["megumin_memory_core"].shortTermChunks || [];
+            localProfile.memoryCore.longTermVault = chat_metadata["megumin_memory_core"].longTermVault || [];
+        }
+    } else if (chat_metadata && localProfile.memoryCore && (localProfile.memoryCore.shortTermChunks?.length > 0 || localProfile.memoryCore.longTermVault?.length > 0)) {
+        chat_metadata["megumin_memory_core"] = {
+            shortTermChunks: localProfile.memoryCore.shortTermChunks || [],
+            longTermVault: localProfile.memoryCore.longTermVault || []
+        };
+        saveMetadata();
+    }
+
+    if (chat_metadata && chat_metadata["megumin_story_plan"]) {
+        if (localProfile.storyPlan) {
+            localProfile.storyPlan.currentPlan = chat_metadata["megumin_story_plan"].currentPlan || "";
+            localProfile.storyPlan.lastTrackerState = chat_metadata["megumin_story_plan"].lastTrackerState || "";
+        }
+    } else if (chat_metadata && localProfile.storyPlan && (localProfile.storyPlan.currentPlan || localProfile.storyPlan.lastTrackerState)) {
+        chat_metadata["megumin_story_plan"] = {
+            currentPlan: localProfile.storyPlan.currentPlan || "",
+            lastTrackerState: localProfile.storyPlan.lastTrackerState || ""
+        };
+        saveMetadata();
+    }
+
     let displayName = "Global Default";
     if (isGroup) {
         if (context.groups && Array.isArray(context.groups)) {
@@ -639,7 +665,31 @@ function saveProfileToMemory() {
         }
     }
 
-    extension_settings[extensionName].profiles[key] = localProfile;
+    if (chat_metadata && localProfile.memoryCore) {
+        if (!chat_metadata["megumin_memory_core"]) chat_metadata["megumin_memory_core"] = {};
+        chat_metadata["megumin_memory_core"].shortTermChunks = localProfile.memoryCore.shortTermChunks || [];
+        chat_metadata["megumin_memory_core"].longTermVault = localProfile.memoryCore.longTermVault || [];
+        saveMetadata();
+    }
+
+    if (chat_metadata && localProfile.storyPlan) {
+        if (!chat_metadata["megumin_story_plan"]) chat_metadata["megumin_story_plan"] = {};
+        chat_metadata["megumin_story_plan"].currentPlan = localProfile.storyPlan.currentPlan || "";
+        chat_metadata["megumin_story_plan"].lastTrackerState = localProfile.storyPlan.lastTrackerState || "";
+        saveMetadata();
+    }
+
+    const profileToSave = JSON.parse(JSON.stringify(localProfile));
+    if (profileToSave.memoryCore) {
+        delete profileToSave.memoryCore.shortTermChunks;
+        delete profileToSave.memoryCore.longTermVault;
+    }
+    if (profileToSave.storyPlan) {
+        delete profileToSave.storyPlan.currentPlan;
+        delete profileToSave.storyPlan.lastTrackerState;
+    }
+
+    extension_settings[extensionName].profiles[key] = profileToSave;
     saveSettingsDebounced();
 
     updateLiveTokenCount(); // NEW: Update the UI whenever settings are saved!
@@ -8019,8 +8069,29 @@ function initDraggableButton() {
     $btn.off('mousedown.megumin_drag touchstart.megumin_drag').on('mousedown.megumin_drag touchstart.megumin_drag', dragStart);
 }
 
+function cleanLegacySettings() {
+    if (!extension_settings[extensionName] || !extension_settings[extensionName].profiles) return;
+    let didClean = false;
+    Object.keys(extension_settings[extensionName].profiles).forEach(key => {
+        if (key === 'default') return; // Do not touch global defaults
+        const prof = extension_settings[extensionName].profiles[key];
+        if (prof.memoryCore && (prof.memoryCore.shortTermChunks?.length > 0 || prof.memoryCore.longTermVault?.length > 0)) {
+            delete prof.memoryCore.shortTermChunks;
+            delete prof.memoryCore.longTermVault;
+            didClean = true;
+        }
+        if (prof.storyPlan && (prof.storyPlan.currentPlan || prof.storyPlan.lastTrackerState)) {
+            prof.storyPlan.currentPlan = "";
+            prof.storyPlan.lastTrackerState = "";
+            didClean = true;
+        }
+    });
+    if (didClean) saveSettingsDebounced();
+}
+
 jQuery(async () => {
     try {
+        cleanLegacySettings();
         initSidePanel({ profileGetter: () => localProfile });
         const h = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(h);
