@@ -1,3 +1,21 @@
+# beta 3/07/26
+* added side panel thanks to Luka
+* added Export/inport to npc bank and memory core
+* a full Redesign of story planner with a lot more options
+   Brand New Director's Console UI: A sleek, easy-to-use new interface that puts you in the director's chair.
+   Granular Story Control: Fine-tune the AI's focus with new toggles for Pacing, Content Rating, Primary Genre, and special Flavor Tags (like Love Triangle, Slow Burn, etc.).
+   Director's Notes: A dedicated space to drop specific instructions or hard rules on where you want the plot to go next.
+   Unrestricted Content Toggle: A powerful new override switch that helps the AI push past safety filters when you want the story to explore darker, unrestricted, or explicit themes.
+   High-Effort, Structured Output: The AI is now strictly instructed to act like a professional writer. It generates deep, thoughtful "Narrative Directives" rather than giving you lazy, low-effort bullet points.
+   Invisible Auto-Evolution (Story Tracker): The AI now secretly evaluates its own progress in the background. Once it realizes the current story beat has naturally concluded, it will automatically evolve the plot forward—all without cluttering your chat or requiring you to press a button!
+* added edit prompt to npc bank portrait thanks to Lazerin Athania for the idea
+* new memory core Optimization x100 faster
+* per chat save profile
+   Automatic Memory Pruning: If you branch a chat back to an earlier point (e.g., branching from message 50 instead of 100), the memory vault automatically prunes future summaries that haven't happened yet in the new timeline.
+   NPC Bank Timeline Correction: Branching back in history will automatically remove any characters that were introduced in the deleted future timeline, keeping your NPC list synchronized with where you are in the story.
+   Automatic Story Director Replanning: Going back in time before a directive/story plan was created will cleanly reset the current plan (while keeping your selected genres and tags) so the director can auto-generate a fresh, relevant plan for your new timeline.
+   Smart Chat Branching Inheritance: When you create a branch or checkpoint from an existing chat, the new branch automatically inherits all the settings of the parent chat.
+
 # beta 24/06/26
 * fixed memory core generator Backend not saving.
 # beta 24/06/26
