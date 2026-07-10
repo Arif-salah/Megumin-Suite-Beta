@@ -118,15 +118,6 @@ function renderInnerChatter(ctx) {
 }
 
 // -----------------------------------------------------------------------------
-// Summary
-// -----------------------------------------------------------------------------
-function renderSummary(ctx) {
-    const text = ctx.parsed?.summary;
-    if (!text) return null;
-    return el("div", { class: "meg-sp-summary-text" }, text);
-}
-
-// -----------------------------------------------------------------------------
 // New NPC Dossiers
 // -----------------------------------------------------------------------------
 function renderNewNpcs(ctx) {
@@ -259,26 +250,22 @@ export const SECTION_REGISTRY = [
         badge: (ctx) => ctx.parsed?.innerChatter?.length || null,
     },
     {
-        id: "summary", icon: "fa-floppy-disk", title: "Summary",
-        defaultOpen: true, order: 2, render: renderSummary, badge: null,
-    },
-    {
         id: "newNpcs", icon: "fa-user-plus", title: "New NPC Dossiers",
-        defaultOpen: true, order: 3, render: renderNewNpcs,
+        defaultOpen: true, order: 2, render: renderNewNpcs,
         badge: (ctx) => ctx.parsed?.newNpcs?.length || null,
     },
     {
         id: "storyPlan", icon: "fa-map", title: "Story Planner",
-        defaultOpen: false, order: 4, render: renderStoryPlan, badge: null,
+        defaultOpen: false, order: 3, render: renderStoryPlan, badge: null,
     },
     {
         id: "npcBank", icon: "fa-address-book", title: "NPC Bank",
-        defaultOpen: false, order: 5, render: renderNpcBank,
+        defaultOpen: false, order: 4, render: renderNpcBank,
         badge: (ctx) => ctx.profile?.npcBank?.npcs?.length || null,
     },
     {
         id: "banList", icon: "fa-ban", title: "Ban List",
-        defaultOpen: false, order: 6, render: renderBanList,
+        defaultOpen: false, order: 5, render: renderBanList,
         badge: (ctx) => ctx.profile?.banList?.length || null,
     },
 ];

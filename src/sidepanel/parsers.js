@@ -12,7 +12,6 @@
 const BLOCK_PATTERNS = {
     worldState: /<details[^>]*>\s*<summary[^>]*>[^<]*📌[\s\S]*?<b>\s*World State\s*<\/b>[\s\S]*?<\/summary>\s*([\s\S]*?)\s*<\/details>/i,
     innerChatter: /<details[^>]*>\s*<summary[^>]*>[^<]*💭[\s\S]*?<b>\s*NPC Inner Chatter\s*<\/b>[\s\S]*?<\/summary>\s*([\s\S]*?)\s*<\/details>/i,
-    summary: /<details[^>]*>\s*<summary[^>]*>[^<]*💾[\s\S]*?<b>\s*Summary\s*<\/b>[\s\S]*?<\/summary>\s*([\s\S]*?)\s*<\/details>/i,
 };
 
 const NEW_NPC_PATTERN = /<details[^>]*>\s*<summary[^>]*>[^<]*🆕[\s\S]*?<b>\s*New NPC:\s*([^<]+)\s*<\/b>[\s\S]*?<\/summary>\s*([\s\S]*?)\s*<\/details>/ig;
@@ -257,14 +256,6 @@ export function parseInnerChatter(raw) {
 }
 
 // -----------------------------------------------------------------------------
-// Summary parser — just trimmed text
-// -----------------------------------------------------------------------------
-export function parseSummary(raw) {
-    if (!raw) return "";
-    return raw.trim();
-}
-
-// -----------------------------------------------------------------------------
 // New NPC dossier (per-message) — only used to surface "freshly introduced" NPCs
 // -----------------------------------------------------------------------------
 export function parseNewNpcs(text) {
@@ -294,7 +285,6 @@ export function parseMessage(text) {
         summaryRaw,
         worldState: parseWorldState(worldRaw),
         innerChatter: parseInnerChatter(chatterRaw),
-        summary: parseSummary(summaryRaw),
         newNpcs: parseNewNpcs(text),
         hasAny: Boolean(worldRaw || chatterRaw || summaryRaw),
     };
@@ -304,4 +294,4 @@ export function parseMessage(text) {
 // Combined "all blocks" regex used by the inline-hiding feature
 // -----------------------------------------------------------------------------
 export const ALL_TRACKER_BLOCKS_REGEX =
-    /<details[^>]*>\s*<summary[^>]*>[^<]*(?:📌|💭|💾|🆕)[\s\S]*?<\/summary>[\s\S]*?<\/details>/gi;
+    /<details[^>]*>\s*<summary[^>]*>[^<]*(?:📌|💭|🆕)[\s\S]*?<\/summary>[\s\S]*?<\/details>/gi;

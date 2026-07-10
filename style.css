@@ -1650,9 +1650,28 @@
 }
 
 /* ================================================================
-   MOBILE RESPONSIVE — All rules scoped to @media only.
+   MOBILE RESPONSIVE — Sidebar Drawer Redesign
    Desktop UI is completely untouched.
    ================================================================ */
+
+/* ── Drawer backdrop overlay (injected via JS) ── */
+.mobile-drawer-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 90;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.mobile-drawer-overlay.open {
+    opacity: 1;
+}
+
+/* ── Hamburger button (injected via JS) ── */
+.mobile-hamburger {
+    display: none; /* Hidden on desktop */
+}
 
 @media (max-width: 768px) {
 
@@ -1683,68 +1702,98 @@
         border-radius: 50%;
     }
 
-    /* ── Dock → Horizontal bottom tab bar ── */
+    /* ════════════════════════════════════════════════════
+       DOCK → Left Side Drawer (hidden by default)
+       ════════════════════════════════════════════════════ */
     .dock {
         position: absolute !important;
-        /* Safer than fixed on mobile */
-        top: auto !important;
+        top: 0 !important;
         bottom: 0 !important;
         left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        height: auto !important;
-        min-height: 84px !important;
-        padding: 0 0 env(safe-area-inset-bottom, 0px) 0 !important;
+        right: auto !important;
+        width: 280px !important;
+        height: 100% !important;
+        padding: 20px 0 0 0 !important;
         border-radius: 0 !important;
         border: none !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-        flex-direction: row !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+        flex-direction: column !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
         gap: 0 !important;
         z-index: 100 !important;
-        background: rgba(14, 14, 17, 0.95) !important;
+        background: var(--bg-panel) !important;
         backdrop-filter: blur(20px) !important;
-        -webkit-overflow-scrolling: touch;
+        box-shadow: 10px 0 40px rgba(0, 0, 0, 0.6) !important;
+
+        /* Hidden off-screen by default */
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
+    .dock.mobile-open {
+        transform: translateX(0) !important;
+    }
+
+    /* When drawer is open, show the overlay */
+    .mobile-drawer-overlay.open {
+        display: block;
+        opacity: 1;
+    }
+
+    /* Force the dock to always render at expanded width */
     .dock:hover {
-        width: 100% !important;
-        box-shadow: none !important;
+        width: 280px !important;
+        box-shadow: 10px 0 40px rgba(0, 0, 0, 0.6) !important;
     }
 
-    .dock-icon {
-        flex-direction: column !important;
-        width: auto !important;
-        min-width: 65px !important;
-        /* Slightly wider for better touch */
-        height: 84px !important;
-        /* Match the new dock height */
-        padding: 10px 10px !important;
-        /* Added more padding */
-        margin: 0 !important;
-        font-size: 0.7rem !important;
-        /* Slightly larger text */
-        gap: 4px;
-        /* More space between icon and text */
-        justify-content: center;
-        align-items: center;
+    /* ── Drawer header (injected via JS inside dock) ── */
+    .mobile-drawer-header {
+        padding: 0 20px 16px 20px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid var(--border-color);
         flex-shrink: 0;
+    }
+    .mobile-drawer-header h3 {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 0;
+    }
+
+    /* ── Dock icon: full-width row items with labels always visible ── */
+    .dock-icon {
+        flex-direction: row !important;
+        width: 100% !important;
+        height: 46px !important;
+        padding: 0 20px !important;
+        margin: 0 !important;
+        margin-bottom: 2px !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        gap: 0 !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        flex-shrink: 0 !important;
+        border-radius: 0 !important;
+        color: var(--text-muted) !important;
+        transition: background 0.15s ease, color 0.15s ease !important;
     }
 
     .dock-icon i {
-        margin-right: 0 !important;
+        margin-right: 14px !important;
         font-size: 1rem !important;
-        width: auto !important;
+        width: 20px !important;
+        text-align: center !important;
     }
 
     .dock-icon span {
         opacity: 1 !important;
         pointer-events: auto !important;
-        font-size: 0.55rem !important;
-        white-space: nowrap;
-        text-align: center;
-        line-height: 1.1;
+        font-size: 0.85rem !important;
+        white-space: nowrap !important;
     }
 
     .dock:hover .dock-icon span {
@@ -1752,22 +1801,74 @@
     }
 
     .dock-icon:hover,
+    .dock-icon:active {
+        margin-left: 0 !important;
+        width: 100% !important;
+        border-radius: 0 !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: var(--text-main) !important;
+    }
+
     .dock-icon.active {
         margin-left: 0 !important;
-        width: auto !important;
-        min-width: 56px !important;
+        width: 100% !important;
         border-radius: 0 !important;
-        background: rgba(255, 255, 255, 0.06) !important;
+        background: rgba(245, 158, 11, 0.1) !important;
+        color: var(--gold) !important;
+        border-left: 3px solid var(--gold) !important;
     }
 
-    .dock-icon.active {
-        background: rgba(245, 158, 11, 0.12) !important;
-        border-top: 2px solid var(--gold) !important;
+    /* ── Drawer footer (injected via JS at bottom of dock) ── */
+    .mobile-drawer-footer {
+        margin-top: auto;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .mobile-drawer-footer-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        background: var(--bg-main);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        font-family: 'Inter', sans-serif;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .mobile-drawer-footer-btn:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .mobile-drawer-footer-btn.danger {
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+    .mobile-drawer-footer-btn.sync-global {
+        color: var(--gold);
+        border-color: rgba(245, 158, 11, 0.3);
     }
 
-    /* ── Hero banner: keep it, slightly shorter ── */
+    /* ════════════════════════════════════════════════════
+       HERO BANNER — kept with character pic
+       ════════════════════════════════════════════════════ */
     .hero-banner {
-        height: 150px !important;
+        height: 140px !important;
+    }
+
+    .hero-overlay {
+        background: linear-gradient(
+            to right,
+            rgba(0, 0, 0, 0.85) 0%,
+            rgba(24, 24, 27, 0.3) 60%,
+            rgba(24, 24, 27, 0.7) 100%
+        ) !important;
     }
 
     .hero-content {
@@ -1775,43 +1876,77 @@
     }
 
     .hero-content .name {
-        font-size: 1.5rem !important;
+        font-size: 1.4rem !important;
+        max-width: calc(100vw - 32px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .hero-content .status {
         font-size: 0.6rem !important;
     }
 
-    /* ── Top app bar: compact action buttons ── */
+    /* ── Top app bar — hamburger on left, actions on right ── */
     .top-app-bar {
         padding: 10px 12px !important;
+        justify-content: space-between !important;
+    }
+
+    /* Show hamburger */
+    .mobile-hamburger {
+        display: flex !important;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid var(--border-color);
+        backdrop-filter: blur(5px);
+        color: var(--text-main);
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-hamburger:active {
+        background: rgba(255, 255, 255, 0.15);
     }
 
     .app-actions {
         gap: 6px !important;
-        flex-wrap: wrap !important;
+        flex-wrap: nowrap !important;
         justify-content: flex-end !important;
     }
 
     .app-actions .ps-modern-btn {
         padding: 6px 10px !important;
-        font-size: 0.7rem !important;
+        font-size: 0 !important;  /* Hide text on all buttons */
     }
 
-    /* Hide button labels on mobile, keep icons */
-    #btn_apply_tab_all,
-    #ps_btn_reset {
-        font-size: 0 !important;
-    }
-
-    #btn_apply_tab_all i,
-    #ps_btn_reset i {
+    .app-actions .ps-modern-btn i {
         font-size: 0.85rem !important;
     }
 
-    /* ── Main content area: adjust padding for bottom dock ── */
+    /* Keep Save & Close with short label */
+    #ps_btn_save_close {
+        font-size: 0.7rem !important;
+        padding: 8px 12px !important;
+    }
+
+    /* Token counter: compact */
+    #ps_live_token_count {
+        padding: 6px 10px !important;
+        font-size: 0.7rem !important;
+    }
+
+    /* ════════════════════════════════════════════════════
+       MAIN CONTENT — full space, no bottom dock
+       ════════════════════════════════════════════════════ */
     .main-content {
-        padding: 10px 14px calc(100px + env(safe-area-inset-bottom, 0px)) 14px !important;
+        padding: 10px 14px 20px 14px !important;
     }
 
     /* ── Cards grid: single column ── */
@@ -1853,7 +1988,6 @@
     }
 
     /* ── Fix inline flex rows that overflow on mobile ── */
-    /* Settings rows (word count, language, pronouns) */
     .main-content div[style*="display: flex"][style*="align-items: center"][style*="gap: 15px"] {
         flex-wrap: wrap !important;
     }
@@ -1863,7 +1997,7 @@
         width: 100% !important;
     }
 
-    /* Image gen parameter sliders: stack vertically on small screens */
+    /* Image gen parameter sliders */
     div[style*="display: grid"][style*="grid-template-columns: 1fr 1fr"] {
         grid-template-columns: 1fr !important;
     }
@@ -1910,12 +2044,12 @@
         font-size: 0.78rem !important;
     }
 
-    /* Progress overlay: full width on mobile */
+    /* Progress overlay: position above content (no dock) */
     #kazuma_progress_overlay {
         left: 10px !important;
         right: 10px !important;
         width: auto !important;
-        bottom: 120px !important;
+        bottom: 30px !important;
     }
 }
 
@@ -1926,35 +2060,38 @@
     }
 
     .hero-content .name {
-        font-size: 1.2rem !important;
+        font-size: 1.15rem !important;
+    }
+
+    .dock {
+        width: 260px !important;
+    }
+    .dock:hover {
+        width: 260px !important;
     }
 
     .dock-icon {
-        min-width: 48px !important;
-        padding: 6px 6px !important;
+        height: 42px !important;
+        padding: 0 16px !important;
     }
-
     .dock-icon span {
-        font-size: 0.5rem !important;
+        font-size: 0.8rem !important;
     }
 
     .app-actions .ps-modern-btn {
-        padding: 6px 8px !important;
-        font-size: 0 !important;
-    }
-
-    .app-actions .ps-modern-btn i {
-        font-size: 0.85rem !important;
+        padding: 5px 8px !important;
     }
 
     #ps_btn_save_close {
-        font-size: 0.7rem !important;
+        font-size: 0.65rem !important;
+        padding: 6px 10px !important;
     }
 
     .main-content {
-        padding: 8px 10px 68px 10px !important;
+        padding: 8px 10px 16px 10px !important;
     }
 }
+
 
 /* ================================================================
    MEMORY CORE EXTENSION — Visuals & UI
@@ -2585,261 +2722,3 @@
     background: #18181b;
 }
 
-/* =============================================================
-   AURA GLASS REDESIGN — Overrides
-   ============================================================= */
-:root {
-    /* Deepen the base colors to allow the image to shine through */
-    --meg-bg-glass: rgba(14, 14, 17, 0.45); 
-    --meg-sp-border: rgba(255, 255, 255, 0.08);
-    --meg-sp-border-soft: rgba(255, 255, 255, 0.04);
-    --meg-r-lg: 18px;  /* Softer pill-like sections */
-    --meg-r-xl: 24px;  /* Extremely rounded outer panel */
-    --meg-sp-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.08);
-}
-
-/* 1. Base Panel Blur & Glow Orbs */
-#meg-sp-panel {
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    box-shadow: var(--meg-sp-shadow);
-    border-radius: var(--meg-r-xl);
-}
-
-/* The Glowing Aura Orbs behind the content (Now linked to ST colors) */
-#meg-sp-panel::before {
-    content: ''; position: absolute; top: -50px; left: -50px; width: 250px; height: 250px;
-    /* Links to SillyTavern's Primary UI Accent Color */
-    background: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))); 
-    filter: blur(80px); opacity: 0.15; z-index: 0; pointer-events: none; border-radius: 50%;
-}
-#meg-sp-panel::after {
-    content: ''; position: absolute; bottom: 50px; right: -50px; width: 300px; height: 300px;
-    /* Links to SillyTavern's Secondary/Text Accent Color */
-    background: var(--SmartTheme-quote-color, var(--text-main, #a855f7)); 
-    filter: blur(90px); opacity: 0.10; z-index: 0; pointer-events: none; border-radius: 50%;
-}
-
-/* 2. Release the background image from the header */
-.meg-sp-header {
-    position: static !important; /* Lets the background escape */
-    overflow: visible !important;
-    border-bottom: none !important; /* REMOVES THE DIVIDER LINE */
-    box-shadow: none !important;
-    background: transparent !important;
-    padding: 20px 24px 14px 24px;
-    min-height: auto;
-}
-
-/* The Character Image Background */
-.meg-sp-header-bg {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-    height: 100% !important; /* Forces it to the bottom of the panel */
-    z-index: 0;
-    opacity: 0.25; 
-    border-radius: inherit; 
-    pointer-events: none;
-}
-
-/* The Tint/Blur Overlay */
-.meg-sp-header-overlay {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-    height: 100% !important; /* Forces the blur to the bottom of the panel */
-    z-index: 1;
-    background: linear-gradient(180deg, rgba(14, 14, 17, 0.2) 0%, rgba(14, 14, 17, 0.85) 100%) !important;
-    backdrop-filter: blur(12px) !important; 
-    -webkit-backdrop-filter: blur(12px) !important;
-    pointer-events: none;
-    border-radius: inherit;
-}
-
-/* Remove the old bottom fade gradient from the header overlay */
-.meg-sp-header-overlay::after {
-    display: none !important;
-}
-
-/* Ensure the scrollable body doesn't block the background */
-.meg-sp-body {
-    position: relative;
-    z-index: 2;
-    background: #00000000 !important;
-}
-
-/* Bring actual content above the new full-panel background layers */
-.meg-sp-title, .meg-sp-header-actions, .meg-sp-body {
-    position: relative;
-    z-index: 2;
-}
-
-/* 3. Aura Glass Section Cards */
-.meg-sp-section {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: var(--meg-r-lg);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-}
-.meg-sp-section:hover {
-    border-color: rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.04);
-}
-.meg-sp-section[open] {
-    border-color: color-mix(in srgb, var(--meg-gold-500) 30%, transparent);
-    background: rgba(255, 255, 255, 0.05);
-}
-/* Glowing edge instead of a harsh flat line (Now linked to ST colors) */
-.meg-sp-section[open]::before {
-    width: 3px;
-    left: 0; top: 16px; bottom: 16px;
-    border-radius: 0 4px 4px 0;
-    /* Links the Neon Bar to SillyTavern's Primary UI Accent Color */
-    background: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b)));
-    box-shadow: 0 0 12px var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b)));
-}
-
-/* 4. Deepen the inset for Inner Cards/Thought Bubbles for contrast */
-.meg-sp-card, .meg-sp-thought {
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    border-radius: 14px;
-    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
-}
-
-/* Settings toggles matching the aesthetic */
-.meg-sp-settings-row {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 12px;
-}
-
-/* Soften the header buttons */
-.meg-sp-header-actions .meg-sp-icon-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-}
-.meg-sp-header-actions .meg-sp-icon-btn:hover {
-    background: var(--meg-gold-a20);
-    border-color: var(--meg-gold-a35);
-    color: var(--meg-gold-400);
-    box-shadow: 0 0 15px var(--meg-gold-a12);
-}
-
-/* =============================================================
-   PRESENT CHARACTERS BAR — Aura Glass Overrides
-   ============================================================= */
-
-/* 1. Main Bar and Toggle */
-.meg-pb-toggle {
-    background: rgba(14, 14, 17, 0.5) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-.meg-pb-toggle:hover {
-    background: rgba(255, 255, 255, 0.05) !important;
-}
-.meg-pb-bar {
-    background: rgba(14, 14, 17, 0.45) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-.meg-pb-title {
-    color: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
-}
-
-/* 2. Character Cards (Glass style) */
-.meg-pb-card {
-    background: rgba(0, 0, 0, 0.4) !important;
-    border: 1px solid rgba(255, 255, 255, 0.04) !important;
-    border-radius: 14px !important;
-    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2) !important;
-}
-.meg-pb-card:hover {
-    border-color: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
-    box-shadow: 0 6px 15px rgba(0,0,0,0.3), 0 0 12px var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
-    transform: translateY(-4px) !important;
-}
-
-/* Optional: Keep the male/female indicator lines, but soften them */
-.meg-pb-card.meg-pb-card-male { border-left-color: rgba(59, 130, 246, 0.6) !important; }
-.meg-pb-card.meg-pb-card-female { border-left-color: rgba(244, 63, 94, 0.6) !important; }
-
-/* 3. Empty Placeholder (Glowing letter instead of flat gradient) */
-.meg-pb-card-emoji {
-    background: rgba(0,0,0,0.2) !important;
-    color: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
-    text-shadow: 0 0 15px var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
-}
-
-/* 4. Character Sheet Popup (Matches the Side Panel aesthetic) */
-.meg-pb-sheet-card {
-    background: rgba(14, 14, 17, 0.65) !important;
-    backdrop-filter: blur(24px) !important;
-    -webkit-backdrop-filter: blur(24px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 24px !important;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.08) !important;
-}
-.meg-pb-sheet-head {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-    background: transparent !important;
-}
-.meg-pb-sheet-footer {
-    background: rgba(0,0,0,0.2) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-.meg-pb-sheet-field {
-    background: rgba(0,0,0,0.3) !important;
-    border: 1px solid rgba(255,255,255,0.03) !important;
-    /* Links the accent edge to SillyTavern's color */
-    border-left: 2px solid var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
-}
-/* 5. Round the Outer Edges of the Present Characters Bar */
-#meg-pb-wrapper {
-    border-radius: 16px !important;
-    overflow: hidden !important;
-    margin-bottom: 8px !important; /* Lifts it slightly so it floats */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-/* Ensure the toggle button respects the rounded corners */
-.meg-pb-toggle {
-    border-radius: 16px 16px 0 0 !important;
-    border-top: none !important; /* Removed to prevent double-borders with the wrapper */
-}
-
-/* When collapsed, round all 4 corners of the toggle */
-.meg-pb-toggle:not(.meg-pb-open) {
-    border-radius: 16px !important;
-}
-
-/* Ensure the bottom of the main bar is rounded */
-.meg-pb-bar {
-    border-radius: 0 0 16px 16px !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-/* =============================================================
-   DOCKED PANEL — Rounded Inner Corners
-   ============================================================= */
-
-/* When docked to the RIGHT: Round the Top-Left and Bottom-Left corners */
-#meg-sp-panel.meg-sp-pos-right:not([data-mode="floating"]) {
-    border-radius: var(--meg-r-xl) 0 0 var(--meg-r-xl) !important;
-}
-
-/* When docked to the LEFT: Round the Top-Right and Bottom-Right corners */
-#meg-sp-panel.meg-sp-pos-left:not([data-mode="floating"]) {
-    border-radius: 0 var(--meg-r-xl) var(--meg-r-xl) 0 !important;
-}
-
-/* Ensure the background image and blur overlay perfectly clip to these new corners */
-#meg-sp-panel:not([data-mode="floating"]) .meg-sp-header-bg,
-#meg-sp-panel:not([data-mode="floating"]) .meg-sp-header-overlay {
-    border-radius: inherit !important;
-}

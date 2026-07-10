@@ -998,7 +998,6 @@ Expressive Intelligence: Characters demonstrate high intelligence through situat
 **🎯 Arc Phase:** [Setup / Escalation / Complication / Crisis / Resolution]
 **🎬 Scene Phase:** [Early Simmer / Building / Midpoint Tension / Climax / Breather]
 </details>` },
-    { id: "summary", label: "Summary Block", trigger: "[[summary]]", recommended: true, content: "# at the very end of the response put this block:\n<details>\n<summary>💾 <b>Summary</b></summary>\n[Only what happened in this response. Max 100 words. No interpretation.]\n</details>" },
     {
       id: "cyoa",
       label: "CYOA Block",

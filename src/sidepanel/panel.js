@@ -46,7 +46,7 @@ const SETTINGS_KEY = "sidePanel";
 
 const DEFAULTS = Object.freeze({
     schemaVersion: 2,
-    enabled: true,
+    enabled: false,
     mode: "docked",              // "docked" | "floating"
     position: "right",           // docked edge
     width: 340,                  // docked width px
@@ -58,11 +58,10 @@ const DEFAULTS = Object.freeze({
     sections: {
         worldState:   { visible: true, open: true,  order: 0 },
         innerChatter: { visible: true, open: true,  order: 1 },
-        summary:      { visible: true, open: true,  order: 2 },
-        newNpcs:      { visible: true, open: true,  order: 3 },
-        storyPlan:    { visible: true, open: false, order: 4 },
-        npcBank:      { visible: true, open: true,  order: 5 },
-        banList:      { visible: true, open: false, order: 6 },
+        newNpcs:      { visible: true, open: true,  order: 2 },
+        storyPlan:    { visible: true, open: false, order: 3 },
+        npcBank:      { visible: true, open: true,  order: 4 },
+        banList:      { visible: true, open: false, order: 5 },
     },
 });
 
@@ -170,7 +169,7 @@ function buildPanelSkeleton() {
     const body = el("div", { class: "meg-sp-body" });
     body.appendChild(el("div", { class: "meg-sp-empty", id: "meg-sp-empty" },
         el("i", { class: "fa-solid fa-hat-wizard" }),
-        el("p", {}, "No tracker data yet. The panel updates whenever the AI emits a World State, NPC Inner Chatter, or Summary block."),
+        el("p", {}, "No tracker data yet. The panel updates whenever the AI emits a World State or NPC Inner Chatter block."),
     ));
     body.appendChild(el("div", { class: "meg-sp-sections", id: "meg-sp-sections" }));
 
@@ -459,7 +458,7 @@ function render() {
             if (p) {
                 p.textContent = hasData
                     ? "All sections are hidden. Re-enable them in the Side Panel settings tab."
-                    : "No tracker data yet. The panel updates whenever the AI emits a World State, NPC Inner Chatter, or Summary block.";
+                    : "No tracker data yet. The panel updates whenever the AI emits a World State or NPC Inner Chatter block.";
             }
             empty.style.display = "";
         }
@@ -549,7 +548,7 @@ function stripInlineFromMessage(mesId) {
     root.querySelectorAll("details").forEach(d => {
         const sum = d.querySelector("summary");
         if (!sum) return;
-        if (/📌|💭|💾|🆕/.test(sum.textContent || "")) {
+        if (/📌|💭|🆕/.test(sum.textContent || "")) {
             d.style.display = "none";
             d.classList.add("meg-sp-tracker-block");
         }
@@ -566,7 +565,7 @@ function stripInlineFromAll() {
         root.querySelectorAll("details").forEach(d => {
             const sum = d.querySelector("summary");
             if (!sum) return;
-            if (/📌|💭|💾|🆕/.test(sum.textContent || "")) {
+            if (/📌|💭|🆕/.test(sum.textContent || "")) {
                 d.style.display = hide ? "none" : "";
                 d.classList.add("meg-sp-tracker-block");
             }

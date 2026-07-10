@@ -1,4 +1,8 @@
 # beta 3/07/26
+* removed summary block. "memory core is better".
+* moved "Disable Utility Prefills" and "Prompt Payload Preview" to the new settings.
+* better story pmanner prompt.
+# beta 3/07/26
 * added side panel thanks to Luka
 * added Export/inport to npc bank and memory core
 * a full Redesign of story planner with a lot more options
