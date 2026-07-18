@@ -1,7 +1,18 @@
-# beta 3/07/26
-* removed summary block. "memory core is better".
-* moved "Disable Utility Prefills" and "Prompt Payload Preview" to the new settings.
-* better story pmanner prompt.
+# beta 10/07/26
+* Mobile UI fix
+**⚙️ New Global Settings Menu**
+* Added a dedicated Global Settings gear icon to the top action bar.
+* Moved **Prompt Payload Preview** and **Disable Utility Prefills** out of individual character profiles into this global menu.
+**🎬 Story Director Enhancements**
+* **Context Awareness:** The Story Director now reads *both* User and AI messages, allowing it to react to your specific actions.
+* **Context Limit Toggle:** Added a dropdown in Engine Settings to let the Director analyze either the "Last 100 Messages" (faster/cheaper) or the "Full Chat History".
+* better story planner prompt.
+**🌍 Compact World State**
+* Added an inner menu to the World State add-on card to enable **Compact Mode**. so the AI only generates the massive lore block every X replies falling back to a tiny 30-token "Micro-Dash" (Time, Location, Clothes, Posture) the rest of the time.
+**🔄 Sync & Cleanup**
+* **Global Sync Restored:** Brought back the "Sync Tab Globally" button to the *Writing Style* and *Side Panel* tabs.
+* **Sync Array Updated:** Rewrote the sync mapping so it now captures newly added settings (like the NPCs Bank, POV selection, and CoT toggles).
+* **Summary Block Removed:** Completely stripped out the old Summary tracker block. in Favor for the faster memory core.
 # beta 3/07/26
 * added side panel thanks to Luka
 * added Export/inport to npc bank and memory core
@@ -19,6 +30,8 @@
    NPC Bank Timeline Correction: Branching back in history will automatically remove any characters that were introduced in the deleted future timeline, keeping your NPC list synchronized with where you are in the story.
    Automatic Story Director Replanning: Going back in time before a directive/story plan was created will cleanly reset the current plan (while keeping your selected genres and tags) so the director can auto-generate a fresh, relevant plan for your new timeline.
    Smart Chat Branching Inheritance: When you create a branch or checkpoint from an existing chat, the new branch automatically inherits all the settings of the parent chat.
+* fixed memory core saving data inside data\default-user\settings.json Which may cause lag on low-end hw 
+now memory core and story planner save inside the chat file and it will clean any old stuff inside settings.json.
 
 # beta 24/06/26
 * fixed memory core generator Backend not saving.

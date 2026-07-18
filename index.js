@@ -968,11 +968,15 @@ function renderMode(c) {
         "v6-dream-team-lite": "A streamlined version of the Dream Team. Faster generation with lower token overhead.",
         "v7-core": "The V7 Core engine. The perfect middle ground: cinematic pacing, realistic friction, and relentless world progression.",
         "v7-reality": "The V7 Reality engine. Grounded, unrelenting simulation with zero narrative protection.",
-        "v7-gentle": "The V7 Gentle engine. A softer, For pussies.",
+        "v7-gentle": "The V7 Gentle engine. A softer, more intimate storytelling flow.",
         "v7.5": "The Kismet engine. Focused purely on inescapable narrative momentum, pushing the story forward as the unseen author of fate.",
         "v8-m": "Unmatched in complex human psychology, authentic flawed dialogue, and autonomous, multi-layered story plotting.",
         "v8-lite": "A streamlined, highly efficient version of Obsidian. Retains the core rules of psychology, dialogue, and momentum with a much lighter token footprint.",
-        "v8-fusion": "The absolute pinnacle of the Megumin Suite. A hybrid engine mixing V8 Obsidian's deep psychology with V6 Dream Team's specialist writer room framework."
+        "v8-fusion": "The absolute pinnacle of the Megumin Suite. A hybrid engine mixing V8 Obsidian's deep psychology with V6 Dream Team's specialist writer room framework.",
+        "v9-core": "The definitive, final Megumin V9 Preset. V9 Shinjitsu is the absolute pinnacle of narrative simulation, delivering hyper-realistic psychology, visceral atmospheric grounding, and dynamic world consequences. This is the ultimate, highly recommended preset.",
+        "v9-lite": "An experimental beta engine with a slightly different, highly stylized narrative flow. Proved interesting enough to include for those who want an alternative storytelling rhythm.",
+        "v9-director": "A unique beta hybrid blending the specialized writer-room mechanics of V8 Fusion with the raw psychological depth of V9 Xin. Highly experimental.",
+        "v9-immersion": "A streamlined, lightweight version of V9 Shinjitsu. It retains the core philosophy and brutal realism of Shinjitsu but runs with a smaller context footprint. V9 Shinjitsu is still recommended if your model can handle it."
     };
 
     // Active engine name
@@ -980,13 +984,14 @@ function renderMode(c) {
     const activeLabel = activeEng ? activeEng.label : localProfile.mode;
 
     // Count by version
-    let v4Count = 0, v5Count = 0, v6Count = 0, v7Count = 0, v8Count = 0;
+    let v4Count = 0, v5Count = 0, v6Count = 0, v7Count = 0, v8Count = 0, v9Count = 0;
     hardcodedLogic.modes.forEach(m => {
         if (m.label.includes("V4")) v4Count++;
         else if (m.label.includes("V5")) v5Count++;
         else if (m.id.includes("v6")) v6Count++;
         else if (m.id.includes("v7")) v7Count++;
         else if (m.id.includes("v8")) v8Count++;
+        else if (m.id.includes("v9")) v9Count++;
     });
     const totalCount = hardcodedLogic.modes.length;
 
@@ -1017,6 +1022,7 @@ function renderMode(c) {
             <button class="wstyle-filter-pill" data-filter="V6"><i class="fa-solid fa-lock" style="font-size:0.6rem;"></i> V6 <span class="pill-count">${v6Count}</span></button>
             <button class="wstyle-filter-pill" data-filter="V7">V7 <span class="pill-count">${v7Count}</span></button>
             <button class="wstyle-filter-pill" data-filter="V8">V8 <span class="pill-count">${v8Count}</span></button>
+            <button class="wstyle-filter-pill" data-filter="V9">V9 <span class="pill-count">${v9Count}</span></button>
         </div>
     `);
     c.append(filterBar);
@@ -1032,6 +1038,7 @@ function renderMode(c) {
         else if (m.id.includes("v6")) version = "V6";
         else if (m.id.includes("v7")) version = "V7";
         else if (m.id.includes("v8")) version = "V8";
+        else if (m.id.includes("v9")) version = "V9";
 
         const isLocked = m.locked === true;
         const isSel = localProfile.mode === m.id;
@@ -1070,11 +1077,12 @@ function renderMode(c) {
                     localProfile.activeStyleId = "dir_v8";
                     const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v8");
                     if (ds) localProfile.aiRule = ds.rule;
+                } else if (m.id.startsWith("v9")) {
+                    localProfile.activeStyleId = "dir_v9";
+                    const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v9");
+                    if (ds) localProfile.aiRule = ds.rule;
                 }
 
-                // ==========================================
-                // ADD THIS NEW BLOCK RIGHT HERE
-                // ==========================================
                 const currentLang = (localProfile.model && localProfile.model.includes("-")) ? localProfile.model.split('-').pop() : "english";
                 let targetCotPrefix = null;
                 
@@ -1082,6 +1090,7 @@ function renderMode(c) {
                 else if (m.id === "v7.5") targetCotPrefix = "cot-v7.5";
                 else if (m.id.includes("v7")) targetCotPrefix = "cot-v7";
                 else if (m.id.includes("v8")) targetCotPrefix = "cot-v8";
+                else if (m.id.includes("v9")) targetCotPrefix = "cot-v9";
                 
                 if (targetCotPrefix) {
                     if (targetCotPrefix.includes("v7") || targetCotPrefix.includes("v8")) {
@@ -1188,7 +1197,8 @@ function renderPersonality(c) {
     const activeEngineForPersona = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
     const isV7 = activeEngineForPersona ? (activeEngineForPersona.id.startsWith("v7") || activeEngineForPersona.isV7 === true) : false;
     const isV8 = activeEngineForPersona ? (activeEngineForPersona.id.startsWith("v8") || activeEngineForPersona.isV8 === true) : false;
-    const isLockedPersona = isV6DreamTeam || isV7 || isV8;
+    const isV9 = activeEngineForPersona ? (activeEngineForPersona.id.startsWith("v9") || activeEngineForPersona.isV9 === true) : false;
+    const isLockedPersona = isV6DreamTeam || isV7 || isV8 || isV9;
 
     // ── HEADER ──
     c.append(`
@@ -1208,12 +1218,12 @@ function renderPersonality(c) {
         </div>
     `);
 
-    if (isV8) {
+    if (isV8 || isV9) {
         c.append(`
             <div class="mtab-locked-state">
                 <i class="fa-solid fa-user-lock" style="color: #f59e0b;"></i>
                 <h3>Persona & Toggles Locked</h3>
-                <p>The V8 engine manages its own internal persona and strictly enforces narrative toggles natively. Standard injections are completely disabled.</p>
+                <p>The ${isV9 ? 'V9' : 'V8'} engine manages its own internal persona and strictly enforces narrative toggles natively. Standard injections are completely disabled.</p>
             </div>
         `);
         return;
@@ -1294,7 +1304,8 @@ function renderStyleLibrary(c) {
     const activeEngineForStyle = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
     const isV7ForStyle = activeEngineForStyle ? (activeEngineForStyle.id.startsWith("v7") || activeEngineForStyle.isV7 === true) : false;
     const isV8ForStyle = activeEngineForStyle ? (activeEngineForStyle.id.startsWith("v8") || activeEngineForStyle.isV8 === true) : false;
-    const isLockedStyleEngine = isV7ForStyle || isV8ForStyle;
+    const isV9ForStyle = activeEngineForStyle ? (activeEngineForStyle.id.startsWith("v9") || activeEngineForStyle.isV9 === true) : false;
+    const isLockedStyleEngine = isV7ForStyle || isV8ForStyle || isV9ForStyle;
 
     if (isLockedStyleEngine && !localProfile.activeStyleId) {
         let targetStyle = "dir_v7";
@@ -1302,6 +1313,7 @@ function renderStyleLibrary(c) {
         else if (localProfile.mode === "v7-gentle") targetStyle = "dir_v7_gentle";
         else if (localProfile.mode === "v7.5") targetStyle = "dir_v7.5";
         else if (isV8ForStyle) targetStyle = "dir_v8";
+        else if (isV9ForStyle) targetStyle = "dir_v9";
 
         localProfile.activeStyleId = targetStyle;
         const ds = hardcodedLogic.directStyles.find(x => x.id === targetStyle);
@@ -2103,6 +2115,11 @@ function renderModels(c) {
     else if (localProfile.model && localProfile.model.startsWith("cot-v7-")) { currentType = "v7"; currentLang = localProfile.model.replace("cot-v7-", ""); }
     else if (localProfile.model && localProfile.model.startsWith("cot-v8-fusion-")) { currentType = "v8-fusion"; currentLang = localProfile.model.replace("cot-v8-fusion-", ""); }
     else if (localProfile.model && localProfile.model.startsWith("cot-v8-")) { currentType = "v8"; currentLang = localProfile.model.replace("cot-v8-", ""); }
+    else if (localProfile.model && localProfile.model.startsWith("cot-v9-lite-")) { currentType = "v9-lite"; currentLang = localProfile.model.replace("cot-v9-lite-", ""); }
+    else if (localProfile.model && localProfile.model.startsWith("cot-v9-director-")) { currentType = "v9-director"; currentLang = localProfile.model.replace("cot-v9-director-", ""); }
+    else if (localProfile.model && localProfile.model.startsWith("cot-v9-immersion-")) { currentType = "v9-immersion"; currentLang = localProfile.model.replace("cot-v9-immersion-", ""); }
+    else if (localProfile.model && localProfile.model.startsWith("cot-v9-hybrid-")) { currentType = "v9-hybrid"; currentLang = localProfile.model.replace("cot-v9-hybrid-", ""); }
+    else if (localProfile.model && localProfile.model.startsWith("cot-v9-")) { currentType = "v9"; currentLang = localProfile.model.replace("cot-v9-", ""); }
     // ── DETERMINE ALLOWED CoTs ──
     let allowedCotTypes = null; // null means all allowed (V4, V5, custom)
     if (localProfile.mode.includes("v6")) allowedCotTypes = ["v6", "v6-lite"];
@@ -2110,6 +2127,7 @@ function renderModels(c) {
     else if (localProfile.mode.includes("v7")) allowedCotTypes = ["v7", "v7-lite"];
     else if (localProfile.mode === "v8-fusion") allowedCotTypes = ["v8-fusion"]; 
     else if (localProfile.mode.includes("v8")) allowedCotTypes = ["v8"]; 
+    else if (localProfile.mode.includes("v9")) allowedCotTypes = ["v9", "v9-lite", "v9-director", "v9-immersion", "v9-hybrid"];
 
     if (!localProfile.thinkEffort) localProfile.thinkEffort = "unspecified";
     if (!localProfile.customThinkEffort) localProfile.customThinkEffort = "100";
@@ -2181,13 +2199,18 @@ function renderModels(c) {
     const types = [
         { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
         { id: "v2", label: "CoT V2 (New)", desc: "The new experimental framework. Stricter reality checks, info audits, better NPCs, and hook generation." },
-        { id: "v6", label: "CoT V6 (Dream Team)", desc: "The full 4-phase sequence designed specifically for V6 engines. Specialized validation and modeling.", isNew: true },
-        { id: "v6-lite", label: "CoT V6 (Lite)", desc: "A streamlined 3-phase sequence. Less token overhead while maintaining narrative rules.", isNew: true },
-        { id: "v7", label: "CoT V7", desc: "The new V7 sequence with 5-phase strict ground truth rebuilding.", isNew: true },
-        { id: "v7-lite", label: "CoT V7 (Lite)", desc: "A streamlined 5-phase sequence for V7.", isNew: true },
-        { id: "v7.5", label: "CoT V7.5 Kismet", desc: "The new V7.5 sequence focused on story engine mechanics.", isNew: true },
-        { id: "v8", label: "CoT V8", desc: "The new V8 narrative processing sequence.", isNew: true },
-        { id: "v8-fusion", label: "CoT V8 Fusion", desc: "The new V8 Fusion narrative processing sequence.", isNew: true }
+        { id: "v6", label: "CoT V6 (Dream Team)", desc: "The full 4-phase sequence designed specifically for V6 engines. Specialized validation and modeling." },
+        { id: "v6-lite", label: "CoT V6 (Lite)", desc: "A streamlined 3-phase sequence. Less token overhead while maintaining narrative rules." },
+        { id: "v7", label: "CoT V7", desc: "The new V7 sequence with 5-phase strict ground truth rebuilding."},
+        { id: "v7-lite", label: "CoT V7 (Lite)", desc: "A streamlined 5-phase sequence for V7." },
+        { id: "v7.5", label: "CoT V7.5 Kismet", desc: "The new V7.5 sequence focused on story engine mechanics." },
+        { id: "v8", label: "CoT V8", desc: "The new V8 narrative processing sequence." },
+        { id: "v8-fusion", label: "CoT V8 Fusion", desc: "The new V8 Fusion narrative processing sequence." },
+        { id: "v9", label: "CoT V9 Shinjitsu", desc: "The primary and most balanced reasoning sequence, purpose-built for the V9 Shinjitsu engine. The gold standard for modern roleplay.", isNew: true },
+        { id: "v9-director", label: "CoT V9 Shinjitsu Air", desc: "A lighter, version of CoT V9 Shinjitsu, it give Different output Try and see if you like.", isNew: true },
+        { id: "v9-immersion", label: "CoT V9 Shinjitsu Max", desc: "The heavy-duty, maximum-thinking sequence. Forces the AI to dive incredibly deep into sensory data and psychological realism before generating a single word.", isNew: true },
+        { id: "v9-hybrid", label: "CoT V9 Kuromaku", desc: "A specialized multi-agent reasoning sequence designed specifically to pair with the V9 Kuromaku engine.", isNew: true },
+        { id: "v9-lite", label: "CoT V9 Cui (Lite)", desc: "A highly streamlined, fast-executing reasoning sequence perfectly paired with the V9 Cui engine to save tokens.", isNew: true }
     ];
     types.forEach(t => {
         const isSel = currentType === t.id;
@@ -2217,6 +2240,7 @@ function renderModels(c) {
             else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;
             else if (t.id === "v8") localProfile.model = `cot-v8-english`;
             else if (t.id === "v8-fusion") localProfile.model = `cot-v8-fusion-english`;
+            else if (t.id.startsWith("v9")) localProfile.model = `cot-${t.id}-english`;
             else localProfile.model = `cot-${t.id}-${currentLang}`;
             saveProfileToMemory(); renderModels(c);
         }); 
@@ -2234,7 +2258,7 @@ function renderModels(c) {
             { id: "french", label: "French (Français)" }, { id: "zh", label: "Mandarin (中文)" }, { id: "ru", label: "Russian (Русский)" },
             { id: "jp", label: "Japanese (日本語)" }, { id: "pt", label: "Portuguese (Português)" }
         ];
-        if (currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8" || currentType === "v8-fusion") langs = [{ id: "english", label: "English" }];
+        if (currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8" || currentType === "v8-fusion" || currentType.startsWith("v9")) langs = [{ id: "english", label: "English" }];
         langs.forEach(l => {
             const isSel = currentLang === l.id;
             let badges = '';
@@ -5551,13 +5575,18 @@ function isMessageArchived(mesId, mem) {
     if (!mem) return false;
 
     // Lazy load the cached Set of archived message IDs for O(1) lookups
-    // Using instanceof Set prevents crashes after JSON deserialization turns it into {}
     if (!(mem._archivedSet instanceof Set)) {
         mem._archivedSet = new Set();
         const addChunk = (c) => {
+            // SAFETY CHECK: Ensure the chunk and ID exist before splitting
+            if (!c || !c.id || typeof c.id !== 'string') return;
+            
             const parts = c.id.split("-");
             const start = parseInt(parts[0]);
             const end = parseInt(parts[1]);
+            
+            if (isNaN(start) || isNaN(end)) return;
+            
             for (let i = start; i <= end; i++) {
                 mem._archivedSet.add(i);
             }
@@ -6000,8 +6029,10 @@ window.megumin_memory_intercept = function (chat, _contextSize, _abort, type) {
 
         // ONLY wipe the message from the prompt if it has been successfully summarized
         if (isMessageArchived(i, mem)) {
-            chat[i] = structuredClone(chat[i]);
-            if (!chat[i].extra) chat[i].extra = {};
+            // SAFE CLONE: Spread operator avoids DataCloneErrors from other extensions
+            chat[i] = { ...chat[i] };
+            chat[i].extra = { ...chat[i].extra };
+            
             chat[i].extra[IGNORE_SYMBOL] = true;
             chat[i].mes = ""; // Bulletproof wipe
         }
@@ -6703,6 +6734,7 @@ function buildBaseDict(isTokenCount = false) {
     const activeEngine = allAvailableModes.find(m => m.id === localProfile.mode);
     const isV7 = activeEngine ? (activeEngine.id.startsWith("v7") || activeEngine.isV7 === true) : false;
     const isV8 = activeEngine ? (activeEngine.id.startsWith("v8") || activeEngine.isV8 === true) : false;
+    const isV9 = activeEngine ? (activeEngine.id.startsWith("v9") || activeEngine.isV9 === true) : false;
 
     // 1. GLOBAL DEFAULTS (Language, Pronouns, Word Count)
     const targetLang = (localProfile.userLanguage && localProfile.userLanguage.trim() !== "")
@@ -6809,14 +6841,18 @@ function buildBaseDict(isTokenCount = false) {
     if (localProfile.blocks.includes("mvu")) {
         let baseMvu = hardcodedLogic.blocks.find(b => b.id === "mvu").content;
         
-        // Inject [[img2]] into the gametxt block so it can be resolved if Image Gen is active
-        baseMvu = baseMvu.replace("<gametxt>[[count]]</gametxt>", "<gametxt>[[count]][[img2]]</gametxt>");
-        
-        if (wordCountStr) dict["[[MVU]]"] = baseMvu.replace("[[count]]", `${countType} ${wordCountStr} words`);
-        else dict["[[MVU]]"] = baseMvu.replace("[[count]]", "...");
+        if (wordCountStr) {
+            dict["[[MVU]]"] = baseMvu.replace("[[count]]", `${countType} ${wordCountStr} words `);
+        } else {
+            dict["[[MVU]]"] = baseMvu.replace("[[count]]", "");
+        }
     } else {
-        // Embed [[img2]] into the standard curly brace format
-        dict["[[MVU]]"] = wordCountStr ? `{main response — ${countType} ${wordCountStr} words[[img2]]}` : `{main response[[img2]]}`;
+        // Fallback format
+        if (wordCountStr) {
+            dict["[[MVU]]"] = `\n\n## Main response:\nyour main response have to be ${countType} ${wordCountStr} words[[img2]]`;
+        } else {
+            dict["[[MVU]]"] = "";
+        }
     }
 
     // 3. ENGINE OVERRIDES (The "Superior" Layer)
@@ -6902,8 +6938,8 @@ function buildBaseDict(isTokenCount = false) {
                 }
             }
         }
-        // V8 Dynamic Injection & Stripping
-        if (isV8) {
+        // V8/V9 Dynamic Injection & Stripping
+        if (isV8 || isV9) {
             // 1. Inject [[aiprompt]] directly into the engine prompts (like p6) where the tag exists
             const aiPromptVal = dict["[[aiprompt]]"] || "";
             for (let i = 1; i <= 6; i++) {
@@ -6916,13 +6952,13 @@ function buildBaseDict(isTokenCount = false) {
         }
     }
 
-    // Wipe main persona for V6, V7, and V8
-    if (localProfile.mode.includes("v6-dream-team") || isV7 || isV8) {
+    // Wipe main persona for V6, V7, V8, and V9
+    if (localProfile.mode.includes("v6-dream-team") || isV7 || isV8 || isV9) {
         dict["[[main]]"] = "";
     }
 
-    // Wipe Persona & Toggle tags entirely for V8
-    if (isV8) {
+    // Wipe Persona & Toggle tags entirely for V8/V9
+    if (isV8 || isV9) {
         dict["[[OOC]]"] = "";
         dict["[[control]]"] = "";
         dict["[[AI1]]"] = "";
@@ -7909,7 +7945,7 @@ function renderDevMode(view = "landing", selectedModeId = null, passedModeData =
 
         // Section 3: Global Variables
         flow.append(`<div class="ps-rule-title" style="margin: 30px 0 10px 0; color: #f59e0b;"><i class="fa-solid fa-earth-americas"></i> Global Variables Overrides</div>`);
-        flow.append(createOverrideBlock("[[Language]]", "language", modeData.language, [{ label: "No Change", value: "" }, { label: "English Template", value: "[LANGUAGE RULE]\nALL OUTPUT EXCEPT THINKING MUST BE IN ENGLISH ONLY." }]));
+        flow.append(createOverrideBlock("[[Language]]", "language", modeData.language, [{ label: "No Change", value: "" }, { label: "English Template", value: "## LANGUAGE RULE\nALL OUTPUT EXCEPT THINKING MUST BE IN ENGLISH ONLY." }]));
         flow.append(createOverrideBlock("[[pronouns]]", "pronouns", modeData.pronouns, [{ label: "No Change", value: "" }, { label: "Male Template", value: "{{user}} is male. Always portray and address him as such." }]));
         flow.append(createOverrideBlock("[[count]]", "count", modeData.count, [{ label: "No Change", value: "" }, { label: "Example 400", value: "— maximum 400 words" }]));
         flow.append(createOverrideBlock("[[DNRATIO]]", "dnratio", modeData.dnratio, [{ label: "No Change", value: "" }, { label: "Example 50/50", value: "Ratio: Maintain a balance of 50% Dialogue and 50% Narration." }]));
@@ -8440,12 +8476,7 @@ jQuery(async () => {
                                 sp.lastTrackerState = match[1].trim();
                                 saveProfileToMemory();
                                 
-                                // Strip it from the visible message
-                                lastMsg.mes = lastMsg.mes.replace(trackerRegex, "").trim();
-                                await updateMessageBlock(lastIndex, lastMsg);
-                                await saveChat();
-                                eventSource.emit(event_types.MESSAGE_EDITED, lastIndex);
-                                console.log(`[${extensionName}] 🎬 Story Tracker captured & hidden.`);
+                                console.log(`[${extensionName}] 🎬 Story Tracker captured (kept visible).`);
 
                                 // Check if we need to auto-evolve based on status
                                 const statusMatch = sp.lastTrackerState.match(/directive_status:\s*\[?(completed|pivoted|progressing|nearing_completion)\]?/i);
