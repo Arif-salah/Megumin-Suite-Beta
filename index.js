@@ -6799,11 +6799,11 @@ function buildBaseDict(isTokenCount = false) {
     const isV9 = activeEngine ? (activeEngine.id.startsWith("v9") || activeEngine.isV9 === true) : false;
 
     if (isV9) {
-        const v9l = localProfile.v9Limits || { leanMin: 300, leanMax: 400, fullMin: 700, fullMax: 1200 };
-        dict["[[v9_lean_min]]"] = v9l.leanMin;
-        dict["[[v9_lean_max]]"] = v9l.leanMax;
-        dict["[[v9_full_min]]"] = v9l.fullMin;
-        dict["[[v9_full_max]]"] = v9l.fullMax;
+        const v9l = localProfile.v9Limits || {};
+        dict["[[v9_lean_min]]"] = String(v9l.leanMin || 300);
+        dict["[[v9_lean_max]]"] = String(v9l.leanMax || 400);
+        dict["[[v9_full_min]]"] = String(v9l.fullMin || 700);
+        dict["[[v9_full_max]]"] = String(v9l.fullMax || 1200);
         
         // Strip normal count entirely just in case
         dict["[[count]]"] = "";
@@ -7173,7 +7173,7 @@ function buildBaseDict(isTokenCount = false) {
     if (dict["[[npc_inner_chatter]]"]) dict["[[npc_inner_chatter2]]"] = "[Npc inner chatter here]"; else dict["[[npc_inner_chatter2]]"] = "";
 
     // Resolve early-evaluated tokens inside all other strings to prevent them from being missed and then cleaned up
-    const earlyTokens = ["[[count]]", "[[Language]]", "[[pronouns]]", "[[DNRATIO]]", "[[img2]]"];
+    const earlyTokens = ["[[count]]", "[[Language]]", "[[pronouns]]", "[[DNRATIO]]", "[[img2]]", "[[v9_lean_min]]", "[[v9_lean_max]]", "[[v9_full_min]]", "[[v9_full_max]]"];
     earlyTokens.forEach(et => {
         if (dict[et] !== undefined) {
             const val = dict[et];
@@ -7618,8 +7618,8 @@ async function handlePromptInjection(data, type) {
             });
 
             // Cleanup unused tags (Removes the tag AND the line break)
-            ["[[long-Memory]]", "[[Short-memory]]", "[[prompt1]]", "[[prompt2]]", "[[prompt3]]", "[[prompt4]]", "[[prompt5]]", "[[prompt6]]", "[prompt1]", "[prompt2]", "[prompt3]", "[prompt4]", "[prompt5]", "[prompt6]", "[[AI1]]", "[[AI2]]", "[[main]]", "[[OOC]]", "[[control]]", "[[aiprompt]]", "[[death]]", "[[combat]]", "[[Direct]]", "[[DN]]", "[[COLOR]]", "[[infoblock]]", "[[cyoa]]", "[[COT]]", "[[prefill]]", "[[order]]", "[[Language]]", "[[pronouns]]", "[[banlist]]", "[[count]]", "[[MVU]]", "[[img1]]", "[[img2]]", "[[storyplan]]", "[[storytracker]]", "[[DNRATIO]]", "[[THINK]]", "[[onomato]]", "[[npc_events]]", "[[cyoa2]]", "[[infoblock2]]", "[[storytracker2]]", "[[npc_inner_chatter]]", "[[npc_inner_chatter2]]", "[[npc_dossier]]", "[[npc_dossier2]]", "[[npc list]]"].forEach(tr => {
-                if (msg.content.includes(tr)) {
+            ["[[long-Memory]]", "[[Short-memory]]", "[[prompt1]]", "[[prompt2]]", "[[prompt3]]", "[[prompt4]]", "[[prompt5]]", "[[prompt6]]", "[prompt1]", "[prompt2]", "[prompt3]", "[prompt4]", "[prompt5]", "[prompt6]", "[[AI1]]", "[[AI2]]", "[[main]]", "[[OOC]]", "[[control]]", "[[aiprompt]]", "[[death]]", "[[combat]]", "[[Direct]]", "[[DN]]", "[[COLOR]]", "[[infoblock]]", "[[cyoa]]", "[[COT]]", "[[prefill]]", "[[order]]", "[[Language]]", "[[pronouns]]", "[[banlist]]", "[[count]]", "[[MVU]]", "[[img1]]", "[[img2]]", "[[storyplan]]", "[[storytracker]]", "[[DNRATIO]]", "[[THINK]]", "[[onomato]]", "[[npc_events]]", "[[cyoa2]]", "[[infoblock2]]", "[[storytracker2]]", "[[npc_inner_chatter]]", "[[npc_inner_chatter2]]", "[[npc_dossier]]", "[[npc_dossier2]]", "[[npc list]]", "[[v9_lean_min]]", "[[v9_lean_max]]", "[[v9_full_min]]", "[[v9_full_max]]"].forEach(tr => {
+                    if (msg.content.includes(tr)) {
                     msg.content = msg.content.replace(new RegExp(`^[ \\t]*${escapeRegex(tr)}[ \\t]*\\r?\\n?`, 'gm'), "");
                     msg.content = msg.content.replace(new RegExp(escapeRegex(tr), 'g'), ""); // Catch-all for inline tags
                 }
