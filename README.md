@@ -1,3 +1,7 @@
+# beta 19/07/26
+* added v9 Engines
+* added V9 Dynamic Render Limits
+* added Precooked Styles edit
 # beta 10/07/26
 * Mobile UI fix
 **⚙️ New Global Settings Menu**

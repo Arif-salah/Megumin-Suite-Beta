@@ -268,6 +268,7 @@ function initProfile() {
     const defaults = {
         mode: "balance",
         personality: "engine",
+        v9Limits: { leanMin: 300, leanMax: 400, fullMin: 700, fullMax: 1200 },
         toggles: { ooc: false, control: false },
         aiTags: [],
         aiGeneratedOptions: [],
@@ -450,6 +451,7 @@ function initProfile() {
         if (localProfile[k] === undefined) localProfile[k] = defaults[k];
     });
     if (!localProfile.toggles) localProfile.toggles = defaults.toggles;
+    if (!localProfile.v9Limits) localProfile.v9Limits = defaults.v9Limits;
     if (!localProfile.imageGen) localProfile.imageGen = defaults.imageGen;
     if (localProfile.imageGen.directLanguage === undefined) localProfile.imageGen.directLanguage = false;
     if (localProfile.imageGen.imageCount === undefined) localProfile.imageGen.imageCount = 1;
@@ -931,7 +933,7 @@ function applyTabToAll() {
         0: ["mode"],
         1: ["personality", "toggles"],
         2: ["activeStyleId", "aiRule", "customStyles", "dnRatio", "userPov"],
-        3: ["userWordCount", "userWordCountType", "userLanguage", "userPronouns", "onomatopoeia"],
+        3: ["userWordCount", "userWordCountType", "userLanguage", "userPronouns", "onomatopoeia", "v9Limits"],
         4: ["addons", "blocks"],
         5: ["model", "cotEnabled", "thinkEffort", "customThinkEffort", "thinkingV2"],
         6: ["storyPlan"],
@@ -1455,9 +1457,35 @@ function renderStyleLibrary(c) {
                 </div>
                 <div class="ws-card-desc">${ds.desc}</div>
                 <div class="ws-card-rule">${ds.rule}</div>
+                <div class="ws-card-actions">
+                    <button class="ws-btn-small ps-btn-edit-precooked"><i class="fa-solid fa-copy"></i> Edit as Custom</button>
+                </div>
             </div>
         `);
-        card.on("click", () => { localProfile.activeStyleId = ds.id; localProfile.aiRule = ds.rule; saveProfileToMemory(); renderStyleLibrary(c); });
+        
+        card.on("click", (e) => { 
+            // Prevent selecting the style if they just wanted to click the edit button
+            if ($(e.target).closest("button").length) return;
+            
+            localProfile.activeStyleId = ds.id; 
+            localProfile.aiRule = ds.rule; 
+            saveProfileToMemory(); 
+            renderStyleLibrary(c); 
+        });
+        
+        // The new Edit as Custom button logic
+        card.find(".ps-btn-edit-precooked").on("click", () => {
+            const presetData = {
+                id: "style_" + Date.now(),
+                name: ds.name + " (Custom)",
+                tags: [],
+                generatedOptions: [],
+                notes: ds.desc,
+                rule: ds.rule
+            };
+            renderStyleEditor(c, null, presetData);
+        });
+        
         gridPre.append(card);
     });
     secPrecooked.append(gridPre);
@@ -1740,6 +1768,7 @@ function renderAddons(c) {
 
     const activeMode = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
     const isV6 = activeMode && (activeMode.id.includes("v6") || activeMode.label.includes("V6"));
+    const isV9 = activeMode && (activeMode.id.includes("v9") || activeMode.isV9 === true);
 
     // ── HEADER ──
     c.append(`
@@ -1864,6 +1893,34 @@ function renderAddons(c) {
     c.append(`<div class="wstyle-section-head blue" style="margin-top:16px;"><i class="fa-solid fa-earth-americas"></i> Extra</div>`);
     const extraPanel = $(`
         <div class="mtab-panel">
+            ${isV9 ? `
+            <div class="mtab-setting-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                <div class="set-info">
+                    <div class="set-label" style="color: #f43f5e;"><i class="fa-solid fa-layer-group"></i> V9 Dynamic Render Limits</div>
+                    <div class="set-desc">V9 switches between Lean (quick interactions) and Full (deep scenes). Set the word count ranges for each.</div>
+                </div>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <div style="flex: 1; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 2px;">LEAN RENDER</div>
+                        <div style="font-size: 0.6rem; color: #a855f7; margin-bottom: 6px; line-height: 1.2;">Triggered by the AI for fast dialogue, back-and-forth arguments, and quick actions.</div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <input type="number" id="ps_v9_lean_min" class="ps-modern-input" style="width: 100%; text-align: center;" value="${localProfile.v9Limits.leanMin}" />
+                            <span style="color: var(--text-muted);">to</span>
+                            <input type="number" id="ps_v9_lean_max" class="ps-modern-input" style="width: 100%; text-align: center;" value="${localProfile.v9Limits.leanMax}" />
+                        </div>
+                    </div>
+                    <div style="flex: 1; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 2px;">FULL RENDER</div>
+                        <div style="font-size: 0.6rem; color: #10b981; margin-bottom: 6px; line-height: 1.2;">Triggered by the AI for scene changes, deep immersion, and major plot events.</div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <input type="number" id="ps_v9_full_min" class="ps-modern-input" style="width: 100%; text-align: center;" value="${localProfile.v9Limits.fullMin}" />
+                            <span style="color: var(--text-muted);">to</span>
+                            <input type="number" id="ps_v9_full_max" class="ps-modern-input" style="width: 100%; text-align: center;" value="${localProfile.v9Limits.fullMax}" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ` : `
             <div class="mtab-setting-row">
                 <div class="set-info"><div class="set-label">Target Word Count</div><div class="set-desc">Leave empty for no limit</div></div>
                 <div style="display:flex; gap:8px; align-items:center;">
@@ -1874,6 +1931,7 @@ function renderAddons(c) {
                     <input type="number" id="ps_input_wordcount" class="ps-modern-input" style="width: 120px;" placeholder="e.g. 400" value="${localProfile.userWordCount || ''}" min="1" />
                 </div>
             </div>
+            `}
             <div class="mtab-setting-row">
                 <div class="set-info"><div class="set-label">Language Output</div><div class="set-desc">Leave empty for default (English)</div></div>
                 <input type="text" id="ps_input_language" class="ps-modern-input" style="width: 180px;" placeholder="e.g. Arabic, French…" value="${localProfile.userLanguage || ''}" />
@@ -1892,6 +1950,10 @@ function renderAddons(c) {
 
     $("#ps_select_wordcount_type").on("change", function () { localProfile.userWordCountType = $(this).val(); saveProfileToMemory(); });
     $("#ps_input_wordcount").on("input", function () { localProfile.userWordCount = $(this).val(); saveProfileToMemory(); });
+    $("#ps_v9_lean_min").on("input", function () { localProfile.v9Limits.leanMin = parseInt($(this).val()) || 300; saveProfileToMemory(); });
+    $("#ps_v9_lean_max").on("input", function () { localProfile.v9Limits.leanMax = parseInt($(this).val()) || 400; saveProfileToMemory(); });
+    $("#ps_v9_full_min").on("input", function () { localProfile.v9Limits.fullMin = parseInt($(this).val()) || 700; saveProfileToMemory(); });
+    $("#ps_v9_full_max").on("input", function () { localProfile.v9Limits.fullMax = parseInt($(this).val()) || 1200; saveProfileToMemory(); });
     $("#ps_input_language").on("input", function () { localProfile.userLanguage = $(this).val(); saveProfileToMemory(); });
     $("#ps_select_pronouns").on("change", function () { localProfile.userPronouns = $(this).val(); saveProfileToMemory(); });
 }
@@ -6736,6 +6798,22 @@ function buildBaseDict(isTokenCount = false) {
     const isV8 = activeEngine ? (activeEngine.id.startsWith("v8") || activeEngine.isV8 === true) : false;
     const isV9 = activeEngine ? (activeEngine.id.startsWith("v9") || activeEngine.isV9 === true) : false;
 
+    if (isV9) {
+        const v9l = localProfile.v9Limits || { leanMin: 300, leanMax: 400, fullMin: 700, fullMax: 1200 };
+        dict["[[v9_lean_min]]"] = v9l.leanMin;
+        dict["[[v9_lean_max]]"] = v9l.leanMax;
+        dict["[[v9_full_min]]"] = v9l.fullMin;
+        dict["[[v9_full_max]]"] = v9l.fullMax;
+        
+        // Strip normal count entirely just in case
+        dict["[[count]]"] = "";
+    } else {
+        dict["[[v9_lean_min]]"] = "";
+        dict["[[v9_lean_max]]"] = "";
+        dict["[[v9_full_min]]"] = "";
+        dict["[[v9_full_max]]"] = "";
+    }
+
     // 1. GLOBAL DEFAULTS (Language, Pronouns, Word Count)
     const targetLang = (localProfile.userLanguage && localProfile.userLanguage.trim() !== "")
         ? localProfile.userLanguage.toUpperCase()
@@ -8261,7 +8339,21 @@ jQuery(async () => {
                     <div style="margin-top: 15px; border-top: 1px dashed var(--border-color); padding-top: 20px; text-align: center;">
                         <div style="font-size: 1.5rem; font-weight: 900; color: var(--gold); margin-bottom: 4px; text-shadow: 0 2px 10px rgba(245,158,11,0.3);">Megumin Suite v9</div>
                         <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Made by KazumaONIISAN</div>
-                        <div style="font-size: 0.7rem; color: #a855f7; margin-top: 12px; background: rgba(168,85,247,0.1); display: inline-block; padding: 4px 12px; border-radius: 12px; border: 1px solid rgba(168,85,247,0.3);">
+                        
+                        <!-- Support & Social Links -->
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px; align-items: center;">
+                            <a href="https://github.com/Arif-salah/Megumin-Suite" target="_blank" style="color: var(--text-main); text-decoration: none; font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; transition: background 0.2s ease; cursor: pointer;">
+                                <i class="fa-brands fa-github"></i> GitHub Repository
+                            </a>
+                            <div style="color: var(--text-main); font-size: 0.8rem; background: rgba(59, 130, 246, 0.1); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-brands fa-paypal" style="color: #3b82f6;"></i> arifsalah10@gmail.com
+                            </div>
+                            <div style="color: var(--text-main); font-size: 0.75rem; background: rgba(161, 161, 170, 0.1); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(161, 161, 170, 0.3); display: flex; align-items: center; gap: 8px; word-break: break-all; max-width: 90%; text-align: left;">
+                                <i class="fa-solid fa-coins" style="color: #a1a1aa; flex-shrink: 0;"></i> LTC: LSjf1DczHxs3GEbkoMmi1UWH2GikmXDtis
+                            </div>
+                        </div>
+
+                        <div style="font-size: 0.7rem; color: #a855f7; margin-top: 15px; background: rgba(168,85,247,0.1); display: inline-block; padding: 4px 12px; border-radius: 12px; border: 1px solid rgba(168,85,247,0.3);">
                             <i class="fa-solid fa-earth-americas"></i> These settings are saved globally
                         </div>
                     </div>
