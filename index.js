@@ -303,7 +303,7 @@ function initProfile() {
         storyPlan: {
             enabled: false,
             backend: "direct",
-            triggerMode: "manual",
+            triggerMode: "auto",
             autoFreq: 10,
             currentPlan: "",
             customPrompts: null,
@@ -975,10 +975,10 @@ function renderMode(c) {
         "v8-m": "Unmatched in complex human psychology, authentic flawed dialogue, and autonomous, multi-layered story plotting.",
         "v8-lite": "A streamlined, highly efficient version of Obsidian. Retains the core rules of psychology, dialogue, and momentum with a much lighter token footprint.",
         "v8-fusion": "The absolute pinnacle of the Megumin Suite. A hybrid engine mixing V8 Obsidian's deep psychology with V6 Dream Team's specialist writer room framework.",
-        "v9-core": "The definitive, final Megumin V9 Preset. V9 Shinjitsu is the absolute pinnacle of narrative simulation, delivering hyper-realistic psychology, visceral atmospheric grounding, and dynamic world consequences. This is the ultimate, highly recommended preset.",
-        "v9-lite": "An experimental beta engine with a slightly different, highly stylized narrative flow. Proved interesting enough to include for those who want an alternative storytelling rhythm.",
-        "v9-director": "A unique beta hybrid blending the specialized writer-room mechanics of V8 Fusion with the raw psychological depth of V9 Xin. Highly experimental.",
-        "v9-immersion": "A streamlined, lightweight version of V9 Shinjitsu. It retains the core philosophy and brutal realism of Shinjitsu but runs with a smaller context footprint. V9 Shinjitsu is still recommended if your model can handle it."
+        "v9-core": "The definitive, final Megumin V9 Preset. V9 Mirage is the absolute pinnacle of narrative simulation, delivering hyper-realistic psychology, visceral atmospheric grounding, and dynamic world consequences. This is the ultimate, highly recommended preset.",
+        "v9-lite": "An experimental beta engine with a slightly different, highly stylized narrative flow. Proved interesting enough to include for those who want an alternative storytelling rhythm. Note: this doesn't support custom Writing style it have it own one. ",
+        "v9-director": "A unique beta hybrid blending the specialized writer-room mechanics of V8 Fusion with the raw psychological depth of V9 Xin. Highly experimental. Note: this doesn't support custom Writing style it have it own one.",
+        "v9-immersion": "A streamlined, lightweight version of V9 Mirage. It retains the core philosophy and brutal realism of Mirage but runs with a smaller context footprint. V9 Mirage is still recommended if your model can handle it."
     };
 
     // Active engine name
@@ -2268,9 +2268,9 @@ function renderModels(c) {
         { id: "v7.5", label: "CoT V7.5 Kismet", desc: "The new V7.5 sequence focused on story engine mechanics." },
         { id: "v8", label: "CoT V8", desc: "The new V8 narrative processing sequence." },
         { id: "v8-fusion", label: "CoT V8 Fusion", desc: "The new V8 Fusion narrative processing sequence." },
-        { id: "v9", label: "CoT V9 Shinjitsu", desc: "The primary and most balanced reasoning sequence, purpose-built for the V9 Shinjitsu engine. The gold standard for modern roleplay.", isNew: true },
-        { id: "v9-director", label: "CoT V9 Shinjitsu Air", desc: "A lighter, version of CoT V9 Shinjitsu, it give Different output Try and see if you like.", isNew: true },
-        { id: "v9-immersion", label: "CoT V9 Shinjitsu Max", desc: "The heavy-duty, maximum-thinking sequence. Forces the AI to dive incredibly deep into sensory data and psychological realism before generating a single word.", isNew: true },
+        { id: "v9", label: "CoT V9 Mirage", desc: "The primary and most balanced reasoning sequence, purpose-built for the V9 Mirage engine. The gold standard for modern roleplay.", isNew: true },
+        { id: "v9-director", label: "CoT V9 Mirage Air", desc: "A lighter, version of CoT V9 Mirage, it give Different output Try and see if you like.", isNew: true },
+        { id: "v9-immersion", label: "CoT V9 Mirage Max", desc: "The heavy-duty, maximum-thinking sequence. Forces the AI to dive incredibly deep into sensory data and psychological realism before generating a single word.", isNew: true },
         { id: "v9-hybrid", label: "CoT V9 Kuromaku", desc: "A specialized multi-agent reasoning sequence designed specifically to pair with the V9 Kuromaku engine.", isNew: true },
         { id: "v9-lite", label: "CoT V9 Cui (Lite)", desc: "A highly streamlined, fast-executing reasoning sequence perfectly paired with the V9 Cui engine to save tokens.", isNew: true }
     ];
@@ -2647,14 +2647,15 @@ function renderStoryPlanner(c) {
                 <div class="mtab-setting-row">
                     <div class="set-info">
                         <div class="set-label">Auto-Trigger Mode</div>
-                        <div class="set-desc">Automatically evolve the directive every X AI replies.</div>
+                        <div class="set-desc">When should the Director evolve the story?</div>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <select id="sd_trigger" class="ps-modern-input" style="width: 150px; cursor: pointer;">
+                        <select id="sd_trigger" class="ps-modern-input" style="width: 170px; cursor: pointer;">
                             <option value="manual" ${sp.triggerMode === 'manual' ? 'selected' : ''}>Manual Only</option>
-                            <option value="frequency" ${sp.triggerMode === 'frequency' ? 'selected' : ''}>Every X Replies</option>
+                            <option value="auto" ${sp.triggerMode === 'auto' ? 'selected' : ''}>Auto (Smart Status)</option>
+                            <option value="frequency" ${sp.triggerMode === 'frequency' ? 'selected' : ''}>Every X Replies (Safety Net)</option>
                         </select>
-                        <input type="number" id="sd_freq" class="ps-modern-input" value="${sp.autoFreq}" min="1" style="width: 70px; text-align: center; display: ${sp.triggerMode === 'frequency' ? 'block' : 'none'};" />
+                        <input type="number" id="sd_freq" class="ps-modern-input" value="${sp.autoFreq}" min="1" style="width: 60px; text-align: center; display: ${sp.triggerMode === 'frequency' ? 'block' : 'none'};" title="Fallback safety net interval" />
                     </div>
                 </div>
             </div>
@@ -6823,7 +6824,8 @@ function buildBaseDict(isTokenCount = false) {
     if (localProfile.userPronouns === "male") dict["[[pronouns]]"] = `{{user}} is male. Always portray and address him as such.`;
     else if (localProfile.userPronouns === "female") dict["[[pronouns]]"] = `{{user}} is female. Always portray and address her as such.`;
 
-    const wordCountStr = (localProfile.userWordCount && String(localProfile.userWordCount).trim() !== "")
+    // If V9 is active, completely ignore the old legacy word count
+    const wordCountStr = (!isV9 && localProfile.userWordCount && String(localProfile.userWordCount).trim() !== "")
         ? String(localProfile.userWordCount).trim()
         : null;
 
@@ -8559,7 +8561,7 @@ jQuery(async () => {
                         const lastMsg = chat[lastIndex];
                         if (!lastMsg.is_user && !lastMsg.is_system) {
                             
-                            // 1. Extract and hide the Tracker
+                            // 1. Extract the Tracker
                             const trackerRegex = /<Story_Tracker>([\s\S]*?)<\/Story_Tracker>/i;
                             const match = lastMsg.mes.match(trackerRegex);
                             let needsEvolve = false;
@@ -8570,23 +8572,26 @@ jQuery(async () => {
                                 
                                 console.log(`[${extensionName}] 🎬 Story Tracker captured (kept visible).`);
 
-                                // Check if we need to auto-evolve based on status
-                                const statusMatch = sp.lastTrackerState.match(/directive_status:\s*\[?(completed|pivoted|progressing|nearing_completion)\]?/i);
-                                if (statusMatch) {
-                                    const status = statusMatch[1].toLowerCase();
-                                    if (status === 'completed' || status === 'pivoted') {
-                                        needsEvolve = true;
-                                        console.log(`[${extensionName}] 🎬 Directive ${status}. Triggering auto-evolve.`);
+                                // Check if we need to auto-evolve based on status (ONLY if not set to manual)
+                                if (sp.triggerMode !== 'manual') {
+                                    // Looks for either arc_status or directive_status
+                                    const statusMatch = sp.lastTrackerState.match(/(?:directive_status|arc_status):\s*\[?(completed|pivoted|progressing|nearing_completion|nearing_climax)\]?/i);
+                                    if (statusMatch) {
+                                        const status = statusMatch[1].toLowerCase();
+                                        if (status === 'completed' || status === 'pivoted') {
+                                            needsEvolve = true;
+                                            console.log(`[${extensionName}] 🎬 Directive ${status}. Triggering smart auto-evolve.`);
+                                        }
                                     }
                                 }
                             }
 
-                            // 2. Frequency-based Trigger Fallback
+                            // 2. Frequency-based Trigger Fallback (ONLY if set to frequency)
                             if (!needsEvolve && sp.triggerMode === 'frequency') {
                                 const aiMsgCount = chat.filter(m => !m.is_user && !m.is_system).length;
                                 if (aiMsgCount > 0 && aiMsgCount % sp.autoFreq === 0) {
                                     needsEvolve = true;
-                                    console.log(`[${extensionName}] 🎬 Frequency threshold reached. Triggering auto-evolve.`);
+                                    console.log(`[${extensionName}] 🎬 Frequency safety net reached. Triggering auto-evolve.`);
                                 }
                             }
 
