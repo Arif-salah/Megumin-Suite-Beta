@@ -1688,6 +1688,7 @@
         right: 0 !important;
         border-radius: 0 !important;
         border: none !important;
+        padding-top: env(safe-area-inset-top, 0px) !important;
     }
 
     #prompt-slot-modal-overlay {
@@ -1859,7 +1860,8 @@
        HERO BANNER — kept with character pic
        ════════════════════════════════════════════════════ */
     .hero-banner {
-        height: 140px !important;
+        height: auto !important;
+        min-height: 150px !important;
     }
 
     .hero-overlay {
@@ -1889,7 +1891,10 @@
 
     /* ── Top app bar — hamburger on left, actions on right ── */
     .top-app-bar {
-        padding: 10px 12px !important;
+        padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+        padding-bottom: 10px !important;
+        padding-left: calc(12px + env(safe-area-inset-left, 0px)) !important;
+        padding-right: calc(12px + env(safe-area-inset-right, 0px)) !important;
         justify-content: space-between !important;
     }
 
