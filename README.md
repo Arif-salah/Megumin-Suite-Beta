@@ -1,3 +1,6 @@
+# beta 24/07/26
+* side panel master toggle turn off everything Related to side panel like "Present Characters Bar".
+* fixed Present Characters Bar ui for mobile users.
 # beta 19/07/26
 * added v9 Engines
 * added V9 Dynamic Render Limits

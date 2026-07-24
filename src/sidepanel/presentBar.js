@@ -90,7 +90,8 @@ function buildWrapperHtml() {
 function mountWrapper() {
     if (document.getElementById(WRAPPER_ID)) return;
     const cfg = settings();
-    if (cfg.position === "off") return;
+    const spCfg = extension_settings["Megumin-Suite"]?.sidePanel || {};
+    if (spCfg.enabled === false || cfg.position === "off") return;
 
     const $sendForm = window.jQuery ? window.jQuery("#send_form") : null;
     const $sheld = window.jQuery ? window.jQuery("#sheld") : null;
@@ -147,6 +148,8 @@ function wireEvents() {
         scroll.addEventListener("click", (e) => {
             const card = e.target.closest(".meg-pb-card");
             if (!card) return;
+            e.preventDefault();
+            e.stopPropagation();
             const name = card.getAttribute("data-name");
             if (name) openCharacterSheet(name);
         });
@@ -192,9 +195,10 @@ function cardHtml(entry) {
 
 export function update() {
     const cfg = settings();
+    const spCfg = extension_settings["Megumin-Suite"]?.sidePanel || {};
     const wrapper = document.getElementById(WRAPPER_ID);
     if (!wrapper) return;
-    if (!cfg.enabled || cfg.position === "off") {
+    if (spCfg.enabled === false || !cfg.enabled || cfg.position === "off") {
         wrapper.style.display = "none";
         return;
     }

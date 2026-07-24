@@ -745,4 +745,5 @@ export function applyEnabledChange() {
         });
         document.body.classList.remove(BODY_HIDE_CLASS);
     }
+    refreshPresentBar();
 }

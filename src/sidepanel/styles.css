@@ -1088,8 +1088,9 @@ body.meg-sp-hide-inline .mes_text details.meg-sp-tracker-block { display: none !
 .meg-pb-sheet {
     --sheet-accent: var(--meg-sp-accent, #f59e0b);
     position: fixed;
-    inset: 0;
-    z-index: 10500;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100vw; height: 100dvh;
+    z-index: 105000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1111,7 +1112,8 @@ body.meg-sp-hide-inline .mes_text details.meg-sp-tracker-block { display: none !
 .meg-pb-sheet-card {
     position: relative;
     width: min(720px, 94vw);
-    max-height: 86vh;
+    max-height: 85dvh;
+    margin: auto;
     display: flex;
     flex-direction: column;
     background: #131316;
