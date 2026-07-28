@@ -1,3 +1,22 @@
+# beta 28/07/26
+**UI & Design Overhaul**
+*   **Streamlined Navigation:** Condensed the interface into 10 unified tabs. "Core Engine" and "Chain of Thought" are now merged, as well as "Global Settings" and "Response Blocks".
+*   **Dock Cleanup:** Removed redundant text headers and moved the Global Settings gear icon cleanly to the absolute bottom of the floating dock.
+
+**Dynamic Formatting & Blocks**
+*   **Smart Block Headers:** The instruction `"## At the end of your response you must put these blocks:"` now intelligently injects exactly once, attaching itself only to the top-most active UI block (World State, Inner Chatter, CYOA, or Story Tracker) to prevent prompt spam.
+Fix the model Dumping the lore in the response, and not outputting blocks "DS4 still may not output"
+*   **Compact Mode Compatibility:** Fixed formatting conflicts so the new dynamic header works flawlessly alongside the Compact World State mode.
+
+**Save Modes & Smart Sync**
+*   **Profile Save Modes:** Added a new dropdown in Global Settings to toggle between "Per Character" and "Per Chat" save modes.
+*   **Smart Global Sync:** The "Sync Tab Globally" button has been completely rewritten. It now safely syncs *settings* (toggles, sliders, prompt templates) while strictly preserving unique profile *content* (Saved NPCs, Memory Chunks, and Story Directives) from being accidentally overwritten.
+
+**NPC Bank & Pruner Optimizations**
+*   **Chat Metadata Storage:** Migrated the NPC Bank out of the global `settings.json` file and directly into the `.jsonl` chat file (`chat_metadata`). This massively improves overall extension performance and allows NPCs to travel seamlessly if a chat file is exported.
+*   **Zero-Data-Loss "Lazy Migration":** Existing NPCs are safe. Old NPC data will silently and safely migrate to the new chat-based storage system the next time an older chat is opened, gradually cleaning up the global settings file without risking data loss.
+*   **Fixed "Empty Chat" Wipe Bug:** The automatic data pruner no longer accidentally deletes saved NPCs during the split-second when a chat is first loading into SillyTavern.
+*   **Fixed "Regenerate" Wipe Bug:** The pruner now respects SillyTavern's `is_generating` state, preventing it from accidentally culling newly introduced NPCs when a message is temporarily removed during a swipe or regeneration.
 # beta 24/07/26
 * side panel master toggle turn off everything Related to side panel like "Present Characters Bar".
 * fixed Present Characters Bar ui for mobile users.

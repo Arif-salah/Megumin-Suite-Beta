@@ -2,7 +2,7 @@
 
 :root {
     --bg-main: #0e0e11;
-    --bg-panel: #18181b;
+    --bg-panel: #18181b99;
     --border-color: #27272a;
     --text-main: #f4f4f5;
     --text-muted: #a1a1aa;
@@ -88,7 +88,7 @@
 
 /* Full Width Hero Banner */
 .hero-banner {
-    height: 200px;
+    height: 190px; /* EXTENDED DOWN */
     width: 100%;
     background-position: center 25%;
     background-size: cover;
@@ -109,7 +109,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, var(--bg-panel) 0%, transparent 100%);
+    background: linear-gradient(to top, rgba(24, 24, 27, 0.95) 0%, transparent 80%);
 }
 
 /* Top App Bar (Action Buttons) */
@@ -129,9 +129,7 @@
 
 /* Hero Text */
 .hero-content {
-    position: relative;
-    z-index: 2;
-    padding: 0 30px 25px 100px;
+    display: none !important; /* HIDES THE TEXT COMPLETELY TO PREVENT OVERLAP */
 }
 
 .hero-content .status {
@@ -145,7 +143,7 @@
 }
 
 .hero-content .name {
-    font-size: 2.2rem;
+    font-size: 1.7rem; /* SHRUNK FROM 2.2rem */
     font-weight: 800;
     margin: 0;
     text-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
@@ -228,7 +226,10 @@
 
 /* Main Content Area */
 .main-content {
-    padding: 10px 40px 40px 100px;
+    padding: 0 40px 40px 100px;
+    margin-top: -80px; /* PULLS THE TEXT UP OVER THE IMAGE */
+    position: relative;
+    z-index: 10;
     flex: 1;
     overflow-y: auto;
     display: flex;
@@ -501,8 +502,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
-    padding-bottom: 20px;
+    margin-bottom: 15px; /* SHRUNK */
+    padding-bottom: 12px; /* SHRUNK */
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -513,9 +514,10 @@
 }
 
 .wstyle-header-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: 34px; /* SHRUNK */
+    height: 34px; /* SHRUNK */
+    font-size: 0.9rem; /* SHRUNK */
+    border-radius: 8px;
     background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
     display: flex;
     align-items: center;
@@ -528,16 +530,14 @@
 
 .wstyle-header h2 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 800;
     color: var(--text-main);
     letter-spacing: -0.02em;
 }
 
 .wstyle-header p {
-    margin: 2px 0 0;
-    font-size: 0.78rem;
-    color: var(--text-muted);
+    display: none;
 }
 
 /* — Active Style Badge — */
@@ -1952,6 +1952,7 @@
        ════════════════════════════════════════════════════ */
     .main-content {
         padding: 10px 14px 20px 14px !important;
+        margin-top: -30px !important; /* Perfect overlap for mobile screens */
     }
 
     /* ── Cards grid: single column ── */
@@ -2337,14 +2338,16 @@
 }
 
 .ws-sidebar {
-    width: 240px;
+    width: 260px; /* WIDER AND MORE PROMINENT */
     flex-shrink: 0;
-    background: var(--bg-panel);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 15px;
+    background: transparent; /* REMOVE HEAVY BACKGROUND */
+    border-right: 1px solid var(--border-color); /* SLEEK SEPARATOR LINE ONLY */
+    padding: 0 15px 0 0;
     position: sticky;
     top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px; /* PERFECT SPACING BETWEEN BUTTONS */
 }
 
 .ws-sidebar-title {
@@ -2360,19 +2363,19 @@
 .ws-nav-btn {
     width: 100%;
     background: transparent;
-    border: none;
+    border: 1px solid transparent; /* PREPARE FOR HOVER BORDER */
     color: var(--text-muted);
     text-align: left;
-    padding: 10px 12px;
-    border-radius: 8px;
+    padding: 14px 16px; /* TALLER, MODERN PADDING */
+    border-radius: 10px;
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.9rem; /* SLIGHTLY LARGER TEXT */
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
     transition: all 0.2s ease;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .ws-nav-btn i {
@@ -2386,8 +2389,10 @@
 }
 
 .ws-nav-btn.active {
-    background: rgba(168, 85, 247, 0.15);
+    background: rgba(168, 85, 247, 0.08);
+    border-color: rgba(168, 85, 247, 0.3);
     color: var(--purple);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15); /* ADD SOFT GLOW DROP SHADOW */
 }
 
 .ws-nav-btn.active-green {

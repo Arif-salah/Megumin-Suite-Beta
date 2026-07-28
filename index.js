@@ -95,15 +95,20 @@ let activeNpcScanRequest = null;
 
 function getCharacterKey() {
     const context = getContext();
-    // Priority 1: Chat-level — use chatId from ST context
-    // This is the filename of the chat (e.g., 'my_chat_abc123def')
-    const cid = context.chatId;
-    if (cid && typeof cid === 'string' && cid.trim() !== '') {
-        return `chat::${cid}`;
-    }
-    // Priority 2: Group chat
+    const saveMode = extension_settings[extensionName]?.globalSettings?.saveMode || "chat";
+    
+    // Priority 1: Group chat
     if (context.groupId !== undefined && context.groupId !== null) { return `group_${context.groupId}`; }
-    // Priority 3: Character-level (avatar name — original behavior)
+    
+    // Priority 2: Chat-level (if save mode is per chat)
+    if (saveMode === "chat") {
+        const cid = context.chatId;
+        if (cid && typeof cid === 'string' && cid.trim() !== '') {
+            return `chat::${cid}`;
+        }
+    }
+    
+    // Priority 3: Character-level (avatar name)
     if (context.characterId !== undefined && context.characterId !== null && context.characters && context.characters[context.characterId]) {
         return context.characters[context.characterId].avatar;
     }
@@ -188,10 +193,12 @@ function getParentChatKey() {
 // Returns the profile level: 'chat', 'group', 'character', or 'global'
 function getProfileLevel() {
     const context = getContext();
+    const saveMode = extension_settings[extensionName]?.globalSettings?.saveMode || "chat";
+    
     // Group chat
     if (context.groupId !== undefined && context.groupId !== null) return 'group';
-    // Chat-level: only if chatId is a valid, non-empty string
-    if (context.chatId && typeof context.chatId === 'string' && context.chatId.trim() !== '') return 'chat';
+    // Chat-level: only if mode is 'chat' and chatId is a valid, non-empty string
+    if (saveMode === "chat" && context.chatId && typeof context.chatId === 'string' && context.chatId.trim() !== '') return 'chat';
     // Character-level: only if we can resolve an avatar
     if (context.characterId !== undefined && context.characterId !== null && context.characters && context.characters[context.characterId] && context.characters[context.characterId].avatar) return 'character';
     return 'global';
@@ -377,8 +384,11 @@ function initProfile() {
     if (!extension_settings[extensionName].globalSettings) {
         extension_settings[extensionName].globalSettings = {
             promptPreview: false,
-            disableUtilityPrefill: false
+            disableUtilityPrefill: false,
+            saveMode: "character"
         };
+    } else if (!extension_settings[extensionName].globalSettings.saveMode) {
+        extension_settings[extensionName].globalSettings.saveMode = "character";
     }
 
     if (!extension_settings[extensionName].profiles["default"]) {
@@ -543,6 +553,19 @@ function initProfile() {
         saveMetadata();
     }
 
+    // --- LOAD NPCs FROM CHAT METADATA ---
+    if (chat_metadata && chat_metadata["megumin_npc_bank"]) {
+        if (localProfile.npcBank) {
+            localProfile.npcBank.npcs = chat_metadata["megumin_npc_bank"].npcs || [];
+        }
+    } else if (chat_metadata && localProfile.npcBank && localProfile.npcBank.npcs?.length > 0) {
+        // Migration: If NPCs are stuck in settings.json, move them to the chat file!
+        chat_metadata["megumin_npc_bank"] = {
+            npcs: localProfile.npcBank.npcs || []
+        };
+        saveMetadata();
+    }
+
     let displayName = "Global Default";
     if (isGroup) {
         if (context.groups && Array.isArray(context.groups)) {
@@ -572,7 +595,10 @@ function initProfile() {
 
 function pruneFutureData() {
     const context = typeof getContext === "function" ? getContext() : null;
-    if (!context || !context.chat) return;
+    // FIX: Ensure chat is fully loaded and not empty
+    if (!context || !Array.isArray(context.chat) || context.chat.length === 0) return;
+    // FIX: Skip pruning if SillyTavern is currently generating (fixes the swipe/regenerate deletion bug)
+    if (window.is_generating) return; 
 
     const chatLength = context.chat.length;
     let changesMade = false;
@@ -688,6 +714,13 @@ function saveProfileToMemory() {
         saveMetadata();
     }
 
+    // --- SAVE NPCs TO CHAT METADATA ---
+    if (chat_metadata && localProfile.npcBank) {
+        if (!chat_metadata["megumin_npc_bank"]) chat_metadata["megumin_npc_bank"] = {};
+        chat_metadata["megumin_npc_bank"].npcs = localProfile.npcBank.npcs || [];
+        saveMetadata();
+    }
+
     const profileToSave = JSON.parse(JSON.stringify(localProfile));
     if (profileToSave.memoryCore) {
         delete profileToSave.memoryCore.shortTermChunks;
@@ -696,6 +729,9 @@ function saveProfileToMemory() {
     if (profileToSave.storyPlan) {
         delete profileToSave.storyPlan.currentPlan;
         delete profileToSave.storyPlan.lastTrackerState;
+    }
+    if (profileToSave.npcBank) {
+        delete profileToSave.npcBank.npcs; // DO NOT save NPCs in settings.json!
     }
 
     extension_settings[extensionName].profiles[key] = profileToSave;
@@ -863,18 +899,17 @@ function meguminCleanChatHistoryText(text) {
 // UI TAB RENDERER (Toolbox System)
 // -------------------------------------------------------------
 const tabsUI = [
-    { title: "Core Engine", sub: "Choose the core ruleset that drives all NPC behavior and world logic.", icon: "fa-server", render: renderMode },
-    { title: "Persona & Toggles", sub: "Define the personality and extra toggles.", icon: "fa-user-astronaut", render: renderPersonality },
+    { title: "PRESETS & COT", sub: "Choose the core preset, and COT.", icon: "fa-server", render: renderCoreAndCot },
+    { title: "Persona", sub: "Define the personality.", icon: "fa-user-astronaut", render: renderPersonality },
     { title: "Writing Style", sub: "Apply a prebuilt style, generate one with AI, or build your own.", icon: "fa-pen-nib", render: renderStyleLibrary },
-    { title: "Global Settings", sub: "Set response length, output language, and how the AI addresses you.", icon: "fa-earth-americas", render: renderAddons },
-    { title: "Add-ons & Blocks", sub: "Attach extra modules that appear at the end of every response.", icon: "fa-puzzle-piece", render: renderBlocks },
-    { title: "Chain of Thought", sub: "Control the AI's internal reasoning process before it writes.", icon: "fa-brain", render: renderModels },
+    { title: "Global Toggles & Blocks", sub: "Configure global parameters, add-ons, and UI tracker blocks.", icon: "fa-earth-americas", render: renderGlobalAndBlocks },
     { title: "Story Director", sub: "Direct the narrative. Shape what happens next.", icon: "fa-clapperboard", render: renderStoryPlanner },
     { title: "Dynamic Ban List", sub: "Scan and ban repetitive AI phrases.", icon: "fa-ban", render: renderBanList },
     { title: "Image Generation", sub: "Wire up ComfyUI to auto-generate scene images during roleplay.", icon: "fa-image", render: renderImageGen },
     { title: "NPCs Bank", sub: "Automatically extract and track significant NPCs in the story.", icon: "fa-address-book", render: renderNpcBank },
     { title: "Memory Core", sub: "Advanced 3-Tier Context & History Management.", icon: "fa-memory", render: renderMemoryCore },
-    { title: "Side Panel", sub: "Pop the tracker blocks out of the chat into a fixed side panel.", icon: "fa-table-columns", render: renderSidePanelTab }
+    { title: "Side Panel", sub: "Pop the tracker blocks out of the chat into a fixed side panel.", icon: "fa-table-columns", render: renderSidePanelTab },
+    { title: "Global Settings", sub: "Extension preferences and about info.", icon: "fa-gear", render: renderGlobalSettings }
 ];
 
 function switchTab(index) {
@@ -896,13 +931,24 @@ function switchTab(index) {
 
     // Generate Icons
     const dotsContainer = $("#ps_dynamic_dots");
-    if (dotsContainer.children(".dock-icon").length < tabsUI.length) {
+    if (dotsContainer.children(".sidebar-step").length < tabsUI.length) {
         dotsContainer.empty();
-        tabsUI.forEach((t, i) => {
+        
+        // Render all normal tabs
+        for (let i = 0; i < tabsUI.length - 1; i++) {
+            const t = tabsUI[i];
             dotsContainer.append(`<div class="dock-icon sidebar-step" id="dot_${i}" title="${t.title}">
                 <i class="fa-solid ${t.icon}"></i> <span>${t.title}</span>
             </div>`);
-        });
+        }
+        
+        // Push the Global Settings gear to the absolute bottom of the dock
+        dotsContainer.append(`<div style="flex-grow: 1;"></div>`); 
+        const lastIdx = tabsUI.length - 1;
+        const lastTab = tabsUI[lastIdx];
+        dotsContainer.append(`<div class="dock-icon sidebar-step" id="dot_${lastIdx}" title="${lastTab.title}" style="margin-bottom: 15px; color: #a1a1aa; transition: 0.2s;">
+            <i class="fa-solid ${lastTab.icon}"></i> <span>${lastTab.title}</span>
+        </div>`);
     }
 
     $(".dock-icon").removeClass("active");
@@ -924,42 +970,93 @@ function switchTab(index) {
 
 function applyTabToAll() {
     // Side Panel settings are already saved in a global storage object natively.
-    if (currentTab === 11 || (tabsUI[currentTab] && tabsUI[currentTab].title === "Side Panel")) {
-        toastr.success("Side Panel settings are already applied globally!");
+    if (currentTab === 9 || currentTab === 10 || (tabsUI[currentTab] && tabsUI[currentTab].title === "Side Panel")) {
+        toastr.success("Side Panel and Global Settings are already applied globally!");
         return;
     }
 
     const tabKeys = {
-        0: ["mode"],
+        0: ["mode", "model", "cotEnabled", "thinkEffort", "customThinkEffort", "thinkingV2"],
         1: ["personality", "toggles"],
         2: ["activeStyleId", "aiRule", "customStyles", "dnRatio", "userPov"],
-        3: ["userWordCount", "userWordCountType", "userLanguage", "userPronouns", "onomatopoeia", "v9Limits"],
-        4: ["addons", "blocks"],
-        5: ["model", "cotEnabled", "thinkEffort", "customThinkEffort", "thinkingV2"],
-        6: ["storyPlan"],
-        7: ["banList", "banListBackend", "banListCustomPromptsEnabled", "banListCustomPrompts"],
-        8: ["imageGen"],
-        9: ["npcBank"],
-        10: ["memoryCore"]
+        3: ["addons", "blocks", "userWordCount", "userWordCountType", "userLanguage", "userPronouns", "onomatopoeia", "v9Limits"],
+        4: ["storyPlan"],
+        5: ["banList", "banListBackend", "banListCustomPromptsEnabled", "banListCustomPrompts"],
+        6: ["imageGen"],
+        7: ["npcBank"],
+        8: ["memoryCore"]
     };
 
     const keysToSync = tabKeys[currentTab];
     if (!keysToSync) return;
 
-    if (confirm(`Apply ${tabsUI[currentTab].title} settings to ALL characters, groups, and defaults?`)) {
+    if (confirm(`Apply ${tabsUI[currentTab].title} settings to ALL characters, groups, and defaults? (This will NOT overwrite existing saved content like NPCs or Memories)`)) {
         const currentData = localProfile;
+        
         Object.keys(extension_settings[extensionName].profiles).forEach(profKey => {
             const prof = extension_settings[extensionName].profiles[profKey];
+            
             keysToSync.forEach(k => {
-                prof[k] = JSON.parse(JSON.stringify(currentData[k]));
+                // --- SPECIAL HANDLING: Preserve Content Data ---
+                if (k === "storyPlan" && currentData[k]) {
+                    if (!prof[k]) prof[k] = {};
+                    // Save existing story content
+                    const preservedPlan = prof[k].currentPlan;
+                    const preservedTracker = prof[k].lastTrackerState;
+                    const preservedIndex = prof[k].planMessageIndex;
+                    
+                    // Overwrite settings
+                    prof[k] = JSON.parse(JSON.stringify(currentData[k]));
+                    
+                    // Restore story content
+                    prof[k].currentPlan = preservedPlan || "";
+                    prof[k].lastTrackerState = preservedTracker || "";
+                    prof[k].planMessageIndex = preservedIndex !== undefined ? preservedIndex : null;
+
+                } else if (k === "npcBank" && currentData[k]) {
+                    if (!prof[k]) prof[k] = {};
+                    // Save existing NPCs
+                    const preservedNpcs = prof[k].npcs;
+                    
+                    // Overwrite settings
+                    prof[k] = JSON.parse(JSON.stringify(currentData[k]));
+                    
+                    // Restore NPCs
+                    prof[k].npcs = preservedNpcs || [];
+
+                } else if (k === "memoryCore" && currentData[k]) {
+                    if (!prof[k]) prof[k] = {};
+                    // Save existing memories
+                    const preservedShort = prof[k].shortTermChunks;
+                    const preservedLong = prof[k].longTermVault;
+                    
+                    // Overwrite settings
+                    prof[k] = JSON.parse(JSON.stringify(currentData[k]));
+                    
+                    // Restore memories
+                    prof[k].shortTermChunks = preservedShort || [];
+                    prof[k].longTermVault = preservedLong || [];
+
+                } else {
+                    // Standard deep copy for everything else (Engines, CoT, Image Gen, etc.)
+                    prof[k] = JSON.parse(JSON.stringify(currentData[k]));
+                }
             });
         });
+        
         saveSettingsDebounced();
-        toastr.success(`Synced ${tabsUI[currentTab].title} across all profiles!`);
+        toastr.success(`Synced ${tabsUI[currentTab].title} settings across all profiles!`);
     }
 }
 
-function renderMode(c) {
+function renderCoreAndCot(c) {
+    // Preserve active sub-tab and filter before wiping the container
+    let activeSubTab = c.find('.ws-nav-btn.active').attr('data-target') || 'sec-official';
+    let activeFilter = c.find('.wstyle-filter-pill.active').attr('data-filter') || 'all';
+
+    c.empty();
+    const root = $(`<div style="display: flex; flex-direction: column; height: 100%;"></div>`);
+
     const descriptions = {
         "balance": "The original Secret Sauce. NPCs react naturally — no simping, no needless hostility.",
         "balance Test": "New and improved balance mode that aims to use less tokens and more creativity.",
@@ -981,11 +1078,9 @@ function renderMode(c) {
         "v9-immersion": "A streamlined, lightweight version of V9 Mirage. It retains the core philosophy and brutal realism of Mirage but runs with a smaller context footprint. V9 Mirage is still recommended if your model can handle it."
     };
 
-    // Active engine name
     const activeEng = hardcodedLogic.modes.find(m => m.id === localProfile.mode);
     const activeLabel = activeEng ? activeEng.label : localProfile.mode;
 
-    // Count by version
     let v4Count = 0, v5Count = 0, v6Count = 0, v7Count = 0, v8Count = 0, v9Count = 0;
     hardcodedLogic.modes.forEach(m => {
         if (m.label.includes("V4")) v4Count++;
@@ -996,40 +1091,75 @@ function renderMode(c) {
         else if (m.id.includes("v9")) v9Count++;
     });
     const totalCount = hardcodedLogic.modes.length;
+    const customCount = (extension_settings[extensionName].customModes || []).length;
 
-    // ── HEADER ──
-    c.append(`
-        <div class="mtab-header">
-            <div class="mtab-header-left">
-                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
-                    <i class="fa-solid fa-microchip"></i>
+    // ── UNIFIED HEADER ──
+    root.append(`
+        <div class="wstyle-header">
+            <div class="wstyle-header-left">
+                <div class="wstyle-header-icon" style="background: linear-gradient(135deg, #f59e0b, #a855f7);">
+                    <i class="fa-solid fa-server"></i>
                 </div>
                 <div>
-                    <h2>Core Engines</h2>
-                    <p>Choose the narrative engine that drives your AI's behavior.</p>
+                    <h2>PRESETS & COT</h2>
+                    <p>Choose the core preset, and COT.</p>
                 </div>
             </div>
-            <div class="mtab-header-badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25);">
-                <i class="fa-solid fa-circle-check" style="font-size:0.6rem;"></i> ${activeLabel}
+            <div class="wstyle-active-badge">
+                <i class="fa-solid fa-circle-check"></i>
+                ${activeLabel}
             </div>
         </div>
     `);
 
-    // ── FILTER PILLS ──
-    const filterBar = $(`
-        <div class="wstyle-filters" style="margin-bottom: 20px;">
-            <button class="wstyle-filter-pill active" data-filter="all">All <span class="pill-count">${totalCount}</span></button>
-            <button class="wstyle-filter-pill" data-filter="V4">V4 <span class="pill-count">${v4Count}</span></button>
-            <button class="wstyle-filter-pill" data-filter="V5">V5 <span class="pill-count">${v5Count}</span></button>
-            <button class="wstyle-filter-pill" data-filter="V6"><i class="fa-solid fa-lock" style="font-size:0.6rem;"></i> V6 <span class="pill-count">${v6Count}</span></button>
-            <button class="wstyle-filter-pill" data-filter="V7">V7 <span class="pill-count">${v7Count}</span></button>
-            <button class="wstyle-filter-pill" data-filter="V8">V8 <span class="pill-count">${v8Count}</span></button>
-            <button class="wstyle-filter-pill" data-filter="V9">V9 <span class="pill-count">${v9Count}</span></button>
+    // ── TWO COLUMN LAYOUT ──
+    const layout = $(`<div class="ws-layout"></div>`);
+    const sidebar = $(`<div class="ws-sidebar"></div>`);
+    const mainArea = $(`<div class="ws-main"></div>`);
+
+    // --- BUILD SIDEBAR ---
+    sidebar.append(`<div class="ws-sidebar-title">Configuration</div>`);
+    
+    const btnOfficial = $(`<button class="ws-nav-btn active" data-target="sec-official"><span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-server"></i> Official Engines</span> <span class="ws-badge">${totalCount}</span></button>`);
+    const btnCustom = $(`<button class="ws-nav-btn" data-target="sec-custom"><span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-microchip"></i> Custom Engines</span> <span class="ws-badge">${customCount}</span></button>`);
+    
+    sidebar.append(btnOfficial).append(btnCustom);
+    sidebar.append(`<div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>`);
+    
+    const btnCot = $(`<button class="ws-nav-btn" data-target="sec-cot"><span style="display:flex; align-items:center; gap:10px; color: ${localProfile.cotEnabled ? 'var(--text-main)' : 'var(--text-muted)'};"><i class="fa-solid fa-brain" style="color: ${localProfile.cotEnabled ? '#a855f7' : ''};"></i> Reasoning (CoT)</span> <span style="font-size: 0.6rem; font-weight: bold; color: ${localProfile.cotEnabled ? '#10b981' : '#ef4444'};">${localProfile.cotEnabled ? 'ON' : 'OFF'}</span></button>`);
+    sidebar.append(btnCot);
+
+    layout.append(sidebar);
+
+    // --- BUILD MAIN CONTENT SECTIONS ---
+    const secOfficial = $(`<div class="ws-section" id="sec-official"></div>`);
+    const secCustom = $(`<div class="ws-section" id="sec-custom" style="display:none;"></div>`);
+    const secCot = $(`<div class="ws-section" id="sec-cot" style="display:none;"></div>`);
+
+    // ==========================================
+    // ── A. OFFICIAL ENGINES ──
+    // ==========================================
+    secOfficial.append(`<h3 style="margin-top: 0; color: var(--gold); font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-server"></i> Official Megumin Engines</h3>`);
+    secOfficial.append(`
+        <div class="mtab-callout gold" style="margin-bottom: 20px;">
+            <i class="fa-solid fa-lightbulb"></i>
+            <span><strong>Pro Tip:</strong> The Engine defines the "laws of physics" and pacing of your story. The Reasoning acts as the AI's internal scratchpad. For the best experience, match V9 Mirage with CoT V9 Mirage.</span>
         </div>
     `);
-    c.append(filterBar);
 
-    // ── ENGINE CARDS ──
+    const filterBar = $(`
+        <div class="wstyle-filters" style="margin-bottom: 20px;">
+            <button class="wstyle-filter-pill ${activeFilter === 'all' ? 'active' : ''}" data-filter="all">All <span class="pill-count">${totalCount}</span></button>
+            <button class="wstyle-filter-pill ${activeFilter === 'V4' ? 'active' : ''}" data-filter="V4">V4 <span class="pill-count">${v4Count}</span></button>
+            <button class="wstyle-filter-pill ${activeFilter === 'V5' ? 'active' : ''}" data-filter="V5">V5 <span class="pill-count">${v5Count}</span></button>
+            <button class="wstyle-filter-pill ${activeFilter === 'V6' ? 'active' : ''}" data-filter="V6"><i class="fa-solid fa-lock" style="font-size:0.6rem;"></i> V6 <span class="pill-count">${v6Count}</span></button>
+            <button class="wstyle-filter-pill ${activeFilter === 'V7' ? 'active' : ''}" data-filter="V7">V7 <span class="pill-count">${v7Count}</span></button>
+            <button class="wstyle-filter-pill ${activeFilter === 'V8' ? 'active' : ''}" data-filter="V8">V8 <span class="pill-count">${v8Count}</span></button>
+            <button class="wstyle-filter-pill ${activeFilter === 'V9' ? 'active' : ''}" data-filter="V9">V9 <span class="pill-count">${v9Count}</span></button>
+        </div>
+    `);
+    secOfficial.append(filterBar);
+
     const coreGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 20px;"></div>`);
     const v6Empty = $(`<div id="v6-empty-msg" style="display:none;"><div class="mtab-locked-state"><i class="fa-solid fa-hammer" style="color: var(--border-color);"></i><h3>V6 Engines are in the forge.</h3><p>Stay tuned for the next update! Later this week.</p></div></div>`);
 
@@ -1051,7 +1181,7 @@ function renderMode(c) {
         if (isLocked) badges += `<span class="ecard-badge locked"><i class="fa-solid fa-lock"></i> Coming Soon</span>`;
 
         const card = $(`
-            <div class="mtab-eng-card ${isSel ? 'active' : ''} ${isLocked ? 'locked-card' : ''}" data-version="${version}">
+            <div class="mtab-eng-card ${isSel ? 'active' : ''} ${isLocked ? 'locked-card' : ''}" data-version="${version}" style="${(activeFilter !== 'all' && activeFilter !== version) ? 'display:none;' : ''}">
                 <div class="ecard-accent"></div>
                 <div class="ecard-body">
                     <div class="ecard-title">
@@ -1068,13 +1198,10 @@ function renderMode(c) {
             card.on("click", () => {
                 localProfile.mode = m.id;
 
-                // Specific style mapping for V7 Core, V7 Gentle vs other V7s
                 if (m.id === "v7-core") {
                     localProfile.activeStyleId = "dir_v7_core";
                     const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v7_core");
                     if (ds) localProfile.aiRule = ds.rule;
-                } else if (m.id === "v7-gentle") {
-                    // ... (keep all the existing style mapping code) ...
                 } else if (m.id.startsWith("v8")) {
                     localProfile.activeStyleId = "dir_v8";
                     const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v8");
@@ -1101,39 +1228,35 @@ function renderMode(c) {
                         localProfile.model = `${targetCotPrefix}-${currentLang}`;
                     }
                 }
-                // ==========================================
-
                 saveProfileToMemory();
-                switchTab(currentTab);
+                renderCoreAndCot(c);
             });
         }
         coreGrid.append(card);
     });
 
-    c.append(coreGrid);
-    c.append(v6Empty);
+    secOfficial.append(coreGrid);
+    secOfficial.append(v6Empty);
+    if (activeFilter === "V6") v6Empty.show();
 
-    // ── FILTER LOGIC ──
     filterBar.find('.wstyle-filter-pill').on('click', function () {
         filterBar.find('.wstyle-filter-pill').removeClass('active');
         $(this).addClass('active');
         const filter = $(this).attr('data-filter');
         if (filter === "all") {
-            coreGrid.show(); coreGrid.find('.mtab-eng-card').show(); v6Empty.hide();
+            coreGrid.find('.mtab-eng-card').show(); v6Empty.hide();
         } else {
             coreGrid.find('.mtab-eng-card').each(function () {
                 if ($(this).attr('data-version') === filter) $(this).show(); else $(this).hide();
             });
-            coreGrid.show();
             if (filter === "V6") v6Empty.show(); else v6Empty.hide();
         }
     });
 
-    // V7 Modules Toggles
     const activeEngineForToggles = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
     const isV7ForToggles = activeEngineForToggles ? (activeEngineForToggles.id.startsWith("v7") || activeEngineForToggles.isV7 === true) : false;
     if (isV7ForToggles) {
-        c.append(`<div class="wstyle-section-head blue" style="margin-top: 15px;"><i class="fa-solid fa-layer-group"></i> V7 Modules (Turn off to disable)</div>`);
+        secOfficial.append(`<div class="wstyle-section-head blue" style="margin-top: 15px;"><i class="fa-solid fa-layer-group"></i> V7 Modules (Turn off to disable)</div>`);
         const v7ToggleList = $(`<div class="mtab-card-list"></div>`);
         const v7Toggles = [
             { id: "v7_ooc", label: "OOC Protocol", desc: "Allows out-of-character directives." },
@@ -1148,7 +1271,7 @@ function renderMode(c) {
             const isOn = localProfile.toggles[tog.id];
 
             const tCard = $(`
-                <div class="mtab-toggle-row ${isOn ? 'active' : ''}">
+                <div class="mtab-toggle-row ${isOn ? 'active' : ''}" style="cursor: pointer;">
                     <div class="toggle-info">
                         <div class="toggle-label">${tog.label}</div>
                         <div class="toggle-desc">${tog.desc}</div>
@@ -1156,16 +1279,22 @@ function renderMode(c) {
                     <div class="ps-switch"></div>
                 </div>
             `);
-            tCard.on("click", () => { localProfile.toggles[tog.id] = !localProfile.toggles[tog.id]; saveProfileToMemory(); switchTab(currentTab); });
+            tCard.on("click", () => { localProfile.toggles[tog.id] = !localProfile.toggles[tog.id]; saveProfileToMemory(); renderCoreAndCot(c); });
             v7ToggleList.append(tCard);
         });
-        c.append(v7ToggleList);
+        secOfficial.append(v7ToggleList);
     }
 
-    // ── CUSTOM ENGINES ──
+
+    // ==========================================
+    // ── B. CUSTOM ENGINES ──
+    // ==========================================
+    secCustom.append(`<h3 style="margin-top: 0; color: #10b981; font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-microchip"></i> Your Custom Engines</h3>`);
     const customModes = extension_settings[extensionName].customModes || [];
-    if (customModes.length > 0) {
-        c.append(`<div class="wstyle-section-head green" style="margin-top:12px;"><i class="fa-solid fa-puzzle-piece"></i> Custom User Engines</div>`);
+
+    if (customModes.length === 0) {
+        secCustom.append(`<div style="padding: 30px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: 14px;">No custom engines yet. Go to Dev Mode to create or import one!</div>`);
+    } else {
         const customGrid = $(`<div class="mtab-card-grid"></div>`);
         customModes.forEach(m => {
             const isSel = localProfile.mode === m.id;
@@ -1185,13 +1314,255 @@ function renderMode(c) {
             `);
             card.on("click", (e) => {
                 if ($(e.target).closest('.btn-quick-edit').length) return;
-                localProfile.mode = m.id; saveProfileToMemory(); switchTab(currentTab);
+                localProfile.mode = m.id; saveProfileToMemory(); renderCoreAndCot(c);
             });
             card.find(".btn-quick-edit").on("click", () => renderDevMode("editor", m.id, null, "tab"));
             customGrid.append(card);
         });
-        c.append(customGrid);
+        secCustom.append(customGrid);
     }
+
+
+    // ==========================================
+    // ── C. CHAIN OF THOUGHT (REASONING) ──
+    // ==========================================
+    secCot.append(`<h3 style="margin-top: 0; color: #a855f7; font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-brain"></i> Chain of Thought (Reasoning)</h3>`);
+
+    if (localProfile.cotEnabled === undefined) localProfile.cotEnabled = true;
+
+    const cotToggle = $(`
+        <div class="mtab-toggle-row ${localProfile.cotEnabled ? 'active' : ''}" style="margin-bottom: 20px; border-color: ${localProfile.cotEnabled ? '#a855f7' : 'var(--border-color)'}; cursor: pointer;">
+            <div class="toggle-info">
+                <div class="toggle-label" style="color: ${localProfile.cotEnabled ? '#a855f7' : 'var(--text-main)'};"><i class="fa-solid fa-power-off"></i> Enable Chain of Thought</div>
+                <div class="toggle-desc">Toggle the entire AI reasoning system. When off, the AI generates responses directly.</div>
+            </div>
+            <div class="ps-switch" style="${localProfile.cotEnabled ? 'background:#a855f7;' : ''}"></div>
+        </div>
+    `);
+    cotToggle.on("click", function() {
+        localProfile.cotEnabled = !localProfile.cotEnabled;
+        saveProfileToMemory();
+        renderCoreAndCot(c);
+    });
+    secCot.append(cotToggle);
+
+    if (localProfile.cotEnabled) {
+        if (activeEng && activeEng.cot && activeEng.cot.trim() !== "") {
+            secCot.append(`
+                <div class="mtab-callout green" style="margin-bottom:20px;">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span><strong>Custom Engine Logic Active</strong> — This Engine provides its own [[COT]] and [[prefill]]. Selections below will be overridden by the Engine's code.</span>
+                </div>
+            `);
+        }
+
+        const migrationMap = {
+            "cot-english": "cot-v1-english", "cot-arabic": "cot-v1-arabic", "cot-spanish": "cot-v1-spanish", "cot-french": "cot-v1-french",
+            "cot-zh": "cot-v1-zh", "cot-ru": "cot-v1-ru", "cot-jp": "cot-v1-jp", "cot-pt": "cot-v1-pt", "cot-english-test": "cot-v2-english"
+        };
+        if (migrationMap[localProfile.model]) { localProfile.model = migrationMap[localProfile.model]; saveProfileToMemory(); }
+
+        if (localProfile.model === "cot-off") {
+            localProfile.cotEnabled = false;
+            localProfile.model = "cot-v7.5-english";
+            saveProfileToMemory();
+        }
+
+        let currentType = "off", currentLang = "english";
+        if (localProfile.model && localProfile.model.startsWith("cot-v1-")) { currentType = "v1"; currentLang = localProfile.model.replace("cot-v1-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v2-")) { currentType = "v2"; currentLang = localProfile.model.replace("cot-v2-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v6-lite-")) { currentType = "v6-lite"; currentLang = localProfile.model.replace("cot-v6-lite-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v6-")) { currentType = "v6"; currentLang = localProfile.model.replace("cot-v6-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v7.5-")) { currentType = "v7.5"; currentLang = localProfile.model.replace("cot-v7.5-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v7-lite-")) { currentType = "v7-lite"; currentLang = localProfile.model.replace("cot-v7-lite-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v7-")) { currentType = "v7"; currentLang = localProfile.model.replace("cot-v7-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v8-fusion-")) { currentType = "v8-fusion"; currentLang = localProfile.model.replace("cot-v8-fusion-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v8-")) { currentType = "v8"; currentLang = localProfile.model.replace("cot-v8-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v9-lite-")) { currentType = "v9-lite"; currentLang = localProfile.model.replace("cot-v9-lite-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v9-director-")) { currentType = "v9-director"; currentLang = localProfile.model.replace("cot-v9-director-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v9-immersion-")) { currentType = "v9-immersion"; currentLang = localProfile.model.replace("cot-v9-immersion-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v9-hybrid-")) { currentType = "v9-hybrid"; currentLang = localProfile.model.replace("cot-v9-hybrid-", ""); }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v9-")) { currentType = "v9"; currentLang = localProfile.model.replace("cot-v9-", ""); }
+
+        let allowedCotTypes = null; 
+        if (localProfile.mode.includes("v6")) allowedCotTypes = ["v6", "v6-lite"];
+        else if (localProfile.mode === "v7.5") allowedCotTypes = ["v7.5"];
+        else if (localProfile.mode.includes("v7")) allowedCotTypes = ["v7", "v7-lite"];
+        else if (localProfile.mode === "v8-fusion") allowedCotTypes = ["v8-fusion"]; 
+        else if (localProfile.mode.includes("v8")) allowedCotTypes = ["v8"]; 
+        else if (localProfile.mode.includes("v9")) allowedCotTypes = ["v9", "v9-lite", "v9-director", "v9-immersion", "v9-hybrid"];
+
+        // Thinking Frameworks
+        secCot.append(`<div class="wstyle-section-head purple"><i class="fa-solid fa-diagram-project"></i> Select Framework</div>`);
+        const typeGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 24px;"></div>`);
+        const types = [
+            { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
+            { id: "v2", label: "CoT V2 (New)", desc: "The new experimental framework. Stricter reality checks, info audits, better NPCs, and hook generation." },
+            { id: "v6", label: "CoT V6 (Dream Team)", desc: "The full 4-phase sequence designed specifically for V6 engines. Specialized validation and modeling." },
+            { id: "v6-lite", label: "CoT V6 (Lite)", desc: "A streamlined 3-phase sequence. Less token overhead while maintaining narrative rules." },
+            { id: "v7", label: "CoT V7", desc: "The new V7 sequence with 5-phase strict ground truth rebuilding."},
+            { id: "v7-lite", label: "CoT V7 (Lite)", desc: "A streamlined 5-phase sequence for V7." },
+            { id: "v7.5", label: "CoT V7.5 Kismet", desc: "The new V7.5 sequence focused on story engine mechanics." },
+            { id: "v8", label: "CoT V8", desc: "The new V8 narrative processing sequence." },
+            { id: "v8-fusion", label: "CoT V8 Fusion", desc: "The new V8 Fusion narrative processing sequence." },
+            { id: "v9", label: "CoT V9 Mirage", desc: "The primary and most balanced reasoning sequence, purpose-built for the V9 Mirage engine. The gold standard for modern roleplay.", isNew: true },
+            { id: "v9-director", label: "CoT V9 Mirage Air", desc: "A lighter, version of CoT V9 Mirage, it give Different output Try and see if you like.", isNew: true },
+            { id: "v9-immersion", label: "CoT V9 Mirage Max", desc: "The heavy-duty, maximum-thinking sequence. Forces the AI to dive incredibly deep into sensory data and psychological realism before generating a single word.", isNew: true },
+            { id: "v9-hybrid", label: "CoT V9 Kuromaku", desc: "A specialized multi-agent reasoning sequence designed specifically to pair with the V9 Kuromaku engine.", isNew: true },
+            { id: "v9-lite", label: "CoT V9 Cui (Lite)", desc: "A highly streamlined, fast-executing reasoning sequence perfectly paired with the V9 Cui engine to save tokens.", isNew: true }
+        ];
+        types.forEach(t => {
+            const isSel = currentType === t.id;
+            const isWarned = allowedCotTypes !== null && !allowedCotTypes.includes(t.id);
+            
+            let badges = '';
+            if (isWarned) badges = `<span class="ecard-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><i class="fa-solid fa-triangle-exclamation"></i> May be Incompatible</span>`;
+            else if (t.isNew) badges = `<span class="ecard-badge new">New</span>`;
+
+            const card = $(`
+                <div class="mtab-eng-card ${isSel ? 'active' : ''}">
+                    <div class="ecard-accent"></div>
+                    <div class="ecard-body">
+                        <div class="ecard-title">
+                            <span>${t.label}</span>
+                            ${isSel ? `<span class="ecard-badge" style="background:rgba(168,85,247,0.15);color:#a855f7;"><i class="fa-solid fa-check"></i> Active</span>` : ''}
+                        </div>
+                        <p class="ecard-desc">${t.desc}</p>
+                        ${badges ? `<div style="margin-top:4px;">${badges}</div>` : ''}
+                    </div>
+                </div>
+            `);
+            
+            card.on("click", () => {
+                if (t.id === "v7") localProfile.model = `cot-v7-english`;
+                else if (t.id === "v7.5") localProfile.model = `cot-v7.5-english`;
+                else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;
+                else if (t.id === "v8") localProfile.model = `cot-v8-english`;
+                else if (t.id === "v8-fusion") localProfile.model = `cot-v8-fusion-english`;
+                else if (t.id.startsWith("v9")) localProfile.model = `cot-${t.id}-english`;
+                else localProfile.model = `cot-${t.id}-${currentLang}`;
+                saveProfileToMemory(); renderCoreAndCot(c);
+            }); 
+            typeGrid.append(card);
+        });
+        secCot.append(typeGrid);
+
+        // Thinking Effort
+        if (!localProfile.thinkEffort) localProfile.thinkEffort = "unspecified";
+        if (!localProfile.customThinkEffort) localProfile.customThinkEffort = "100";
+
+        secCot.append(`<div class="wstyle-section-head purple"><i class="fa-solid fa-gauge-high"></i> Thinking Effort</div>`);
+        const effortGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 24px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));"></div>`);
+        const efforts = [
+            { id: "100", label: "100 Words" },
+            { id: "250", label: "250 Words" },
+            { id: "450", label: "450 Words" },
+            { id: "custom", label: "Custom" },
+            { id: "unspecified", label: "Unspecified" }
+        ];
+        efforts.forEach(e => {
+            const isSel = localProfile.thinkEffort === e.id;
+            const card = $(`
+                <div class="mtab-eng-card ${isSel ? 'active' : ''}" style="text-align:center;">
+                    <div class="ecard-accent"></div>
+                    <div class="ecard-body" style="padding:12px 10px; align-items:center;">
+                        <span style="font-weight:700; font-size:0.85rem; color:${isSel ? '#a855f7' : 'var(--text-main)'};">${e.label}</span>
+                    </div>
+                </div>
+            `);
+            card.on("click", () => { localProfile.thinkEffort = e.id; saveProfileToMemory(); renderCoreAndCot(c); });
+            effortGrid.append(card);
+        });
+        secCot.append(effortGrid);
+
+        if (localProfile.thinkEffort === "custom") {
+            const customBlock = $(`
+                <div class="mtab-panel" style="margin-top:-14px; margin-bottom:24px;">
+                    <div class="mtab-setting-row">
+                        <div class="set-info"><div class="set-label">Custom Word Count</div></div>
+                        <input type="number" id="ps_input_custom_effort" class="ps-modern-input" style="width: 150px;" value="${localProfile.customThinkEffort}" min="1" />
+                    </div>
+                </div>
+            `);
+            customBlock.find("#ps_input_custom_effort").on("change input", function () {
+                localProfile.customThinkEffort = $(this).val(); saveProfileToMemory();
+            });
+            secCot.append(customBlock);
+        }
+
+        // Gemini Toggle
+        if (localProfile.thinkingV2 === undefined) localProfile.thinkingV2 = false;
+        const v2Card = $(`
+            <div class="mtab-toggle-row ${localProfile.thinkingV2 ? 'active' : ''}" style="margin-bottom: 24px; cursor: pointer;">
+                <div class="toggle-info">
+                    <div class="toggle-label"><i class="fa-solid fa-sparkles" style="color:#a855f7;"></i> Gemini Thinking Override</div>
+                    <div class="toggle-desc">Enable ONLY for Gemini models to inject specific XML tags.</div>
+                </div>
+                <div class="ps-switch"></div>
+            </div>
+        `);
+        v2Card.on("click", function () { localProfile.thinkingV2 = !localProfile.thinkingV2; saveProfileToMemory(); renderCoreAndCot(c); });
+        secCot.append(v2Card);
+
+        // Language
+        secCot.append(`<div class="wstyle-section-head gold"><i class="fa-solid fa-language"></i> Reasoning Language</div>`);
+        const langGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 20px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));"></div>`);
+        let langs = [
+            { id: "english", label: "English" }, { id: "arabic", label: "Arabic (العربية)", rec: true }, { id: "spanish", label: "Spanish (Español)" },
+            { id: "french", label: "French (Français)" }, { id: "zh", label: "Mandarin (中文)" }, { id: "ru", label: "Russian (Русский)" },
+            { id: "jp", label: "Japanese (日本語)" }, { id: "pt", label: "Portuguese (Português)" }
+        ];
+        if (currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8" || currentType === "v8-fusion" || currentType.startsWith("v9")) langs = [{ id: "english", label: "English" }];
+        langs.forEach(l => {
+            const isSel = currentLang === l.id;
+            let badges = '';
+            if (l.rec) badges = `<span class="ecard-badge rec"><i class="fa-solid fa-star"></i> Pro Tip</span>`;
+
+            const card = $(`
+                <div class="mtab-eng-card ${isSel ? 'active' : ''}">
+                    <div class="ecard-accent"></div>
+                    <div class="ecard-body" style="padding:12px 16px;">
+                        <div class="ecard-title" style="font-size:0.88rem;">
+                            <span>${l.label}</span>
+                            ${isSel ? `<span class="ecard-badge" style="background:rgba(245,158,11,0.15);color:var(--gold);"><i class="fa-solid fa-check"></i></span>` : ''}
+                        </div>
+                        ${badges ? `<div style="margin-top:2px;">${badges}</div>` : ''}
+                    </div>
+                </div>
+            `);
+            card.on("click", () => { localProfile.model = `cot-${currentType}-${l.id}`; saveProfileToMemory(); renderCoreAndCot(c); });
+            langGrid.append(card);
+        }); 
+        secCot.append(langGrid);
+    }
+
+    // --- ASSEMBLE ---
+    mainArea.append(secOfficial).append(secCustom).append(secCot);
+    layout.append(mainArea);
+    root.append(layout);
+    c.append(root);
+
+    // ── NAVIGATION LOGIC ──
+    const navButtons = [btnOfficial, btnCustom, btnCot];
+    const sections = [secOfficial, secCustom, secCot];
+
+    const switchSection = (targetId) => {
+        navButtons.forEach(btn => {
+            if (btn.attr('data-target') === targetId) btn.addClass('active');
+            else btn.removeClass('active');
+        });
+        sections.forEach(sec => {
+            if (sec.attr('id') === targetId) sec.show();
+            else sec.hide();
+        });
+    };
+
+    btnOfficial.on('click', () => switchSection('sec-official'));
+    btnCustom.on('click', () => switchSection('sec-custom'));
+    btnCot.on('click', () => switchSection('sec-cot'));
+
+    // Trigger initial state
+    switchSection(activeSubTab);
 }
 
 function renderPersonality(c) {
@@ -1210,7 +1581,7 @@ function renderPersonality(c) {
                     <i class="fa-solid fa-masks-theater"></i>
                 </div>
                 <div>
-                    <h2>Persona & Toggles</h2>
+                    <h2>Persona</h2>
                     <p>Set the narrator's voice and fine‑tune engine behavior.</p>
                 </div>
             </div>
@@ -1224,7 +1595,7 @@ function renderPersonality(c) {
         c.append(`
             <div class="mtab-locked-state">
                 <i class="fa-solid fa-user-lock" style="color: #f59e0b;"></i>
-                <h3>Persona & Toggles Locked</h3>
+                <h3>Persona Locked</h3>
                 <p>The ${isV9 ? 'V9' : 'V8'} engine manages its own internal persona and strictly enforces narrative toggles natively. Standard injections are completely disabled.</p>
             </div>
         `);
@@ -1756,8 +2127,10 @@ function renderStyleEditor(c, editId, presetData = null) {
     });
 }
 
-function renderAddons(c) {
-    const descriptions = {
+function renderGlobalAndBlocks(c) {
+    c.empty();
+
+    const addonDescriptions = {
         "death": "Enables permanent consequences. Characters — including yours — can die for real. No safety net, no plot armor.",
         "combat": "Activates a grounded, tactical combat layer. Actions have real weight, positioning matters, and you can lose badly.",
         "direct": "Forces AI to say words like D and P. No dancing around the subject, no polite deflection. you know what i mean.",
@@ -1766,133 +2139,51 @@ function renderAddons(c) {
         "dn": "Forces dialogue and narration to be wrapped in their respective XML tags. Useful for specific Models for better narration style adherence."
     };
 
+    const blockDescriptions = {
+        "info": "Appends a tidy status panel after each response showing time, weather, location, and what characters are wearing.",
+        "cyoa": "Choose-Your-Own-Adventure panel with 4 suggested actions for you to pick from each turn.",
+        "mvu": "Add MVU Compatibility still in test read more here: <a href='https://github.com/KritBlade/MVU_Game_Maker' target='_blank' style='color: var(--gold); text-decoration: underline;'>https://github.com/KritBlade/MVU_Game_Maker</a>",
+        "npc_inner_chatter": "Reveal NPC private thoughts the PC never hears — crushes, resentment, scheming, anxiety. This feeds future NPC behavior.",
+        "npc_inner_chatter_v2": "A simpler version of NPC Inner Chatter. use less input token."
+    };
+
     const activeMode = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
     const isV6 = activeMode && (activeMode.id.includes("v6") || activeMode.label.includes("V6"));
     const isV9 = activeMode && (activeMode.id.includes("v9") || activeMode.isV9 === true);
 
-    // ── HEADER ──
+    // ── UNIFIED HEADER ──
     c.append(`
         <div class="mtab-header">
             <div class="mtab-header-left">
-                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
-                    <i class="fa-solid fa-puzzle-piece"></i>
+                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #3b82f6, #10b981);">
+                    <i class="fa-solid fa-earth-americas"></i>
                 </div>
                 <div>
-                    <h2>Global Settings</h2>
-                    <p>Toggle add-ons, set output preferences, and configure extras.</p>
+                    <h2>Global Toggles & Blocks</h2>
+                    <p>Configure global parameters, gameplay add-ons, and UI tracker blocks.</p>
                 </div>
             </div>
             <div class="mtab-header-badge" style="background: rgba(59,130,246,0.12); color: #3b82f6; border: 1px solid rgba(59,130,246,0.25);">
-                <i class="fa-solid fa-toggle-on" style="font-size:0.6rem;"></i> ${localProfile.addons.length} Active
+                <i class="fa-solid fa-gears" style="font-size:0.6rem;"></i> ${localProfile.addons.length + localProfile.blocks.length} Active Modules
             </div>
         </div>
     `);
 
-    // ── ADDON CARDS ──
-    c.append(`<div class="wstyle-section-head blue"><i class="fa-solid fa-puzzle-piece"></i> Gameplay Add-ons</div>`);
-    const grid = $(`<div class="mtab-card-grid"></div>`);
-
-    hardcodedLogic.addons.forEach(a => {
-        const isSel = localProfile.addons.includes(a.id);
-        let badges = '';
-        if (a.recommended) badges += `<span class="ecard-badge rec"><i class="fa-solid fa-star"></i> Recommended</span>`;
-
-        let extraClass = '';
-        let v6BadgeHtml = '';
-        if (a.id === "npc_events") {
-            if (!isV6) {
-                extraClass = 'locked-card';
-                v6BadgeHtml = `<span class="ecard-badge" style="background:rgba(239,68,68,0.12);color:#ef4444;"><i class="fa-solid fa-lock"></i> Requires V6</span>`;
-            } else {
-                v6BadgeHtml = `<span class="ecard-badge v6-active"><i class="fa-solid fa-unlock"></i> V6 Active</span>`;
-            }
-        }
-
-        const card = $(`
-            <div class="mtab-eng-card ${isSel ? 'active' : ''} ${extraClass}">
-                <div class="ecard-accent"></div>
-                <div class="ecard-body">
-                    <div class="ecard-title">
-                        <span>${a.label}</span>
-                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
-                    </div>
-                    <p class="ecard-desc">${descriptions[a.id] || ""}</p>
-                    ${badges || v6BadgeHtml ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">${badges}${v6BadgeHtml}</div>` : ''}
-                </div>
-            </div>
-        `);
-
-        card.on("click", () => {
-            if (isSel) localProfile.addons = localProfile.addons.filter(i => i !== a.id); else localProfile.addons.push(a.id);
-            saveProfileToMemory(); switchTab(currentTab);
-        }); grid.append(card);
-    });
-
-    // Onomatopoeia card
-    if (!localProfile.onomatopoeia) localProfile.onomatopoeia = { enabled: false, useStyling: false };
-    const isOno = localProfile.onomatopoeia.enabled;
-    const isOnoStyle = localProfile.onomatopoeia.useStyling;
-
-    const onoCard = $(`
-        <div class="mtab-eng-card ${isOno ? 'active' : ''}">
-            <div class="ecard-accent"></div>
-            <div class="ecard-body">
-                <div class="ecard-title">
-                    <span>Cinematic Sounds</span>
-                    ${isOno ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
-                </div>
-                <p class="ecard-desc">Force the AI to use precise phonetic sound words (e.g., click, thud) instead of abstract descriptions.</p>
-                <div style="display: ${isOno ? 'flex' : 'none'}; margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--border-color); justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-weight:700; font-size: 0.75rem; color: var(--text-main);">Animate Sounds</div>
-                        <div style="font-size: 0.65rem; color: var(--text-muted);">Wrap in HTML tags. For capable AI only.</div>
-                    </div>
-                    <div class="ps-toggle-card ${isOnoStyle ? 'active' : ''}" id="ono_inner_toggle" style="padding: 4px; min-width: 44px; justify-content: center; background: transparent; border-color: ${isOnoStyle ? '#10b981' : 'var(--border-color)'};">
-                        <div class="ps-switch" style="transform: scale(0.75); ${isOnoStyle ? 'background: #10b981;' : ''}"></div>
-                    </div>
-                </div>
-            </div>
+    // ── HINT ──
+    c.append(`
+        <div class="mtab-callout blue" style="margin-bottom: 20px;">
+            <i class="fa-solid fa-circle-info"></i>
+            <span><strong>Did you know?</strong> Global Preferences shape the raw output format. Gameplay Add-ons tweak narrative rules. Response Blocks append rich UI widgets to the end of the AI's message.</span>
         </div>
     `);
-    onoCard.on("click", (e) => {
-        if ($(e.target).closest("#ono_inner_toggle").length) {
-            localProfile.onomatopoeia.useStyling = !localProfile.onomatopoeia.useStyling;
-            saveProfileToMemory(); switchTab(currentTab); return;
-        }
-        localProfile.onomatopoeia.enabled = !localProfile.onomatopoeia.enabled;
-        saveProfileToMemory(); switchTab(currentTab);
-    });
-    grid.append(onoCard);
-    c.append(grid);
 
-    // ── CUSTOM ENGINE SETTINGS ──
-    if (activeMode && activeMode.customToggles) {
-        const customSettings = activeMode.customToggles.filter(t => t.location === "settings");
-        if (customSettings.length > 0) {
-            c.append(`<div class="wstyle-section-head green" style="margin-top:16px;"><i class="fa-solid fa-gear"></i> Custom Engine Settings</div>`);
-            const toggleList = $(`<div class="mtab-card-list"></div>`);
-            customSettings.forEach(cs => {
-                const isSel = !!localProfile.toggles[cs.id];
-                const tCard = $(`
-                    <div class="mtab-toggle-row ${isSel ? 'active' : ''}" style="${isSel ? 'border-color:#10b981;' : ''}">
-                        <div class="toggle-info">
-                            <div class="toggle-label" style="${isSel ? 'color:#10b981;' : ''}">${cs.name}</div>
-                            <div class="toggle-desc">Custom Module → [[${cs.attachPoint}]]</div>
-                        </div>
-                        <div class="ps-switch" style="${isSel ? 'background:#10b981;' : ''}"></div>
-                    </div>
-                `);
-                tCard.on("click", () => { localProfile.toggles[cs.id] = !localProfile.toggles[cs.id]; saveProfileToMemory(); switchTab(currentTab); });
-                toggleList.append(tCard);
-            });
-            c.append(toggleList);
-        }
-    }
-
-    // ── EXTRA SETTINGS PANEL ──
-    c.append(`<div class="wstyle-section-head blue" style="margin-top:16px;"><i class="fa-solid fa-earth-americas"></i> Extra</div>`);
+    // ==========================================
+    // ── 1. GLOBAL PREFERENCES ──
+    // ==========================================
+    c.append(`<div class="wstyle-section-head blue"><i class="fa-solid fa-sliders"></i> Global Preferences</div>`);
+    
     const extraPanel = $(`
-        <div class="mtab-panel">
+        <div class="mtab-panel" style="margin-bottom: 24px;">
             ${isV9 ? `
             <div class="mtab-setting-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
                 <div class="set-info">
@@ -1956,44 +2247,121 @@ function renderAddons(c) {
     $("#ps_v9_full_max").on("input", function () { localProfile.v9Limits.fullMax = parseInt($(this).val()) || 1200; saveProfileToMemory(); });
     $("#ps_input_language").on("input", function () { localProfile.userLanguage = $(this).val(); saveProfileToMemory(); });
     $("#ps_select_pronouns").on("change", function () { localProfile.userPronouns = $(this).val(); saveProfileToMemory(); });
-}
 
-function renderBlocks(c) {
-    const activeEngine = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
-    const descriptions = {
-        "info": "Appends a tidy status panel after each response showing time, weather, location, and what characters are wearing.",
-        "cyoa": "Choose-Your-Own-Adventure panel with 4 suggested actions for you to pick from each turn.",
-        "mvu": "Add MVU Compatibility still in test read more here: <a href='https://github.com/KritBlade/MVU_Game_Maker' target='_blank' style='color: var(--gold); text-decoration: underline;'>https://github.com/KritBlade/MVU_Game_Maker</a>",
-        "npc_inner_chatter": "Reveal NPC private thoughts the PC never hears — crushes, resentment, scheming, anxiety. This feeds future NPC behavior.",
-        "npc_inner_chatter_v2": "A simpler version of NPC Inner Chatter. use less input token."
-    };
+    // ==========================================
+    // ── 2. GAMEPLAY ADD-ONS ──
+    // ==========================================
+    c.append(`<div class="wstyle-section-head blue"><i class="fa-solid fa-puzzle-piece"></i> Gameplay Add-ons</div>`);
+    const addonGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 24px;"></div>`);
 
-    // ── HEADER ──
-    c.append(`
-        <div class="mtab-header">
-            <div class="mtab-header-left">
-                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
-                    <i class="fa-solid fa-cubes"></i>
-                </div>
-                <div>
-                    <h2>Response Blocks</h2>
-                    <p>Attach extra UI panels to every AI response.</p>
+    hardcodedLogic.addons.forEach(a => {
+        const isSel = localProfile.addons.includes(a.id);
+        let badges = '';
+        if (a.recommended) badges += `<span class="ecard-badge rec"><i class="fa-solid fa-star"></i> Recommended</span>`;
+
+        let extraClass = '';
+        let v6BadgeHtml = '';
+        if (a.id === "npc_events") {
+            if (!isV6) {
+                extraClass = 'locked-card';
+                v6BadgeHtml = `<span class="ecard-badge" style="background:rgba(239,68,68,0.12);color:#ef4444;"><i class="fa-solid fa-lock"></i> Requires V6</span>`;
+            } else {
+                v6BadgeHtml = `<span class="ecard-badge v6-active"><i class="fa-solid fa-unlock"></i> V6 Active</span>`;
+            }
+        }
+
+        const card = $(`
+            <div class="mtab-eng-card ${isSel ? 'active' : ''} ${extraClass}">
+                <div class="ecard-accent"></div>
+                <div class="ecard-body">
+                    <div class="ecard-title">
+                        <span>${a.label}</span>
+                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
+                    </div>
+                    <p class="ecard-desc">${addonDescriptions[a.id] || ""}</p>
+                    ${badges || v6BadgeHtml ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">${badges}${v6BadgeHtml}</div>` : ''}
                 </div>
             </div>
-            <div class="mtab-header-badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25);">
-                <i class="fa-solid fa-cubes" style="font-size:0.6rem;"></i> ${localProfile.blocks.length} Active
+        `);
+
+        card.on("click", () => {
+            if (isSel) localProfile.addons = localProfile.addons.filter(i => i !== a.id); else localProfile.addons.push(a.id);
+            saveProfileToMemory(); switchTab(currentTab);
+        }); 
+        addonGrid.append(card);
+    });
+
+    if (!localProfile.onomatopoeia) localProfile.onomatopoeia = { enabled: false, useStyling: false };
+    const isOno = localProfile.onomatopoeia.enabled;
+    const isOnoStyle = localProfile.onomatopoeia.useStyling;
+
+    const onoCard = $(`
+        <div class="mtab-eng-card ${isOno ? 'active' : ''}">
+            <div class="ecard-accent"></div>
+            <div class="ecard-body">
+                <div class="ecard-title">
+                    <span>Cinematic Sounds</span>
+                    ${isOno ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
+                </div>
+                <p class="ecard-desc">Force the AI to use precise phonetic sound words (e.g., click, thud) instead of abstract descriptions.</p>
+                <div style="display: ${isOno ? 'flex' : 'none'}; margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--border-color); justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight:700; font-size: 0.75rem; color: var(--text-main);">Animate Sounds</div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted);">Wrap in HTML tags. For capable AI only.</div>
+                    </div>
+                    <div class="ps-toggle-card ${isOnoStyle ? 'active' : ''}" id="ono_inner_toggle" style="padding: 4px; min-width: 44px; justify-content: center; background: transparent; border-color: ${isOnoStyle ? '#10b981' : 'var(--border-color)'};">
+                        <div class="ps-switch" style="transform: scale(0.75); ${isOnoStyle ? 'background: #10b981;' : ''}"></div>
+                    </div>
+                </div>
             </div>
         </div>
     `);
+    onoCard.on("click", (e) => {
+        if ($(e.target).closest("#ono_inner_toggle").length) {
+            localProfile.onomatopoeia.useStyling = !localProfile.onomatopoeia.useStyling;
+            saveProfileToMemory(); switchTab(currentTab); return;
+        }
+        localProfile.onomatopoeia.enabled = !localProfile.onomatopoeia.enabled;
+        saveProfileToMemory(); switchTab(currentTab);
+    });
+    addonGrid.append(onoCard);
+    c.append(addonGrid);
 
+    // Custom Engine Settings (Addons)
+    if (activeMode && activeMode.customToggles) {
+        const customSettings = activeMode.customToggles.filter(t => t.location === "settings");
+        if (customSettings.length > 0) {
+            const toggleList = $(`<div class="mtab-card-list" style="margin-bottom: 24px;"></div>`);
+            customSettings.forEach(cs => {
+                const isSel = !!localProfile.toggles[cs.id];
+                const tCard = $(`
+                    <div class="mtab-toggle-row ${isSel ? 'active' : ''}" style="${isSel ? 'border-color:#10b981;' : ''}">
+                        <div class="toggle-info">
+                            <div class="toggle-label" style="${isSel ? 'color:#10b981;' : ''}">${cs.name}</div>
+                            <div class="toggle-desc">Custom Module → [[${cs.attachPoint}]]</div>
+                        </div>
+                        <div class="ps-switch" style="${isSel ? 'background:#10b981;' : ''}"></div>
+                    </div>
+                `);
+                tCard.on("click", () => { localProfile.toggles[cs.id] = !localProfile.toggles[cs.id]; saveProfileToMemory(); switchTab(currentTab); });
+                toggleList.append(tCard);
+            });
+            c.append(toggleList);
+        }
+    }
+
+    // ==========================================
+    // ── 3. RESPONSE BLOCKS ──
+    // ==========================================
+    c.append(`<div class="wstyle-section-head green"><i class="fa-solid fa-cubes"></i> Response Blocks (UI Trackers)</div>`);
+    const blockGrid = $(`<div class="mtab-card-grid"></div>`);
     const isMvuActive = localProfile.blocks.includes("mvu");
     const isMemActive = localProfile.memoryCore && localProfile.memoryCore.enabled;
 
-    const grid = $(`<div class="mtab-card-grid"></div>`);
     hardcodedLogic.blocks.forEach(b => {
         if (b.id === "summary") return;
         const isSel = localProfile.blocks.includes(b.id);
-        const isOverridden = activeEngine && activeEngine[b.id] && activeEngine[b.id].trim() !== "";
+        const isOverridden = activeMode && activeMode[b.id] && activeMode[b.id].trim() !== "";
         
         let isWarned = false;
         let warnReason = "";
@@ -2008,7 +2376,6 @@ function renderBlocks(c) {
             badges += `<span class="ecard-badge override"><i class="fa-solid fa-code-branch"></i> Engine Override</span>`;
         }
 
-        // COMPACT WORLD STATE UI INJECTION
         let innerExtra = "";
         if (b.id === "info") {
             if (!localProfile.worldState) localProfile.worldState = { compactEnabled: false, fullFreq: 5 };
@@ -2040,7 +2407,7 @@ function renderBlocks(c) {
                         <span>${b.label}</span>
                         ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
                     </div>
-                    <p class="ecard-desc">${descriptions[b.id] || ""}</p>
+                    <p class="ecard-desc">${blockDescriptions[b.id] || ""}</p>
                     ${badges ? `<div style="margin-top:4px;">${badges}</div>` : ''}
                     ${innerExtra}
                 </div>
@@ -2049,21 +2416,16 @@ function renderBlocks(c) {
         
         card.on("click", (e) => {
             if ($(e.target).closest("a").length) return;
-            
-            // Intercept inner settings clicks for World State
             if ($(e.target).closest("#info_compact_toggle").length) {
                 localProfile.worldState.compactEnabled = !localProfile.worldState.compactEnabled;
-                saveProfileToMemory();
-                switchTab(currentTab);
-                return;
+                saveProfileToMemory(); switchTab(currentTab); return;
             }
-            if ($(e.target).closest("#info_full_freq").length) return; // Let user type in the box
-            if ($(e.target).closest("a").length) return;
+            if ($(e.target).closest("#info_full_freq").length) return; 
+            
             if (isSel) {
                 localProfile.blocks = localProfile.blocks.filter(i => i !== b.id);
             } else {
                 localProfile.blocks.push(b.id);
-                // Mutual exclusions for inner chatter ONLY
                 if (b.id === "npc_inner_chatter") localProfile.blocks = localProfile.blocks.filter(i => i !== "npc_inner_chatter_v2");
                 else if (b.id === "npc_inner_chatter_v2") localProfile.blocks = localProfile.blocks.filter(i => i !== "npc_inner_chatter");
             }
@@ -2071,21 +2433,17 @@ function renderBlocks(c) {
         }); 
         if (b.id === "info") {
             card.find("#info_full_freq").on("input change", function() {
-                let v = parseInt($(this).val());
-                if (isNaN(v) || v < 1) v = 1;
-                localProfile.worldState.fullFreq = v;
-                saveProfileToMemory();
+                let v = parseInt($(this).val()); if (isNaN(v) || v < 1) v = 1;
+                localProfile.worldState.fullFreq = v; saveProfileToMemory();
             });
         }
-        
-        grid.append(card);
-
+        blockGrid.append(card);
     });
 
-    if (activeEngine && activeEngine.customToggles) {
-        const customAddons = activeEngine.customToggles.filter(t => t.location === "addons");
+    if (activeMode && activeMode.customToggles) {
+        const customAddons = activeMode.customToggles.filter(t => t.location === "addons");
         if (customAddons.length > 0) {
-            grid.append(`<div style="grid-column: 1 / -1;"><div class="wstyle-section-head green" style="margin:8px 0;"><i class="fa-solid fa-puzzle-piece"></i> Custom Engine Add-ons</div></div>`);
+            blockGrid.append(`<div style="grid-column: 1 / -1;"><div class="wstyle-section-head green" style="margin:8px 0;"><i class="fa-solid fa-puzzle-piece"></i> Custom Engine Add-ons</div></div>`);
             customAddons.forEach(ca => {
                 const isSel = !!localProfile.toggles[ca.id];
                 const card = $(`
@@ -2098,250 +2456,11 @@ function renderBlocks(c) {
                     </div>
                 `);
                 card.on("click", () => { localProfile.toggles[ca.id] = !localProfile.toggles[ca.id]; saveProfileToMemory(); switchTab(currentTab); });
-                grid.append(card);
+                blockGrid.append(card);
             });
         }
-    } c.append(grid);
-}
-
-
-function renderModels(c) {
-    c.empty();
-    const activeEngine = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
-
-    // ── HEADER ──
-    c.append(`
-        <div class="mtab-header">
-            <div class="mtab-header-left">
-                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #a855f7, #7c3aed);">
-                    <i class="fa-solid fa-brain"></i>
-                </div>
-                <div>
-                    <h2>Chain of Thought</h2>
-                    <p>Configure the AI's thinking framework and reasoning depth.</p>
-                </div>
-            </div>
-        </div>
-    `);
-
-    if (localProfile.cotEnabled === undefined) localProfile.cotEnabled = true;
-
-    const cotToggle = $(`
-        <div class="mtab-toggle-row ${localProfile.cotEnabled ? 'active' : ''}" style="margin-bottom: 20px; border-color: ${localProfile.cotEnabled ? 'var(--gold)' : 'var(--border-color)'};">
-            <div class="toggle-info">
-                <div class="toggle-label" style="color: ${localProfile.cotEnabled ? 'var(--gold)' : 'var(--text-main)'};"><i class="fa-solid fa-power-off"></i> Enable Chain of Thought</div>
-                <div class="toggle-desc">Toggle the entire CoT system on or off.</div>
-            </div>
-            <div class="ps-switch" style="${localProfile.cotEnabled ? 'background:var(--gold);' : ''}"></div>
-        </div>
-    `);
-    cotToggle.on("click", function() {
-        localProfile.cotEnabled = !localProfile.cotEnabled;
-        saveProfileToMemory();
-        renderModels(c);
-    });
-    c.append(cotToggle);
-
-    if (!localProfile.cotEnabled) return;
-
-    // Custom Engine override notice
-    if (activeEngine && activeEngine.cot && activeEngine.cot.trim() !== "") {
-        c.append(`
-            <div class="mtab-callout green" style="margin-bottom:20px;">
-                <i class="fa-solid fa-shield-halved"></i>
-                <span><strong>Custom Engine Logic Active</strong> — This Engine provides its own [[COT]] and [[prefill]]. Selections below will be overridden by the Engine's code.</span>
-            </div>
-        `);
-    }
-
-    const migrationMap = {
-        "cot-english": "cot-v1-english", "cot-arabic": "cot-v1-arabic", "cot-spanish": "cot-v1-spanish", "cot-french": "cot-v1-french",
-        "cot-zh": "cot-v1-zh", "cot-ru": "cot-v1-ru", "cot-jp": "cot-v1-jp", "cot-pt": "cot-v1-pt", "cot-english-test": "cot-v2-english"
-    };
-    if (migrationMap[localProfile.model]) { localProfile.model = migrationMap[localProfile.model]; saveProfileToMemory(); }
-
-    if (localProfile.model === "cot-off") {
-        localProfile.cotEnabled = false;
-        localProfile.model = "cot-v7.5-english"; // Default fallback
-        saveProfileToMemory();
-        if (!localProfile.cotEnabled) return;
-    }
-
-    let currentType = "off", currentLang = "english";
-    if (localProfile.model && localProfile.model.startsWith("cot-v1-")) { currentType = "v1"; currentLang = localProfile.model.replace("cot-v1-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v2-")) { currentType = "v2"; currentLang = localProfile.model.replace("cot-v2-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v6-lite-")) { currentType = "v6-lite"; currentLang = localProfile.model.replace("cot-v6-lite-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v6-")) { currentType = "v6"; currentLang = localProfile.model.replace("cot-v6-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v7.5-")) { currentType = "v7.5"; currentLang = localProfile.model.replace("cot-v7.5-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v7-lite-")) { currentType = "v7-lite"; currentLang = localProfile.model.replace("cot-v7-lite-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v7-")) { currentType = "v7"; currentLang = localProfile.model.replace("cot-v7-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v8-fusion-")) { currentType = "v8-fusion"; currentLang = localProfile.model.replace("cot-v8-fusion-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v8-")) { currentType = "v8"; currentLang = localProfile.model.replace("cot-v8-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v9-lite-")) { currentType = "v9-lite"; currentLang = localProfile.model.replace("cot-v9-lite-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v9-director-")) { currentType = "v9-director"; currentLang = localProfile.model.replace("cot-v9-director-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v9-immersion-")) { currentType = "v9-immersion"; currentLang = localProfile.model.replace("cot-v9-immersion-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v9-hybrid-")) { currentType = "v9-hybrid"; currentLang = localProfile.model.replace("cot-v9-hybrid-", ""); }
-    else if (localProfile.model && localProfile.model.startsWith("cot-v9-")) { currentType = "v9"; currentLang = localProfile.model.replace("cot-v9-", ""); }
-    // ── DETERMINE ALLOWED CoTs ──
-    let allowedCotTypes = null; // null means all allowed (V4, V5, custom)
-    if (localProfile.mode.includes("v6")) allowedCotTypes = ["v6", "v6-lite"];
-    else if (localProfile.mode === "v7.5") allowedCotTypes = ["v7.5"];
-    else if (localProfile.mode.includes("v7")) allowedCotTypes = ["v7", "v7-lite"];
-    else if (localProfile.mode === "v8-fusion") allowedCotTypes = ["v8-fusion"]; 
-    else if (localProfile.mode.includes("v8")) allowedCotTypes = ["v8"]; 
-    else if (localProfile.mode.includes("v9")) allowedCotTypes = ["v9", "v9-lite", "v9-director", "v9-immersion", "v9-hybrid"];
-
-    if (!localProfile.thinkEffort) localProfile.thinkEffort = "unspecified";
-    if (!localProfile.customThinkEffort) localProfile.customThinkEffort = "100";
-
-    // ── THINKING EFFORT ──
-    c.append(`<div class="wstyle-section-head purple"><i class="fa-solid fa-gauge-high"></i> Thinking Effort</div>`);
-    c.append(`<div class="mtab-callout" style="margin-bottom:12px; background: rgba(168,85,247,0.1); border-left: 3px solid #a855f7; padding: 8px 12px; font-size: 0.8rem; color: var(--text-main);">
-        <i class="fa-solid fa-circle-info" style="color: #a855f7; margin-right: 6px;"></i>
-        <strong>Hint:</strong> When using V7 CoT, it is highly recommended to <strong>not</strong> use low Thinking Effort.
-    </div>`);
-    const effortGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 20px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));"></div>`);
-    const efforts = [
-        { id: "100", label: "100 Words" },
-        { id: "250", label: "250 Words" },
-        { id: "450", label: "450 Words" },
-        { id: "custom", label: "Custom" },
-        { id: "unspecified", label: "Unspecified" }
-    ];
-    efforts.forEach(e => {
-        const isSel = localProfile.thinkEffort === e.id;
-        const card = $(`
-            <div class="mtab-eng-card ${isSel ? 'active' : ''}" style="text-align:center;">
-                <div class="ecard-accent"></div>
-                <div class="ecard-body" style="padding:12px 10px; align-items:center;">
-                    <span style="font-weight:700; font-size:0.85rem; color:${isSel ? '#10b981' : 'var(--text-main)'};">${e.label}</span>
-                </div>
-            </div>
-        `);
-        card.on("click", () => { localProfile.thinkEffort = e.id; saveProfileToMemory(); renderModels(c); });
-        effortGrid.append(card);
-    });
-    c.append(effortGrid);
-
-    if (localProfile.thinkEffort === "custom") {
-        const customBlock = $(`
-            <div class="mtab-panel" style="margin-top:-10px; margin-bottom:20px;">
-                <div class="mtab-setting-row">
-                    <div class="set-info"><div class="set-label">Custom Word Count</div></div>
-                    <input type="number" id="ps_input_custom_effort" class="ps-modern-input" style="width: 150px;" value="${localProfile.customThinkEffort}" min="1" />
-                </div>
-            </div>
-        `);
-        customBlock.find("#ps_input_custom_effort").on("change input", function () {
-            localProfile.customThinkEffort = $(this).val(); saveProfileToMemory();
-        });
-        c.append(customBlock);
-    }
-
-    // ── GEMINI THINKING ──
-    if (localProfile.thinkingV2 === undefined) localProfile.thinkingV2 = false;
-    const v2Card = $(`
-        <div class="mtab-toggle-row ${localProfile.thinkingV2 ? 'active' : ''}" style="margin-bottom: 20px;">
-            <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-brain" style="color:#a855f7;"></i> Gemini Thinking</div>
-                <div class="toggle-desc">
-                    Enable only for Gemini. When enabled, you MUST add <code>&lt;think&gt;</code> and <code>&lt;/think&gt;</code> to the Reasoning Formatting prefix/suffix.<br>
-                    <strong>Note:</strong> Enable Prefill ONLY if using Gemini models.
-                </div>
-            </div>
-            <div class="ps-switch"></div>
-        </div>
-    `);
-    v2Card.on("click", function () { localProfile.thinkingV2 = !localProfile.thinkingV2; saveProfileToMemory(); renderModels(c); });
-    c.append(v2Card);
-
-    // ── THINKING FRAMEWORK ──
-    c.append(`<div class="wstyle-section-head purple"><i class="fa-solid fa-diagram-project"></i> Thinking Framework</div>`);
-    const typeGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 20px;"></div>`);
-    const types = [
-        { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
-        { id: "v2", label: "CoT V2 (New)", desc: "The new experimental framework. Stricter reality checks, info audits, better NPCs, and hook generation." },
-        { id: "v6", label: "CoT V6 (Dream Team)", desc: "The full 4-phase sequence designed specifically for V6 engines. Specialized validation and modeling." },
-        { id: "v6-lite", label: "CoT V6 (Lite)", desc: "A streamlined 3-phase sequence. Less token overhead while maintaining narrative rules." },
-        { id: "v7", label: "CoT V7", desc: "The new V7 sequence with 5-phase strict ground truth rebuilding."},
-        { id: "v7-lite", label: "CoT V7 (Lite)", desc: "A streamlined 5-phase sequence for V7." },
-        { id: "v7.5", label: "CoT V7.5 Kismet", desc: "The new V7.5 sequence focused on story engine mechanics." },
-        { id: "v8", label: "CoT V8", desc: "The new V8 narrative processing sequence." },
-        { id: "v8-fusion", label: "CoT V8 Fusion", desc: "The new V8 Fusion narrative processing sequence." },
-        { id: "v9", label: "CoT V9 Mirage", desc: "The primary and most balanced reasoning sequence, purpose-built for the V9 Mirage engine. The gold standard for modern roleplay.", isNew: true },
-        { id: "v9-director", label: "CoT V9 Mirage Air", desc: "A lighter, version of CoT V9 Mirage, it give Different output Try and see if you like.", isNew: true },
-        { id: "v9-immersion", label: "CoT V9 Mirage Max", desc: "The heavy-duty, maximum-thinking sequence. Forces the AI to dive incredibly deep into sensory data and psychological realism before generating a single word.", isNew: true },
-        { id: "v9-hybrid", label: "CoT V9 Kuromaku", desc: "A specialized multi-agent reasoning sequence designed specifically to pair with the V9 Kuromaku engine.", isNew: true },
-        { id: "v9-lite", label: "CoT V9 Cui (Lite)", desc: "A highly streamlined, fast-executing reasoning sequence perfectly paired with the V9 Cui engine to save tokens.", isNew: true }
-    ];
-    types.forEach(t => {
-        const isSel = currentType === t.id;
-        const isWarned = allowedCotTypes !== null && !allowedCotTypes.includes(t.id);
-        
-        let badges = '';
-        if (isWarned) badges = `<span class="ecard-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><i class="fa-solid fa-triangle-exclamation"></i> May be Incompatible</span>`;
-        else if (t.isNew) badges = `<span class="ecard-badge new">New</span>`;
-
-        const card = $(`
-            <div class="mtab-eng-card ${isSel ? 'active' : ''}">
-                <div class="ecard-accent"></div>
-                <div class="ecard-body">
-                    <div class="ecard-title">
-                        <span>${t.label}</span>
-                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> Active</span>` : ''}
-                    </div>
-                    <p class="ecard-desc">${t.desc}</p>
-                    ${badges ? `<div style="margin-top:4px;">${badges}</div>` : ''}
-                </div>
-            </div>
-        `);
-        
-        card.on("click", () => {
-            if (t.id === "v7") localProfile.model = `cot-v7-english`;
-            else if (t.id === "v7.5") localProfile.model = `cot-v7.5-english`;
-            else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;
-            else if (t.id === "v8") localProfile.model = `cot-v8-english`;
-            else if (t.id === "v8-fusion") localProfile.model = `cot-v8-fusion-english`;
-            else if (t.id.startsWith("v9")) localProfile.model = `cot-${t.id}-english`;
-            else localProfile.model = `cot-${t.id}-${currentLang}`;
-            saveProfileToMemory(); renderModels(c);
-        }); 
-        
-        typeGrid.append(card);
-    });
-    c.append(typeGrid);
-
-    // ── LANGUAGE ──
-    if (currentType !== "off") {
-        c.append(`<div class="wstyle-section-head gold"><i class="fa-solid fa-language"></i> Language</div>`);
-        const langGrid = $(`<div class="mtab-card-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));"></div>`);
-        let langs = [
-            { id: "english", label: "English" }, { id: "arabic", label: "Arabic (العربية)", rec: true }, { id: "spanish", label: "Spanish (Español)" },
-            { id: "french", label: "French (Français)" }, { id: "zh", label: "Mandarin (中文)" }, { id: "ru", label: "Russian (Русский)" },
-            { id: "jp", label: "Japanese (日本語)" }, { id: "pt", label: "Portuguese (Português)" }
-        ];
-        if (currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8" || currentType === "v8-fusion" || currentType.startsWith("v9")) langs = [{ id: "english", label: "English" }];
-        langs.forEach(l => {
-            const isSel = currentLang === l.id;
-            let badges = '';
-            if (l.rec) badges = `<span class="ecard-badge rec"><i class="fa-solid fa-star"></i> Pro Tip</span>`;
-
-            const card = $(`
-                <div class="mtab-eng-card ${isSel ? 'active' : ''}">
-                    <div class="ecard-accent"></div>
-                    <div class="ecard-body" style="padding:12px 16px;">
-                        <div class="ecard-title" style="font-size:0.88rem;">
-                            <span>${l.label}</span>
-                            ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i></span>` : ''}
-                        </div>
-                        ${badges ? `<div style="margin-top:2px;">${badges}</div>` : ''}
-                    </div>
-                </div>
-            `);
-            card.on("click", () => { localProfile.model = `cot-${currentType}-${l.id}`; saveProfileToMemory(); renderModels(c); });
-            langGrid.append(card);
-        }); c.append(langGrid);
-    }
+    } 
+    c.append(blockGrid);
 }
 
 // -------------------------------------------------------------
@@ -4556,6 +4675,116 @@ function renderSidePanelTab(c) {
         renderSidePanelTab(c);
         toastr.success("Side-panel settings reset", "Megumin Suite");
     });
+}
+
+function renderGlobalSettings(c) {
+    c.empty();
+    const gs = extension_settings[extensionName].globalSettings;
+    
+    c.append(`
+        <div class="mtab-header">
+            <div class="mtab-header-left">
+                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #64748b, #475569);">
+                    <i class="fa-solid fa-gear"></i>
+                </div>
+                <div>
+                    <h2>Global Settings</h2>
+                    <p>Extension preferences and about info.</p>
+                </div>
+            </div>
+        </div>
+    `);
+
+    const $content = $(`
+        <div style="display:flex; flex-direction:column; gap:16px;">
+            
+            <div class="mtab-toggle-row ${gs.promptPreview ? 'active' : ''}" id="gs_toggle_prompt_preview" style="cursor: pointer;">
+                <div class="toggle-info">
+                    <div class="toggle-label"><i class="fa-solid fa-magnifying-glass" style="color: var(--gold);"></i> Prompt Payload Preview</div>
+                    <div class="toggle-desc">Show a popup of the final constructed prompt right before it is sent to the AI.</div>
+                </div>
+                <div class="ps-switch" style="${gs.promptPreview ? 'background: var(--gold);' : ''}"></div>
+            </div>
+            
+            <div class="mtab-toggle-row ${gs.disableUtilityPrefill ? 'active' : ''}" id="gs_toggle_utility_prefill" style="cursor: pointer;">
+                <div class="toggle-info">
+                    <div class="toggle-label"><i class="fa-solid fa-ban" style="color: #ef4444;"></i> Disable Utility Prefills</div>
+                    <div class="toggle-desc">Turn this ON if your API (like Claude) errors out during Image Gen, Banlist, or Story Director generation.</div>
+                </div>
+                <div class="ps-switch" style="${gs.disableUtilityPrefill ? 'background: #ef4444;' : ''}"></div>
+            </div>
+
+            <div class="mtab-panel" style="margin: 0; padding: 12px 16px;">
+                <div class="mtab-setting-row" style="padding: 0; border: none;">
+                    <div class="set-info">
+                        <div class="set-label"><i class="fa-solid fa-floppy-disk" style="color: var(--gold);"></i> Profile Save Mode</div>
+                        <div class="set-desc">"Per Character" syncs settings across all chats with the same character. "Per Chat" isolates settings to individual chats/branches.</div>
+                    </div>
+                    <select id="gs_save_mode" class="ps-modern-input" style="width: 180px; cursor: pointer;">
+                        <option value="character" ${gs.saveMode === 'character' ? 'selected' : ''}>Per Character (Default)</option>
+                        <option value="chat" ${gs.saveMode === 'chat' ? 'selected' : ''}>Per Chat</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mtab-panel" style="margin-top: 15px; text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 900; color: var(--gold); margin-bottom: 4px; text-shadow: 0 2px 10px rgba(245,158,11,0.3);">Megumin Suite v9</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Made by KazumaONIISAN</div>
+                
+                <!-- Support & Social Links -->
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px; align-items: center;">
+                    <a href="https://github.com/Arif-salah/Megumin-Suite" target="_blank" style="color: var(--text-main); text-decoration: none; font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; transition: background 0.2s ease; cursor: pointer;">
+                        <i class="fa-brands fa-github"></i> GitHub Repository
+                    </a>
+                    <div style="color: var(--text-main); font-size: 0.8rem; background: rgba(59, 130, 246, 0.1); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-brands fa-paypal" style="color: #3b82f6;"></i> arifsalah10@gmail.com
+                    </div>
+                    <div style="color: var(--text-main); font-size: 0.75rem; background: rgba(161, 161, 170, 0.1); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(161, 161, 170, 0.3); display: flex; align-items: center; gap: 8px; word-break: break-all; max-width: 90%; text-align: left;">
+                        <i class="fa-solid fa-coins" style="color: #a1a1aa; flex-shrink: 0;"></i> LTC: LSjf1DczHxs3GEbkoMmi1UWH2GikmXDtis
+                    </div>
+                </div>
+
+                <div style="font-size: 0.7rem; color: #a855f7; margin-top: 15px; background: rgba(168,85,247,0.1); display: inline-block; padding: 4px 12px; border-radius: 12px; border: 1px solid rgba(168,85,247,0.3);">
+                    <i class="fa-solid fa-earth-americas"></i> These settings are saved globally
+                </div>
+            </div>
+        </div>
+    `);
+
+    $content.find("#gs_toggle_prompt_preview").on("click", function () {
+        gs.promptPreview = !gs.promptPreview;
+        saveSettingsDebounced();
+        $(this).toggleClass("active", gs.promptPreview);
+        if (gs.promptPreview) {
+            $(this).css("border-color", "var(--gold)");
+            $(this).find(".ps-switch").css("background", "var(--gold)");
+        } else {
+            $(this).css("border-color", "var(--border-color)");
+            $(this).find(".ps-switch").css("background", "");
+        }
+    });
+
+    $content.find("#gs_toggle_utility_prefill").on("click", function () {
+        gs.disableUtilityPrefill = !gs.disableUtilityPrefill;
+        saveSettingsDebounced();
+        $(this).toggleClass("active", gs.disableUtilityPrefill);
+        if (gs.disableUtilityPrefill) {
+            $(this).css("border-color", "#ef4444");
+            $(this).find(".ps-switch").css("background", "#ef4444");
+        } else {
+            $(this).css("border-color", "var(--border-color)");
+            $(this).find(".ps-switch").css("background", "");
+        }
+    });
+
+    $content.find("#gs_save_mode").on("change", function () {
+        gs.saveMode = $(this).val();
+        saveSettingsDebounced();
+        initProfile(); // Immediately reloads the correct profile
+        toastr.success(`Save mode changed to Per ${gs.saveMode === 'chat' ? 'Chat' : 'Character'}.`);
+    });
+
+    c.append($content);
 }
 
 // -------------------------------------------------------------
@@ -7158,7 +7387,7 @@ function buildBaseDict(isTokenCount = false) {
             // Set the new value for img2 dynamically based on the count!
             dict["[[img2]]"] = ` and the ${imageCountStr} image tag`;
         } else {
-            dict["[[img1]]"] = ""; 
+            dict["[[img1]]"] = "";
             dict["[[img2]]"] = "";
         }
     } else {
@@ -7197,7 +7426,23 @@ function buildBaseDict(isTokenCount = false) {
             
             // If checking tokens for the UI, OR if the upcoming reply is NOT a multiple of the full frequency
             if (isTokenCount || (aiMsgCount + 1) % freq !== 0) {
-                dict["[[infoblock]]"] = `At the end of your response, append a compact world state block. Omit deep lore, unresolved threads, and off-screen tracking. Focus ONLY on immediate physical presence:\n<details>\n<summary>📌 <b>World State</b></summary>\n**Time & Loc:** [Time] at [Location]\n**PC:** [Brief visible clothing] | [Current posture/position]\n**NPCs Present:**\n* [Name]: [Brief visible clothing] | [Posture/position]\n</details>`;
+                dict["[[infoblock]]"] = `Omit deep lore, unresolved threads, and off-screen tracking. Focus ONLY on immediate physical presence:\n<details>\n<summary>📌 <b>World State</b></summary>\n**Time & Loc:** [Time] at [Location]\n**PC:** [Brief visible clothing] | [Current posture/position]\n**NPCs Present:**\n* [Name]: [Brief visible clothing] | [Posture/position]\n</details>`;
+            }
+        }
+    }
+
+    // --- DYNAMIC BLOCKS HEADER ---
+    const endBlocks = ["[[infoblock]]", "[[npc_inner_chatter]]", "[[cyoa]]", "[[storytracker]]"];
+    let injectedHeader = false;
+    for (const block of endBlocks) {
+        if (dict[block] && dict[block].trim() !== "") {
+            // Clean up any old individual headers to prevent spam
+            dict[block] = dict[block].replace(/# at the very end of the response put this block:\s*/gi, "");
+            
+            if (!injectedHeader) {
+                // Attach the master header to the TOP-MOST active block
+                dict[block] = "## At the end of your response you must put these blocks:\n" + dict[block];
+                injectedHeader = true;
             }
         }
     }
@@ -8315,82 +8560,6 @@ jQuery(async () => {
         $("#ps_btn_prev, #ps_btn_next").hide();
 
         $("body").off("click", "#btn_apply_tab_all").on("click", "#btn_apply_tab_all", applyTabToAll);
-
-        $("body").on("click", "#ps_btn_global_settings", async function () {
-            const gs = extension_settings[extensionName].globalSettings;
-            
-            const $content = $(`
-                <div style="display:flex; flex-direction:column; gap:16px; font-family: 'Inter', sans-serif;">
-                    
-                    <div class="mtab-toggle-row ${gs.promptPreview ? 'active' : ''}" id="gs_toggle_prompt_preview" style="margin:0; padding:12px 16px; cursor: pointer;">
-                        <div class="toggle-info">
-                            <div class="toggle-label"><i class="fa-solid fa-magnifying-glass" style="color: var(--gold);"></i> Prompt Payload Preview</div>
-                            <div class="toggle-desc">Show a popup of the final constructed prompt right before it is sent to the AI.</div>
-                        </div>
-                        <div class="ps-switch" style="${gs.promptPreview ? 'background: var(--gold);' : ''}"></div>
-                    </div>
-                    
-                    <div class="mtab-toggle-row ${gs.disableUtilityPrefill ? 'active' : ''}" id="gs_toggle_utility_prefill" style="margin:0; padding:12px 16px; cursor: pointer;">
-                        <div class="toggle-info">
-                            <div class="toggle-label"><i class="fa-solid fa-ban" style="color: #ef4444;"></i> Disable Utility Prefills</div>
-                            <div class="toggle-desc">Turn this ON if your API (like Claude) errors out during Image Gen, Banlist, or Story Director generation.</div>
-                        </div>
-                        <div class="ps-switch" style="${gs.disableUtilityPrefill ? 'background: #ef4444;' : ''}"></div>
-                    </div>
-                    
-                    <div style="margin-top: 15px; border-top: 1px dashed var(--border-color); padding-top: 20px; text-align: center;">
-                        <div style="font-size: 1.5rem; font-weight: 900; color: var(--gold); margin-bottom: 4px; text-shadow: 0 2px 10px rgba(245,158,11,0.3);">Megumin Suite v9</div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Made by KazumaONIISAN</div>
-                        
-                        <!-- Support & Social Links -->
-                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px; align-items: center;">
-                            <a href="https://github.com/Arif-salah/Megumin-Suite" target="_blank" style="color: var(--text-main); text-decoration: none; font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; transition: background 0.2s ease; cursor: pointer;">
-                                <i class="fa-brands fa-github"></i> GitHub Repository
-                            </a>
-                            <div style="color: var(--text-main); font-size: 0.8rem; background: rgba(59, 130, 246, 0.1); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-brands fa-paypal" style="color: #3b82f6;"></i> arifsalah10@gmail.com
-                            </div>
-                            <div style="color: var(--text-main); font-size: 0.75rem; background: rgba(161, 161, 170, 0.1); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(161, 161, 170, 0.3); display: flex; align-items: center; gap: 8px; word-break: break-all; max-width: 90%; text-align: left;">
-                                <i class="fa-solid fa-coins" style="color: #a1a1aa; flex-shrink: 0;"></i> LTC: LSjf1DczHxs3GEbkoMmi1UWH2GikmXDtis
-                            </div>
-                        </div>
-
-                        <div style="font-size: 0.7rem; color: #a855f7; margin-top: 15px; background: rgba(168,85,247,0.1); display: inline-block; padding: 4px 12px; border-radius: 12px; border: 1px solid rgba(168,85,247,0.3);">
-                            <i class="fa-solid fa-earth-americas"></i> These settings are saved globally
-                        </div>
-                    </div>
-                </div>
-            `);
-
-            $content.find("#gs_toggle_prompt_preview").on("click", function () {
-                gs.promptPreview = !gs.promptPreview;
-                saveSettingsDebounced();
-                $(this).toggleClass("active", gs.promptPreview);
-                if (gs.promptPreview) {
-                    $(this).css("border-color", "var(--gold)");
-                    $(this).find(".ps-switch").css("background", "var(--gold)");
-                } else {
-                    $(this).css("border-color", "var(--border-color)");
-                    $(this).find(".ps-switch").css("background", "");
-                }
-            });
-
-            $content.find("#gs_toggle_utility_prefill").on("click", function () {
-                gs.disableUtilityPrefill = !gs.disableUtilityPrefill;
-                saveSettingsDebounced();
-                $(this).toggleClass("active", gs.disableUtilityPrefill);
-                if (gs.disableUtilityPrefill) {
-                    $(this).css("border-color", "#ef4444");
-                    $(this).find(".ps-switch").css("background", "#ef4444");
-                } else {
-                    $(this).css("border-color", "var(--border-color)");
-                    $(this).find(".ps-switch").css("background", "");
-                }
-            });
-
-            const popup = new Popup($content, POPUP_TYPE.TEXT, "Global Settings & About", { wide: false });
-            await popup.show();
-        });
 
         $("body").on("mouseenter", ".ps-modern-tag", function () { const hint = $(this).attr("data-hint"); if (!hint) return; const title = $(this).text().trim(); $("#ps-global-tooltip").html(`<span class="ps-tooltip-title">${title}:</span> ${hint}`).addClass("visible"); });
         $("body").on("mouseenter", "#ps_live_token_count", function (e) {
