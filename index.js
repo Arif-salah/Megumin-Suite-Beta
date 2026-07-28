@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 import { extension_settings, getContext } from "../../../extensions.js";
-import { saveSettingsDebounced, generateQuietPrompt, event_types, eventSource, substituteParams, saveChat, reloadCurrentChat, addOneMessage, getRequestHeaders, appendMediaToMessage, updateMessageBlock, chat_metadata, saveMetadata } from "../../../../script.js";
+import { saveSettingsDebounced, generateQuietPrompt, event_types, eventSource, substituteParams, saveChat, reloadCurrentChat, addOneMessage, getRequestHeaders, appendMediaToMessage, updateMessageBlock, chat_metadata, saveMetadata, isGenerating } from "../../../../script.js";
 import { saveBase64AsFile } from "../../../utils.js";
 import { humanizedDateTime } from "../../../RossAscends-mods.js";
 import { Popup, POPUP_TYPE } from "../../../popup.js";
@@ -595,10 +595,12 @@ function initProfile() {
 
 function pruneFutureData() {
     const context = typeof getContext === "function" ? getContext() : null;
-    // FIX: Ensure chat is fully loaded and not empty
+    
+    // FIX 1: Ensure chat is fully loaded and not empty
     if (!context || !Array.isArray(context.chat) || context.chat.length === 0) return;
-    // FIX: Skip pruning if SillyTavern is currently generating (fixes the swipe/regenerate deletion bug)
-    if (window.is_generating) return; 
+    
+    // FIX 2: Skip pruning if SillyTavern is currently generating (fixes swipe/regenerate bug)
+    if (typeof isGenerating === "function" && isGenerating()) return; 
 
     const chatLength = context.chat.length;
     let changesMade = false;
@@ -606,14 +608,12 @@ function pruneFutureData() {
     // 1. Prune Memory Core Chunks
     const mem = localProfile?.memoryCore;
     if (mem) {
-        // Prune short-term chunks that are out of bounds
         if (mem.shortTermChunks && mem.shortTermChunks.length > 0) {
             const originalLength = mem.shortTermChunks.length;
             mem.shortTermChunks = mem.shortTermChunks.filter(chunk => {
                 const parts = chunk.id.split("-");
-                if (parts.length < 2) return true; // Keep malformed just in case
-                const endId = parseInt(parts[1]);
-                return endId < chatLength;
+                if (parts.length < 2) return true; 
+                return parseInt(parts[1]) < chatLength;
             });
             if (mem.shortTermChunks.length !== originalLength) {
                 changesMade = true;
@@ -622,14 +622,12 @@ function pruneFutureData() {
             }
         }
 
-        // Prune long-term vault chunks that are out of bounds
         if (mem.longTermVault && mem.longTermVault.length > 0) {
             const originalLength = mem.longTermVault.length;
             mem.longTermVault = mem.longTermVault.filter(chunk => {
                 const parts = chunk.id.split("-");
                 if (parts.length < 2) return true;
-                const endId = parseInt(parts[1]);
-                return endId < chatLength;
+                return parseInt(parts[1]) < chatLength;
             });
             if (mem.longTermVault.length !== originalLength) {
                 changesMade = true;
@@ -639,16 +637,39 @@ function pruneFutureData() {
         }
     }
 
-    // 2. Prune NPC Bank
+    // 2. Prune NPC Bank (SMART SURVIVAL LOGIC)
     const npcBank = localProfile?.npcBank;
     if (npcBank && npcBank.npcs && npcBank.npcs.length > 0) {
         const originalLength = npcBank.npcs.length;
+        
+        // Grab the last 20 messages to check for NPC survival if their index is out of bounds
+        const recentText = context.chat.slice(-20).map(m => m.mes).join(" ");
+
         npcBank.npcs = npcBank.npcs.filter(npc => {
             if (npc.messageIndex !== undefined && npc.messageIndex !== null) {
-                return npc.messageIndex < chatLength;
+                if (npc.messageIndex >= chatLength) {
+                    const fullName = typeof npc.name === "string" ? npc.name.trim() : "";
+                    if (!fullName) return false; // Cull corrupted/nameless NPCs
+
+                    // Test the first token. The lookahead (?=\W|$) replaces the trailing \b, 
+                    // which prevents bugs with names ending in parentheses or quotes.
+                    const firstToken = fullName.split(/\s+/)[0];
+                    const nameRegex = new RegExp(`\\b${escapeRegex(firstToken)}(?=\\W|$)`, 'i');
+                    const dossierRegex = new RegExp(`New NPC:\\s*${escapeRegex(fullName)}`, 'i');
+
+                    const survived = nameRegex.test(recentText) || dossierRegex.test(recentText);
+
+                    if (survived) {
+                        // messageIndex left untouched so the original creation point survives
+                        changesMade = true; 
+                        return true;
+                    }
+                    return false; // Cull them (they are truly gone)
+                }
             }
-            return true; // Preserve legacy NPCs without index
+            return true; // Keep established NPCs (index < chatLength)
         });
+
         if (npcBank.npcs.length !== originalLength) {
             changesMade = true;
         }
@@ -671,9 +692,8 @@ function pruneFutureData() {
 
     if (changesMade) {
         saveProfileToMemory();
-        console.log(`[Megumin Suite] Pruned out-of-bounds future data (chat length: ${chatLength})`);
+        console.log(`[Megumin Suite] Pruned/Adjusted out-of-bounds future data (chat length: ${chatLength})`);
         
-        // Refresh UI if functions exist and are loaded
         if (typeof memRenderAccordion === "function") memRenderAccordion();
         if (typeof memRenderVault === "function") memRenderVault($("#mem_vault_search").val() || "");
         if (typeof memRenderDashboard === "function") memRenderDashboard();
