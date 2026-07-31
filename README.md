@@ -1,3 +1,31 @@
+# beta 01/08/26
+Performance & CPU/HDD Optimizations (The Benchmark Fixes)
+
+**Fix 1: The HDD Murderer (Master Debounce):** Strict 500ms debounce on saveProfileToMemory(). No more saveMetadata on every keystroke: 60+ hard drive rewrites down to exactly 1 after typing stops.
+
+**Fix 2: The Infinite Scanner (Vault Retrieval Cache):** Hashing cache on the Vault Scanner, and the token counter no longer triggers vault scans at all. Token counter refresh lag: 2.3 seconds down to 0.004ms.
+
+**Fix 3: The Query Spam (Semantic Query Debounce):** Rapid events grouped under an 800ms debounce. Exactly 1 semantic query instead of 3-10 simultaneous API calls.
+
+**Fix 5: The No-Op Idle Save Bug:** "Dirty State" hash check aborts saves when nothing changed. No more 155MB idle writes.
+
+**Fix 6: Archival Run Survival:** Handles 900+ message backlogs without locking the browser. If the API drops mid-run, every finished summary is kept and saved, and the error names the block that failed. A hiccup at chunk 40 no longer costs you 40 chunks.
+
+**One Write Per Save:** Memory Core, Story Plan and NPC Bank used to hit the chat file with three separate writes per save. Now one. The silent NPC Bank loss on huge chats is dead.
+
+**Tab-Switch Safety:** Edits still waiting in the debounce window are flushed the moment the tab hides or the app goes to the background.
+
+RAG & Vector Database Upgrades
+
+**Fix 4: The Vector Insert Limit & Splitter:** Long memories were being fed to the embedder whole, and both common models choke on that: MiniLM silently truncates past 512 tokens, so only the first paragraph ever got indexed, and Jina outright crashes on big chunks. Oversized text is now cut into 1,200-character pieces at word boundaries with #0, #1 hash suffixes (128 max), safe for both models. Queries get the same cap, keeping the newest end.
+
+**Fix 4.5: Semantic Oversampling & Deduplication:** Requests the top 12 results, maps pieces back to their parent memories, dedupes, returns the top 3 distinct memories. No more one memory hogging all slots.
+
+**Orphaned Slice Cleanup:** Deleting a parent memory deletes its hash and every piece hash with it. No database bloat.
+
+**Honest Vector Sync:** The "Vector Database Synced!" toast now checks the server response first. Failures say so.
+
+**Group Chat Bucket Fix:** No more megumin_group_null shared collection when ids have not settled. Each chat reads its own memories.
 # beta 28/07/26
 **UI & Design Overhaul**
 *   **Streamlined Navigation:** Condensed the interface into 10 unified tabs. "Core Engine" and "Chain of Thought" are now merged, as well as "Global Settings" and "Response Blocks".

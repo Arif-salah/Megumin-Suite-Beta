@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 import { extension_settings, getContext } from "../../../extensions.js";
 import { saveSettingsDebounced, generateQuietPrompt, event_types, eventSource, substituteParams, saveChat, reloadCurrentChat, addOneMessage, getRequestHeaders, appendMediaToMessage, updateMessageBlock, chat_metadata, saveMetadata, isGenerating } from "../../../../script.js";
-import { saveBase64AsFile } from "../../../utils.js";
+import { saveBase64AsFile, debounce, cancelDebounce } from "../../../utils.js";
 import { humanizedDateTime } from "../../../RossAscends-mods.js";
 import { Popup, POPUP_TYPE } from "../../../popup.js";
 import { hardcodedLogic } from "./data/database.js";
@@ -92,6 +92,7 @@ let activeStoryPlanRequest = null;
 let activeNpcImages = [];
 let isDevEngineDirty = false;
 let activeNpcScanRequest = null;
+let _lastSavedMetaStamp = "";
 
 function getCharacterKey() {
     const context = getContext();
@@ -710,6 +711,7 @@ function saveProfileToMemory() {
     // Invalidate the optimized archived-set cache when profile changes
     if (localProfile?.memoryCore) {
         localProfile.memoryCore._archivedSet = null;
+        _vaultRetrievalCache.key = "";
     }
 
     // Save current avatar/character identifier inside the profile for identification/fuzzy matching
@@ -720,25 +722,52 @@ function saveProfileToMemory() {
         }
     }
 
-    if (chat_metadata && localProfile.memoryCore) {
-        if (!chat_metadata["megumin_memory_core"]) chat_metadata["megumin_memory_core"] = {};
-        chat_metadata["megumin_memory_core"].shortTermChunks = localProfile.memoryCore.shortTermChunks || [];
-        chat_metadata["megumin_memory_core"].longTermVault = localProfile.memoryCore.longTermVault || [];
-        saveMetadata();
-    }
+    if (chat_metadata) {
+        const mem = localProfile.memoryCore;
+        const plan = localProfile.storyPlan;
+        const bank = localProfile.npcBank;
 
-    if (chat_metadata && localProfile.storyPlan) {
-        if (!chat_metadata["megumin_story_plan"]) chat_metadata["megumin_story_plan"] = {};
-        chat_metadata["megumin_story_plan"].currentPlan = localProfile.storyPlan.currentPlan || "";
-        chat_metadata["megumin_story_plan"].lastTrackerState = localProfile.storyPlan.lastTrackerState || "";
-        saveMetadata();
-    }
+        // Write a block if it has content now, or if the key already exists on the chat.
+        // The second half is what keeps a deletion, and a bank left empty by the
+        // settings.json migration in initProfile, from being skipped.
+        if (mem && ((mem.shortTermChunks?.length > 0) || (mem.longTermVault?.length > 0)
+            || chat_metadata["megumin_memory_core"] !== undefined)) {
+            if (!chat_metadata["megumin_memory_core"]) chat_metadata["megumin_memory_core"] = {};
+            chat_metadata["megumin_memory_core"].shortTermChunks = mem.shortTermChunks || [];
+            chat_metadata["megumin_memory_core"].longTermVault = mem.longTermVault || [];
+        }
 
-    // --- SAVE NPCs TO CHAT METADATA ---
-    if (chat_metadata && localProfile.npcBank) {
-        if (!chat_metadata["megumin_npc_bank"]) chat_metadata["megumin_npc_bank"] = {};
-        chat_metadata["megumin_npc_bank"].npcs = localProfile.npcBank.npcs || [];
-        saveMetadata();
+        if (plan && (plan.currentPlan || plan.lastTrackerState
+            || chat_metadata["megumin_story_plan"] !== undefined)) {
+            if (!chat_metadata["megumin_story_plan"]) chat_metadata["megumin_story_plan"] = {};
+            chat_metadata["megumin_story_plan"].currentPlan = plan.currentPlan || "";
+            chat_metadata["megumin_story_plan"].lastTrackerState = plan.lastTrackerState || "";
+        }
+
+        if (bank && ((bank.npcs?.length > 0) || chat_metadata["megumin_npc_bank"] !== undefined)) {
+            if (!chat_metadata["megumin_npc_bank"]) chat_metadata["megumin_npc_bank"] = {};
+            chat_metadata["megumin_npc_bank"].npcs = bank.npcs || [];
+        }
+
+        const hasAnyBlock = !!(chat_metadata["megumin_memory_core"]
+            || chat_metadata["megumin_story_plan"]
+            || chat_metadata["megumin_npc_bank"]);
+
+        if (hasAnyBlock) {
+            // chat_metadata ends up holding the same array objects as localProfile, so
+            // comparing the two would report "equal" even right after a push. Compare
+            // against the last thing that actually went to disk instead. `key` is in the
+            // stamp so switching chats cannot reuse a stale one.
+            const metaStamp = key + "|" + JSON.stringify([
+                chat_metadata["megumin_memory_core"] || null,
+                chat_metadata["megumin_story_plan"] || null,
+                chat_metadata["megumin_npc_bank"] || null
+            ]);
+            if (metaStamp !== _lastSavedMetaStamp) {
+                _lastSavedMetaStamp = metaStamp;
+                saveMetadata();
+            }
+        }
     }
 
     const profileToSave = JSON.parse(JSON.stringify(localProfile));
@@ -770,6 +799,8 @@ function saveProfileToMemory() {
         window.psSaveTimer = setTimeout(() => saveInd.fadeOut(400), 2000);
     }
 }
+
+const saveProfileDebounced = debounce(saveProfileToMemory, 500);
 
 // NEW: Function to calculate and update the token UI with a Hover Breakdown
 function updateLiveTokenCount() {
@@ -2260,12 +2291,12 @@ function renderGlobalAndBlocks(c) {
     c.append(extraPanel);
 
     $("#ps_select_wordcount_type").on("change", function () { localProfile.userWordCountType = $(this).val(); saveProfileToMemory(); });
-    $("#ps_input_wordcount").on("input", function () { localProfile.userWordCount = $(this).val(); saveProfileToMemory(); });
-    $("#ps_v9_lean_min").on("input", function () { localProfile.v9Limits.leanMin = parseInt($(this).val()) || 300; saveProfileToMemory(); });
-    $("#ps_v9_lean_max").on("input", function () { localProfile.v9Limits.leanMax = parseInt($(this).val()) || 400; saveProfileToMemory(); });
-    $("#ps_v9_full_min").on("input", function () { localProfile.v9Limits.fullMin = parseInt($(this).val()) || 700; saveProfileToMemory(); });
-    $("#ps_v9_full_max").on("input", function () { localProfile.v9Limits.fullMax = parseInt($(this).val()) || 1200; saveProfileToMemory(); });
-    $("#ps_input_language").on("input", function () { localProfile.userLanguage = $(this).val(); saveProfileToMemory(); });
+    $("#ps_input_wordcount").on("input", function () { localProfile.userWordCount = $(this).val(); saveProfileDebounced(); });
+    $("#ps_v9_lean_min").on("input", function () { localProfile.v9Limits.leanMin = parseInt($(this).val()) || 300; saveProfileDebounced(); });
+    $("#ps_v9_lean_max").on("input", function () { localProfile.v9Limits.leanMax = parseInt($(this).val()) || 400; saveProfileDebounced(); });
+    $("#ps_v9_full_min").on("input", function () { localProfile.v9Limits.fullMin = parseInt($(this).val()) || 700; saveProfileDebounced(); });
+    $("#ps_v9_full_max").on("input", function () { localProfile.v9Limits.fullMax = parseInt($(this).val()) || 1200; saveProfileDebounced(); });
+    $("#ps_input_language").on("input", function () { localProfile.userLanguage = $(this).val(); saveProfileDebounced(); });
     $("#ps_select_pronouns").on("change", function () { localProfile.userPronouns = $(this).val(); saveProfileToMemory(); });
 
     // ==========================================
@@ -2577,6 +2608,9 @@ function renderPromptEditor(config) {
         $el.find(`textarea[data-key="${key}"]`).val(defaultData[key]);
         let cData = onSave(defaultData[key], key);
         if (cData) prompts = cData;
+        // onSave mutates the profile synchronously and only defers the write, so this
+        // commits the default that was just put in the box. One click, one save.
+        saveProfileToMemory();
     });
 
     $el.find('.btn-reset-all').on('click', function() {
@@ -2819,7 +2853,7 @@ function renderStoryPlanner(c) {
         onSave: (val, key) => {
             if (!sp.customPrompts) sp.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.storyPlan));
             sp.customPrompts[key] = val;
-            saveProfileToMemory();
+            saveProfileDebounced();
             return sp.customPrompts;
         },
         onReset: () => {
@@ -2899,10 +2933,10 @@ function renderStoryPlanner(c) {
     });
 
     // Director's Note
-    $("#sd_directors_note").on("input", e => { sp.directorsNote = $(e.target).val(); saveProfileToMemory(); });
+    $("#sd_directors_note").on("input", e => { sp.directorsNote = $(e.target).val(); saveProfileDebounced(); });
 
     // Current Plan textarea
-    $("#sd_current_plan").on("input", e => { sp.currentPlan = $(e.target).val(); sp.planMessageIndex = (getContext().chat?.length || 1) - 1; saveProfileToMemory(); });
+    $("#sd_current_plan").on("input", e => { sp.currentPlan = $(e.target).val(); sp.planMessageIndex = (getContext().chat?.length || 1) - 1; saveProfileDebounced(); });
 
     // Backend
     $("#sd_backend").on("change", e => { sp.backend = $(e.target).val(); saveProfileToMemory(); });
@@ -2915,7 +2949,7 @@ function renderStoryPlanner(c) {
         sp.triggerMode = $(e.target).val(); saveProfileToMemory();
         if (sp.triggerMode === 'frequency') $("#sd_freq").show(); else $("#sd_freq").hide();
     });
-    $("#sd_freq").on("input", e => { sp.autoFreq = Math.max(1, parseInt($(e.target).val()) || 10); saveProfileToMemory(); });
+    $("#sd_freq").on("input", e => { sp.autoFreq = Math.max(1, parseInt($(e.target).val()) || 10); saveProfileDebounced(); });
 
     // Generate button
     $("#sd_btn_generate").on("click", async function () {
@@ -3043,7 +3077,7 @@ function renderBanList(c) {
         onSave: (val, key) => {
             if (!localProfile.banListCustomPrompts) localProfile.banListCustomPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.banList));
             localProfile.banListCustomPrompts[key] = val;
-            saveProfileToMemory();
+            saveProfileDebounced();
             return localProfile.banListCustomPrompts;
         },
         onReset: () => {
@@ -3400,7 +3434,7 @@ function renderImageGen(c) {
         onSave: (val, key) => {
             if (!s.customPrompts) s.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.imageGen));
             s.customPrompts[key] = val;
-            saveProfileToMemory();
+            saveProfileDebounced();
             return s.customPrompts;
         },
         onReset: () => {
@@ -3428,7 +3462,7 @@ function renderImageGen(c) {
         }
     });
     $("#ig_template").on("change", (e) => { s.promptTemplate = $(e.target).val(); saveProfileToMemory(); });
-    $("#ig_extra").on("input", (e) => { s.promptExtra = $(e.target).val(); saveProfileToMemory(); });
+    $("#ig_extra").on("input", (e) => { s.promptExtra = $(e.target).val(); saveProfileDebounced(); });
     $("#ig_image_count").on("change", (e) => { s.imageCount = parseInt($(e.target).val()); saveProfileToMemory(); });
     
     $("#ig_examples_toggle").on("click", function() {
@@ -3476,7 +3510,7 @@ function renderImageGen(c) {
         toggleQuickGenButton(); // <-- ADDED
         if (s.triggerMode === 'frequency') $("#ig_freq_container").show(); else $("#ig_freq_container").hide();
     });
-    $("#ig_auto_freq").on("input", (e) => { let v = parseInt($(e.target).val()); if (v < 1) v = 1; s.autoGenFreq = v; saveProfileToMemory(); });
+    $("#ig_auto_freq").on("input", (e) => { let v = parseInt($(e.target).val()); if (v < 1) v = 1; s.autoGenFreq = v; saveProfileDebounced(); });
 
     $("#ig_preview_card").on("click", function () {
         s.previewPrompt = !s.previewPrompt;
@@ -3486,24 +3520,24 @@ function renderImageGen(c) {
     });
 
     // Inputs
-    $("#ig_url").on("input", (e) => { s.comfyUrl = $(e.target).val(); saveProfileToMemory(); });
+    $("#ig_url").on("input", (e) => { s.comfyUrl = $(e.target).val(); saveProfileDebounced(); });
     $("#ig_style").on("change", (e) => { s.promptStyle = $(e.target).val(); saveProfileToMemory(); });
     $("#ig_persp").on("change", (e) => { s.promptPerspective = $(e.target).val(); saveProfileToMemory(); });
-    $("#ig_extra").on("input", (e) => { s.promptExtra = $(e.target).val(); saveProfileToMemory(); });
-    $("#ig_w, #ig_h").on("input", (e) => { s[e.target.id === "ig_w" ? "imgWidth" : "imgHeight"] = parseInt($(e.target).val()); saveProfileToMemory(); });
-    $("#ig_neg").on("input", (e) => { s.customNegative = $(e.target).val(); saveProfileToMemory(); });
-    $("#ig_seed").on("input", (e) => { s.customSeed = parseInt($(e.target).val()); saveProfileToMemory(); });
+    $("#ig_extra").on("input", (e) => { s.promptExtra = $(e.target).val(); saveProfileDebounced(); });
+    $("#ig_w, #ig_h").on("input", (e) => { s[e.target.id === "ig_w" ? "imgWidth" : "imgHeight"] = parseInt($(e.target).val()); saveProfileDebounced(); });
+    $("#ig_neg").on("input", (e) => { s.customNegative = $(e.target).val(); saveProfileDebounced(); });
+    $("#ig_seed").on("input", (e) => { s.customSeed = parseInt($(e.target).val()); saveProfileDebounced(); });
     $("#ig_seed_dice").on("click", () => {
         s.customSeed = -1;
         $("#ig_seed").val(-1);
         saveProfileToMemory();
     });
-    $("#ig_prefix").on("input", (e) => { s.promptPrefix = $(e.target).val(); saveProfileToMemory(); });
+    $("#ig_prefix").on("input", (e) => { s.promptPrefix = $(e.target).val(); saveProfileDebounced(); });
 
     // Sliders
     const bindSlider = (id, key, isFloat) => {
-        $(`#ig_${id}`).on("input", function () { let v = isFloat ? parseFloat(this.value) : parseInt(this.value); s[key] = v; $(`#ig_${id}_val`).val(v); saveProfileToMemory(); });
-        $(`#ig_${id}_val`).on("input", function () { let v = isFloat ? parseFloat(this.value) : parseInt(this.value); s[key] = v; $(`#ig_${id}`).val(v); saveProfileToMemory(); });
+        $(`#ig_${id}`).on("input", function () { let v = isFloat ? parseFloat(this.value) : parseInt(this.value); s[key] = v; $(`#ig_${id}_val`).val(v); saveProfileDebounced(); });
+        $(`#ig_${id}_val`).on("input", function () { let v = isFloat ? parseFloat(this.value) : parseInt(this.value); s[key] = v; $(`#ig_${id}`).val(v); saveProfileDebounced(); });
     };
     bindSlider("steps", "steps", false); bindSlider("cfg", "cfg", true); bindSlider("denoise", "denoise", true); bindSlider("clip", "clipSkip", false);
 
@@ -3548,10 +3582,10 @@ function renderImageGen(c) {
                 s.loraTriggersMap[s[key]] = newTriggers;
             }
             
-            saveProfileToMemory(); 
+            saveProfileDebounced(); 
         });
 
-        $(`#ig_lorawt_${i}`).on("input", function () { let v = parseFloat(this.value); s[wtKey] = v; $(`#ig_lorawt_lbl_${i}`).text(v); saveProfileToMemory(); });
+        $(`#ig_lorawt_${i}`).on("input", function () { let v = parseFloat(this.value); s[wtKey] = v; $(`#ig_lorawt_lbl_${i}`).text(v); saveProfileDebounced(); });
     }
 
     // Models & Samplers
@@ -4011,7 +4045,7 @@ function renderNpcBank(c) {
         ],
         onSave: (val, key) => {
             if (!nb.customPrompts) nb.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.npcBank));
-            nb.customPrompts[key] = val; saveProfileToMemory(); return nb.customPrompts;
+            nb.customPrompts[key] = val; saveProfileDebounced(); return nb.customPrompts;
         },
         onReset: () => { nb.customPrompts = null; saveProfileToMemory(); }
     });
@@ -4062,7 +4096,7 @@ function renderNpcBank(c) {
 
     $("#npc_ignored_names").on("input", function() {
         nb.ignoredNames = $(this).val();
-        saveProfileToMemory();
+        saveProfileDebounced();
     });
 
     $("#npc_btn_export").on("click", function () {
@@ -5119,7 +5153,7 @@ function renderMemoryCore(c) {
         onSave: (val, key) => {
             if (!mem.customPrompts) mem.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.memoryCore));
             mem.customPrompts[key] = val;
-            saveProfileToMemory();
+            saveProfileDebounced();
             return mem.customPrompts;
         },
         onReset: () => {
@@ -5190,7 +5224,7 @@ function renderMemoryCore(c) {
         $("#mem_work_val").text(val);
 
         // Short-term is now independent, no forced minimums based on working limit
-        saveProfileToMemory();
+        saveProfileDebounced();
         memRenderDashboard();
     });
 
@@ -5199,9 +5233,10 @@ function renderMemoryCore(c) {
         saveProfileToMemory();
         if (mem.scannerEngine === 'semantic') {
             toastr.info("Semantic Mode active. Syncing vault to Vector Database...");
-            await memInsertToVectorDB(mem.longTermVault);
+            const inserted = await memInsertToVectorDB(mem.longTermVault);
             await memUpdateSemanticQuery();
-            toastr.success("Vector Database Synced!");
+            if (inserted) toastr.success("Vector Database Synced!");
+            else toastr.error("Vector sync failed, see the console for the server response.");
         }
     });
 
@@ -5217,7 +5252,7 @@ function renderMemoryCore(c) {
         let val = parseInt($(this).val());
         mem.shortTermLimit = val;
         $("#mem_short_val").text(val);
-        saveProfileToMemory();
+        saveProfileDebounced();
         memRenderDashboard();
     });
     $("#mem_short_slider").on("change", function () { memRunVaultMigration(); });
@@ -5245,7 +5280,7 @@ function renderMemoryCore(c) {
         $("#mem_short_slider").val(shortVal);
         $("#mem_short_val").text(shortVal);
 
-        saveProfileToMemory();
+        saveProfileDebounced();
         memRenderDashboard();
     });
     $("#mem_chunk_slider").on("change", function () { memRunVaultMigration(); });
@@ -5297,7 +5332,12 @@ function renderMemoryCore(c) {
             $("#mem_btn_test_vector").prop("disabled", false);
 
             if (currentSemanticMatches.length === 0) {
-                toastr.error("Semantic API Failed. Is ST Vector Storage enabled?");
+                const vaultCount = (mem?.longTermVault || []).length;
+                if (vaultCount === 0) {
+                    toastr.info("Vault is empty, so semantic mode has nothing to match yet.");
+                } else {
+                    toastr.warning(`Vector index returned nothing for ${vaultCount} vault archives. Either the inserts never landed or the query failed, and both print to the console. Re-pick Semantic in the engine dropdown to re-run the inserts.`);
+                }
             } else {
                 html += `<div style="background: rgba(168,85,247,0.1); border-left: 3px solid #a855f7; padding: 10px; border-radius: 4px; margin-bottom: 5px;">
                 <div style="color: #a855f7; font-weight: bold; margin-bottom: 4px;">Semantic Embeddings Engine Active</div>
@@ -5462,7 +5502,7 @@ function memRenderAccordion() {
                 if (target) {
                     target.summary = newText;
                     mem._tokensDirty = true;
-                    saveProfileToMemory();
+                    saveProfileDebounced();
                 }
             });
 
@@ -5696,13 +5736,6 @@ async function memProcessPendingChunks(isAuto = false) {
                     await new Promise(r => setTimeout(r, 0));
                 }
 
-                // Save progress every SAVE_INTERVAL chunks for crash safety
-                if (chunksSinceLastSave >= SAVE_INTERVAL) {
-                    delete mem._archivedSet; mem._tokensDirty = true;
-                    saveProfileToMemory();
-                    chunksSinceLastSave = 0;
-                }
-
                 continue; // Skip the rest of the loop
             }
 
@@ -5720,6 +5753,9 @@ async function memProcessPendingChunks(isAuto = false) {
                 }, "Megumin Engine");
             }
 
+            if (typeof summaryResult !== "string") {
+                throw new Error(`Summarization returned no text for chunk ${chunkData.id}. SillyTavern is most likely not connected to an API - check the connection status, then run the archive again.`);
+            }
             summaryResult = summaryResult.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
             if (summaryResult) {
@@ -5731,13 +5767,6 @@ async function memProcessPendingChunks(isAuto = false) {
                 });
                 changesMade = true;
                 chunksSinceLastSave++;
-
-                // Save progress every SAVE_INTERVAL chunks for crash safety
-                if (chunksSinceLastSave >= SAVE_INTERVAL) {
-                    delete mem._archivedSet; mem._tokensDirty = true;
-                    saveProfileToMemory();
-                    chunksSinceLastSave = 0;
-                }
             }
         }
 
@@ -5754,18 +5783,18 @@ async function memProcessPendingChunks(isAuto = false) {
             // Sort shortTermChunks chronologically by start ID
             if (mem.shortTermChunks) {
                 mem.shortTermChunks.sort((a, b) => {
-                    const aStart = parseInt(a.id.split("-")[0]);
-                    const bStart = parseInt(b.id.split("-")[0]);
-                    return aStart - bStart;
+                    const aStart = (a && typeof a.id === 'string') ? parseInt(a.id.split("-")[0], 10) : NaN;
+                    const bStart = (b && typeof b.id === 'string') ? parseInt(b.id.split("-")[0], 10) : NaN;
+                    return (Number.isFinite(aStart) ? aStart : 0) - (Number.isFinite(bStart) ? bStart : 0);
                 });
             }
 
             // Sort longTermVault chronologically by start ID
             if (mem.longTermVault) {
                 mem.longTermVault.sort((a, b) => {
-                    const aStart = parseInt(a.id.split("-")[0]);
-                    const bStart = parseInt(b.id.split("-")[0]);
-                    return aStart - bStart;
+                    const aStart = (a && typeof a.id === 'string') ? parseInt(a.id.split("-")[0], 10) : NaN;
+                    const bStart = (b && typeof b.id === 'string') ? parseInt(b.id.split("-")[0], 10) : NaN;
+                    return (Number.isFinite(aStart) ? aStart : 0) - (Number.isFinite(bStart) ? bStart : 0);
                 });
             }
 
@@ -5788,6 +5817,13 @@ async function memProcessPendingChunks(isAuto = false) {
 
     } catch (err) {
         console.error("Memory Extraction Error:", err);
+        // Fix 4 removed the in-loop saves and the end-of-run save is unreachable from
+        // here, so without this every chunk finished before the failure is lost.
+        if (changesMade) {
+            delete mem._archivedSet;
+            mem._tokensDirty = true;
+            saveProfileToMemory();
+        }
         toastr.error("Failed to generate memory summaries.");
     } finally {
         activeMemorySummarizationRequest = null;
@@ -5990,6 +6026,7 @@ let _cachedWordSegmenter = null;
 // Per-prompt keyword cache — avoids re-cleaning and re-tokenizing the same recent messages
 // across memGetRelevantVaultEntries, NPC injection, and NPC image tags in a single prompt build
 let _promptKeywordCache = { hash: "", keywords: [], cleanedText: "" };
+let _vaultRetrievalCache = { key: "", result: [] };
 
 /**
  * Returns cached keywords + cleaned text for the last N messages.
@@ -6102,21 +6139,56 @@ let currentSemanticMatches = [];
 // Creates a unique database collection name for this specific character/group
 function memGetCollectionId() {
     const context = typeof getContext === "function" ? getContext() : null;
-    if (!context) return "megumin_default";
-    const charId = context.characterId !== undefined ? String(context.characterId) : "group_" + context.groupId;
+    if (!context) return null;
+    const hasChar = context.characterId !== undefined && context.characterId !== null && context.characterId !== "";
+    const hasGroup = context.groupId !== undefined && context.groupId !== null && context.groupId !== "";
+    // CHAT_CHANGED fires before either has settled. That window is where megumin_group_null came from.
+    if (!hasChar && !hasGroup) return null;
+    const charId = hasChar ? String(context.characterId) : "group_" + context.groupId;
     return ("megumin_" + charId).replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
+// Fix 8: one window size that is correct on both embedders. MiniLM silently truncates at
+// 512 tokens; jina crashes past ~6,000. Worst measured density on real chunks is 2.54
+// chars per token, so 1200 chars is 470 tokens worst case, 8% under MiniLM's wall.
+// Windows take a "#n" suffix; anything already under the window keeps its bare id, so
+// rows stored before this change still match.
+const MAX_EMBED_CHARS = 1200;
+const MAX_EMBED_PIECES = 128;
+
+function memEmbedPieces(chunk) {
+    const text = (chunk?.text || chunk?.summary || "");
+    if (text.length <= MAX_EMBED_CHARS) return [{ id: chunk.id, text }];
+    const pieces = [];
+    let pos = 0;
+    while (pos < text.length && pieces.length < MAX_EMBED_PIECES) {
+        let end = Math.min(pos + MAX_EMBED_CHARS, text.length);
+        if (end < text.length) {
+            // Back off to the last space so a word is not cut in half. Text with no space
+            // in that window, which prose never produces, falls through to a hard cut.
+            const sp = text.lastIndexOf(" ", end);
+            if (sp > pos && end - sp <= 200) end = sp;
+        }
+        pieces.push({ id: chunk.id + "#" + pieces.length, text: text.slice(pos, end) });
+        pos = end;
+        while (text[pos] === " ") pos++;
+    }
+    return pieces;
 }
 
 // Inserts vault chunks into ST's native vector database
 async function memInsertToVectorDB(chunks) {
-    if (!chunks || chunks.length === 0) return;
+    if (!chunks || chunks.length === 0) return true;
     const collectionId = memGetCollectionId();
+    if (!collectionId) { console.warn("Megumin Suite: no character or group yet, skipping vector insert."); return false; }
     // ST's /api/vector/insert requires items with { hash: Number, text: String, index: Number }
-    const items = chunks.map((c, i) => ({
-        hash: memStringHash(c.id),
-        text: c.text || c.summary || "",
-        index: i
-    }));
+    // One chunk now produces several items, so index runs across the flattened list.
+    const items = [];
+    for (const c of chunks) {
+        for (const p of memEmbedPieces(c)) {
+            items.push({ hash: memStringHash(p.id), text: p.text, index: items.length });
+        }
+    }
     
     const BATCH_SIZE = 50;
     const totalBatches = Math.ceil(items.length / BATCH_SIZE);
@@ -6124,42 +6196,59 @@ async function memInsertToVectorDB(chunks) {
     // Show progress overlay if there are many items to sync
     const showProgress = totalBatches > 1;
     
+    let ok = true;
     try {
         for (let i = 0; i < totalBatches; i++) {
             if (showProgress) {
-                // Ensure the progress function is available (it's defined lower in the file but hoisted/globally available)
                 if (typeof showKazumaProgress === 'function') {
                     showKazumaProgress(`Syncing Vector DB... (${i + 1}/${totalBatches})`);
                 }
             }
-            
+
             const batch = items.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
-            await fetch('/api/vector/insert', {
+            const res = await fetch('/api/vector/insert', {
                 method: 'POST',
                 headers: getRequestHeaders(),
                 body: JSON.stringify({ collectionId, items: batch, source: 'transformers' })
             });
-            
-            // Give the server a small breather between batches
+            // A 500 from the blown embedder resolves the promise, so `catch` never sees it.
+            if (!res.ok) {
+                const detail = await res.text().catch(() => "");
+                console.error(`Megumin Suite: vector insert HTTP ${res.status} on batch ${i + 1}/${totalBatches}.`, detail.slice(0, 500));
+                ok = false;
+                break;
+            }
+
             if (i < totalBatches - 1) {
                 await new Promise(r => setTimeout(r, 200));
             }
         }
-    } catch (e) { 
-        console.warn("Megumin Suite: Vector Insert failed.", e); 
+    } catch (e) {
+        console.warn("Megumin Suite: Vector Insert failed.", e);
+        ok = false;
     } finally {
         if (showProgress && typeof showKazumaProgress === 'function') {
             $("#kazuma_progress_overlay").hide();
         }
     }
+    return ok;
 }
 
 // Deletes vault chunks from ST's native vector database
 async function memDeleteFromVectorDB(ids) {
     if (!ids || ids.length === 0) return;
     const collectionId = memGetCollectionId();
+    if (!collectionId) return;
     // ST's /api/vector/delete requires { hashes: Number[] }, not string ids
-    const hashes = ids.map(id => memStringHash(id));
+    // ST's /api/vector/delete requires { hashes: Number[] }, not string ids.
+    // Fix 8: a windowed chunk is stored as several "#n" rows and the vault entry may
+    // already be gone, so sweep the bare id plus every window id insert could have
+    // produced. Deleting a hash that was never stored is a no-op.
+    const hashes = [];
+    for (const id of ids) {
+        hashes.push(memStringHash(id));
+        for (let n = 0; n < MAX_EMBED_PIECES; n++) hashes.push(memStringHash(id + "#" + n));
+    }
     try {
         await fetch('/api/vector/delete', {
             method: 'POST',
@@ -6177,12 +6266,19 @@ async function memUpdateSemanticQuery() {
         return;
     }
     const context = typeof getContext === "function" ? getContext() : null;
-    if (!context || !context.chat) return;
+    if (!context || !context.chat) { currentSemanticMatches = []; return; }
 
-    const recentCleanedText = context.chat.filter(m => !m.is_system).slice(-2).map(m => meguminCleanChatHistoryText(m.mes)).join(" ");
-    if (!recentCleanedText.trim()) return;
+    // Same window as the insert, so the query vector is built the way the stored vectors
+    // were. Keep the TAIL, not the head: this is the last 2 messages, the newest text is
+    // at the end, and that is what the next reply is about. Slicing from the front would
+    // keep the oldest half of the pair. One real pair measured 15,263 chars.
+    const MAX_QUERY_CHARS = 1200;
+    const recentCleanedText = context.chat.filter(m => !m.is_system).slice(-2)
+        .map(m => meguminCleanChatHistoryText(m.mes)).join(" ").slice(-MAX_QUERY_CHARS);
+    if (!recentCleanedText.trim()) { currentSemanticMatches = []; return; }
 
     const collectionId = memGetCollectionId();
+    if (!collectionId) { currentSemanticMatches = []; return; }
     try {
         const res = await fetch('/api/vector/query', {
             method: 'POST',
@@ -6190,28 +6286,43 @@ async function memUpdateSemanticQuery() {
             body: JSON.stringify({
                 collectionId,
                 searchText: recentCleanedText,
-                topK: 3,
+                topK: 12,
                 source: 'transformers',
                 threshold: 0.2
             })
         });
-        if (res.ok) {
+        if (!res.ok) {
+            console.error(`Megumin Suite: vector query HTTP ${res.status}.`);
+            currentSemanticMatches = [];
+        } else {
             const data = await res.json();
+            // Clear first: a 200 carrying a shape we do not recognise must not keep last turn's rows.
+            currentSemanticMatches = [];
             // ST returns { hashes: number[], metadata: object[] }
             if (data && Array.isArray(data.metadata)) {
-                currentSemanticMatches = data.metadata.map(meta => {
-                    // Match back to vault using the numeric hash
-                    const vaultEntry = mem.longTermVault.find(v => memStringHash(v.id) === meta.hash);
-                    if (vaultEntry) {
-                        return { ...vaultEntry, score: 99, matchedWords: ["Semantic Embedding Match (Vectra)"] };
+                // Fix 8: one archive is stored as several "#n" windows, so every window
+                // hash maps back to its parent entry. Dedupe to distinct archives and keep
+                // 3, which is why topK above oversamples.
+                // First entry wins, so a duplicate vault id resolves the way the old
+                // longTermVault.find() did rather than the last one silently overwriting.
+                const byHash = new Map();
+                const claim = (k, v) => { if (!byHash.has(k)) byHash.set(k, v); };
+                for (const v of mem.longTermVault) {
+                    for (const p of memEmbedPieces(v)) claim(memStringHash(p.id), v);
+                    claim(memStringHash(v.id), v);
+                }
+                const seen = new Set();
+                for (const meta of data.metadata) {
+                    let entry = byHash.get(meta.hash);
+                    if (!entry) {
+                        // Same leading-text fallback as before, for rows stored earlier.
+                        entry = mem.longTermVault.find(v => (v.text || v.summary || "").substring(0, 100) === (meta.text || "").substring(0, 100));
                     }
-                    // Fallback: try text match if hash doesn't match
-                    const textMatch = mem.longTermVault.find(v => (v.text || v.summary || "").substring(0, 100) === (meta.text || "").substring(0, 100));
-                    if (textMatch) {
-                        return { ...textMatch, score: 99, matchedWords: ["Semantic Embedding Match (Vectra)"] };
-                    }
-                    return null;
-                }).filter(Boolean);
+                    if (!entry || seen.has(entry.id)) continue;
+                    seen.add(entry.id);
+                    currentSemanticMatches.push({ ...entry, score: 99, matchedWords: ["Semantic Embedding Match (Vectra)"] });
+                    if (currentSemanticMatches.length >= 3) break;
+                }
             }
         }
     } catch (e) {
@@ -6219,6 +6330,9 @@ async function memUpdateSemanticQuery() {
         currentSemanticMatches = [];
     }
 }
+
+// Three events can land inside one turn. Only the last one needs to run.
+const memUpdateSemanticQueryDebounced = debounce(memUpdateSemanticQuery, 800);
 
 // Dual-Engine Scorer: TF-IDF or Semantic Embeddings
 // OPTIMIZED: Pre-computes IDF in a single pass (O(K×V) instead of O(K×V²))
@@ -6239,9 +6353,12 @@ function memGetRelevantVaultEntries() {
 
     // --- ENGINE 2: TF-IDF MULTILINGUAL (Keywords / Fallback) ---
     // Use cached keywords to avoid redundant cleaning + tokenization
-    const { keywords: uniqueKeywords } = memGetCachedKeywords(context.chat, 2);
+    const { keywords: uniqueKeywords, hash: kwHash } = memGetCachedKeywords(context.chat, 2);
     const totalDocs = vault.length;
     if (uniqueKeywords.length === 0) return [];
+
+    const cacheKey = kwHash + "#" + vault.length + "#" + (vault[vault.length - 1]?.timestamp || 0);
+    if (_vaultRetrievalCache.key === cacheKey) return _vaultRetrievalCache.result;
 
     // Pre-lowercase all vault texts ONCE (avoids thousands of redundant .toLowerCase() calls)
     const vaultTexts = vault.map(v => (v.text || v.summary || "").toLowerCase());
@@ -6259,7 +6376,10 @@ function memGetRelevantVaultEntries() {
         }
     }
 
-    if (dfMap.size === 0) return [];
+    if (dfMap.size === 0) {
+        _vaultRetrievalCache = { key: cacheKey, result: [] };
+        return [];
+    }
 
     // Score each vault entry using the pre-computed weights — no inner vault scan!
     let scoredVault = vault.map((v, idx) => {
@@ -6275,7 +6395,9 @@ function memGetRelevantVaultEntries() {
         return { ...v, score, matchedWords };
     });
 
-    return scoredVault.filter(s => s.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
+    const result = scoredVault.filter(s => s.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
+    _vaultRetrievalCache = { key: cacheKey, result };
+    return result;
 }
 
 // Rule B: Visual Fading Update (STRICT) — DEBOUNCED + RANGE-BASED CSS
@@ -6992,7 +7114,7 @@ async function runMeguminTask(orderText) {
 }
 
 $("body").on("input", "#ps_main_current_rule", function () {
-    localProfile.aiRule = $(this).val(); saveProfileToMemory();
+    localProfile.aiRule = $(this).val(); saveProfileDebounced();
 });
 
 // Scans the chat and extracts Image Tags for relevant NPCs
@@ -7478,11 +7600,20 @@ function buildBaseDict(isTokenCount = false) {
         const memCustom = mem.customPromptsEnabled ? mem.customPrompts : null;
 
         // A. Retrieve Long-Term Memories (Local TF-IDF Keyword Scoring)
-        if (mem.longTermVault && mem.longTermVault.length > 0) {
+        // updateLiveTokenCount drops [[long-Memory]] via excludeKeys anyway,
+        // so the scan only ever fed a value that got thrown away
+        if (!isTokenCount && mem.longTermVault && mem.longTermVault.length > 0) {
             const retrieved = memGetRelevantVaultEntries();
             if (retrieved.length > 0) {
+                // Feed these to the model oldest-first so the archives read as a timeline instead of a relevance ranking.
+                // Sort a COPY - the array can be the live semantic match list or the retrieval cache, never reorder it in place!
+                const ordered = [...retrieved].sort((a, b) => {
+                    const aStart = (a && typeof a.id === 'string') ? parseInt(a.id.split("-")[0], 10) : NaN;
+                    const bStart = (b && typeof b.id === 'string') ? parseInt(b.id.split("-")[0], 10) : NaN;
+                    return (Number.isFinite(aStart) ? aStart : 0) - (Number.isFinite(bStart) ? bStart : 0);
+                });
                 let longXML = "<retrieved_archives>\n";
-                retrieved.forEach(m => {
+                ordered.forEach(m => {
                     const dateStr = new Date(m.timestamp).toLocaleString();
                     const content = m.text || m.summary || "";
                     longXML += `<archive_memory time="${dateStr}">\n[Msg ${m.id}]:\n${content}\n</archive_memory>\n`;
@@ -7496,8 +7627,16 @@ function buildBaseDict(isTokenCount = false) {
 
         // B. Inject Short-Term Memories (Chronological)
         if (mem.shortTermChunks && mem.shortTermChunks.length > 0) {
+            // Same rule as the long-term sort: imports can concatenate chunks out of order,
+            // and one bad id must never break prompt assembly. Sort a COPY - this array IS
+            // the stored data, reordering it here would rewrite storage on the next save.
+            const orderedShort = [...mem.shortTermChunks].sort((a, b) => {
+                const aStart = (a && typeof a.id === 'string') ? parseInt(a.id.split("-")[0], 10) : NaN;
+                const bStart = (b && typeof b.id === 'string') ? parseInt(b.id.split("-")[0], 10) : NaN;
+                return (Number.isFinite(aStart) ? aStart : 0) - (Number.isFinite(bStart) ? bStart : 0);
+            });
             let shortXML = "<recent_state_extracts>\n";
-            mem.shortTermChunks.forEach(m => {
+            orderedShort.forEach(m => {
                 const dateStr = new Date(m.timestamp).toLocaleString();
                 shortXML += `<archive_memory time="${dateStr}">[Msg ${m.id}]: ${m.summary}</archive_memory>\n`;
             });
@@ -7931,9 +8070,12 @@ async function handlePromptInjection(data, type) {
     // Prevent double-popups from Token Counting or rapid ST background triggers
     const now = Date.now();
     const isSpam = (now - lastPromptPreviewTime) < 2000;
-    const isTokenCount = type === "count" || type === "quiet";
+    
+    // FIX: ST executes "Dry Runs" whenever you change a chat or tweak a setting to recalculate token limits.
+    // We must ignore these so the preview doesn't pop up randomly!
+    const isSilentOrDry = type === "count" || type === "quiet" || type === "dry" || type === "dryRun" || data?.dryRun === true || data?.dry === true;
 
-    if (extension_settings[extensionName]?.globalSettings?.promptPreview && !isBackgroundGen && !isTokenCount && !isSpam) {
+    if (extension_settings[extensionName]?.globalSettings?.promptPreview && !isBackgroundGen && !isSilentOrDry && !isSpam) {
         lastPromptPreviewTime = now; // Lock it immediately
 
         let promptString = "";
@@ -8732,9 +8874,9 @@ jQuery(async () => {
                 updateMemoryVisuals();
             });
             // Background Vectorization triggers for Semantic Mode
-            eventSource.on(event_types.USER_MESSAGE_RENDERED, memUpdateSemanticQuery);
-            eventSource.on(event_types.MESSAGE_EDITED, memUpdateSemanticQuery);
-            eventSource.on(event_types.CHAT_CHANGED, memUpdateSemanticQuery);
+            eventSource.on(event_types.USER_MESSAGE_RENDERED, memUpdateSemanticQueryDebounced);
+            eventSource.on(event_types.MESSAGE_EDITED, memUpdateSemanticQueryDebounced);
+            eventSource.on(event_types.CHAT_CHANGED, memUpdateSemanticQueryDebounced);
             // Trigger visual update when user clicks "Show more messages"
             eventSource.on(event_types.MORE_MESSAGES_LOADED, updateMemoryVisuals);
             // IMAGE GEN AUTO-GEN & SWIPE TRIGGERS
@@ -9072,6 +9214,26 @@ jQuery(async () => {
         eventSource.on(event_types.MESSAGE_SWIPED, kazumaReAddRetry);
         eventSource.on(event_types.MESSAGE_UPDATED, kazumaReAddRetry);
         eventSource.on(event_types.MESSAGE_EDITED, kazumaReAddRetry);
+
+        // ── FIX 13: FLUSH PENDING SAVES ON TAB HIDE / PAGE CLOSE ──
+        // visibilitychange fires reliably on tab switch AND on close (before pagehide).
+        // pagehide is the last event before the page is truly gone.
+        // A one-shot guard prevents the double-fire sequence from saving twice.
+        let _meguminHideFlushed = false;
+        function meguminFlushOnHide() {
+            if (_meguminHideFlushed) return;
+            _meguminHideFlushed = true;
+            cancelDebounce(saveProfileDebounced);
+            saveProfileToMemory();
+        }
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "hidden") {
+                meguminFlushOnHide();
+            } else {
+                _meguminHideFlushed = false; // rearm on return to visible
+            }
+        });
+        window.addEventListener("pagehide", meguminFlushOnHide);
 
         // ── DEFERRED PROFILE LOADER ──
         // Polls for context.chatId to become available after page load.
