@@ -1,3 +1,49 @@
+# beta 02/08/26
+
+ Side Panel Overhaul
+
+- **Full-Detail Player Card:** your own character's World State block now fills the player card, outfit, position, condition and carried items included.
+- **Compact Mode, Full Data:** Added support for compact World State version.
+- **Forgiving Readers:** slightly mangled blocks from the AI, a stray space in a tag, a missing bold, a missing emoji, are read instead of ignored. Twenty-five repaired shapes across the extension. A block that arrived broken is named as such in the panel rather than showing the same empty message it shows when no block came at all, and field values have lost the stray asterisk at the front.
+- **Live Story Tracker:** the story tracker now is inside side pannel.
+- **Folded Dossier Cards:** several new character dossiers in one message arrive as a short list of folded cards, one line each. Click one to open it. A single dossier still opens by itself.
+- **Multi-Line Thoughts:** a character's inner thought written over more than one line stays one thought under that character's name. It used to spawn a second, nameless speaker.
+- **Fixed "Ghost Chat" Bug:** the panel no longer shows the previous chat for a moment after you switch chats, and closing a chat empties the panel completely instead of leaving the old chat's plan and character bank on screen.
+- **Fixed "Half Dossier" Bug:** a colon inside a field value, CS: GO for example, no longer cuts the field short. Inner circle lists and long descriptions now arrive whole.
+
+ Smart Block Hiding
+
+- **Latest-Reply-Only Design:** only the newest AI reply has its blocks hidden. Older replies keep their blocks visible in the chat, so the history reads back complete, and when a new reply arrives the one before it gets its blocks back.
+- **Parse First, Hide Second:** a block leaves the chat only when the panel has actually read it. A block the panel cannot read stays visible instead of vanishing from both the chat and the panel, and the check runs dossier by dossier on the New NPC boxes, so one broken dossier keeps all of them visible rather than dragging the readable ones out of sight with it.
+- **Tracker Hidden in Chat:** the story tracker at the end of a reply is hidden in the chat once the panel has read it, including a tracker restyled into a collapsible box or drawn inside another extension's frame, which are hidden whole. A tracker the panel cannot read stays visible.
+- **Hiding That Sticks:** hidden blocks go back into hiding the moment a message edit is saved or cancelled, stay hidden when another extension redraws a message, picture generation included, and take their pile of leftover blank lines at the end of a reply with them.
+- **Your Own Folds Are Safe:** a fold you write yourself that merely mentions the World State will not be mistaken for a real World State block and hidden.
+- **Fixed "Secret Spiller" Leak:** story tracker text, story secrets included, stays out of the AI memory, the summaries, the image prompts, and the story planning. A reply cut off partway through a block used to leak the half that arrived into those same four places; that is closed too.
+
+ Present Characters Bar
+
+- **Works in More Places:** the bar now handles compact World State mode, and it appears when you switch the panel on partway through a session, with no reload needed.
+- **Fixed "Vanishing Name" Bug:** character names with accents, other alphabets, quotes, parentheses, or a lowercase first letter no longer vanish from the bar.
+- **Portraits & Polish:** portrait uploads, renames, and deletes reach the bar right away. The glow around a card is no longer cut off square, and the strip has lost the scrollbar along its bottom edge. The cards still scroll with the wheel, by dragging, and with the arrow buttons.
+
+ Save Safety & Global Prompts
+
+- **Fixed "Fast Switch" Save Loss:** the last half second of typing survives a quick chat switch, and pending saves are flushed when the tab is hidden or the page closes.
+- **Global Prompt Templates:** edits in the Advanced: Edit Prompts panels now apply everywhere at once rather than only to the character or chat that is open. One honest note: if you had different templates saved on different characters, "your next edit becomes the one they all share."
+
+ Inline Images
+
+- **Regenerate Button, Wherever the Picture Is:** the regenerate button on a generated picture appears the moment the picture arrives rather than after the chat is loaded again, and it reaches messages brought back by Show More.
+
+ Under the Hood
+
+- **Build Tag:** the side panel prints one line in the browser console when it loads, "sidepanel build" plus a date tag, so you can always tell which copy of the code is running. If an update looks broken, check that line first: a normal reload can leave the browser serving its cached copy of the old code. The line sits at the console's Verbose level.
+- **Quiet Diagnostics, Zero Cost:** when something cannot be read, a note is written to the browser console, so a bug report can carry something concrete. And every check this update adds skips work that is already done, so none of it costs speed you can feel.
+
+ UI
+
+- Some changes to the overall UI style.
+
 # beta 01/08/26
 Performance & CPU/HDD Optimizations (The Benchmark Fixes)
 

@@ -107,7 +107,10 @@ function mountWrapper() {
 
     wireEvents();
     applyCardSize();
-    update();
+    // update() calls back into mountWrapper() when the wrapper is missing, so only
+    // call it once the insert has really landed in the document. If the target was
+    // detached there is nothing to find, and the two would call each other forever.
+    if (document.getElementById(WRAPPER_ID)) update();
 }
 
 function repositionWrapper() {
@@ -197,7 +200,14 @@ export function update() {
     const cfg = settings();
     const spCfg = extension_settings["Megumin-Suite"]?.sidePanel || {};
     const wrapper = document.getElementById(WRAPPER_ID);
-    if (!wrapper) return;
+    if (!wrapper) {
+        // Mid-session enable: the bar was never mounted because one of the two
+        // switches was off when initPresentBar ran. mountWrapper() is a no-op when
+        // the wrapper already exists, and it ends by calling update() itself.
+        if (spCfg.enabled === false || !cfg.enabled || cfg.position === "off") return;
+        mountWrapper();
+        return;
+    }
     if (spCfg.enabled === false || !cfg.enabled || cfg.position === "off") {
         wrapper.style.display = "none";
         return;

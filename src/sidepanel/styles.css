@@ -1640,3 +1640,113 @@ body.meg-sp-hide-inline .mes_text details.meg-sp-tracker-block { display: none !
 #meg-sp-panel:not([data-mode="floating"]) .meg-sp-header-overlay {
     border-radius: inherit !important;
 }
+/* The panel body is the one scrolling box in the panel, and both of its axes
+   have to stay fixed in size whatever is on screen. Only overflow-y is set
+   above, which leaves overflow-x at visible, and CSS turns visible into auto as
+   soon as the other axis is not visible - so both axes were free to grow a
+   scrollbar, and each one's scrollbar changed the room left for the other. A
+   horizontal scrollbar takes height, which brings on the vertical one, which
+   takes width, which rewraps the text, which takes the horizontal overflow away
+   again. Nothing in the panel is meant to scroll sideways, so that axis is
+   clipped outright and can never produce a scrollbar; and the vertical
+   scrollbar's channel is held open whether or not the scrollbar is sitting in
+   it, so the width does not move either. The content box is then the same
+   rectangle at all times. overflow-y is untouched, so the panel scrolls as it
+   did, and where a browser does not know scrollbar-gutter the overflow-x line
+   still holds on its own. */
+.meg-sp-body {
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+}
+
+/* The two dots beside a portrait bob while a thought is hovered, and the bob is a
+   loop, so it ticks for as long as the pointer stays there. It moves them with a
+   transform, which is the right way to write it and costs no layout - but a
+   transform is only free once the thing it moves is on a drawing layer of its own.
+   Without that the browser redraws to play it, and a redrawn area has an edge that
+   frosted surfaces elsewhere on the page pick up as a thin blinking seam.
+
+   The promotion is stated here, on the dots themselves, and NOT inside the hover
+   where the animation is started. A layer has to exist before the first frame it
+   is needed for, and asking for one in the same breath as the animation asks too
+   late; the browser is entitled to play the opening frames the expensive way while
+   it catches up, which is the moment being complained about. Stated plainly the
+   layer is ready before the pointer ever arrives. It costs two very small layers
+   per thought on screen, which is nothing beside redrawing part of the page sixty
+   times a second. Nothing about size or position changes. */
+.meg-sp-bubble-1,
+.meg-sp-bubble-2 {
+    will-change: transform;
+}
+
+/* The panel is full of expensive paint: two blurred orbs behind the content, each
+   a couple of hundred pixels across with an eighty-pixel blur on it, and frosted
+   glass on the shell and on every section. Anything that redraws inside the panel
+   drags all of that through again, and the area marked as needing work is bounded
+   by the panel, which is a fixed-position box - so that boundary sits at one
+   unchanging place on the screen. That is the shape of the fault this is for: a
+   vertical line at a fixed screen position, which only becomes visible where some
+   frosted surface happens to lie across it.
+
+   Kept on a drawing layer of its own, the panel's redrawing stays in its own
+   texture and never marks the shared picture underneath as needing work, so no
+   frosted surface anywhere else has to resample because of it.
+
+   Safe for the frosted sections inside it: an element with backdrop-filter already
+   starts a fresh backdrop for everything within, and the panel has had one all
+   along, so the sections were already sampling the panel rather than the page
+   behind it and nothing about how they look changes. */
+#meg-sp-panel {
+    will-change: transform;
+}
+
+/* The Present Characters bar is a frosted surface too, so it is one of the places
+   a redrawn region can show its edge. Kept on a drawing layer of its own it is
+   resampled as one piece, and there is no boundary part-way across it for a seam
+   to appear along. The bar has no fixed-position children, only the two
+   absolutely positioned arrows, so giving it a layer changes nothing about how
+   anything inside it is placed. */
+.meg-pb-bar {
+    will-change: transform;
+}
+
+/* Room for the Present Characters cards to glow into. The cards lift and cast a
+   shadow on hover, and the strip is a scrolling box, so it clips them square at
+   its own edge unless there is space inside it for the shadow to fall on. The
+   padding is that space and the negative margin takes the same amount back off
+   the outside, so the strip occupies exactly the room it did and every card sits
+   where it sat. Overrides the padding of the .meg-pb-scroll rule above; nothing
+   else in that rule changes. Widening the box by exactly the padding put inside
+   it also leaves the cards with the same room they had, so the strip decides
+   whether to show its scrollbar on the same condition as before.
+
+   The strip is stated to paint nothing, so the only painted surfaces in the bar
+   are the bar itself and the cards - the bar is full width whatever the cast is,
+   and a card is a fixed size, so no painted edge in there moves with the number
+   of characters. The strip's own scrollbar is taken away rather than left to come
+   and go with the cast: it was four pixels of visible edge along the bottom that
+   appeared and disappeared, and a strip of portraits with an arrow button at each
+   end does not need it. The cards still scroll by wheel, by drag, and by those two
+   buttons. */
+.meg-pb-scroll {
+    padding: 12px 10px 10px;
+    margin: -10px -10px -6px;
+    background: transparent;
+    scrollbar-width: none;
+}
+.meg-pb-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+/* The one-line description beside a folded new-character card. Keeps it on a
+   single row and makes it the part that gives way when the header runs out of
+   width; the colour, the italic and the smaller size come from meg-sp-muted on
+   the same element. */
+.meg-sp-newnpc > summary .meg-sp-newnpc-preview {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 400;
+}

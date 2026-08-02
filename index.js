@@ -93,6 +93,13 @@ let activeNpcImages = [];
 let isDevEngineDirty = false;
 let activeNpcScanRequest = null;
 let _lastSavedMetaStamp = "";
+// The profile key localProfile was last loaded from. The chat-switch flush uses it
+// so a pending save lands under the OLD chat's key, not the one already selected.
+let _loadedProfileKey = null;
+// Set when a debounced profile save is scheduled; cleared whenever a save actually
+// runs and after a fresh load. The chat-switch flush reads it, so a chat nobody
+// edited never gets a profile written under its own key.
+let _profileSavePending = false;
 
 function getCharacterKey() {
     const context = getContext();
@@ -592,6 +599,17 @@ function initProfile() {
     updateLiveTokenCount();
     pruneFutureData(); // Automatically prune out-of-bounds future data on load/initialization
     if (typeof updateMemoryVisuals === "function") updateMemoryVisuals();
+
+    // Remember the key this profile came from, so a save still pending when the
+    // chat switches can be flushed to it after ST has moved on to the next chat.
+    _loadedProfileKey = chatLevelKey || "default";
+    // Fresh profile in memory — nothing the user typed is waiting to be written.
+    _profileSavePending = false;
+
+    // The side panel renders 50ms after CHAT_CHANGED but the profile only lands
+    // here at +200ms, so profile-fed sections would still show the previous chat.
+    try { refreshSidePanel(); } catch (e) { /* side panel may not be mounted yet */ }
+    try { refreshPresentBar(); } catch (e) { /* present bar may not be mounted yet */ }
 }
 
 function pruneFutureData() {
@@ -704,6 +722,7 @@ function pruneFutureData() {
 }
 
 function saveProfileToMemory() {
+    _profileSavePending = false;
     const key = getCharacterKey() || "default";
     const ruleBox = $("#ps_main_current_rule");
     if (ruleBox.length > 0) { localProfile.aiRule = ruleBox.val(); }
@@ -800,7 +819,54 @@ function saveProfileToMemory() {
     }
 }
 
-const saveProfileDebounced = debounce(saveProfileToMemory, 500);
+// FLUSH A PENDING PROFILE SAVE BEFORE THE CHAT SWITCHES (regression H8).
+// CHAT_CHANGED fires AFTER SillyTavern has repointed chat_metadata and context.chatId
+// at the NEW chat, so a full saveProfileToMemory() here would write the old profile
+// under the new chat's key and copy the old chat's memory blocks into the new chat's
+// metadata. Only the settings half is flushed, and only under the key the live
+// profile was actually loaded from.
+function flushProfileSettingsToLoadedKey() {
+    // Only flush a save the user actually triggered. Without this, every chat switch
+    // would write a chat-level profile for a chat that was merely inheriting the
+    // character-level one, and that inheritance would be gone for good.
+    if (!_profileSavePending) return;
+    if (!_loadedProfileKey) return;
+    if (!localProfile || !extension_settings[extensionName]?.profiles) return;
+
+    const ruleBox = $("#ps_main_current_rule");
+    if (ruleBox.length > 0) { localProfile.aiRule = ruleBox.val(); }
+
+    // The same reset the full save does. The archived-set cache is a Set, which
+    // JSON.stringify turns into `{}`; every stored profile holds null there, so
+    // writing `{}` would be a shape nothing else produces and the archived-message
+    // dimming would read it back as an empty cache instead of "not built yet".
+    if (localProfile?.memoryCore) {
+        localProfile.memoryCore._archivedSet = null;
+    }
+
+    const profileToSave = JSON.parse(JSON.stringify(localProfile));
+    if (profileToSave.memoryCore) {
+        delete profileToSave.memoryCore.shortTermChunks;
+        delete profileToSave.memoryCore.longTermVault;
+    }
+    if (profileToSave.storyPlan) {
+        delete profileToSave.storyPlan.currentPlan;
+        delete profileToSave.storyPlan.lastTrackerState;
+    }
+    if (profileToSave.npcBank) {
+        delete profileToSave.npcBank.npcs; // DO NOT save NPCs in settings.json!
+    }
+
+    extension_settings[extensionName].profiles[_loadedProfileKey] = profileToSave;
+    saveSettingsDebounced();
+    _profileSavePending = false;
+}
+
+// Split in two so the ~30 call sites stay as they are while the flush gets a dirty
+// flag. cancelDebounce() has to be handed the INNER function: that is the one
+// debounce() returned and registered in its map, and the wrapper is unknown to it.
+const _saveProfileDebouncedInner = debounce(saveProfileToMemory, 500);
+const saveProfileDebounced = () => { _profileSavePending = true; _saveProfileDebouncedInner(); };
 
 // NEW: Function to calculate and update the token UI with a Hover Breakdown
 function updateLiveTokenCount() {
@@ -929,18 +995,32 @@ function meguminCleanChatHistoryText(text) {
     
     // Comprehensive Image Block Cleanup
     cleaned = cleaned.replace(/<img\s+[^>]*\/>|<div class="kazuma-img-placeholder"[^>]*>[\s\S]*?<\/div>|<!-- kazuma-inline-start:[^>]*-->[\s\S]*?<!-- kazuma-inline-end:[^>]*-->/gi, "");
-    cleaned = cleaned.replace(/<details>\s*<summary>.*?💭.*?<b>NPC Inner Chatter<\/b><\/summary>\s*([\s\S]*?)\s*<\/details>/gi, "");
-    cleaned = cleaned.replace(/<details>\s*<summary>.*?📌.*?<b>World State<\/b><\/summary>\s*([\s\S]*?)\s*<\/details>/gi, "");
-    cleaned = cleaned.replace(/<details>\s*<summary>.*?🆕.*?<b>New NPC:.*?<\/b><\/summary>\s*([\s\S]*?)\s*<\/details>/gi, ""); // <-- NEW
-    cleaned = cleaned.replace(/<div style="border: 1px solid #444;[\s\S]*?<\/div>/gi, "");
+    cleaned = cleaned.replace(/<details[^>]*>\s*<summary[^>]*>.*?💭.*?<b[^>]*>NPC Inner Chatter<\/b\s*><\/summary\s*>\s*([\s\S]*?)\s*<\/details\s*>/gi, "");
+    cleaned = cleaned.replace(/<details[^>]*>\s*<summary[^>]*>.*?📌.*?<b[^>]*>World State<\/b\s*><\/summary\s*>\s*([\s\S]*?)\s*<\/details\s*>/gi, "");
+    cleaned = cleaned.replace(/<details[^>]*>\s*<summary[^>]*>.*?🆕.*?<b[^>]*>New NPC:.*?<\/b\s*><\/summary\s*>\s*([\s\S]*?)\s*<\/details\s*>/gi, ""); // <-- NEW
+    cleaned = cleaned.replace(/<div style="border: 1px solid #444;[\s\S]*?<\/div\s*>/gi, "");
+
+    // Story Tracker: the block stays visible in the chat, but its body (arc_status,
+    // hidden_state, next_beat …) must never reach the summariser, the semantic
+    // query, image gen, the ban list or the Story Director.
+    cleaned = cleaned.replace(/<Story_Tracker[^>]*>[\s\S]*?<\/Story_Tracker\s*>/gi, "");
+    // A reply cut off mid-tracker leaves an opening tag with no closing one. Half a
+    // tracker leaks as badly as a whole one, so cut from it to the end of the text.
+    cleaned = cleaned.replace(/<Story_Tracker[^>]*>[\s\S]*$/i, "");
 
     // 2. Remove AI reasoning and artifacts (think, disclaimer, options, start/end)
     const badStuffRegex = /(<disclaimer>.*?<\/disclaimer>)|(<guifan>.*?<\/guifan>)|(<danmu>.*?<\/danmu>)|(<options>.*?<\/options>)|```start|```end|<done>|`<done>`|(.*?<\/(?:ksc??|think(?:ing)?)>(\n)?)|(<(?:ksc??|think(?:ing)?)>[\s\S]*?<\/(?:ksc??|think(?:ing)?)>(\n)?)/gs;
     cleaned = cleaned.replace(badStuffRegex, "");
 
     // 3. Remove leftover standard details/summary tags & HTML
-    cleaned = cleaned.replace(/<details>[\s\S]*?<\/details>/gi, "");
-    cleaned = cleaned.replace(/<summary>[\s\S]*?<\/summary>/gi, "");
+    cleaned = cleaned.replace(/<details[^>]*>[\s\S]*?<\/details\s*>/gi, "");
+    cleaned = cleaned.replace(/<summary[^>]*>[\s\S]*?<\/summary\s*>/gi, "");
+    // A reply cut off mid-block leaves an opening tag with no closing one, exactly
+    // as a cut-off tracker does above. The paired strips cannot see it, so the body
+    // walked on into the summariser, the vault and the image prompts. Cut from
+    // whatever opener is left to the end of the text.
+    cleaned = cleaned.replace(/<details[^>]*>[\s\S]*$/i, "");
+    cleaned = cleaned.replace(/<summary[^>]*>[\s\S]*$/i, "");
     cleaned = cleaned.replace(/<[^>]*>?/gm, "");
 
     return cleaned.trim();
@@ -1098,6 +1178,24 @@ function applyTabToAll() {
         saveSettingsDebounced();
         toastr.success(`Synced ${tabsUI[currentTab].title} settings across all profiles!`);
     }
+}
+
+// Helper to push advanced prompt edits to ALL profiles (Global Save)
+function syncPromptsGlobally(moduleName, dataKey, dataValue) {
+    Object.values(extension_settings[extensionName].profiles).forEach(prof => {
+        const clonedValue = dataValue !== null && typeof dataValue === 'object' ? JSON.parse(JSON.stringify(dataValue)) : dataValue;
+        if (moduleName === 'banList') {
+            prof[dataKey] = clonedValue;
+        } else {
+            // A profile saved before this module existed has no container. Writing one
+            // bare key would create a half-built module whose other settings load as
+            // undefined. Skip it: its next load fills full defaults, and every sync
+            // after that reaches it normally.
+            if (!prof[moduleName]) return;
+            prof[moduleName][dataKey] = clonedValue;
+        }
+    });
+    saveSettingsDebounced();
 }
 
 function renderCoreAndCot(c) {
@@ -2842,7 +2940,11 @@ function renderStoryPlanner(c) {
         defaultData: DEFAULT_PROMPTS.storyPlan,
         currentData: sp.customPrompts,
         enabled: sp.customPromptsEnabled,
-        onToggle: (val) => { sp.customPromptsEnabled = val; saveProfileToMemory(); },
+        onToggle: (val) => { 
+            sp.customPromptsEnabled = val; 
+            syncPromptsGlobally('storyPlan', 'customPromptsEnabled', val);
+            saveProfileToMemory(); 
+        },
         fields: [
             { key: "systemPrompt", label: "System Prompt (Manifesto)", hint: "Tokens: <code>{{charLore}}</code>, <code>{{userPersona}}</code>, <code>{{chatHistory}}</code>, <code>{{user}}</code>" },
             { key: "userPrompt", label: "User Task Prompt", hint: "Tokens: <code>{{user}}</code>, <code>{{directorSettings}}</code>" },
@@ -2853,11 +2955,13 @@ function renderStoryPlanner(c) {
         onSave: (val, key) => {
             if (!sp.customPrompts) sp.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.storyPlan));
             sp.customPrompts[key] = val;
+            syncPromptsGlobally('storyPlan', 'customPrompts', sp.customPrompts);
             saveProfileDebounced();
             return sp.customPrompts;
         },
         onReset: () => {
             sp.customPrompts = null;
+            syncPromptsGlobally('storyPlan', 'customPrompts', null);
             saveProfileToMemory();
         }
     });
@@ -3067,7 +3171,11 @@ function renderBanList(c) {
         defaultData: DEFAULT_PROMPTS.banList,
         currentData: localProfile.banListCustomPrompts,
         enabled: localProfile.banListCustomPromptsEnabled, // <-- NEW
-        onToggle: (val) => { localProfile.banListCustomPromptsEnabled = val; saveProfileToMemory(); }, // <-- NEW
+        onToggle: (val) => { 
+            localProfile.banListCustomPromptsEnabled = val; 
+            syncPromptsGlobally('banList', 'banListCustomPromptsEnabled', val);
+            saveProfileToMemory(); 
+        },
         fields: [
             { key: "systemPrompt", label: "System Prompt", hint: "AI role definition." },
             { key: "userPrompt", label: "User Task Prompt", hint: "Tokens: <code>{{chatHistory}}</code>" },
@@ -3077,11 +3185,13 @@ function renderBanList(c) {
         onSave: (val, key) => {
             if (!localProfile.banListCustomPrompts) localProfile.banListCustomPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.banList));
             localProfile.banListCustomPrompts[key] = val;
+            syncPromptsGlobally('banList', 'banListCustomPrompts', localProfile.banListCustomPrompts);
             saveProfileDebounced();
             return localProfile.banListCustomPrompts;
         },
         onReset: () => {
             localProfile.banListCustomPrompts = null;
+            syncPromptsGlobally('banList', 'banListCustomPrompts', null);
             saveProfileToMemory();
         }
     });
@@ -3412,7 +3522,11 @@ function renderImageGen(c) {
         defaultData: DEFAULT_PROMPTS.imageGen,
         currentData: s.customPrompts,
         enabled: s.customPromptsEnabled, // <-- NEW
-        onToggle: (val) => { s.customPromptsEnabled = val; saveProfileToMemory(); }, // <-- NEW
+        onToggle: (val) => { 
+            s.customPromptsEnabled = val; 
+            syncPromptsGlobally('imageGen', 'customPromptsEnabled', val);
+            saveProfileToMemory(); 
+        },
         fields: [
             { key: "systemPrompt", label: "System Prompt", hint: "AI role definition." },
             { key: "userPrompt", label: "User Task Prompt", hint: "Tokens: <code>{{chatHistory}}</code>, <code>{{templateRules}}</code>, <code>{{extraStr}}</code>, <code>{{directLanguage}}</code>, <code>{{npcImageTags}}</code>, <code>{{templateExamples}}</code>" },
@@ -3434,11 +3548,13 @@ function renderImageGen(c) {
         onSave: (val, key) => {
             if (!s.customPrompts) s.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.imageGen));
             s.customPrompts[key] = val;
+            syncPromptsGlobally('imageGen', 'customPrompts', s.customPrompts);
             saveProfileDebounced();
             return s.customPrompts;
         },
         onReset: () => {
             s.customPrompts = null;
+            syncPromptsGlobally('imageGen', 'customPrompts', null);
             saveProfileToMemory();
         }
     });
@@ -4036,7 +4152,11 @@ function renderNpcBank(c) {
         defaultData: DEFAULT_PROMPTS.npcBank,
         currentData: nb.customPrompts,
         enabled: nb.customPromptsEnabled,
-        onToggle: (val) => { nb.customPromptsEnabled = val; saveProfileToMemory(); },
+        onToggle: (val) => { 
+            nb.customPromptsEnabled = val; 
+            syncPromptsGlobally('npcBank', 'customPromptsEnabled', val);
+            saveProfileToMemory(); 
+        },
         fields: [
             { key: "systemPrompt", label: "Portrait AI: System Prompt", hint: "AI role definition for image generation." },
             { key: "userPrompt", label: "Portrait AI: User Task Prompt", hint: "Tokens: <code>{{npcText}}</code>, <code>{{styleStr}}</code>, <code>{{perspStr}}</code>, <code>{{extraStr}}</code>" },
@@ -4045,9 +4165,16 @@ function renderNpcBank(c) {
         ],
         onSave: (val, key) => {
             if (!nb.customPrompts) nb.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.npcBank));
-            nb.customPrompts[key] = val; saveProfileDebounced(); return nb.customPrompts;
+            nb.customPrompts[key] = val; 
+            syncPromptsGlobally('npcBank', 'customPrompts', nb.customPrompts);
+            saveProfileDebounced(); 
+            return nb.customPrompts;
         },
-        onReset: () => { nb.customPrompts = null; saveProfileToMemory(); }
+        onReset: () => { 
+            nb.customPrompts = null; 
+            syncPromptsGlobally('npcBank', 'customPrompts', null);
+            saveProfileToMemory(); 
+        }
     });
 
     c.find('#npc_main_content').append(npcEditor);
@@ -4155,7 +4282,7 @@ function renderNpcBank(c) {
             
             let rawOutput = await generateQuietPrompt({ prompt: "___PS_NPC_SCAN___" });
             
-            const npcRegex = /<details>[\s\S]*?<summary>.*?New NPC:\s*(.*?)<\/summary>([\s\S]*?)<\/details>/ig;
+            const npcRegex = /<details[^>]*>[\s\S]*?<summary[^>]*>.*?New NPC:\s*(.*?)<\/summary\s*>([\s\S]*?)<\/details\s*>/ig;
             let match; let addedCount = 0;
             while ((match = npcRegex.exec(rawOutput)) !== null) {
                 const npcName = match[1].trim().replace(/<\/?b>/ig, "");
@@ -5143,7 +5270,11 @@ function renderMemoryCore(c) {
         defaultData: DEFAULT_PROMPTS.memoryCore,
         currentData: mem.customPrompts,
         enabled: mem.customPromptsEnabled, // <-- NEW
-        onToggle: (val) => { mem.customPromptsEnabled = val; saveProfileToMemory(); }, // <-- NEW
+        onToggle: (val) => { 
+            mem.customPromptsEnabled = val; 
+            syncPromptsGlobally('memoryCore', 'customPromptsEnabled', val);
+            saveProfileToMemory(); 
+        },
         fields: [
             { key: "systemPrompt", label: "System Prompt", hint: "Summarizer system prompt." },
             { key: "userPrompt", label: "User Task Prompt", hint: "Tokens: <code>{{chatHistory}}</code>, <code>{{targetLang}}</code>" },
@@ -5153,11 +5284,13 @@ function renderMemoryCore(c) {
         onSave: (val, key) => {
             if (!mem.customPrompts) mem.customPrompts = JSON.parse(JSON.stringify(DEFAULT_PROMPTS.memoryCore));
             mem.customPrompts[key] = val;
+            syncPromptsGlobally('memoryCore', 'customPrompts', mem.customPrompts);
             saveProfileDebounced();
             return mem.customPrompts;
         },
         onReset: () => {
             mem.customPrompts = null;
+            syncPromptsGlobally('memoryCore', 'customPrompts', null);
             saveProfileToMemory();
         }
     });
@@ -6737,12 +6870,16 @@ function addKazumaRetryButtons(msgIndex) {
         const btn = document.createElement('div');
         btn.className = 'kazuma-regen-btn';
         btn.title = 'Regenerate this image';
-        btn.style.cssText = 'position:absolute; top:8px; right:8px; cursor:pointer; background:rgba(0,0,0,0.65); color:#ffcc00; border-radius:6px; padding:5px 8px; font-size:14px; z-index:10; border:1px solid rgba(255,204,0,0.5); opacity:0; transition:opacity 0.2s ease; line-height:1;';
+        // On a device with no pointer there is no mouseenter, so a button that
+        // rests at opacity 0 can never be seen. Rest it at 0.85 instead.
+        const kazumaCanHover = !window.matchMedia || window.matchMedia('(hover: hover)').matches;
+        const kazumaRestOpacity = kazumaCanHover ? '0' : '0.85';
+        btn.style.cssText = 'position:absolute; top:8px; right:8px; cursor:pointer; background:rgba(0,0,0,0.65); color:#ffcc00; border-radius:6px; padding:5px 8px; font-size:14px; z-index:10; border:1px solid rgba(255,204,0,0.5); opacity:' + kazumaRestOpacity + '; transition:opacity 0.2s ease; line-height:1;';
         btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i>';
 
         // Show/hide on hover
         wrapper.addEventListener('mouseenter', () => { btn.style.opacity = '1'; });
-        wrapper.addEventListener('mouseleave', () => { btn.style.opacity = '0'; });
+        wrapper.addEventListener('mouseleave', () => { btn.style.opacity = kazumaRestOpacity; });
 
         // Click handler — directly attached, no delegation needed
         btn.addEventListener('click', async (e) => {
@@ -6782,6 +6919,17 @@ function addKazumaRetryButtons(msgIndex) {
 
         wrapper.appendChild(btn);
     });
+}
+
+// One attempt 150ms after the redraw is a single chance. If anything redraws the
+// message after that, or if the code below the call throws before the timer is
+// set, the button never comes back until the chat is loaded again. Try a few
+// times instead. Each pass covers every image in the message and leaves images
+// that already have a button alone, so the extra passes cost nothing.
+function kazumaRetrySweep(msgIndex) {
+    [150, 600, 1500, 3000].forEach((ms) => setTimeout(() => {
+        try { addKazumaRetryButtons(msgIndex); } catch (e) { }
+    }, ms));
 }
 
 async function igGenerateWithComfy(positivePrompt, target = null) {
@@ -6938,6 +7086,12 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                                 }
                             }
                             
+                            // Queue the retry buttons before the redraw, not after it.
+                            // The passes run on their own timers so they still land
+                            // after SillyTavern has drawn, and they survive anything
+                            // below here throwing into the empty catch.
+                            kazumaRetrySweep(target.index);
+
                             await saveChat();
                             if (typeof updateMessageBlock === "function") {
                                 updateMessageBlock(target.index, target.message);
@@ -6945,9 +7099,6 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                                 await reloadCurrentChat();
                             }
                             toastr.success("Image injected inline!");
-                            
-                            // Add retry buttons via DOM manipulation (after ST renders)
-                            setTimeout(() => addKazumaRetryButtons(target.index), 150);
                         } else if (target && target.message && !target.isInlineAuto) {
                             if (!target.message.extra) target.message.extra = {}; if (!target.message.extra.media) target.message.extra.media = [];
                             target.message.extra.media_display = "gallery"; target.message.extra.media.push(mediaAttach); target.message.extra.media_index = target.message.extra.media.length - 1;
@@ -6974,11 +7125,11 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                                 const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
                                 target.message.mes = target.message.mes.replace(placeholderRegex, failTag);
                             }
+                            kazumaRetrySweep(target.index);
                             saveChat();
                             if (typeof updateMessageBlock === "function") {
                                 updateMessageBlock(target.index, target.message);
                             }
-                            setTimeout(() => addKazumaRetryButtons(target.index), 150);
                         }
                     }
                 }
@@ -6999,11 +7150,11 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                 const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
                 target.message.mes = target.message.mes.replace(placeholderRegex, failTag);
             }
+            kazumaRetrySweep(target.index);
             saveChat();
             if (typeof updateMessageBlock === "function") {
                 updateMessageBlock(target.index, target.message);
             }
-            setTimeout(() => addKazumaRetryButtons(target.index), 150);
         }
     }
 }
@@ -8863,6 +9014,11 @@ jQuery(async () => {
             });
             eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, handlePromptInjection);
             eventSource.on(event_types.CHAT_CHANGED, () => {
+                // A save debounced at 500ms would die when initProfile swaps localProfile
+                // below. Flush it under the OLD key first — settings only, because
+                // chat_metadata already belongs to the chat we are switching TO.
+                cancelDebounce(_saveProfileDebouncedInner);
+                flushProfileSettingsToLoadedKey();
                 // Defer profile loading — wait for ST context to fully initialize
                 setTimeout(() => {
                     const ctx = getContext();
@@ -8893,7 +9049,7 @@ jQuery(async () => {
                         if (!lastMsg.is_user && !lastMsg.is_system) {
                             
                             // 1. Extract the Tracker
-                            const trackerRegex = /<Story_Tracker>([\s\S]*?)<\/Story_Tracker>/i;
+                            const trackerRegex = /<Story_Tracker[^>]*>([\s\S]*?)<\/Story_Tracker\s*>/i;
                             const match = lastMsg.mes.match(trackerRegex);
                             let needsEvolve = false;
 
@@ -8915,6 +9071,13 @@ jQuery(async () => {
                                         }
                                     }
                                 }
+                            } else if (/<Story_Tracker/i.test(lastMsg.mes || "")) {
+                                // Slice from the opening tag, not from character 0 — the tracker
+                                // sits after the prose, so the first 200 characters of the message
+                                // would show narration and none of the block that failed to parse.
+                                const trackerMes = lastMsg.mes || "";
+                                const trackerAt = Math.max(0, trackerMes.search(/<Story_Tracker/i));
+                                console.debug(`[Megumin-Suite] <Story_Tracker> block present but unparseable in message ${lastIndex}`, trackerMes.slice(trackerAt, trackerAt + 200));
                             }
 
                             // 2. Frequency-based Trigger Fallback (ONLY if set to frequency)
@@ -8995,10 +9158,12 @@ jQuery(async () => {
                     if (chat && chat.length) {
                         const lastMsg = chat[chat.length - 1];
                         if (!lastMsg.is_user && !lastMsg.is_system) {
-                            const npcRegex = /<details>[\s\S]*?<summary>.*?New NPC:\s*(.*?)<\/summary>([\s\S]*?)<\/details>/ig;
+                            const npcRegex = /<details[^>]*>[\s\S]*?<summary[^>]*>.*?New NPC:\s*(.*?)<\/summary\s*>([\s\S]*?)<\/details\s*>/ig;
                             let match;
                             let added = false;
+                            let matched = false;
                             while ((match = npcRegex.exec(lastMsg.mes)) !== null) {
+                                matched = true;
                                 const npcName = match[1].trim().replace(/<\/?b>/ig, "");
                                 const npcContent = match[0].trim();
                                 if (!npcBank.npcs) npcBank.npcs = [];
@@ -9033,6 +9198,13 @@ jQuery(async () => {
                                 }
                             }
                             if (added) saveProfileToMemory();
+                            if (!matched && /New NPC/i.test(lastMsg.mes || "")) {
+                                // Slice from the block opener, not from character 0, so the debug
+                                // line shows the dossier that failed to parse rather than prose.
+                                const npcMes = lastMsg.mes || "";
+                                const npcAt = Math.max(0, npcMes.search(/New NPC/i));
+                                console.debug(`[Megumin-Suite] New NPC block present but unparseable in message ${chat.length - 1}`, npcMes.slice(npcAt, npcAt + 200));
+                            }
                         }
                     }
                 }
@@ -9215,7 +9387,20 @@ jQuery(async () => {
         eventSource.on(event_types.MESSAGE_UPDATED, kazumaReAddRetry);
         eventSource.on(event_types.MESSAGE_EDITED, kazumaReAddRetry);
 
-        // ── FIX 13: FLUSH PENDING SAVES ON TAB HIDE / PAGE CLOSE ──
+        // Scrolling up loads older messages into the page with no button on them.
+        // Re-scan the whole chat; messages that are not on screen are skipped
+        // cheaply, and messages that already have a button are left alone.
+        const kazumaSweepRetry = () => setTimeout(() => {
+            const ctx = getContext();
+            if (!ctx.chat) return;
+            for (let i = 0; i < ctx.chat.length; i++) {
+                addKazumaRetryButtons(i);
+            }
+        }, 150);
+        eventSource.on(event_types.MORE_MESSAGES_LOADED, kazumaSweepRetry);
+        eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, kazumaReAddRetry);
+
+        // ── FLUSH PENDING SAVES ON TAB HIDE / PAGE CLOSE ──
         // visibilitychange fires reliably on tab switch AND on close (before pagehide).
         // pagehide is the last event before the page is truly gone.
         // A one-shot guard prevents the double-fire sequence from saving twice.
@@ -9223,7 +9408,7 @@ jQuery(async () => {
         function meguminFlushOnHide() {
             if (_meguminHideFlushed) return;
             _meguminHideFlushed = true;
-            cancelDebounce(saveProfileDebounced);
+            cancelDebounce(_saveProfileDebouncedInner);
             saveProfileToMemory();
         }
         document.addEventListener("visibilitychange", () => {

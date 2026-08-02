@@ -2732,3 +2732,199 @@
     background: #18181b;
 }
 
+/* ================================================================
+   COHERENCE LAYER — appended to the END of style.css
+   One signal-grammar over the existing glossy dark theme.
+   Surfaces stay glass. Banner untouched. Override-only: no JS,
+   no HTML, no layout, mobile drawer untouched.
+   ================================================================ */
+
+/* ---- 1. VOCABULARY (one job per hue) ----
+   --gold / --accent-color above are kept; these are semantic aliases. */
+:root {
+  --c-brand:  #f59e0b;            /* chrome / nav / recommended        */
+  --c-select: #ffffff;            /* the chosen one-of-many            */
+  --c-live:   #10b981;            /* a boolean that is ON (knobs only) */
+  --c-danger: #ef4444;            /* destructive                       */
+  --c-info:   #3b82f6;            /* neutral data / new / links        */
+  --c-ai:     #a855f7;            /* machine-authored surfaces         */
+
+  --glass:        rgba(24,24,27,.55);
+  --glass-lit:    rgba(40,40,46,.72);
+  --glass-line:   rgba(255,255,255,.10);
+  --glass-line-hi:rgba(255,255,255,.22);
+  --spec:         inset 0 1px 0 rgba(255,255,255,.08),
+                  inset 0 0 0 1px rgba(255,255,255,.02);
+  --spec-hi:      inset 0 1px 0 rgba(255,255,255,.16);
+  --ease-spring:  cubic-bezier(.34,1.56,.64,1);
+  --ease:         cubic-bezier(.22,.61,.36,1);
+}
+
+/* ---- 2. AMBIENT GLOW (optional) ----
+   A soft color field behind the translucent modal so the glass has
+   something to bend. Lives behind the 70% scrim; never touches the
+   banner (the banner is inside .app-container, above this).
+   >>> Don't want the glow? Delete this whole block (2 rules). <<< */
+#prompt-slot-modal-overlay::before {
+  content: ""; position: fixed; inset: -20%; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(40vw 40vw at 22% 8%,  rgba(245,158,11,.16), transparent 60%),
+    radial-gradient(34vw 34vw at 86% 92%, rgba(99,102,241,.10), transparent 62%);
+  filter: blur(8px);
+  animation: coh-drift 30s var(--ease) infinite alternate;
+}
+#prompt-slot-modal-overlay > .app-container { position: relative; z-index: 1; }
+@keyframes coh-drift {
+  from { transform: translate3d(0,0,0) scale(1); }
+  to   { transform: translate3d(3%,2%,0) scale(1.08); }
+}
+
+/* ---- 3. ONE GLASS SURFACE + SHARED HOVER SHEEN ----
+   Same specular top-edge on every pane, plus a diagonal light sweep
+   on hover — this is what makes the gloss read as a product. */
+.ps-modern-modal.app-container,
+.dock,
+.ps-card, .mtab-eng-card, .ws-card, .wstyle-card,
+.mtab-panel, .mtab-toggle-row, .wstyle-dnr-panel, .wstyle-tag-section,
+.wstyle-insights-panel, .wstyle-rule-panel,
+#ps-global-tooltip {
+  box-shadow: var(--spec), 0 18px 40px -22px rgba(0,0,0,.8);
+}
+.ps-modern-modal.app-container { background: var(--glass); }
+.dock { background: rgba(18,18,20,.62); }
+
+.ps-card, .mtab-eng-card, .ws-card, .wstyle-card {
+  position: relative; overflow: hidden;
+  background: var(--glass);
+  border-color: var(--glass-line);
+  transition: transform .28s var(--ease), border-color .28s var(--ease),
+              background .28s var(--ease), box-shadow .28s var(--ease);
+}
+.ps-card::after, .mtab-eng-card::after, .ws-card::after, .wstyle-card::after {
+  content: ""; position: absolute; top: 0; left: -120%; width: 60%; height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,.10), transparent);
+  transform: skewX(-18deg); transition: left .6s var(--ease); pointer-events: none;
+}
+.ps-card:hover::after, .mtab-eng-card:hover::after,
+.ws-card:hover::after, .wstyle-card:hover::after { left: 130%; }
+.ps-card:hover, .mtab-eng-card:hover, .ws-card:hover, .wstyle-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--glass-line-hi);
+  background: var(--glass-lit);
+  box-shadow: var(--spec-hi), 0 22px 44px -20px rgba(0,0,0,.85);
+}
+
+/* ---- 4. ONE "SELECTED" STATE (lit glass, not flat white) ---- */
+.ps-card.selected,
+.mtab-eng-card.active,
+.ws-card.active,
+.wstyle-card.active {
+  background: var(--glass-lit) !important;
+  border-color: rgba(245,158,11,.55) !important;
+  color: var(--text-main) !important;
+  box-shadow: var(--spec-hi), inset 3px 0 0 var(--c-brand),
+              0 0 0 1px rgba(245,158,11,.18), 0 18px 40px -18px rgba(245,158,11,.25);
+}
+/* undo the flat-white text inversion so the glass stays glassy */
+.ps-card.selected .ps-card-title,
+.ps-card.selected .ps-card-desc,
+.ps-card.selected div { color: inherit !important; }
+.mtab-eng-card.active .ecard-title,
+.ws-card.active .ws-card-title,
+.wstyle-card.active .card-title { color: var(--text-main) !important; }
+.mtab-eng-card.active .ecard-accent,
+.ws-card.active .card-accent,
+.wstyle-card.active .card-accent {
+  background: linear-gradient(90deg, var(--c-brand), transparent) !important;
+}
+
+/* ---- 5. NAV-ACTIVE = GOLD EVERYWHERE ----
+   (Bonus: your .ws-nav-btn.active used color: var(--purple), but
+   --purple is never defined in :root, so the active label was
+   effectively invisible. This fixes it as a side effect.) */
+.ws-nav-btn.active {
+  background: rgba(245,158,11,.12) !important;
+  border-color: rgba(245,158,11,.34) !important;
+  color: var(--c-brand) !important;
+  box-shadow: inset 3px 0 0 var(--c-brand), var(--spec);
+}
+.ws-nav-btn.active-green {
+  background: rgba(16,185,129,.12) !important;
+  border-color: rgba(16,185,129,.34) !important;
+  color: var(--c-live) !important;
+  box-shadow: inset 3px 0 0 var(--c-live), var(--spec);
+}
+
+/* ---- 6. GREEN = "ON" ONLY (switches) ----
+   !important here beats the inline purple your JS puts on the
+   CoT / Gemini switch backgrounds. */
+.ps-switch { background: #3f3f46; transition: background .3s var(--ease-spring); }
+.ps-switch::after { transition: left .3s var(--ease-spring), background .3s var(--ease); }
+.ps-toggle-card.active .ps-switch,
+.mtab-toggle-row.active .ps-switch { background: var(--c-live) !important; }
+.ps-toggle-card.active .ps-switch::after,
+.mtab-toggle-row.active .ps-switch::after { left: 22px; background: #06281d; }
+
+/* ---- 7. UNIFY THE RAINBOW HEADERS → one glass tile, gold glyph ----
+   !important beats the per-tab INLINE gradients in index.js. */
+.wstyle-header-icon, .mtab-header-icon {
+  background: var(--glass-lit) !important;
+  color: var(--c-brand) !important;
+  border: 1px solid var(--glass-line-hi);
+  box-shadow: var(--spec-hi), 0 0 18px -6px rgba(245,158,11,.5);
+}
+.wstyle-header h2, .mtab-header h2 {
+  font-size: 1.4rem; font-weight: 800; letter-spacing: -.03em;
+}
+.wstyle-header h2::before, .mtab-header h2::before {
+  content: ""; display: block; width: 26px; height: 2px; margin-bottom: 6px;
+  border-radius: 2px; background: linear-gradient(90deg, var(--c-brand), transparent);
+}
+
+/* ---- 8. SECTION HEADINGS: tint the ICON, quiet the text ---- */
+.wstyle-section-head, .mtab-panel-title { color: var(--text-muted); }
+.wstyle-section-head i, .mtab-panel-title i { color: var(--c-brand); }
+.wstyle-section-head.green  i, .mtab-panel-title.green  i { color: var(--c-live); }
+.wstyle-section-head.purple i, .mtab-panel-title.purple i { color: var(--c-ai); }
+.wstyle-section-head.blue   i, .mtab-panel-title.blue   i { color: var(--c-info); }
+.wstyle-section-head.red    i, .mtab-panel-title.red    i { color: var(--c-danger); }
+.wstyle-section-head.gold   i, .mtab-panel-title.gold   i { color: var(--c-brand); }
+
+/* ---- 9. BADGES fall into the grammar ---- */
+.ecard-badge.rec   { background: rgba(245,158,11,.14); color: var(--c-brand); }
+.ecard-badge.new   { background: rgba(59,130,246,.14); color: var(--c-info); }
+.ecard-badge.locked{ background: rgba(113,113,122,.18); color: #a1a1aa; }
+.ecard-badge.v6-active,
+.ecard-badge.override { background: rgba(16,185,129,.14); color: var(--c-live); }
+
+/* ---- 10. PURPLE = AI-AUTHORED (glossy, not flat) ---- */
+.wstyle-gen-btn,
+#ps_btn_get_authors_style:hover {
+  background: linear-gradient(135deg, rgba(168,85,247,.22), rgba(99,102,241,.16)) !important;
+  color: #d8b4fe !important;
+  border: 1px solid rgba(168,85,247,.45);
+  box-shadow: var(--spec), 0 8px 22px -10px rgba(168,85,247,.5);
+}
+.wstyle-tag.selected {
+  background: rgba(168,85,247,.16); border-color: rgba(168,85,247,.45); color: #d8b4fe;
+}
+.wstyle-rule-panel textarea:focus,
+.ps-prompt-field textarea:focus { border-color: rgba(168,85,247,.55); }
+
+/* ---- 11. BUTTON GRAMMAR ---- */
+.ps-modern-btn.primary {
+  background: linear-gradient(180deg, #ffffff, #e4e4e7);
+  color: #0a0a0a; box-shadow: var(--spec-hi), 0 10px 24px -12px rgba(255,255,255,.4);
+}
+.ps-modern-btn.secondary { box-shadow: var(--spec); }
+
+/* ---- 12. FILTER PILLS: active = lit glass + gold ---- */
+.wstyle-filter-pill.active {
+  background: var(--glass-lit); color: var(--text-main);
+  box-shadow: var(--spec-hi), inset 0 -2px 0 var(--c-brand);
+}
+.wstyle-filter-pill.active .pill-count { background: rgba(245,158,11,.22); color: var(--c-brand); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
