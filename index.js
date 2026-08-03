@@ -101,6 +101,18 @@ let _loadedProfileKey = null;
 // edited never gets a profile written under its own key.
 let _profileSavePending = false;
 
+// One string naming both halves of "which chat is this data for": the profile key a
+// save would write under, and the vector collection the memory helpers insert into.
+// Work that spans an await (an LLM call, a setTimeout, a batch loop) captures this
+// once at the start and re-checks it before every write, so nothing lands in a chat
+// the user switched to mid-run. Both halves fall back to a fixed string so a plain
+// "not ready yet" reads as one identity rather than as constant churn.
+function meguminActiveDataIdentity() {
+    const key = getCharacterKey() || "default";
+    const collection = (typeof memGetCollectionId === "function" ? memGetCollectionId() : null) || "none";
+    return key + "|" + collection;
+}
+
 function getCharacterKey() {
     const context = getContext();
     const saveMode = extension_settings[extensionName]?.globalSettings?.saveMode || "chat";
@@ -226,10 +238,23 @@ function cleanGhostProfiles() {
     // Only protect the CURRENT chat's key; other chat profiles will be cleaned if no longer active
     const validKeys = ["default", ...activeAvatars, ...activeGroups, ...activeChats];
 
+    // SillyTavern has no "groups have loaded" flag. `groups` is a plain module array that
+    // getGroups() reassigns after an async fetch. Treating empty as "no groups exist" would
+    // delete every group profile the user owns, permanently, on one bad startup. The cost is
+    // that a user who deleted their last group keeps a few dead settings entries; the cost
+    // the other way is losing live group configs, which is not recoverable.
+    const groupsLoaded = Array.isArray(context.groups) && context.groups.length > 0;
+    if (!groupsLoaded && Object.keys(extension_settings[extensionName].profiles).some(k => k.startsWith('group_'))) {
+        console.debug("[Megumin-Suite] Ghost profile cleanup skipped every group_* profile this pass: SillyTavern reports no groups, which cannot be told apart from groups not having loaded yet. They will be reconsidered on a later startup once at least one group is visible.");
+    }
+
     let deletedCount = 0;
     Object.keys(extension_settings[extensionName].profiles).forEach(key => {
         // Do not delete chat-level profiles; they are meant to persist per chat session
         if (key.startsWith('chat::')) {
+            return;
+        }
+        if (key.startsWith('group_') && !groupsLoaded) {
             return;
         }
         if (!validKeys.includes(key)) {
@@ -722,8 +747,24 @@ function pruneFutureData() {
 }
 
 function saveProfileToMemory() {
-    _profileSavePending = false;
     const key = getCharacterKey() || "default";
+
+    // `key` is the live truth; localProfile belongs to _loadedProfileKey, which is set in
+    // the same synchronous block as localProfile itself. They disagree whenever the chat
+    // has moved on but the profile has not caught up yet (initProfile runs 200ms after
+    // CHAT_CHANGED) or when a long await outlived a chat switch. Decline the whole save
+    // instead of quietly redirecting it to _loadedProfileKey: that is the kind of guesswork
+    // that caused the earlier flush bug, and the caller may be holding data that is stale
+    // in its own right. _profileSavePending is deliberately left alone so
+    // flushProfileSettingsToLoadedKey() can still write the settings half under the key
+    // the data actually belongs to; initProfile clears the flag when the next profile
+    // loads, so it cannot leak into an untouched chat.
+    if (_loadedProfileKey && key !== _loadedProfileKey) {
+        console.debug(`[Megumin-Suite] saveProfileToMemory declined: the profile in memory belongs to "${_loadedProfileKey}" but the active chat is now "${key}". Skipping the chat_metadata blocks and the settings write so this chat's data is not saved into another chat.`);
+        return;
+    }
+
+    _profileSavePending = false;
     const ruleBox = $("#ps_main_current_rule");
     if (ruleBox.length > 0) { localProfile.aiRule = ruleBox.val(); }
 
@@ -1100,6 +1141,16 @@ function switchTab(index) {
 }
 
 function applyTabToAll() {
+    // This copies localProfile into EVERY stored profile, so a stale localProfile does not
+    // corrupt one save file, it corrupts all of them at once and there is nothing to
+    // recover from. Runs entirely in one tick, so one check at the top is enough.
+    const liveKey = getCharacterKey() || "default";
+    if (_loadedProfileKey && liveKey !== _loadedProfileKey) {
+        console.debug(`[Megumin-Suite] Apply-tab-to-all declined: the settings on screen belong to "${_loadedProfileKey}" but the active chat is now "${liveKey}". Nothing was broadcast. Reopen the panel on the chat you want to copy from and try again.`);
+        toastr.warning("The panel is still showing the previous chat's settings. Reopen it and try again.", "Megumin Suite");
+        return;
+    }
+
     // Side Panel settings are already saved in a global storage object natively.
     if (currentTab === 9 || currentTab === 10 || (tabsUI[currentTab] && tabsUI[currentTab].title === "Side Panel")) {
         toastr.success("Side Panel and Global Settings are already applied globally!");
@@ -1182,6 +1233,15 @@ function applyTabToAll() {
 
 // Helper to push advanced prompt edits to ALL profiles (Global Save)
 function syncPromptsGlobally(moduleName, dataKey, dataValue) {
+    // Every call site hands this a value read straight out of localProfile, and it lands in
+    // every stored profile. If localProfile is behind the active chat, one guard here stops
+    // all ~15 of those sites from broadcasting the wrong chat's prompt text. Each call is a
+    // single synchronous UI edit, so checking once on entry covers the whole broadcast.
+    const liveKey = getCharacterKey() || "default";
+    if (_loadedProfileKey && liveKey !== _loadedProfileKey) {
+        console.debug(`[Megumin-Suite] Global prompt sync of ${moduleName}.${dataKey} declined: the value came from "${_loadedProfileKey}" but the active chat is now "${liveKey}". No profiles were changed.`);
+        return;
+    }
     Object.values(extension_settings[extensionName].profiles).forEach(prof => {
         const clonedValue = dataValue !== null && typeof dataValue === 'object' ? JSON.parse(JSON.stringify(dataValue)) : dataValue;
         if (moduleName === 'banList') {
@@ -3070,6 +3130,11 @@ async function handleDirectiveGeneration(sp, btn, isEvolve) {
     const chatText = getChatForStoryDirector();
     if (chatText.length < 100) return toastr.warning("Not enough chat history to generate a directive.");
 
+    // `sp` was captured when the Story Director tab was rendered, so it can already be a
+    // couple of chats old, and the generation below takes seconds on top of that. Stamp
+    // the chat the directive is being written FOR and re-check it before storing.
+    const sdIdentity = meguminActiveDataIdentity();
+
     const originalHtml = btn.html();
     btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> ${isEvolve ? 'Evolving...' : 'Directing...'}`);
 
@@ -3082,6 +3147,13 @@ async function handleDirectiveGeneration(sp, btn, isEvolve) {
         }
 
         if (output) {
+            // Writing now would put this chat's directive into the old one, and
+            // planMessageIndex would be counted against the wrong chat's length.
+            if (meguminActiveDataIdentity() !== sdIdentity) {
+                console.debug(`[Megumin-Suite] Story Director ${isEvolve ? 'evolve' : 'generate'} declined: it started on "${sdIdentity}" but "${meguminActiveDataIdentity()}" is active now. The new directive was discarded, not applied.`);
+                toastr.info("Chat changed while the directive was generating. It was discarded.", "Story Director");
+                return;
+            }
             // Try <directive> tags first, fall back to <plot> for backward compat
             const directiveMatch = output.match(/<directive>([\s\S]*?)<\/directive>/i) || output.match(/<plot>([\s\S]*?)<\/plot>/i);
             if (directiveMatch) {
@@ -3871,6 +3943,12 @@ async function npcGeneratePfp(npcName) {
     const npc = localProfile.npcBank.npcs.find(n => n.name === npcName);
     if (!npc) return null;
 
+    // `npc` is a live object inside the profile that is loaded right now, and it is held
+    // across a prompt generation, a confirm popup the user may sit on for minutes, and a
+    // ComfyUI render polled once a second. Stamp the chat it belongs to here so the write
+    // at the end can tell whether it is still the right one.
+    const pfpIdentity = meguminActiveDataIdentity();
+
     // Build full NPC dossier text for the AI
     const npcText = npcBuildTextFromData(npc);
 
@@ -4013,6 +4091,15 @@ async function npcGeneratePfp(npcName) {
                                 img.onerror = () => r(base64);
                             });
 
+                            // A stale `npc` is a detached object from the old profile: the
+                            // portrait would vanish with it, and renderNpcList() would
+                            // repaint the panel with the wrong chat's bank.
+                            if (meguminActiveDataIdentity() !== pfpIdentity) {
+                                console.debug(`[Megumin-Suite] NPC portrait declined: it was generated for "${pfpIdentity}" but "${meguminActiveDataIdentity()}" is active now. The image was dropped rather than attached to a stale NPC record.`);
+                                $("#kazuma_progress_overlay").hide();
+                                resolve(null);
+                                return;
+                            }
                             npc.pfp = compressed;
                             saveProfileToMemory();
                             $("#kazuma_progress_overlay").hide();
@@ -4959,6 +5046,12 @@ function renderGlobalSettings(c) {
     });
 
     $content.find("#gs_save_mode").on("change", function () {
+        // getCharacterKey() reads saveMode, so changing it moves where a save lands. Get any
+        // pending edit written under the key it was made on before the switch, otherwise
+        // initProfile() below replaces localProfile and that edit either dies or, worse,
+        // gets saved under the new mode's key later.
+        cancelDebounce(_saveProfileDebouncedInner);
+        flushProfileSettingsToLoadedKey();
         gs.saveMode = $(this).val();
         saveSettingsDebounced();
         initProfile(); // Immediately reloads the correct profile
@@ -5774,6 +5867,16 @@ async function memProcessPendingChunks(isAuto = false) {
 
     const chat = context.chat;
     const mem = localProfile.memoryCore;
+
+    // This run awaits one LLM call per chunk and can span minutes. `mem` is a live
+    // reference into localProfile, so a chat switch mid-run leaves it pointing at the
+    // previous chat's data while the summaries come from whatever is on screen now.
+    // Stamp who the run belongs to and re-check before every write. The object compare
+    // also catches a reload of the SAME chat, which swaps localProfile for a fresh
+    // object under an unchanged key. A fresh run started afterwards works normally.
+    const runIdentity = meguminActiveDataIdentity();
+    const runIdentityLost = () => meguminActiveDataIdentity() !== runIdentity || localProfile?.memoryCore !== mem;
+
     const workingLimit = mem.workingLimit || 30;
     const shortTermLimit = mem.shortTermLimit || 70;
 
@@ -5843,6 +5946,11 @@ async function memProcessPendingChunks(isAuto = false) {
         let chunksSinceLastSave = 0;
 
         for (let idx = 0; idx < totalChunks; idx++) {
+            if (runIdentityLost()) {
+                console.debug(`[Megumin-Suite] memProcessPendingChunks stopped at chunk ${idx + 1}/${totalChunks}: the profile this run started on ("${runIdentity}") is no longer the active one ("${meguminActiveDataIdentity()}"). Nothing was saved; run the archive again on the chat you want.`);
+                return;
+            }
+
             const chunkData = chunksToProcess[idx];
 
             // Update progress text
@@ -5909,6 +6017,13 @@ async function memProcessPendingChunks(isAuto = false) {
         }
 
         if (changesMade) {
+            // The last chunk's await can still have crossed a chat switch after the
+            // loop's own check, so the final save is guarded too.
+            if (runIdentityLost()) {
+                console.debug(`[Megumin-Suite] memProcessPendingChunks declined its final save: the run belonged to "${runIdentity}" but "${meguminActiveDataIdentity()}" is active now. The finished summaries were dropped rather than written into the wrong chat.`);
+                return;
+            }
+
             // Invalidate caches
             delete mem._archivedSet;
             mem._tokensDirty = true;
@@ -5936,7 +6051,7 @@ async function memProcessPendingChunks(isAuto = false) {
             // Batch insert bypassed vault chunks to Vector DB if semantic engine is active
             if (newlyAddedBypassedVaultChunks.length > 0 && mem.scannerEngine === 'semantic') {
                 toastr.info("Syncing new Vault archives to Vector Database...");
-                await memInsertToVectorDB(newlyAddedBypassedVaultChunks);
+                await memInsertToVectorDB(newlyAddedBypassedVaultChunks, runIdentity);
             }
 
             memRunVaultMigration();
@@ -5952,7 +6067,9 @@ async function memProcessPendingChunks(isAuto = false) {
         console.error("Memory Extraction Error:", err);
         // Fix 4 removed the in-loop saves and the end-of-run save is unreachable from
         // here, so without this every chunk finished before the failure is lost.
-        if (changesMade) {
+        if (changesMade && runIdentityLost()) {
+            console.debug(`[Megumin-Suite] memProcessPendingChunks declined its error-path save: the run belonged to "${runIdentity}" but "${meguminActiveDataIdentity()}" is active now. The partial results were dropped rather than written into the wrong chat.`);
+        } else if (changesMade) {
             delete mem._archivedSet;
             mem._tokensDirty = true;
             saveProfileToMemory();
@@ -5970,6 +6087,17 @@ async function memProcessPendingChunks(isAuto = false) {
 function memRunVaultMigration() {
     const context = typeof getContext === "function" ? getContext() : null;
     if (!context || !context.chat || !localProfile.memoryCore.enabled) return;
+
+    // Called at the tail of runs that can span a chat switch, and it moves chunks between
+    // short-term and the vault before saving. If the profile in memory no longer belongs
+    // to the active chat, that reshuffle is being computed against the wrong chat's
+    // message list. The identity is also handed to the vector insert below, which is
+    // async and can outlive this function.
+    const runIdentity = meguminActiveDataIdentity();
+    if (_loadedProfileKey && (getCharacterKey() || "default") !== _loadedProfileKey) {
+        console.debug(`[Megumin-Suite] memRunVaultMigration declined: the profile in memory belongs to "${_loadedProfileKey}" but the active chat is now "${getCharacterKey() || "default"}". No chunks were migrated.`);
+        return;
+    }
 
     const chat = context.chat;
     const mem = localProfile.memoryCore;
@@ -6036,7 +6164,7 @@ function memRunVaultMigration() {
 
             // Batch vector DB insert instead of one-per-chunk
             if (newVaultChunksForDB.length > 0 && mem.scannerEngine === 'semantic') {
-                memInsertToVectorDB(newVaultChunksForDB);
+                memInsertToVectorDB(newVaultChunksForDB, runIdentity);
             }
 
             saveProfileToMemory();
@@ -6310,10 +6438,19 @@ function memEmbedPieces(chunk) {
 }
 
 // Inserts vault chunks into ST's native vector database
-async function memInsertToVectorDB(chunks) {
+async function memInsertToVectorDB(chunks, expectIdentity) {
     if (!chunks || chunks.length === 0) return true;
     const collectionId = memGetCollectionId();
     if (!collectionId) { console.warn("Megumin Suite: no character or group yet, skipping vector insert."); return false; }
+    // Callers that can run for minutes (chunk processing, vault migration) hand over the
+    // identity their run started on. collectionId above is computed live, so without this
+    // the rows of a run that started on one character would be filed under whichever
+    // character is loaded now. Call sites that pass nothing are immediate UI actions and
+    // keep their old behaviour.
+    if (expectIdentity !== undefined && meguminActiveDataIdentity() !== expectIdentity) {
+        console.debug(`[Megumin-Suite] Vector insert declined: these ${chunks.length} chunk(s) belong to "${expectIdentity}" but "${meguminActiveDataIdentity()}" is active now. Nothing was sent to the vector database.`);
+        return false;
+    }
     // ST's /api/vector/insert requires items with { hash: Number, text: String, index: Number }
     // One chunk now produces several items, so index runs across the flattened list.
     const items = [];
@@ -6332,6 +6469,12 @@ async function memInsertToVectorDB(chunks) {
     let ok = true;
     try {
         for (let i = 0; i < totalBatches; i++) {
+            if (expectIdentity !== undefined && meguminActiveDataIdentity() !== expectIdentity) {
+                console.debug(`[Megumin-Suite] Vector insert stopped at batch ${i + 1}/${totalBatches}: it started on "${expectIdentity}" but "${meguminActiveDataIdentity()}" is active now.`);
+                ok = false;
+                break;
+            }
+
             if (showProgress) {
                 if (typeof showKazumaProgress === 'function') {
                     showKazumaProgress(`Syncing Vector DB... (${i + 1}/${totalBatches})`);
@@ -6368,10 +6511,22 @@ async function memInsertToVectorDB(chunks) {
 }
 
 // Deletes vault chunks from ST's native vector database
-async function memDeleteFromVectorDB(ids) {
+async function memDeleteFromVectorDB(ids, expectIdentity) {
     if (!ids || ids.length === 0) return;
     const collectionId = memGetCollectionId();
     if (!collectionId) return;
+    // Deletes cannot be undone, so this declines on any doubt, not only when a caller
+    // supplied an identity to check against. The ids always come out of localProfile's
+    // vault, so if that profile is not the active chat's the hashes belong to a different
+    // character than the collection they would be removed from.
+    if (_loadedProfileKey && (getCharacterKey() || "default") !== _loadedProfileKey) {
+        console.debug(`[Megumin-Suite] Vector delete declined: the vault entries come from the profile for "${_loadedProfileKey}" but the active chat is now "${getCharacterKey() || "default"}". No rows were deleted.`);
+        return;
+    }
+    if (expectIdentity !== undefined && meguminActiveDataIdentity() !== expectIdentity) {
+        console.debug(`[Megumin-Suite] Vector delete declined: these ${ids.length} id(s) belong to "${expectIdentity}" but "${meguminActiveDataIdentity()}" is active now. No rows were deleted.`);
+        return;
+    }
     // ST's /api/vector/delete requires { hashes: Number[] }, not string ids
     // ST's /api/vector/delete requires { hashes: Number[] }, not string ids.
     // Fix 8: a windowed chunk is stored as several "#n" rows and the vault entry may
@@ -6936,6 +7091,46 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
     const s = localProfile.imageGen;
     let finalPrompt = positivePrompt;
 
+    // This one writes into a CHAT MESSAGE and calls saveChat(), not into a profile, so
+    // _loadedProfileKey is the wrong thing to check: what matters is whether the message
+    // being written to is still part of the chat that is open. `target.message` and
+    // `target.index` are captured before a prompt popup, a ComfyUI submit and a 1s poll
+    // loop; by the time an image comes back the user can be several chats away, and
+    // target.index would then point at whatever message happens to sit at that position.
+    const igChatId = getContext().chatId ?? null;
+    const igGroupId = getContext().groupId ?? null;
+    // Re-resolve instead of trusting the captured index, since deleting or swiping a
+    // message above the target shifts everything below it. Object identity is checked
+    // first, then the inline placeholder id, which is unique and lives in the message
+    // text itself so it survives the message object being rebuilt on a chat reload.
+    const igResolveTarget = () => {
+        const ctx = getContext();
+        if ((ctx.chatId ?? null) !== igChatId || (ctx.groupId ?? null) !== igGroupId) return false;
+        if (!target || !target.message) return true; // free-standing insert: the chat check above is the whole test
+        const chat = ctx.chat;
+        if (!Array.isArray(chat)) return false;
+        if (chat[target.index] === target.message) return true;
+        const moved = chat.indexOf(target.message);
+        if (moved !== -1) { target.index = moved; return true; }
+        if (target.placeholderId) {
+            const byId = chat.findIndex(m => typeof m?.mes === "string" && m.mes.includes(target.placeholderId));
+            if (byId !== -1) { target.message = chat[byId]; target.index = byId; return true; }
+        }
+        // Gallery inserts carry no placeholder, so a chat reload inside the SAME chat would
+        // otherwise lose them: reloadCurrentChat() rebuilds every message object. send_date
+        // plus sender is stable across that rebuild and unique enough within one chat.
+        if (target.message.send_date !== undefined) {
+            const byStamp = chat.findIndex(m => m?.send_date === target.message.send_date
+                && m?.name === target.message.name
+                && !!m?.is_user === !!target.message.is_user);
+            if (byStamp !== -1) { target.message = chat[byStamp]; target.index = byStamp; return true; }
+        }
+        return false;
+    };
+    const igDeclineWrite = (what) => {
+        console.debug(`[Megumin-Suite] Image gen ${what} declined: it was started for chat "${igChatId}" message ${target?.index}, which is no longer reachable in the open chat. Nothing was written, so no unrelated message was edited. Any leftover "[Generating Image...]" placeholder in the original chat is cosmetic and clears on the next edit of that message.`);
+    };
+
     // --- INJECT LORA TRIGGER WORDS ---
     let loraTriggers = [];
     if (s.selectedLora && s.selectedLora.trim() !== "" && s.loraTrigger1) loraTriggers.push(s.loraTrigger1.trim());
@@ -7057,6 +7252,11 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                         }
 
                         // Insert to Chat
+                        if (!igResolveTarget()) {
+                            igDeclineWrite("insert");
+                            $("#kazuma_progress_overlay").hide();
+                            return;
+                        }
                         const charName = getContext().characters[getContext().characterId]?.name || "User";
                         const savedPath = await saveBase64AsFile(base64Clean.split(',')[1], charName, `${charName}_${humanizedDateTime()}`, format);
                         const mediaAttach = {
@@ -7111,9 +7311,11 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                             toastr.success("Image inserted!");
                         }
                         $("#kazuma_progress_overlay").hide();
-                    } else { 
-                        $("#kazuma_progress_overlay").hide(); 
-                        if (target && target.isInlineAuto && target.mode === "inline") {
+                    } else {
+                        $("#kazuma_progress_overlay").hide();
+                        if (target && target.isInlineAuto && target.mode === "inline" && !igResolveTarget()) {
+                            igDeclineWrite("failure notice");
+                        } else if (target && target.isInlineAuto && target.mode === "inline") {
                             const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
                             const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                             const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:#ef4444; font-style: italic; margin: 10px 0;"><span>[Image Generation Failed]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
@@ -7135,10 +7337,12 @@ async function igGenerateWithComfy(positivePrompt, target = null) {
                 }
             } catch (e) { }
         }, 1000);
-    } catch (e) { 
-        $("#kazuma_progress_overlay").hide(); 
-        toastr.error("Comfy Error: " + e.message); 
-        if (target && target.isInlineAuto && target.mode === "inline") {
+    } catch (e) {
+        $("#kazuma_progress_overlay").hide();
+        toastr.error("Comfy Error: " + e.message);
+        if (target && target.isInlineAuto && target.mode === "inline" && !igResolveTarget()) {
+            igDeclineWrite("error notice");
+        } else if (target && target.isInlineAuto && target.mode === "inline") {
             const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
             const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
             const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:#ef4444; font-style: italic; margin: 10px 0;"><span>[Image Generation Failed: ${e.message}]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
@@ -9000,6 +9204,10 @@ jQuery(async () => {
 
         $("body").on("click", "#ps_btn_reset", function () {
             if (confirm("Are you sure you want to completely reset this character's profile to the default template?")) {
+                // A save debounced by an edit made just before the click would fire ~500ms
+                // from now, after the delete, and write the old profile straight back under
+                // the same live key. Drop it first, the same way the chat switch does.
+                cancelDebounce(_saveProfileDebouncedInner);
                 const key = getCharacterKey() || "default"; delete extension_settings[extensionName].profiles[key]; saveSettingsDebounced();
                 initProfile(); switchTab(0); toastr.info("Profile has been reset to defaults.");
             }
@@ -9041,6 +9249,10 @@ jQuery(async () => {
 
                 // --- STORY DIRECTOR FEEDBACK & AUTO-EVOLVE ---
                 const sp = localProfile?.storyPlan;
+                // Stamped next to the capture of `sp` itself: the auto-evolve below waits
+                // 2 seconds and then awaits a full generation, so `sp` can easily belong to
+                // a chat the user has left by the time the directive comes back.
+                const spIdentity = meguminActiveDataIdentity();
                 if (sp && sp.enabled) {
                     const chat = getContext().chat;
                     if (chat && chat.length > 0) {
@@ -9093,10 +9305,22 @@ jQuery(async () => {
                             if (needsEvolve) {
                                 toastr.info("Auto-Evolving Narrative Directive...", "Story Director");
                                 setTimeout(async () => {
+                                    // getChatForStoryDirector() reads whatever chat is open
+                                    // NOW, so once the chat has moved this would evolve the
+                                    // new chat's story into the old chat's plan. Checked here
+                                    // as well so a switch during the 2s wait costs no call.
+                                    if (meguminActiveDataIdentity() !== spIdentity) {
+                                        console.debug(`[Megumin-Suite] Story Director auto-evolve skipped: it was queued for "${spIdentity}" but "${meguminActiveDataIdentity()}" is active now.`);
+                                        return;
+                                    }
                                     const chatText = getChatForStoryDirector();
                                     if (chatText.length < 100) return;
                                     try {
                                         let output = sp.backend === "direct" ? await generateStoryPlanLogic(chatText) : await new Promise(r => useMeguminEngine(async () => r(await generateStoryPlanLogic(chatText))));
+                                        if (meguminActiveDataIdentity() !== spIdentity) {
+                                            console.debug(`[Megumin-Suite] Story Director auto-evolve declined: the chat changed while the directive was generating ("${spIdentity}" to "${meguminActiveDataIdentity()}"). The new directive was discarded, not applied.`);
+                                            return;
+                                        }
                                         const directiveMatch = output?.match(/<directive>([\s\S]*?)<\/directive>/i) || output?.match(/<plot>([\s\S]*?)<\/plot>/i);
                                         if (directiveMatch) {
                                             sp.currentPlan = directiveMatch[1].trim();
@@ -9153,7 +9377,17 @@ jQuery(async () => {
 
                 // AUTO-EXTRACT NPCs
                 const npcBank = localProfile?.npcBank;
-                if (npcBank && npcBank.enabled) {
+                // Stamped next to the capture of `npcBank`, the same way `sp` is stamped
+                // above. This block never awaits, so the risk is not a chat switch mid-run:
+                // it is that localProfile is ALREADY behind. CHAT_CHANGED reloads it 200ms
+                // late, so a message arriving inside that window would parse the new chat's
+                // dossiers and push them into the previous chat's bank. saveProfileToMemory()
+                // would refuse to write that to disk, but the objects would stay in memory
+                // and ride along on the next legitimate save.
+                const npcLiveKey = getCharacterKey() || "default";
+                if (npcBank && npcBank.enabled && _loadedProfileKey && npcLiveKey !== _loadedProfileKey) {
+                    console.debug(`[Megumin-Suite] NPC auto-extract declined: the NPC bank in memory belongs to "${_loadedProfileKey}" but this message arrived in "${npcLiveKey}". No NPCs were added, so none land in the wrong chat's bank.`);
+                } else if (npcBank && npcBank.enabled) {
                     const chat = getContext().chat;
                     if (chat && chat.length) {
                         const lastMsg = chat[chat.length - 1];
@@ -9409,7 +9643,18 @@ jQuery(async () => {
             if (_meguminHideFlushed) return;
             _meguminHideFlushed = true;
             cancelDebounce(_saveProfileDebouncedInner);
-            saveProfileToMemory();
+            // With no chat open getCharacterKey() is null, and saveProfileToMemory()
+            // falls back to the "default" key — so backgrounding the tab after closing
+            // a chat used to overwrite the global default profile with whatever chat
+            // was last loaded in memory. Only the full save may run while a chat is
+            // genuinely open; otherwise hand off to the guarded settings-only flush,
+            // which writes under the key the profile was loaded from and does nothing
+            // at all unless the user actually has an edit pending.
+            if (getCharacterKey()) {
+                saveProfileToMemory();
+            } else {
+                flushProfileSettingsToLoadedKey();
+            }
         }
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "hidden") {
