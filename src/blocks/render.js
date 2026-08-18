@@ -100,10 +100,10 @@ function remnantTextOf(mes, blocks) {
     // stray text of a <Blocks> line is measured too.
     const envAt = mes.search(/<Blocks\b[^>]*>/i);
     const from = envAt > -1 && envAt < first ? envAt : first;
-    // To the end of the LAST block, never to the end of the message. CYOA is
-    // excluded from the envelope and the model puts it after the blocks, so
-    // measuring to the end would count the options box as block text, come up
-    // short against what is actually hidden, and refuse the whole message.
+    // To the end of the LAST block, never to the end of the message. Anything the
+    // model writes after the final block — a stray line, a sign-off — is not block
+    // text, and counting it would come up short against what is actually hidden
+    // and refuse the whole message.
     const to = Math.max(...blocks.map(b => b.at + b.raw.length));
     return mes.slice(from, to).replace(/<[^>]*>/g, " ");
 }
@@ -357,9 +357,38 @@ function norm(s) {
     return String(s || "").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
 }
 
+// Ordered-list markers, taken off both sides before they are compared.
+//
+// THIS IS WHY THE CYOA BLOCK USED TO KILL THE WHOLE CARD. Its template is a
+// markdown numbered list, so the renderer turns it into <ol><li> and the numbers
+// become CSS list markers — which are NOT in textContent. mes says
+// "1. Call her", the DOM says "Call her", norm keeps the digit on one side and
+// not the other, and the safety probe below concluded the tail was not the
+// blocks and refused to decorate the message at all. Every other block happened
+// to start with prose, so the fault only ever showed when CYOA sorted first.
+//
+// Stripped from BOTH sides rather than added to one, because whether a list is
+// rendered as a list at all depends on the markdown parser and where the block
+// sits. Take the markers off each side and the two agree either way.
+//
+// Only the ordered form matters: norm already deletes "-", "*" and "+".
+function stripListMarkers(s) {
+    return String(s || "").replace(/^[ 	]*(?:\d+[.)]|[-*+•])[ 	]+/gm, "");
+}
+
+// The comparison form: markers off, then letters and digits only.
+function normBody(s) {
+    return norm(stripListMarkers(s));
+}
+
 // Nodes at the tail of a message that are not block remnants and must be stepped
-// over rather than hidden: our own card, inline images, and the CYOA box, which
-// is a real <div> the sanitizer keeps and which the model puts after the blocks.
+// over rather than hidden: our own card and inline images.
+//
+// The CYOA box used to be listed here too, matched on the inline border style its
+// old template carried. That dates from when CYOA sat outside the envelope. It is
+// a block like any other now, so its remnant has to be CONSUMED — stepping over
+// it left the options visible in the chat and repeated inside the card, and threw
+// the length accounting off for everything after it.
 function isSteppable(node) {
     if (node.nodeType === 3) return !node.textContent.trim();
     if (node.nodeType !== 1) return true;
@@ -371,9 +400,6 @@ function isSteppable(node) {
     if (node.tagName === "IMG" || node.tagName === "BR") return true;
     if (node.querySelector && node.querySelector("img")) return true;
     if (node.classList && node.classList.contains("kazuma-img-placeholder")) return true;
-    // The CYOA template's own inline style, kept verbatim in the block content.
-    const style = node.getAttribute && node.getAttribute("style");
-    if (style && /border:\s*1px solid #444/i.test(style)) return true;
     return false;
 }
 
@@ -414,7 +440,7 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
     // previous pass would creep further up the message on each call.
     clearBlocksFromMessage(root);
 
-    const target = norm(remnantTextOf(mes, blocks));
+    const target = normBody(remnantTextOf(mes, blocks));
     if (!target) return false;
 
     // Walk the tail backwards collecting nodes until they account for the block
@@ -427,7 +453,7 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
 
     while (node && acc < target.length && guard++ < 400) {
         if (isSteppable(node)) { node = node.previousSibling; continue; }
-        const len = norm(node.textContent).length;
+        const len = normBody(node.textContent).length;
         if (len) { consumed.push(node); acc += len; }
         else if (node.nodeType === 1) consumed.push(node);
         node = node.previousSibling;
@@ -443,7 +469,9 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
     // rewriting the body) runs out of nodes early, and every node it did take
     // gets hidden. So the consumed text is compared against the block text
     // directly: they start at the same place or this does nothing.
-    const consumedNorm = consumed.slice().reverse().map(n => norm(n.textContent)).join("");
+    // Joined with newlines, not concatenated, so stripListMarkers can still see
+    // where each node's first line begins.
+    const consumedNorm = normBody(consumed.slice().reverse().map(n => n.textContent).join("\n"));
     const probe = Math.min(60, Math.max(12, Math.floor(target.length * 0.5)));
     const looksRight = consumedNorm.slice(0, probe) === target.slice(0, probe);
 
