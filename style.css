@@ -2928,3 +2928,291 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+/* ---- STORY CONFIG TAB ---- */
+.cfg-master {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 14px 16px; margin: 14px 0 12px;
+  border: 1px solid var(--border-color); border-radius: 12px;
+  background: rgba(0,0,0,.22);
+  transition: border-color .18s ease, background .18s ease;
+}
+.cfg-master.active { border-color: rgba(16,185,129,.45); background: rgba(16,185,129,.06); }
+.cfg-master-title { font-size: .85rem; font-weight: 700; color: var(--text-main); }
+.cfg-master-title i { color: var(--gold); margin-right: 6px; }
+.cfg-master-desc { font-size: .68rem; color: var(--text-muted); margin-top: 4px; line-height: 1.35; }
+
+.cfg-preset-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 12px; margin-bottom: 16px;
+  border: 1px solid var(--border-color); border-radius: 10px;
+  background: rgba(0,0,0,.15);
+}
+
+.cfg-fields { display: flex; flex-direction: column; gap: 12px; }
+.cfg-fields.disabled { opacity: .45; pointer-events: none; filter: grayscale(.4); }
+
+.cfg-row {
+  border: 1px solid var(--border-color); border-left: 3px solid var(--border-color);
+  border-radius: 10px; background: rgba(0,0,0,.18);
+  transition: border-color .18s ease, background .18s ease;
+  overflow: hidden;
+}
+.cfg-row.on { border-left-color: #10b981; background: rgba(16,185,129,.05); }
+.cfg-row.open { background: rgba(255,255,255,.03); }
+.cfg-row.on.open { background: rgba(16,185,129,.07); }
+
+.cfg-row-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; cursor: pointer; user-select: none;
+}
+.cfg-row-head:hover { background: rgba(255,255,255,.03); }
+.cfg-row-label {
+  font-size: .8rem; font-weight: 700; color: var(--text-main);
+  display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
+}
+.cfg-row-summary {
+  flex: 1 1 auto; min-width: 0; text-align: right;
+  font-size: .68rem; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cfg-row.on .cfg-row-summary { color: #10b981; }
+.cfg-row-chev {
+  flex: 0 0 auto; font-size: .65rem; color: var(--text-muted);
+  transition: transform .2s ease;
+}
+.cfg-row.open .cfg-row-chev { transform: rotate(180deg); }
+
+.cfg-row-body { display: none; padding: 0 14px 14px; }
+.cfg-row.open .cfg-row-body { display: block; }
+.cfg-row-hint { font-size: .66rem; color: var(--text-muted); margin: 0 0 10px; line-height: 1.45; }
+
+.cfg-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cfg-chip { cursor: pointer; }
+
+/* ---- MASTER BLOCK CARD (in chat + BLOCKS tab preview) ---- */
+.meg-blocks {
+  margin: 14px 0 4px;
+  border: 1px solid var(--border-color, rgba(255,255,255,.14));
+  border-radius: 12px;
+  background: rgba(0,0,0,.22);
+  overflow: hidden;
+}
+.meg-blocks.meg-blocks-empty { display: none; }
+
+/* Tab strip */
+.meg-blocks-tabs {
+  display: flex; align-items: stretch; gap: 0;
+  background: rgba(0,0,0,.28);
+  border-bottom: 1px solid var(--border-color, rgba(255,255,255,.12));
+  overflow-x: auto; scrollbar-width: thin;
+}
+.meg-blocks-tab {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 15px; cursor: pointer; white-space: nowrap;
+  background: transparent; border: 0;
+  border-right: 1px solid var(--border-color, rgba(255,255,255,.1));
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted, #9aa0a6);
+  font-size: .74rem; font-weight: 600; font-family: inherit;
+  transition: background .15s ease, color .15s ease;
+}
+.meg-blocks-tab:hover { background: rgba(255,255,255,.05); color: var(--text-main, #e8e8e8); }
+.meg-blocks-tab.active {
+  background: rgba(245,158,11,.1);
+  color: var(--text-main, #e8e8e8);
+  border-bottom-color: #f59e0b;
+}
+.meg-blocks-tab-emoji { font-size: .85rem; }
+.meg-blocks-tab-label { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+
+.meg-blocks-collapse {
+  margin-left: auto; padding: 9px 14px; cursor: pointer;
+  background: transparent; border: 0; border-left: 1px solid var(--border-color, rgba(255,255,255,.1));
+  color: var(--text-muted, #9aa0a6); font-size: .7rem;
+}
+.meg-blocks-collapse:hover { background: rgba(255,255,255,.05); color: var(--text-main, #e8e8e8); }
+.meg-blocks-collapse i { transition: transform .2s ease; display: inline-block; }
+.meg-blocks.meg-blocks-shut .meg-blocks-collapse i { transform: rotate(-90deg); }
+/* Nothing open: the strip alone, no empty panel under it */
+.meg-blocks.meg-blocks-shut .meg-blocks-panel { display: none; }
+.meg-blocks.meg-blocks-shut .meg-blocks-tabs { border-bottom: 0; }
+
+.meg-blocks-panel { padding: 12px 14px; }
+.meg-block-body.meg-block-truncated { opacity: .85; }
+
+.meg-block-flag {
+  font-size: .52rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+  padding: 1px 5px; border-radius: 999px;
+  background: rgba(239,68,68,.15); color: #ef4444; border: 1px solid rgba(239,68,68,.3);
+}
+
+.meg-block-body p { margin: 0 0 6px; font-size: .8rem; line-height: 1.5; }
+.meg-block-body p:last-child { margin-bottom: 0; }
+.meg-block-body ul { margin: 0 0 8px; padding-left: 20px; }
+.meg-block-body li { font-size: .8rem; line-height: 1.5; margin-bottom: 3px; }
+.meg-block-body hr {
+  border: 0; border-top: 1px solid var(--border-color, rgba(255,255,255,.12));
+  margin: 8px 0;
+}
+.meg-block-body code {
+  font-size: .75rem; padding: 1px 4px; border-radius: 4px;
+  background: rgba(255,255,255,.07);
+}
+
+/* ---- BLOCKS TAB ---- */
+.blk-layout { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.blk-col { flex: 1 1 320px; min-width: 300px; }
+
+.blk-stack { display: flex; flex-direction: column; gap: 8px; }
+.blk-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px;
+  background: rgba(0,0,0,.18);
+}
+.blk-row-off { opacity: .55; }
+.blk-row-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.blk-emoji { font-size: 1rem; }
+.blk-name { font-size: .8rem; font-weight: 700; color: var(--text-main); }
+.blk-tag {
+  font-size: .62rem; color: var(--text-muted); margin-top: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.blk-custom-flag {
+  font-size: .52rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+  padding: 1px 5px; border-radius: 999px; margin-left: 4px;
+  background: rgba(56,189,248,.15); color: #38bdf8; border: 1px solid rgba(56,189,248,.3);
+}
+.blk-row-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.blk-row-actions .ws-btn-small { padding: 4px 7px; }
+.blk-row-actions .ws-btn-small[disabled] { opacity: .3; cursor: not-allowed; }
+.blk-vis { padding: 4px 6px; font-size: .68rem; width: 92px; cursor: pointer; }
+
+.blk-pool { display: flex; flex-wrap: wrap; gap: 8px; }
+.blk-add {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 12px; border-radius: 999px; cursor: pointer;
+  font-size: .72rem; font-weight: 600; color: var(--text-main);
+  background: rgba(255,255,255,.04); border: 1px dashed var(--border-color);
+}
+.blk-add:hover { background: rgba(255,255,255,.08); border-color: var(--gold); }
+.blk-add-new { color: #10b981; border-color: rgba(16,185,129,.45); }
+
+.blk-empty {
+  padding: 14px; border: 1px dashed var(--border-color); border-radius: 10px;
+  font-size: .72rem; color: var(--text-muted); text-align: center;
+}
+.blk-preview-note { font-size: .66rem; color: var(--text-muted); margin-bottom: 10px; }
+.blk-preview .meg-blocks { margin-top: 0; }
+.blk-preview-source {
+  margin-top: 8px; font-size: .62rem; color: var(--text-muted); font-style: italic;
+}
+
+/* World State's own settings, tucked under its row in the BLOCKS tab */
+.blk-sub {
+  margin: -4px 0 2px 0; padding: 10px 12px 10px 34px;
+  border: 1px solid var(--border-color); border-top: 0;
+  border-radius: 0 0 10px 10px;
+  background: rgba(0,0,0,.28);
+  display: flex; flex-direction: column; gap: 9px;
+}
+.blk-sub-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.blk-sub-label { font-size: .72rem; font-weight: 600; color: var(--text-main); }
+.blk-sub-desc { font-size: .62rem; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
+
+/* System blocks in the BLOCKS tab: shown, never arranged */
+.blk-row-system { background: rgba(59,130,246,.05); border-style: dashed; }
+.blk-sys-flag {
+  font-size: .58rem; font-weight: 800; letter-spacing: .04em;
+  padding: 3px 9px; border-radius: 999px;
+  background: rgba(59,130,246,.14); color: #60a5fa; border: 1px solid rgba(59,130,246,.3);
+}
+
+/* ---- STAT LINES (Bonds, Character Sheet) ---- */
+.meg-stat-row { margin-bottom: 12px; }
+.meg-stat-row:last-child { margin-bottom: 0; }
+.meg-stat-subject {
+  font-size: .78rem; font-weight: 700; color: var(--text-main, #e8e8e8);
+  margin-bottom: 6px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color, rgba(255,255,255,.1));
+}
+.meg-stat-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 14px;
+}
+.meg-stat-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.meg-stat-label {
+  font-size: .68rem; font-weight: 600; letter-spacing: .02em;
+  color: var(--text-muted, #9aa0a6);
+}
+.meg-stat-value { font-size: .78rem; font-weight: 700; color: var(--text-main, #e8e8e8); }
+.meg-stat-max { font-size: .62rem; font-weight: 500; color: var(--text-muted, #9aa0a6); }
+.meg-stat-bar {
+  height: 5px; margin-top: 4px; border-radius: 999px; overflow: hidden;
+  background: rgba(255,255,255,.08);
+}
+.meg-stat-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #f43f5e, #fb7185);
+  transition: width .3s ease;
+}
+.meg-stat-note { font-size: .62rem; margin-top: 3px; color: var(--text-muted, #9aa0a6); line-height: 1.35; }
+.meg-stat-note.meg-stat-up { color: #10b981; }
+.meg-stat-note.meg-stat-down { color: #ef4444; }
+.meg-stat-plain .meg-stat-top { padding-bottom: 2px; }
+
+/* Field editor for the stat blocks */
+.blk-sub-fields { padding-left: 12px; }
+.stat-field-list { display: flex; flex-direction: column; gap: 6px; }
+.stat-field { display: flex; align-items: center; gap: 6px; }
+.stat-field .sf-label { flex: 1 1 auto; min-width: 90px; padding: 5px 8px; font-size: .72rem; }
+.stat-field .sf-type { width: 92px; padding: 5px; font-size: .68rem; cursor: pointer; }
+.stat-field .sf-max,
+.stat-field .sf-start { width: 62px; padding: 5px; font-size: .68rem; text-align: center; }
+.stat-field .ws-btn-small { padding: 4px 7px; }
+.stat-field .ws-btn-small[disabled] { opacity: .3; cursor: not-allowed; }
+/* ── NPC Update tab ─────────────────────────────────────────────────────────
+   The pane the block card draws for <NPC_Update>, redrawn from the changelog
+   so each line is a change that actually applied and can be taken back. */
+.meg-npcupd { display: flex; flex-direction: column; gap: 8px; }
+.meg-npcupd-row {
+    background: rgba(0,0,0,.22);
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 8px;
+    padding: 7px 9px;
+}
+.meg-npcupd-head {
+    display: flex; align-items: center; gap: 7px;
+    font-size: .72rem; flex-wrap: wrap;
+}
+.meg-npcupd-head b { color: var(--gold); font-weight: 700; }
+.meg-npcupd-field {
+    background: rgba(255,255,255,.06);
+    border-radius: 4px; padding: 1px 6px;
+    color: var(--text-muted); font-size: .66rem;
+}
+.meg-npcupd-op { font-weight: 700; font-size: .66rem; text-transform: uppercase; letter-spacing: .3px; }
+.meg-npcupd-text {
+    margin-top: 5px; font-size: .76rem; line-height: 1.45;
+    color: var(--text-color); white-space: pre-wrap; word-break: break-word;
+}
+.meg-npcupd-undo, .meg-npcupd-undo-all {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: .65rem;
+    padding: 3px 8px;
+    transition: color .15s, border-color .15s;
+}
+.meg-npcupd-undo:hover, .meg-npcupd-undo-all:hover { color: #ef4444; border-color: rgba(239,68,68,.4); }
+.meg-npcupd-undo-all { margin-left: 0; align-self: flex-start; }
+.meg-npcupd-empty { font-size: .75rem; color: var(--text-muted); font-style: italic; }
+/* ── NPC dossier field editor rows ──────────────────────────────────────────
+   Shares .stat-field's flex row but needs its own sizing: those rules are
+   written against the stat block's .sf-* classes and do not reach these. */
+.npc-field-row { flex-wrap: wrap; }
+.npc-field-row .nf-label { flex: 1 1 120px; min-width: 100px; padding: 5px 8px; font-size: .72rem; }
+.npc-field-row .nf-type { width: 104px; flex: 0 0 auto; padding: 5px; font-size: .68rem; cursor: pointer; }
+.npc-field-row .ws-btn-small { flex: 0 0 auto; padding: 4px 7px; white-space: nowrap; font-size: .65rem; }
+.npc-field-row .nf-placeholder { flex: 1 1 100%; padding: 4px 8px; font-size: .68rem; opacity: .85; }

@@ -1,0 +1,1752 @@
+/* =============================================================
+   Megumin Suite — Side Panel
+   Design tokens + legacy aliases. Everything below the alias block
+   may reference either generation of variable names.
+   ============================================================= */
+
+:root {
+    /* ── Surfaces (Mapped to SillyTavern Main Theme variables) ── */
+    --meg-bg-0: var(--bg-main, #0c0c0f);
+    --meg-bg-1: var(--bg-panel, #121215);
+    --meg-bg-2: var(--bg-panel, #18181c);
+    --meg-bg-3: var(--bg-panel, #1e1e23);
+    --meg-bg-4: var(--border-color, #26262c);
+    --meg-bg-glass: var(--bg-panel, rgba(12, 12, 15, 0.90));
+
+    /* ── Gold/Accent ramp ── */
+    --meg-gold-200: color-mix(in srgb, var(--accent-color, #f59e0b) 60%, white);
+    --meg-gold-300: color-mix(in srgb, var(--accent-color, #f59e0b) 80%, white);
+    --meg-gold-400: color-mix(in srgb, var(--accent-color, #f59e0b) 90%, white);
+    --meg-gold-500: var(--accent-color, #f59e0b);
+    --meg-gold-600: color-mix(in srgb, var(--accent-color, #f59e0b) 80%, black);
+    --meg-gold-a05: color-mix(in srgb, var(--accent-color, #f59e0b) 5%, transparent);
+    --meg-gold-a08: color-mix(in srgb, var(--accent-color, #f59e0b) 8%, transparent);
+    --meg-gold-a12: color-mix(in srgb, var(--accent-color, #f59e0b) 12%, transparent);
+    --meg-gold-a20: color-mix(in srgb, var(--accent-color, #f59e0b) 20%, transparent);
+    --meg-gold-a35: color-mix(in srgb, var(--accent-color, #f59e0b) 35%, transparent);
+
+    /* ── Text ── */
+    --meg-text-hi: var(--text-main, #f4f4f5);
+    --meg-text-mid: var(--text-main, #c8c8ce);
+    --meg-text-lo: var(--text-muted, #a1a1aa);
+    --meg-text-faint: var(--text-muted, #6b6b74);
+
+    /* ── Hairlines ── */
+    --meg-line-1: var(--border-color, rgba(255, 255, 255, 0.06));
+    --meg-line-2: var(--border-color, rgba(255, 255, 255, 0.10));
+    --meg-line-gold: color-mix(in srgb, var(--accent-color, #f59e0b) 28%, transparent);
+
+    /* ── Semantic ── */
+    --meg-c-male: #3b82f6;
+    --meg-c-female: #f43f5e;
+    --meg-c-success: #10b981;
+    --meg-c-danger: #ef4444;
+    --meg-c-info: #818cf8;
+
+    /* ── Spacing / radius ── */
+    --meg-space-1: 2px;  --meg-space-2: 4px;  --meg-space-3: 6px;
+    --meg-space-4: 8px;  --meg-space-5: 10px; --meg-space-6: 12px;
+    --meg-space-7: 16px; --meg-space-8: 20px;
+    --meg-r-xs: 4px; --meg-r-sm: 6px; --meg-r-md: 8px;
+    --meg-r-lg: 10px; --meg-r-xl: 14px; --meg-r-full: 999px;
+
+    /* ── Elevation ── */
+    --meg-inset-hi: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --meg-e-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --meg-e-2: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --meg-e-3: 0 12px 36px rgba(0, 0, 0, 0.55);
+    --meg-e-4: 0 24px 64px rgba(0, 0, 0, 0.65);
+    --meg-glow-gold: 0 0 14px color-mix(in srgb, var(--accent-color, #f59e0b) 22%, transparent);
+
+    /* ── Typography ── */
+    --meg-font: var(--main-font, 'Inter', system-ui, -apple-system, sans-serif);
+    --meg-fs-2xs: 10px; --meg-fs-xs: 11px; --meg-fs-sm: 12px;
+    --meg-fs-md: 13px;  --meg-fs-lg: 15px; --meg-fs-xl: 18px; --meg-fs-2xl: 22px;
+    --meg-fw-reg: 450; --meg-fw-med: 550; --meg-fw-bold: 700; --meg-fw-black: 800;
+    --meg-lh-tight: 1.25; --meg-lh-normal: 1.45; --meg-lh-loose: 1.6;
+    --meg-track-caps: 0.7px;
+
+    /* ── Motion ── */
+    --meg-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --meg-ease-spring: cubic-bezier(0.34, 1.4, 0.44, 1);
+    --meg-t-fast: 0.14s;
+    --meg-t-med: 0.24s;
+    --meg-t-slow: 0.38s;
+
+    /* ── Chrome (window management) ── */
+    --meg-sp-scale: 1;
+    --meg-sp-min-w: 320px;
+    --meg-sp-min-h: 240px;
+    --meg-sp-handle-hit: 6px;
+    --meg-sp-z-fab: 9490;
+    --meg-sp-z-panel: 9500;
+    --meg-sp-z-panel-active: 9510;
+    --meg-sp-z-dragging: 9600;
+    --meg-sp-z-sheet: 10500;
+
+    /* ── Legacy aliases ── */
+    --meg-sp-bg: var(--meg-bg-glass);
+    --meg-sp-bg-solid: var(--meg-bg-0);
+    --meg-sp-panel: var(--meg-bg-2);
+    --meg-sp-border: var(--border-color, #2d2d33);
+    --meg-sp-border-soft: var(--border-color, rgba(255, 255, 255, 0.06));
+    --meg-sp-text: var(--meg-text-hi);
+    --meg-sp-muted: var(--meg-text-lo);
+    --meg-sp-accent: var(--accent-color, #f59e0b);
+    --meg-sp-accent-soft: color-mix(in srgb, var(--accent-color, #f59e0b) 20%, transparent);
+    --meg-sp-card: var(--bg-main, #1c1c20);
+    --meg-sp-card-2: var(--bg-panel, #222227);
+    --meg-sp-width: 620px;
+    --meg-sp-radius: var(--meg-r-lg);
+    --meg-sp-fab-size: 46px;
+    --meg-sp-shadow: var(--meg-e-3);
+    --meg-sp-npc-male: var(--meg-c-male);
+    --meg-sp-npc-female: var(--meg-c-female);
+}
+
+@media (pointer: coarse) {
+    :root { --meg-sp-handle-hit: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #meg-sp-panel, #meg-sp-panel *, #meg-pb-wrapper, #meg-pb-wrapper *,
+    .meg-pb-sheet, .meg-pb-sheet * {
+        transition-duration: 0s !important;
+        animation-duration: 0s !important;
+    }
+}
+
+/* =============================================================
+   Panel shell — docked + floating
+   ============================================================= */
+#meg-sp-panel {
+    position: fixed;
+    background: var(--meg-bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--meg-text-hi);
+    border: 1px solid var(--meg-sp-border);
+    box-shadow: var(--meg-e-3), var(--meg-inset-hi);
+    z-index: var(--meg-sp-z-panel);
+    display: flex;
+    flex-direction: column;
+    font-family: var(--meg-font);
+    font-size: var(--meg-fs-md);
+    line-height: var(--meg-lh-normal);
+    transition: transform var(--meg-t-med) var(--meg-ease-out), opacity var(--meg-t-fast) ease, background var(--meg-t-fast), border-color var(--meg-t-fast), box-shadow var(--meg-t-fast);
+}
+
+/* Docked mode (Default / Not Floating) */
+#meg-sp-panel:not([data-mode="floating"]) {
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    width: var(--meg-sp-width, 340px) !important;
+    max-width: 80vw !important;
+    border-radius: 0 !important;
+}
+
+#meg-sp-panel.meg-sp-pos-right:not([data-mode="floating"]) {
+    right: 0 !important;
+    left: auto !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+}
+
+#meg-sp-panel.meg-sp-pos-left:not([data-mode="floating"]) {
+    left: 0 !important;
+    right: auto !important;
+    border-left: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+}
+
+#meg-sp-panel:not([data-mode="floating"]).meg-sp-collapsed {
+    transform: translateX(100%) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+#meg-sp-panel.meg-sp-pos-left:not([data-mode="floating"]).meg-sp-collapsed {
+    transform: translateX(-100%) !important;
+}
+
+#meg-sp-panel.meg-sp-collapsed > :not(#meg-sp-fab) {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* UI scale: zoom the content, not the frame. The scroll container stays
+   unzoomed so panel geometry and scrollbars are unaffected; children reflow
+   to fit the visual width and vertical overflow goes to the scrollbar. */
+.meg-sp-body > * { zoom: var(--meg-sp-scale); }
+
+/* Floating mode — geometry from inline vars set by chrome.js */
+#meg-sp-panel[data-mode="floating"] {
+    top: var(--meg-sp-float-y, 96px);
+    left: var(--meg-sp-float-x, auto);
+    width: var(--meg-sp-float-w, 620px);
+    height: var(--meg-sp-float-h, 720px);
+    right: auto;
+    bottom: auto;
+    max-width: none;
+    min-width: var(--meg-sp-min-w);
+    min-height: var(--meg-sp-min-h);
+    background: var(--meg-bg-0);
+    border-radius: var(--meg-r-xl);
+    box-shadow: var(--meg-e-4), 0 0 0 1px var(--meg-gold-a08), var(--meg-inset-hi);
+}
+#meg-sp-panel[data-mode="floating"].meg-sp-collapsed { transform: translateY(-8px) scale(0.98); }
+#meg-sp-panel[data-mode="floating"] .meg-sp-header { cursor: grab; touch-action: none; }
+#meg-sp-panel.meg-sp-dragging {
+    transition: none;
+    z-index: var(--meg-sp-z-panel-active);
+    will-change: transform;
+}
+#meg-sp-panel.meg-sp-dragging .meg-sp-header { cursor: grabbing; }
+#meg-sp-panel.meg-sp-resizing {
+    transition: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    z-index: var(--meg-sp-z-panel-active);
+}
+body.meg-sp-gesturing { user-select: none; }
+
+/* Resize handles */
+.meg-sp-rz { position: absolute; z-index: 2; touch-action: none; }
+.meg-sp-rz-dock {
+    top: 0; bottom: 0;
+    width: var(--meg-sp-handle-hit);
+    cursor: ew-resize;
+    transition: background var(--meg-t-fast);
+}
+.meg-sp-rz-se {
+    right: 0; bottom: 0;
+    width: 14px; height: 14px;
+    cursor: nwse-resize;
+    border-radius: 0 0 var(--meg-r-xl) 0;
+}
+.meg-sp-rz:hover { background: var(--meg-gold-a12); }
+
+@media (max-width: 768px) {
+    #meg-sp-panel { top: 56px; bottom: 8px; width: min(94vw, 380px); }
+    #meg-sp-panel.meg-sp-pos-right { right: 8px; }
+    #meg-sp-panel.meg-sp-pos-left { left: 8px; }
+    .meg-sp-mode-btn, .meg-sp-rz-dock { display: none; }
+}
+
+/* =============================================================
+   Header
+   ============================================================= */
+.meg-sp-header {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--meg-space-4);
+    min-height: 50px;
+    padding: 0 var(--meg-space-6) 12px var(--meg-space-6);
+    background: transparent;
+    border-bottom: 1px solid var(--meg-line-2);
+    border-radius: var(--meg-r-lg) var(--meg-r-lg) 0 0;
+    flex-shrink: 0;
+}
+.meg-sp-header-bg {
+    position: absolute;
+    inset: 0;
+    background-position: center 25%;
+    background-size: cover;
+    z-index: 0;
+}
+.meg-sp-header-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, rgba(24, 24, 27, 0.4) 50%, rgba(24, 24, 27, 0.8) 100%);
+    z-index: 1;
+}
+.meg-sp-header-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, var(--bg-panel) 0%, transparent 100%);
+}
+.meg-sp-title, .meg-sp-header-actions {
+    position: relative;
+    z-index: 2;
+}
+.meg-sp-header::after {
+    display: none;
+}
+.meg-sp-title {
+    font-weight: var(--meg-fw-bold); font-size: var(--meg-fs-md);
+    display: flex; align-items: center; gap: var(--meg-space-3);
+    color: var(--meg-text-hi);
+    letter-spacing: 0.2px;
+}
+.meg-sp-title i { color: var(--meg-gold-500); filter: drop-shadow(0 0 6px var(--meg-gold-a35)); }
+.meg-sp-header-actions { display: flex; gap: var(--meg-space-2); }
+.meg-sp-icon-btn {
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; color: var(--meg-text-lo);
+    border: 1px solid transparent;
+    border-radius: var(--meg-r-sm); cursor: pointer;
+    transition: background var(--meg-t-fast), color var(--meg-t-fast), border-color var(--meg-t-fast), transform var(--meg-t-fast);
+    font-size: var(--meg-fs-sm);
+}
+.meg-sp-icon-btn:hover {
+    background: var(--meg-gold-a12);
+    color: var(--meg-gold-400);
+    border-color: var(--meg-gold-a35);
+}
+.meg-sp-icon-btn:active { transform: scale(0.92); }
+.meg-sp-icon-btn:focus-visible {
+    outline: 2px solid var(--meg-gold-a35);
+    outline-offset: 1px;
+}
+
+/* =============================================================
+   Body + scrollbars
+   ============================================================= */
+.meg-sp-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--meg-space-6);
+    scrollbar-width: thin;
+    scrollbar-color: var(--meg-bg-4) transparent;
+}
+.meg-sp-body::-webkit-scrollbar { width: 7px; }
+.meg-sp-body::-webkit-scrollbar-thumb {
+    background: var(--meg-bg-4);
+    border-radius: var(--meg-r-xs);
+    transition: background var(--meg-t-fast);
+}
+.meg-sp-body:hover::-webkit-scrollbar-thumb { background: var(--meg-gold-a35); }
+.meg-sp-body::-webkit-scrollbar-track { background: transparent; }
+
+.meg-sp-empty {
+    text-align: center; padding: 40px 14px; color: var(--meg-text-lo);
+}
+.meg-sp-empty i {
+    font-size: 34px; opacity: 0.45; margin-bottom: 12px; display: block;
+    color: var(--meg-gold-500);
+}
+.meg-sp-empty p { margin: 0; font-size: var(--meg-fs-sm); line-height: var(--meg-lh-loose); }
+
+/* =============================================================
+   Sections (accordion cards)
+   ============================================================= */
+.meg-sp-sections { display: flex; flex-direction: column; gap: var(--meg-space-4); }
+.meg-sp-section {
+    position: relative;
+    background: var(--meg-bg-3);
+    border: 1px solid var(--meg-sp-border);
+    border-radius: var(--meg-r-md);
+    overflow: hidden;
+    transition: border-color var(--meg-t-fast);
+}
+.meg-sp-section:hover { border-color: var(--meg-line-2); }
+.meg-sp-section[open] {
+    border-color: var(--meg-gold-a20);
+}
+.meg-sp-section[open]::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--meg-gold-500);
+    pointer-events: none;
+}
+.meg-sp-section > summary.meg-sp-summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    padding: var(--meg-space-4) var(--meg-space-5);
+    display: flex; align-items: center;
+    gap: var(--meg-space-4);
+    background: transparent;
+    transition: background var(--meg-t-fast);
+}
+.meg-sp-section[open] > summary.meg-sp-summary {
+    border-bottom: 1px solid var(--meg-line-1);
+}
+.meg-sp-section > summary.meg-sp-summary:hover { background: var(--meg-gold-a05); }
+.meg-sp-section > summary.meg-sp-summary::-webkit-details-marker { display: none; }
+
+.meg-sp-drag-handle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px;
+    color: var(--meg-text-faint);
+    font-size: var(--meg-fs-2xs);
+    cursor: grab;
+    touch-action: none;
+    border-radius: var(--meg-r-xs);
+    transition: color var(--meg-t-fast);
+    flex-shrink: 0;
+}
+.meg-sp-drag-handle:hover,
+.meg-sp-drag-handle:focus-visible { color: var(--meg-gold-500); outline: none; }
+
+.meg-sp-summary-title {
+    font-weight: var(--meg-fw-bold);
+    font-size: var(--meg-fs-sm);
+    display: flex; align-items: center; gap: var(--meg-space-3);
+    flex: 1;
+    min-width: 0;
+    letter-spacing: 0.2px;
+}
+.meg-sp-summary-title i { color: var(--meg-gold-500); width: 15px; text-align: center; }
+
+.meg-sp-badge {
+    background: var(--meg-gold-a12);
+    color: var(--meg-gold-400);
+    padding: 1px 8px;
+    border-radius: var(--meg-r-full);
+    font-size: var(--meg-fs-xs);
+    font-weight: var(--meg-fw-bold);
+    border: 1px solid var(--meg-gold-a35);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+@keyframes meg-badge-pulse {
+    0%   { transform: scale(1);    box-shadow: 0 0 0 0 var(--meg-gold-a35); }
+    45%  { transform: scale(1.18); box-shadow: 0 0 0 6px transparent; }
+    100% { transform: scale(1);    box-shadow: 0 0 0 0 transparent; }
+}
+.meg-sp-badge-pulse { animation: meg-badge-pulse 0.55s var(--meg-ease-spring); }
+
+.meg-sp-chevron {
+    color: var(--meg-text-faint);
+    font-size: var(--meg-fs-2xs);
+    transition: transform var(--meg-t-med) var(--meg-ease-out), color var(--meg-t-fast);
+    flex-shrink: 0;
+}
+.meg-sp-section[open] > summary .meg-sp-chevron {
+    transform: rotate(180deg);
+    color: var(--meg-gold-500);
+}
+
+.meg-sp-section > *:not(summary) { padding: var(--meg-space-5); }
+
+.meg-sp-ws-meta {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--meg-sp-border-soft);
+}
+.meg-sp-kv { display: flex; gap: 8px; font-size: 12px; align-items: baseline; }
+.meg-sp-kv-key {
+    color: var(--meg-sp-muted); min-width: 90px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.meg-sp-kv-val { color: var(--meg-sp-text); flex: 1; word-break: break-word; }
+
+.meg-sp-card {
+    background: var(--meg-sp-card-2);
+    border: 1px solid var(--meg-sp-border-soft);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+}
+.meg-sp-card-head {
+    font-weight: 700; font-size: 12.5px;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 5px;
+    color: var(--meg-sp-text);
+}
+.meg-sp-card-head i { color: var(--meg-sp-accent); }
+.meg-sp-card-head-sep {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--meg-sp-border-soft);
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--meg-sp-muted);
+    font-weight: 700;
+}
+.meg-sp-card-pc { border-left: 3px solid var(--meg-sp-accent); }
+.meg-sp-card-npc { border-left: 3px solid #818cf8; }
+.meg-sp-card-newnpc { border-left: 3px solid #34d399; }
+
+.meg-sp-card-fields { display: flex; flex-direction: column; gap: 3px; }
+.meg-sp-field { font-size: 12px; }
+.meg-sp-field-key { color: var(--meg-sp-muted); font-weight: 600; font-style: italic; }
+.meg-sp-field-val { color: var(--meg-sp-text); }
+
+.meg-sp-bullets { margin: 0; padding-left: 18px; }
+.meg-sp-bullets li { margin-bottom: 3px; font-size: 12px; }
+
+/* ── Doom-style avatar (used by NPCs Present + Inner Chatter) ── */
+.meg-sp-av {
+    --av-accent: var(--meg-sp-accent);
+    position: relative;
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 2px solid var(--av-accent);
+    background: rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.meg-sp-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.meg-sp-av-empty .meg-sp-av-initial {
+    color: var(--av-accent);
+    font-weight: 800;
+    font-size: 22px;
+    text-transform: uppercase;
+}
+.meg-sp-av-male   { --av-accent: #3b82f6; }
+.meg-sp-av-female { --av-accent: #f43f5e; }
+.meg-sp-av-neutral{ --av-accent: var(--meg-sp-accent); }
+
+/* ── NPCs Present cards (Doom-style horizontal layout) ── */
+.meg-sp-pres-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+    transition: background 0.15s, border-color 0.15s;
+}
+.meg-sp-pres-card:hover {
+    background: rgba(0, 0, 0, 0.4);
+    border-color: var(--meg-sp-accent);
+}
+.meg-sp-pres-head { display: flex; align-items: center; gap: 10px; }
+.meg-sp-pres-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.meg-sp-pres-name {
+    font-weight: 800;
+    font-size: 13.5px;
+    color: var(--meg-sp-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.meg-sp-pres-meta {
+    font-size: 10.5px;
+    color: var(--meg-sp-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.meg-sp-pres-book {
+    background: transparent;
+    border: 1px solid var(--meg-sp-border);
+    color: var(--meg-sp-muted);
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.meg-sp-pres-book:hover {
+    background: var(--meg-sp-accent-soft);
+    color: var(--meg-sp-accent);
+    border-color: var(--meg-sp-accent);
+}
+.meg-sp-pres-fields {
+    display: flex; flex-direction: column; gap: 4px;
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px dashed var(--meg-sp-border-soft);
+}
+.meg-sp-pres-field {
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    gap: 6px;
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+.meg-sp-pres-field-key {
+    color: var(--meg-sp-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    padding-top: 2px;
+}
+.meg-sp-pres-field-val {
+    color: var(--meg-sp-text);
+    word-break: break-word;
+}
+
+/* ── Inner Chatter — Doom-style thought items ── */
+.meg-sp-chatter {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.meg-sp-thought {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+}
+.meg-sp-thought-avatar { position: relative; flex-shrink: 0; }
+.meg-sp-thought-avatar .meg-sp-av { width: 48px; height: 48px; }
+.meg-sp-thought-bubbles {
+    position: absolute;
+    bottom: -3px;
+    left: -6px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 2px;
+    align-items: flex-start;
+}
+.meg-sp-bubble {
+    background: var(--meg-sp-accent);
+    border-radius: 50%;
+    opacity: 0.85;
+    border: 1px solid rgba(0, 0, 0, 0.4);
+}
+.meg-sp-bubble-1 { width: 8px; height: 8px; }
+.meg-sp-bubble-2 { width: 5px; height: 5px; margin-left: 2px; }
+.meg-sp-thought-content { flex: 1; min-width: 0; }
+.meg-sp-thought-name {
+    font-weight: 800;
+    color: var(--meg-sp-accent);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+}
+.meg-sp-thought-quotes {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.meg-sp-thought-text {
+    font-size: 12px;
+    font-style: italic;
+    line-height: 1.4;
+    color: var(--meg-sp-text);
+    opacity: 0.92;
+}
+
+.meg-sp-summary-text {
+    font-size: 12.5px; line-height: 1.55; white-space: pre-wrap;
+    color: var(--meg-sp-text);
+}
+
+.meg-sp-plan { margin: 0; padding-left: 22px; }
+.meg-sp-plan li {
+    margin-bottom: 5px; font-size: 12px; line-height: 1.5;
+    padding-left: 4px;
+}
+.meg-sp-plan li::marker { color: var(--meg-sp-accent); font-weight: 700; }
+
+.meg-sp-bank { display: flex; flex-direction: column; gap: 8px; }
+
+.meg-sp-book-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 12px;
+    background: var(--meg-gold-a20);
+    color: var(--meg-sp-accent);
+    border: 1px solid var(--meg-sp-accent);
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 12.5px;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+}
+.meg-sp-book-btn:hover {
+    background: var(--meg-gold-a35);
+    transform: translateY(-1px);
+}
+.meg-sp-book-btn i { font-size: 13px; }
+.meg-sp-book-count {
+    background: var(--meg-sp-accent);
+    color: #0e0e11;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    margin-left: 2px;
+}
+
+.meg-sp-bank-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.meg-sp-bank-mini {
+    --accent: #3b82f6;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    background: var(--meg-sp-card-2);
+    border: 1px solid var(--meg-sp-border-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.meg-sp-bank-mini:hover {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--accent);
+    transform: translateX(2px);
+}
+.meg-sp-npc-pfp {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent);
+    background: rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+}
+.meg-sp-npc-pfp-empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-size: 16px;
+}
+.meg-sp-bank-mini-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.meg-sp-bank-mini-name {
+    font-weight: 700;
+    font-size: 12.5px;
+    color: var(--accent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.meg-sp-bank-mini-meta {
+    font-size: 10.5px;
+    color: var(--meg-sp-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.meg-sp-bank-mini-occ {
+    font-size: 11.5px;
+    color: var(--meg-sp-text);
+    opacity: 0.8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.meg-sp-banlist { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 5px; }
+.meg-sp-banlist li {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 500;
+}
+
+.meg-sp-muted { color: var(--meg-sp-muted); font-style: italic; font-size: 12px; }
+.meg-sp-leftover { color: var(--meg-sp-muted); font-size: 11.5px; opacity: 0.7; white-space: pre-wrap; margin-top: 6px; }
+
+#meg-sp-fab {
+    position: absolute;
+    cursor: pointer;
+    z-index: 9490;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+/* Docked mode pull tab button */
+#meg-sp-panel:not([data-mode="floating"]) #meg-sp-fab {
+    top: 50%;
+    width: 20px;
+    height: 70px;
+    transform: translateY(-50%);
+    background: var(--meg-bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--meg-sp-border);
+    color: var(--meg-sp-accent);
+    font-size: 13px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2), var(--meg-inset-hi);
+}
+
+#meg-sp-panel.meg-sp-pos-right:not([data-mode="floating"]) #meg-sp-fab {
+    left: -20px;
+    border-radius: var(--meg-r-md) 0 0 var(--meg-r-md);
+    border-right: none;
+}
+
+#meg-sp-panel.meg-sp-pos-left:not([data-mode="floating"]) #meg-sp-fab {
+    right: -20px;
+    border-radius: 0 var(--meg-r-md) var(--meg-r-md) 0;
+    border-left: none;
+}
+
+#meg-sp-panel:not([data-mode="floating"]) #meg-sp-fab:hover {
+    background: var(--meg-sp-accent);
+    color: #0e0e11;
+    border-color: var(--meg-sp-accent);
+}
+
+/* Floating mode: circular FAB button in bottom-right corner */
+#meg-sp-panel[data-mode="floating"] #meg-sp-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: var(--meg-sp-fab-size);
+    height: var(--meg-sp-fab-size);
+    border-radius: 50%;
+    background: var(--meg-sp-panel);
+    color: var(--meg-sp-accent);
+    border: 1px solid var(--meg-sp-border);
+    box-shadow: var(--meg-sp-shadow);
+    font-size: 17px;
+    transition: transform var(--meg-t-fast) var(--meg-ease-spring),
+                background var(--meg-t-fast), color var(--meg-t-fast),
+                box-shadow var(--meg-t-fast);
+}
+
+#meg-sp-panel[data-mode="floating"] #meg-sp-fab:hover {
+    transform: scale(1.08);
+    background: var(--meg-sp-accent);
+    color: #0e0e11;
+    box-shadow: var(--meg-e-2), var(--meg-glow-gold);
+}
+
+body.meg-sp-panel-open #meg-sp-panel[data-mode="floating"] #meg-sp-fab {
+    transform: scale(0.85);
+    opacity: 0.7;
+}
+
+body.meg-sp-panel-open #meg-sp-panel[data-mode="floating"] #meg-sp-fab:hover {
+    transform: scale(1);
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    #meg-sp-panel[data-mode="floating"] #meg-sp-fab {
+        bottom: 14px;
+        right: 14px;
+    }
+}
+
+body.meg-sp-hide-inline .mes_text details.meg-sp-tracker-block { display: none !important; }
+
+.meg-sp-settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--bg-panel, #18181b);
+    border: 1px solid var(--border-color, #27272a);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    gap: 12px;
+}
+.meg-sp-settings-row .label { font-weight: 600; }
+.meg-sp-settings-row .desc { color: var(--text-muted, #a1a1aa); font-size: 12px; margin-top: 4px; }
+.meg-sp-settings-row .control { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+/* Section toggle grid — Megumin native .mtab-toggle-row in a responsive grid */
+.meg-sp-section-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 6px;
+    margin-top: 4px;
+}
+.meg-sp-section-toggle .toggle-info { flex: 1; }
+.meg-sp-section-toggle .toggle-label { font-size: 13px; }
+
+/* =============================================================
+   Present Characters Bar  (Doom-style strip)
+   ============================================================= */
+#meg-pb-wrapper {
+    --meg-pb-card-w: 120px;
+    --meg-pb-card-h: 160px;
+    --meg-pb-card-radius: 8px;
+    --meg-pb-card-gap: 8px;
+    --meg-pb-accent: var(--meg-sp-accent, #f59e0b);
+    margin: 0;
+    padding: 0;
+    line-height: 0;
+    flex-shrink: 0;
+    animation: meg-pb-fadein 0.3s ease both;
+}
+@keyframes meg-pb-fadein {
+    from { opacity: 0; transform: translateY(-3px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.meg-pb-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 3px 0;
+    width: 100%;
+    cursor: pointer;
+    user-select: none;
+    background: rgba(0, 0, 0, 0.35);
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    color: inherit;
+    transition: background 0.15s;
+}
+.meg-pb-toggle:hover { background: rgba(245, 158, 11, 0.08); }
+
+.meg-pb-toggle-dots { display: flex; gap: 3px; }
+.meg-pb-toggle-dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: rgba(245, 158, 11, 0.4);
+    transition: background 0.15s;
+}
+.meg-pb-toggle:hover .meg-pb-toggle-dot { background: rgba(245, 158, 11, 0.8); }
+
+.meg-pb-toggle-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+    transition: color 0.15s;
+}
+.meg-pb-toggle:hover .meg-pb-toggle-label { color: #ccc; }
+.meg-pb-toggle-chevron {
+    font-size: 10px;
+    color: #888;
+    transition: transform 0.3s, color 0.15s;
+}
+.meg-pb-toggle:hover .meg-pb-toggle-chevron { color: #ccc; }
+.meg-pb-toggle.meg-pb-open .meg-pb-toggle-chevron { transform: rotate(180deg); }
+
+.meg-pb-bar {
+    position: relative;
+    background: var(--meg-bg-glass);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid var(--meg-sp-border);
+    transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.meg-pb-bar.meg-pb-expanded {
+    padding: 8px 12px;
+    max-height: 360px;
+}
+.meg-pb-bar.meg-pb-collapsed {
+    max-height: 0;
+    padding: 0 12px;
+    opacity: 0;
+}
+
+.meg-pb-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    padding: 0 4px;
+}
+.meg-pb-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--meg-pb-accent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+}
+.meg-pb-title i { font-size: 12px; }
+.meg-pb-count {
+    font-size: 10px;
+    color: var(--meg-sp-muted, #a1a1aa);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1px 8px;
+    border-radius: 999px;
+    margin-left: auto;
+    font-weight: 700;
+}
+
+.meg-pb-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px; height: 40px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--meg-pb-accent);
+    border-radius: 6px;
+    cursor: pointer;
+    z-index: 3;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s;
+    display: flex; align-items: center; justify-content: center;
+}
+.meg-pb-arrow:hover { background: rgba(245, 158, 11, 0.18); }
+.meg-pb-bar:hover .meg-pb-arrow { opacity: 1; }
+.meg-pb-left  { left: 4px; }
+.meg-pb-right { right: 4px; }
+
+.meg-pb-scroll {
+    display: flex;
+    gap: var(--meg-pb-card-gap);
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0 4px;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+}
+.meg-pb-scroll::-webkit-scrollbar { height: 4px; }
+.meg-pb-scroll::-webkit-scrollbar-thumb {
+    background: rgba(245, 158, 11, 0.25);
+    border-radius: 2px;
+}
+.meg-pb-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.meg-pb-empty {
+    color: var(--meg-sp-muted, #a1a1aa);
+    font-size: 11px;
+    font-style: italic;
+    padding: 18px 4px;
+    text-align: center;
+    width: 100%;
+}
+
+.meg-pb-card {
+    flex-shrink: 0;
+    width: var(--meg-pb-card-w);
+    height: var(--meg-pb-card-h);
+    border-radius: var(--meg-pb-card-radius);
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    line-height: 1.2;
+}
+.meg-pb-card:hover {
+    border-color: var(--meg-pb-accent);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+.meg-pb-card-male   { border-left: 3px solid #3b82f6; }
+.meg-pb-card-female { border-left: 3px solid #f43f5e; }
+.meg-pb-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    display: block;
+}
+.meg-pb-card-emoji {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(245,158,11,0.18));
+    color: var(--meg-pb-accent);
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+.meg-pb-card-name {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 18px 6px 6px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.88), transparent);
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #f4f4f5;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* =============================================================
+   Character Sheet popup (clicked from Present Characters bar)
+   ============================================================= */
+.meg-pb-sheet {
+    --sheet-accent: var(--meg-sp-accent, #f59e0b);
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100vw; height: 100dvh;
+    z-index: 105000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+.meg-pb-sheet.meg-pb-sheet-shown { opacity: 1; }
+.meg-pb-sheet-male   { --sheet-accent: #3b82f6; }
+.meg-pb-sheet-female { --sheet-accent: #f43f5e; }
+
+.meg-pb-sheet-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.meg-pb-sheet-card {
+    position: relative;
+    width: min(720px, 94vw);
+    max-height: 85dvh;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    background: #131316;
+    border: 1px solid var(--sheet-accent);
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.04);
+    color: #f4f4f5;
+    overflow: hidden;
+    transform: translateY(8px) scale(0.985);
+    transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.meg-pb-sheet.meg-pb-sheet-shown .meg-pb-sheet-card { transform: translateY(0) scale(1); }
+
+.meg-pb-sheet-close {
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #d4d4d8;
+    cursor: pointer;
+    z-index: 2;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s;
+}
+.meg-pb-sheet-close:hover { background: var(--sheet-accent); color: #0e0e11; }
+
+.meg-pb-sheet-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 56px 16px 18px;
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--sheet-accent) 18%, transparent),
+        transparent);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.meg-pb-sheet-portrait {
+    width: 96px; height: 96px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--sheet-accent);
+    background: rgba(0, 0, 0, 0.4);
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.meg-pb-sheet-portrait img { width: 100%; height: 100%; object-fit: cover; }
+.meg-pb-sheet-initial {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--sheet-accent);
+    font-size: 38px; font-weight: 800; letter-spacing: 1px;
+}
+.meg-pb-sheet-titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.meg-pb-sheet-name {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--sheet-accent);
+    line-height: 1.1;
+    word-break: break-word;
+}
+.meg-pb-sheet-meta {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--meg-sp-muted, #a1a1aa);
+    font-weight: 700;
+}
+.meg-pb-sheet-occ {
+    font-size: 13px;
+    color: #d4d4d8;
+    opacity: 0.9;
+    font-style: italic;
+}
+
+.meg-pb-sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 18px 18px;
+    scrollbar-width: thin;
+    scrollbar-color: #3f3f46 transparent;
+}
+.meg-pb-sheet-body::-webkit-scrollbar { width: 8px; }
+.meg-pb-sheet-body::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+
+.meg-pb-sheet-section { margin-bottom: 18px; }
+.meg-pb-sheet-section:last-child { margin-bottom: 0; }
+.meg-pb-sheet-section-head {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--sheet-accent);
+    font-weight: 800;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+}
+.meg-pb-sheet-section-head i { font-size: 12px; }
+.meg-pb-sheet-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.meg-pb-sheet-field {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 2px solid color-mix(in srgb, var(--sheet-accent) 50%, transparent);
+    border-radius: 6px;
+}
+.meg-pb-sheet-field-key {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--meg-sp-muted, #a1a1aa);
+    font-weight: 700;
+    align-self: start;
+    padding-top: 1px;
+}
+.meg-pb-sheet-field-val {
+    font-size: 13px;
+    color: #f4f4f5;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.meg-pb-sheet-empty {
+    color: var(--meg-sp-muted, #a1a1aa);
+    font-size: 12.5px;
+    font-style: italic;
+    text-align: center;
+    padding: 18px 0;
+}
+
+.meg-pb-sheet-footer {
+    padding: 12px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.meg-pb-sheet-book-btn {
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--sheet-accent) 28%, transparent),
+        color-mix(in srgb, var(--sheet-accent) 14%, transparent));
+    color: var(--sheet-accent);
+    border: 1px solid var(--sheet-accent);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+}
+.meg-pb-sheet-book-btn:hover {
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--sheet-accent) 38%, transparent),
+        color-mix(in srgb, var(--sheet-accent) 22%, transparent));
+    transform: translateY(-1px);
+}
+.meg-pb-sheet-book-btn i { margin-right: 6px; }
+
+.meg-pb-sheet-unbanked {
+    flex: 1;
+    color: var(--meg-sp-muted, #a1a1aa);
+    font-size: 12px;
+    font-style: italic;
+    display: flex; align-items: center; gap: 6px;
+}
+.meg-pb-sheet-unbanked i { color: var(--sheet-accent); }
+
+/* Click affordance for portrait cards */
+.meg-pb-card { cursor: pointer; }
+
+/* =============================================================
+   Settings tab helpers (Side Panel tab in the Megumin modal)
+   ============================================================= */
+.meg-sp-group-head {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--meg-gold-500);
+    margin: 18px 0 8px;
+    font-weight: var(--meg-fw-bold);
+    display: flex; align-items: center; gap: 6px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border-color, #27272a);
+}
+.meg-sp-group-head:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.meg-sp-order-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px;
+    padding: 0 5px;
+    background: var(--meg-gold-a12);
+    color: var(--meg-gold-400);
+    border-radius: var(--meg-r-full);
+    font-size: 10px;
+    font-weight: var(--meg-fw-black);
+    font-variant-numeric: tabular-nums;
+    margin-right: 6px;
+}
+
+/* Individually collapsible New NPC dossier cards */
+.meg-sp-newnpc > summary.meg-sp-newnpc-head {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: var(--meg-space-3);
+    font-weight: var(--meg-fw-bold);
+    font-size: var(--meg-fs-sm);
+    color: var(--meg-text-hi);
+    transition: color var(--meg-t-fast);
+}
+.meg-sp-newnpc > summary.meg-sp-newnpc-head::-webkit-details-marker { display: none; }
+.meg-sp-newnpc > summary.meg-sp-newnpc-head:hover { color: var(--meg-gold-400); }
+.meg-sp-newnpc > summary.meg-sp-newnpc-head > i.fa-user-plus { color: var(--meg-c-success); }
+.meg-sp-newnpc-name { flex: 1; min-width: 0; }
+.meg-sp-newnpc[open] > summary .meg-sp-chevron {
+    transform: rotate(180deg);
+    color: var(--meg-gold-500);
+}
+.meg-sp-newnpc > .meg-sp-card-fields { margin-top: var(--meg-space-4); }
+.meg-sp-newnpcs { display: flex; flex-direction: column; gap: var(--meg-space-4); }
+
+/* =============================================================
+   Micro-interactions
+   ============================================================= */
+
+/* Smooth accordion open/close — Chromium 129+; degrades to instant elsewhere */
+@supports (interpolate-size: allow-keywords) {
+    .meg-sp-section { interpolate-size: allow-keywords; }
+    .meg-sp-section::details-content {
+        transition: content-visibility var(--meg-t-med) allow-discrete,
+                    block-size var(--meg-t-med) var(--meg-ease-out);
+        block-size: 0;
+        overflow: clip;
+    }
+    .meg-sp-section[open]::details-content { block-size: auto; }
+}
+
+/* Thought bubble idle bob */
+@keyframes meg-bubble-bob {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-1.5px); }
+}
+.meg-sp-thought:hover .meg-sp-bubble-1 { animation: meg-bubble-bob 1.4s ease-in-out infinite; }
+.meg-sp-thought:hover .meg-sp-bubble-2 { animation: meg-bubble-bob 1.4s ease-in-out 0.2s infinite; }
+
+/* Character sheet field entrance stagger */
+.meg-pb-sheet-shown .meg-pb-sheet-field {
+    animation: meg-field-in 0.3s var(--meg-ease-out) both;
+}
+.meg-pb-sheet-shown .meg-pb-sheet-field:nth-child(1) { animation-delay: 0.02s; }
+.meg-pb-sheet-shown .meg-pb-sheet-field:nth-child(2) { animation-delay: 0.05s; }
+.meg-pb-sheet-shown .meg-pb-sheet-field:nth-child(3) { animation-delay: 0.08s; }
+.meg-pb-sheet-shown .meg-pb-sheet-field:nth-child(4) { animation-delay: 0.11s; }
+.meg-pb-sheet-shown .meg-pb-sheet-field:nth-child(5) { animation-delay: 0.14s; }
+.meg-pb-sheet-shown .meg-pb-sheet-field:nth-child(n+6) { animation-delay: 0.17s; }
+@keyframes meg-field-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+/* =============================================================
+   AURA GLASS REDESIGN — Overrides
+   ============================================================= */
+:root {
+    /* Deepen the base colors to allow the image to shine through */
+    --meg-bg-glass: rgba(14, 14, 17, 0.45); 
+    --meg-sp-border: rgba(255, 255, 255, 0.08);
+    --meg-sp-border-soft: rgba(255, 255, 255, 0.04);
+    --meg-r-lg: 18px;  /* Softer pill-like sections */
+    --meg-r-xl: 24px;  /* Extremely rounded outer panel */
+    --meg-sp-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+/* 1. Base Panel Blur & Glow Orbs */
+#meg-sp-panel {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--meg-sp-shadow);
+    border-radius: var(--meg-r-xl);
+}
+
+/* The Glowing Aura Orbs behind the content (Now linked to ST colors) */
+#meg-sp-panel::before {
+    content: ''; position: absolute; top: -50px; left: -50px; width: 250px; height: 250px;
+    /* Links to SillyTavern's Primary UI Accent Color */
+    background: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))); 
+    filter: blur(80px); opacity: 0.15; z-index: 0; pointer-events: none; border-radius: 50%;
+}
+#meg-sp-panel::after {
+    content: ''; position: absolute; bottom: 50px; right: -50px; width: 300px; height: 300px;
+    /* Links to SillyTavern's Secondary/Text Accent Color */
+    background: var(--SmartTheme-quote-color, var(--text-main, #a855f7)); 
+    filter: blur(90px); opacity: 0.10; z-index: 0; pointer-events: none; border-radius: 50%;
+}
+
+/* 2. Release the background image from the header */
+.meg-sp-header {
+    position: static !important; /* Lets the background escape */
+    overflow: visible !important;
+    border-bottom: none !important; /* REMOVES THE DIVIDER LINE */
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 20px 24px 14px 24px;
+    min-height: auto;
+}
+
+/* The Character Image Background */
+.meg-sp-header-bg {
+    position: absolute !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    height: 100% !important; /* Forces it to the bottom of the panel */
+    z-index: 0;
+    opacity: 0.25; 
+    border-radius: inherit; 
+    pointer-events: none;
+}
+
+/* The Tint/Blur Overlay */
+.meg-sp-header-overlay {
+    position: absolute !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    height: 100% !important; /* Forces the blur to the bottom of the panel */
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(14, 14, 17, 0.2) 0%, rgba(14, 14, 17, 0.85) 100%) !important;
+    backdrop-filter: blur(12px) !important; 
+    -webkit-backdrop-filter: blur(12px) !important;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* Remove the old bottom fade gradient from the header overlay */
+.meg-sp-header-overlay::after {
+    display: none !important;
+}
+
+/* Ensure the scrollable body doesn't block the background */
+.meg-sp-body {
+    position: relative;
+    z-index: 2;
+    background: #00000000 !important;
+}
+
+/* Bring actual content above the new full-panel background layers */
+.meg-sp-title, .meg-sp-header-actions, .meg-sp-body {
+    position: relative;
+    z-index: 2;
+}
+
+/* 3. Aura Glass Section Cards */
+.meg-sp-section {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--meg-r-lg);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.meg-sp-section:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+}
+.meg-sp-section[open] {
+    border-color: color-mix(in srgb, var(--meg-gold-500) 30%, transparent);
+    background: rgba(255, 255, 255, 0.05);
+}
+/* Glowing edge instead of a harsh flat line (Now linked to ST colors) */
+.meg-sp-section[open]::before {
+    width: 3px;
+    left: 0; top: 16px; bottom: 16px;
+    border-radius: 0 4px 4px 0;
+    /* Links the Neon Bar to SillyTavern's Primary UI Accent Color */
+    background: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b)));
+    box-shadow: 0 0 12px var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b)));
+}
+
+/* 4. Deepen the inset for Inner Cards/Thought Bubbles for contrast */
+.meg-sp-card, .meg-sp-thought {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 14px;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+}
+
+/* Settings toggles matching the aesthetic */
+.meg-sp-settings-row {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+}
+
+/* Soften the header buttons */
+.meg-sp-header-actions .meg-sp-icon-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+.meg-sp-header-actions .meg-sp-icon-btn:hover {
+    background: var(--meg-gold-a20);
+    border-color: var(--meg-gold-a35);
+    color: var(--meg-gold-400);
+    box-shadow: 0 0 15px var(--meg-gold-a12);
+}
+
+/* =============================================================
+   PRESENT CHARACTERS BAR — Aura Glass Overrides
+   ============================================================= */
+
+/* 1. Main Bar and Toggle */
+.meg-pb-toggle {
+    background: rgba(14, 14, 17, 0.5) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.meg-pb-toggle:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+.meg-pb-bar {
+    background: rgba(14, 14, 17, 0.45) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.meg-pb-title {
+    color: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+}
+
+/* 2. Character Cards (Glass style) */
+.meg-pb-card {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-radius: 14px !important;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2) !important;
+}
+.meg-pb-card:hover {
+    border-color: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.3), 0 0 12px var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+    transform: translateY(-4px) !important;
+}
+
+/* Optional: Keep the male/female indicator lines, but soften them */
+.meg-pb-card.meg-pb-card-male { border-left-color: rgba(59, 130, 246, 0.6) !important; }
+.meg-pb-card.meg-pb-card-female { border-left-color: rgba(244, 63, 94, 0.6) !important; }
+
+/* 3. Empty Placeholder (Glowing letter instead of flat gradient) */
+.meg-pb-card-emoji {
+    background: rgba(0,0,0,0.2) !important;
+    color: var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+    text-shadow: 0 0 15px var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+}
+
+/* 4. Character Sheet Popup (Matches the Side Panel aesthetic) */
+.meg-pb-sheet-card {
+    background: rgba(14, 14, 17, 0.65) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+.meg-pb-sheet-head {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    background: transparent !important;
+}
+.meg-pb-sheet-footer {
+    background: rgba(0,0,0,0.2) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.meg-pb-sheet-field {
+    background: rgba(0,0,0,0.3) !important;
+    border: 1px solid rgba(255,255,255,0.03) !important;
+    /* Links the accent edge to SillyTavern's color */
+    border-left: 2px solid var(--SmartTheme-blurple, var(--smartTheme-blurple, var(--accent-color, #f59e0b))) !important;
+}
+/* 5. Round the Outer Edges of the Present Characters Bar */
+#meg-pb-wrapper {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    margin-bottom: 8px !important; /* Lifts it slightly so it floats */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Ensure the toggle button respects the rounded corners */
+.meg-pb-toggle {
+    border-radius: 16px 16px 0 0 !important;
+    border-top: none !important; /* Removed to prevent double-borders with the wrapper */
+}
+
+/* When collapsed, round all 4 corners of the toggle */
+.meg-pb-toggle:not(.meg-pb-open) {
+    border-radius: 16px !important;
+}
+
+/* Ensure the bottom of the main bar is rounded */
+.meg-pb-bar {
+    border-radius: 0 0 16px 16px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+/* =============================================================
+   DOCKED PANEL — Rounded Inner Corners
+   ============================================================= */
+
+/* When docked to the RIGHT: Round the Top-Left and Bottom-Left corners */
+#meg-sp-panel.meg-sp-pos-right:not([data-mode="floating"]) {
+    border-radius: var(--meg-r-xl) 0 0 var(--meg-r-xl) !important;
+}
+
+/* When docked to the LEFT: Round the Top-Right and Bottom-Right corners */
+#meg-sp-panel.meg-sp-pos-left:not([data-mode="floating"]) {
+    border-radius: 0 var(--meg-r-xl) var(--meg-r-xl) 0 !important;
+}
+
+/* Ensure the background image and blur overlay perfectly clip to these new corners */
+#meg-sp-panel:not([data-mode="floating"]) .meg-sp-header-bg,
+#meg-sp-panel:not([data-mode="floating"]) .meg-sp-header-overlay {
+    border-radius: inherit !important;
+}
+/* The panel body is the one scrolling box in the panel, and both of its axes
+   have to stay fixed in size whatever is on screen. Only overflow-y is set
+   above, which leaves overflow-x at visible, and CSS turns visible into auto as
+   soon as the other axis is not visible - so both axes were free to grow a
+   scrollbar, and each one's scrollbar changed the room left for the other. A
+   horizontal scrollbar takes height, which brings on the vertical one, which
+   takes width, which rewraps the text, which takes the horizontal overflow away
+   again. Nothing in the panel is meant to scroll sideways, so that axis is
+   clipped outright and can never produce a scrollbar; and the vertical
+   scrollbar's channel is held open whether or not the scrollbar is sitting in
+   it, so the width does not move either. The content box is then the same
+   rectangle at all times. overflow-y is untouched, so the panel scrolls as it
+   did, and where a browser does not know scrollbar-gutter the overflow-x line
+   still holds on its own. */
+.meg-sp-body {
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+}
+
+/* The two dots beside a portrait bob while a thought is hovered, and the bob is a
+   loop, so it ticks for as long as the pointer stays there. It moves them with a
+   transform, which is the right way to write it and costs no layout - but a
+   transform is only free once the thing it moves is on a drawing layer of its own.
+   Without that the browser redraws to play it, and a redrawn area has an edge that
+   frosted surfaces elsewhere on the page pick up as a thin blinking seam.
+
+   The promotion is stated here, on the dots themselves, and NOT inside the hover
+   where the animation is started. A layer has to exist before the first frame it
+   is needed for, and asking for one in the same breath as the animation asks too
+   late; the browser is entitled to play the opening frames the expensive way while
+   it catches up, which is the moment being complained about. Stated plainly the
+   layer is ready before the pointer ever arrives. It costs two very small layers
+   per thought on screen, which is nothing beside redrawing part of the page sixty
+   times a second. Nothing about size or position changes. */
+.meg-sp-bubble-1,
+.meg-sp-bubble-2 {
+    will-change: transform;
+}
+
+/* The panel is full of expensive paint: two blurred orbs behind the content, each
+   a couple of hundred pixels across with an eighty-pixel blur on it, and frosted
+   glass on the shell and on every section. Anything that redraws inside the panel
+   drags all of that through again, and the area marked as needing work is bounded
+   by the panel, which is a fixed-position box - so that boundary sits at one
+   unchanging place on the screen. That is the shape of the fault this is for: a
+   vertical line at a fixed screen position, which only becomes visible where some
+   frosted surface happens to lie across it.
+
+   Kept on a drawing layer of its own, the panel's redrawing stays in its own
+   texture and never marks the shared picture underneath as needing work, so no
+   frosted surface anywhere else has to resample because of it.
+
+   Safe for the frosted sections inside it: an element with backdrop-filter already
+   starts a fresh backdrop for everything within, and the panel has had one all
+   along, so the sections were already sampling the panel rather than the page
+   behind it and nothing about how they look changes. */
+#meg-sp-panel {
+    will-change: transform;
+}
+
+/* The Present Characters bar is a frosted surface too, so it is one of the places
+   a redrawn region can show its edge. Kept on a drawing layer of its own it is
+   resampled as one piece, and there is no boundary part-way across it for a seam
+   to appear along. The bar has no fixed-position children, only the two
+   absolutely positioned arrows, so giving it a layer changes nothing about how
+   anything inside it is placed. */
+.meg-pb-bar {
+    will-change: transform;
+}
+
+/* Room for the Present Characters cards to glow into. The cards lift and cast a
+   shadow on hover, and the strip is a scrolling box, so it clips them square at
+   its own edge unless there is space inside it for the shadow to fall on. The
+   padding is that space and the negative margin takes the same amount back off
+   the outside, so the strip occupies exactly the room it did and every card sits
+   where it sat. Overrides the padding of the .meg-pb-scroll rule above; nothing
+   else in that rule changes. Widening the box by exactly the padding put inside
+   it also leaves the cards with the same room they had, so the strip decides
+   whether to show its scrollbar on the same condition as before.
+
+   The strip is stated to paint nothing, so the only painted surfaces in the bar
+   are the bar itself and the cards - the bar is full width whatever the cast is,
+   and a card is a fixed size, so no painted edge in there moves with the number
+   of characters. The strip's own scrollbar is taken away rather than left to come
+   and go with the cast: it was four pixels of visible edge along the bottom that
+   appeared and disappeared, and a strip of portraits with an arrow button at each
+   end does not need it. The cards still scroll by wheel, by drag, and by those two
+   buttons. */
+.meg-pb-scroll {
+    padding: 12px 10px 10px;
+    margin: -10px -10px -6px;
+    background: transparent;
+    scrollbar-width: none;
+}
+.meg-pb-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+/* The one-line description beside a folded new-character card. Keeps it on a
+   single row and makes it the part that gives way when the header runs out of
+   width; the colour, the italic and the smaller size come from meg-sp-muted on
+   the same element. */
+.meg-sp-newnpc > summary .meg-sp-newnpc-preview {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 400;
+}
