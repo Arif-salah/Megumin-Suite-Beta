@@ -396,7 +396,7 @@ export const STAT_FIELD_PACKS = {
             { id: "mana", label: "Mana", type: "meter", max: 100, start: 100 },
             { id: "gold", label: "Gold", type: "number", start: 0 },
             { id: "skills", label: "Skills", type: "list", ownLine: true, hint: "Name rank, comma separated" },
-            { id: "inventory", label: "Inventory", type: "list", ownLine: true, hint: "items, or \"nothing\"" }
+            { id: "inventory", label: "Inventory", type: "list", ownLine: true, hint: "item, item xN, or \"nothing\"" }
         ] },
         { id: "pack_survival", label: "Survival", fields: [
             { id: "hunger", label: "Hunger", type: "meter", max: 100, start: 0 },

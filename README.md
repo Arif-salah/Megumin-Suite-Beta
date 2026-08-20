@@ -9,6 +9,49 @@ README on the stable branch.
 
 ---
 
+## 2026-08-21
+
+> The tracker blocks stop being paragraphs. Choices you can press, World State as
+> a scene board, and Skills and Inventory drawn as chips and a pack list.
+
+### BLOCKS — the chat card
+
+**Choices you can click**
+
+- **CYOA is buttons now.** Each option is a row you press instead of a numbered list you retype. A click drops the choice into the message box so you can add to it — "Follow her out" becomes "Follow her out, but hang back at the door" — and shift-click sends it as written. Whatever you had half-typed is kept; the choice is appended, not pasted over.
+- **Fixed: a CYOA block at the top of the envelope stopped the whole card from drawing.** The template is a numbered list, so the numbers become list markers that are not in the text, and the card's safety check decided the tail was not the blocks and left the message alone. Every other block happens to start with prose, which is why this only ever showed when CYOA sorted first.
+- **A choice starting with a slash will not send itself.** It still fills the box so you can see it — but shift is one key away from an ordinary click, and SillyTavern reads a leading slash as a command.
+
+**New blocks UI**
+
+- **World State is a scene board.** Time, place and weather as a strip of chips, then a card for each person with their outfit, position and agenda. Mood is a coloured pill, your own card is marked, and threads, seeds and timers sit underneath with Arc and Scene phase on a progress rail.
+- **Secrets stay hidden until you ask for them.** A Secret is something your character does not know. Hover or tap to reveal it — the block used to spoil every one of them on sight.
+- **NPC Inner Chatter is a whisper thread.** Two NPCs talking behind your back is drawn as the conversation it is, one colour per speaker. One NPC thinking alone gets a pull quote instead, because a private thought is not dialogue.
+- **Skills are rank chips.** The rank splits off into its own badge and takes a colour by tier, instead of a wrapped line of commas.
+- **Inventory is a pack list.** Equipped and worn items get their own band at the top, everything else sits below with counts on the right. What is in your hand is a different question from what is in your bag, and a fight asks the first one constantly.
+- **Anything written loosely still reads.** Every one of these hands the block back to plain text the moment it stops matching the template. A confident card that quietly dropped four fields would be worse than the paragraph it replaced.
+
+**Inventory counts**
+
+- **The template now shows how to write a count.** It asks for `item, item xN, or "nothing"`, so a stack of arrows arrives as `Arrows x12` rather than twelve lines or no number at all.
+- **No count written, no count printed.** An item with no number no longer gets a "1" the AI never wrote.
+
+### Mobile
+
+- **Tabs shrink to their emoji on a phone.** The strip used to be wider than the screen, and dragging it sideways to reach the last tab is the same gesture SillyTavern reads as swiping the message — so you would go to open Bonds and change the reply instead. They fit now, so there is nothing to drag. The open tab keeps its label, and so does each New NPC tab: they all share one emoji, so the name is the only thing telling two of them apart.
+
+### Fixes
+
+- **Real values written in square brackets were being deleted.** The AI copies the template's brackets around its own answers often enough that this took genuine moods and secrets off the card — and out of the message with them, since the original text is hidden behind the card. A bracket now only means "unfilled" when the whole block is unfilled.
+- **A secret written in brackets was printed in the open.** The blur is decided by the field's label now, not by how the value happens to be punctuated.
+- **An NPC with a half-filled name merged into the one above it,** wearing their outfit and their mood.
+- **The Character Sheet pane drew worse markdown than the plain text it replaced** — bullet lists arrived as paragraphs with the markers still showing.
+- **A rule meant to strip the sheet's own instructions was eating ordinary sentences.** "She cares about the boy" and "the plan changed" carry the same words those instructions do.
+- **`Jean-Luc Aubert — waiting at the docks` filed under "Jean",** with the rest of his name in the description.
+- **A cut-off reply no longer turns into clickable choices.** A truncated block takes the rest of the message as its body, and buttons are the one thing on this card you can send.
+
+---
+
 ## 2026-08-18
 
 > Three weeks of work in one release. NPCs that keep themselves up to date, a new

@@ -136,7 +136,7 @@ export function initProfile() {
                     { id: "gold", label: "Gold", type: "number", start: 0 },
                     { id: "status", label: "Status", type: "text", ownLine: true, hint: "conditions, or \"none\"" },
                     { id: "skills", label: "Skills", type: "list", ownLine: true, hint: "Name rank, comma separated" },
-                    { id: "inventory", label: "Inventory", type: "list", ownLine: true, hint: "items, or \"nothing\"" }
+                    { id: "inventory", label: "Inventory", type: "list", ownLine: true, hint: "item, item xN, or \"nothing\"" }
                 ]
             }
         },

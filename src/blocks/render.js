@@ -23,6 +23,9 @@
  *                            "no improvement" and never "lost content".
  */
 
+import { esc, renderBody } from "./text.js";
+import { BLOCK_TREATMENTS } from "./treatments.js";
+
 const CARD_CLASS = "meg-blocks";
 const HIDDEN_ATTR = "data-meg-blocks-hidden";
 const STAMP_ATTR = "data-meg-blocks-stamp";
@@ -30,6 +33,10 @@ const STAMP_ATTR = "data-meg-blocks-stamp";
 // The block that is open when a card is first drawn, and the one it falls back
 // to when the reader closes whatever they opened. Everything else starts shut.
 const ALWAYS_OPEN_ID = "cyoa";
+
+// The one block whose body is acted on rather than read. Its lines become
+// buttons instead of a numbered list — see parseChoices below.
+const CHOICES_ID = "cyoa";
 
 // -----------------------------------------------------------------------------
 // Reading the blocks out of the raw message
@@ -109,128 +116,153 @@ function remnantTextOf(mes, blocks) {
 }
 
 // -----------------------------------------------------------------------------
-// Building the card
+// Choices
 // -----------------------------------------------------------------------------
+//
+// The CYOA block is the only one the reader ACTS on, so it is the only one that
+// does not go through renderBody. Its lines become buttons.
+//
+// Parsing is deliberately strict and deliberately reversible: anything that does
+// not look like a clean list of numbered options returns null and the block
+// falls back to the ordinary renderer. A model that wrote its choices as prose
+// still reads fine, it just does not get buttons — which is the same failure
+// rule the rest of this file follows.
+const CHOICE_LINE = /^\s*(?:\d+[.)]|[-*•])\s+(.+?)\s*$/;
 
-function esc(s) {
-    return String(s)
-        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+// A choice often arrives as `**Confront him** — walk over and say it to his
+// face`: a short label and the detail behind it. Split them so the button can
+// lead with the label, and leave the line whole when there is no such split.
+function splitChoice(text) {
+    const bold = text.match(/^\*\*(.+?)\*\*\s*[—–:-]?\s*(.*)$/);
+    if (bold) return { label: bold[1].trim(), detail: bold[2].trim() };
+
+    const dash = text.match(/^(.{3,48}?)\s+[—–]\s+(.+)$/);
+    if (dash) return { label: dash[1].trim(), detail: dash[2].trim() };
+
+    return { label: text.trim(), detail: "" };
 }
 
-// Deliberately small: bold, italic, bullets, paragraphs. The bodies are the
-// model filling in a template of `**Field:** value` lines and bullet lists, and
-// a full markdown engine here would be a second renderer to keep in step with
-// SillyTavern's.
-function renderBody(text) {
-    const inline = t => esc(t)
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s.,;:)!?]|$)/g, "$1<em>$2</em>")
-        .replace(/`([^`]+)`/g, "<code>$1</code>");
+// Every list line in the body, plus whatever prose came before the first one.
+// Returns null unless the body is mostly the list — two options at minimum, and
+// no more stray lines after the list than there are options.
+export function parseChoices(body) {
+    const lines = String(body || "").split(/\r?\n/);
+    const intro = [];
+    const choices = [];
+    let strayAfter = 0;
 
-    const html = [];
-    let list = null;
-
-    const closeList = () => { if (list) { html.push(`<ul>${list.join("")}</ul>`); list = null; } };
-
-    String(text).split(/\r?\n/).forEach(rawLine => {
-        const line = rawLine.trim();
-        if (!line) { closeList(); return; }
-
-        const bullet = line.match(/^[*\-•]\s+(.*)$/);
-        if (bullet) {
-            if (!list) list = [];
-            list.push(`<li>${inline(bullet[1])}</li>`);
+    lines.forEach(raw => {
+        const line = raw.trim();
+        if (!line) return;
+        const m = line.match(CHOICE_LINE);
+        if (m) {
+            const text = m[1].trim();
+            // The template's own placeholder, left unfilled. It still becomes a
+            // row — that is what makes the BLOCKS tab preview show the reader
+            // the buttons they will actually get — but a dead one, because
+            // clicking it would put "Short suggestion" in the input.
+            const placeholder = /^\[.*\]$/.test(text);
+            const c = splitChoice(placeholder ? text.slice(1, -1) : text);
+            c.placeholder = placeholder;
+            choices.push(c);
             return;
         }
-        closeList();
-
-        if (/^---+$/.test(line)) { html.push(`<hr>`); return; }
-
-        const stats = renderStatLine(line, inline);
-        if (stats) { html.push(stats); return; }
-
-        html.push(`<p>${inline(line)}</p>`);
+        if (choices.length) strayAfter++;
+        else intro.push(line);
     });
-    closeList();
 
-    return html.join("");
+    if (choices.length < 2) return null;
+    if (strayAfter > choices.length) return null;
+
+    return { intro: intro.join("\n"), choices };
 }
 
-// A stat line: `Gin: Mood: tense | Affection: 34/100 (-6 she heard pity) | Trust: 12/100 (=)`
-// or, with no subject, `HP: 78/100 (-12 fell) | Gold: 240 (=)`.
-//
-// Anything that does not look like one falls through to ordinary text, which is
-// the correct failure: a block the model wrote loosely still reads, it just does
-// not get bars.
-const STAT_CELL = /^\s*([^:|]{1,32}?)\s*:\s*(.+?)\s*$/;
-const METER_VALUE = /^(-?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*(?:\((.*)\))?$/;
-const PLAIN_VALUE = /^(-?\d+(?:\.\d+)?)\s*(?:\((.*)\))?$/;
+// The buttons. `opts.onChoice(text, { send })` is what makes them live — without
+// it (the BLOCKS tab preview) they render exactly the same and do nothing, so
+// the preview shows the reader what they will actually get.
+function renderChoicesInto(pane, parsed, doc, opts) {
+    pane.classList.add("meg-choices-pane");
 
-function renderStatLine(line, inline) {
-    if (!line.includes(":")) return null;
+    const onChoice = typeof opts.onChoice === "function" ? opts.onChoice : null;
+    if (!onChoice) pane.classList.add("meg-choices-static");
 
-    // A leading `Name:` before the first field turns the line into someone's row.
-    let subject = "";
-    let rest = line;
-    const parts = line.split("|");
-    const firstColon = parts[0].indexOf(":");
-    if (parts[0].slice(firstColon + 1).includes(":")) {
-        subject = parts[0].slice(0, firstColon).trim();
-        rest = line.slice(firstColon + 1);
+    if (parsed.intro) {
+        const lead = doc.createElement("div");
+        lead.className = "meg-choices-intro";
+        lead.innerHTML = renderBody(parsed.intro);
+        pane.appendChild(lead);
     }
 
-    const cells = rest.split("|").map(c => c.trim()).filter(Boolean);
-    if (!cells.length) return null;
+    const list = doc.createElement("div");
+    list.className = "meg-choices";
 
-    const rendered = [];
-    let meters = 0;
+    parsed.choices.forEach((c, i) => {
+        // What gets sent is the whole option as the model wrote it, not the
+        // label alone — the detail is the half that carries the intent.
+        const full = c.detail ? `${c.label} — ${c.detail}` : c.label;
 
-    for (const cell of cells) {
-        const m = cell.match(STAT_CELL);
-        if (!m) return null;
-        const label = m[1].trim();
-        const value = m[2].trim();
-
-        const meter = value.match(METER_VALUE);
-        if (meter) {
-            meters++;
-            const cur = parseFloat(meter[1]);
-            const max = parseFloat(meter[2]) || 100;
-            const pct = Math.max(0, Math.min(100, (cur / max) * 100));
-            const note = (meter[3] || "").trim();
-            const dir = /^[-−]/.test(note) ? "down" : /^\+/.test(note) ? "up" : "flat";
-            rendered.push(`
-                <div class="meg-stat">
-                    <div class="meg-stat-top">
-                        <span class="meg-stat-label">${esc(label)}</span>
-                        <span class="meg-stat-value">${esc(meter[1])}<span class="meg-stat-max">/${esc(meter[2])}</span></span>
-                    </div>
-                    <div class="meg-stat-bar"><div class="meg-stat-fill" style="width:${pct.toFixed(1)}%"></div></div>
-                    ${note && note !== "=" ? `<div class="meg-stat-note meg-stat-${dir}">${inline(note)}</div>` : ""}
-                </div>`);
-            continue;
+        const btn = doc.createElement("button");
+        btn.type = "button";
+        btn.className = "meg-choice";
+        btn.dataset.choice = full;
+        if (c.placeholder) {
+            btn.classList.add("meg-choice-placeholder");
+            btn.disabled = true;
+            btn.title = "The model left this option unfilled";
+        } else {
+            btn.title = onChoice ? `Click to put in the input · Shift-click to send` : full;
         }
+        btn.innerHTML = `
+            <span class="meg-choice-num">${i + 1}</span>
+            <span class="meg-choice-body">
+                <span class="meg-choice-label">${esc(c.label)}</span>
+                ${c.detail ? `<span class="meg-choice-detail">${esc(c.detail)}</span>` : ""}
+            </span>
+            <span class="meg-choice-go"><i class="fa-solid fa-arrow-right"></i></span>
+        `;
+        if (onChoice && !c.placeholder) {
+            btn.addEventListener("click", e => {
+                e.stopPropagation();
+                e.preventDefault();
+                onChoice(full, { send: e.shiftKey });
+            });
+        }
+        list.appendChild(btn);
+    });
 
-        const plain = value.match(PLAIN_VALUE);
-        const note = plain ? (plain[2] || "").trim() : "";
-        rendered.push(`
-            <div class="meg-stat meg-stat-plain">
-                <div class="meg-stat-top">
-                    <span class="meg-stat-label">${esc(label)}</span>
-                    <span class="meg-stat-value">${inline(plain ? plain[1] : value)}</span>
-                </div>
-                ${note && note !== "=" ? `<div class="meg-stat-note">${inline(note)}</div>` : ""}
-            </div>`);
+    pane.appendChild(list);
+
+    if (onChoice) {
+        const hint = doc.createElement("div");
+        hint.className = "meg-choices-hint";
+        hint.textContent = "Click to fill the input · Shift-click to send straight away";
+        pane.appendChild(hint);
     }
+}
 
-    // No bars and no subject means this was ordinary prose with a colon in it.
-    if (!meters && !subject) return null;
-
-    return `<div class="meg-stat-row">
-        ${subject ? `<div class="meg-stat-subject">${esc(subject)}</div>` : ""}
-        <div class="meg-stat-grid">${rendered.join("")}</div>
-    </div>`;
+// A block drawn by its own treatment, or "" when there is not one or it
+// declined the body. Every failure path here ends in the same place — the
+// caller falls back to renderBody — so a treatment that throws costs the reader
+// nothing but the nicety.
+function renderTreated(b, opts) {
+    const t = BLOCK_TREATMENTS[b.def.id];
+    if (!t) return "";
+    // A block cut off mid-write is exactly the case a structural parser gets
+    // wrong most confidently, so truncated bodies always take the prose path.
+    if (b.truncated) return "";
+    try {
+        // The BLOCKS tab preview is fed the TEMPLATES, so every value in it is
+        // an unfilled `[placeholder]`. A treatment drops those in the chat, and
+        // dropping them here would leave it nothing to draw — it would decline,
+        // and the settings screen would show prose while the chat showed a card.
+        const parsed = t.parse(b.body, { keepPlaceholders: Boolean(opts && opts.preview) });
+        if (!parsed) return "";
+        const html = t.render(parsed);
+        return html && html.trim() ? html : "";
+    } catch (e) {
+        console.debug("[Megumin Suite] block treatment declined", b.def.id, e);
+        return "";
+    }
 }
 
 // One card for the whole set: a strip of tabs across the top, one panel below.
@@ -296,6 +328,14 @@ export function buildBlocksCard(blocks, opts = {}) {
         btn.dataset.key = key;
         btn.setAttribute("data-block-id", b.def.id);
         btn.title = label;
+        // The narrow layout hides tab labels and shows the emoji alone, so the
+        // accessible name has to come from somewhere that is not the text.
+        btn.setAttribute("aria-label", label);
+        // A repeating block shares one emoji across all of its tabs — every New
+        // NPC is the same 🆕 — so its NAME is the only thing telling two of them
+        // apart. Marked here so the narrow layout can keep the label on these
+        // and drop it everywhere else.
+        if (b.name) btn.classList.add("meg-blocks-tab-named");
         btn.innerHTML = `
             <span class="meg-blocks-tab-emoji">${b.def.emoji || ""}</span>
             <span class="meg-blocks-tab-label">${esc(b.name || b.def.label)}</span>
@@ -316,7 +356,34 @@ export function buildBlocksCard(blocks, opts = {}) {
         pane.dataset.key = key;
         pane.setAttribute("data-block-id", b.def.id);
         if (b.truncated) pane.classList.add("meg-block-truncated");
-        pane.innerHTML = renderBody(b.body);
+
+        // Three ways a pane can be drawn, in order of how specific they are.
+        //
+        // Choices are buttons and need handlers, so they are built as DOM.
+        // Everything else a treatment handles produces a string. Anything with
+        // no treatment — or whose treatment declined the body — is the plain
+        // markdown the card has always drawn.
+        // Truncated bodies are refused here for the same reason renderTreated
+        // refuses them, and one reason more: a cut-off block takes the rest of
+        // the reply as its body, and buttons are the one thing on this card the
+        // reader can send. Prose that arrived in the wrong place is a placement
+        // problem; a button carrying someone's secret is not.
+        const parsedChoices = b.def.id === CHOICES_ID && !b.truncated ? parseChoices(b.body) : null;
+        if (parsedChoices) {
+            renderChoicesInto(pane, parsedChoices, doc, opts);
+        } else {
+            const treated = renderTreated(b, opts);
+            // The treatment's class goes on only when the treatment actually
+            // drew something. Putting it on unconditionally would style a prose
+            // fallback with the scene board's layout rules.
+            if (treated) {
+                const t = BLOCK_TREATMENTS[b.def.id];
+                if (t && t.cls) pane.classList.add(t.cls);
+                pane.innerHTML = treated;
+            } else {
+                pane.innerHTML = renderBody(b.body);
+            }
+        }
         panel.appendChild(pane);
         panels.push(pane);
     });

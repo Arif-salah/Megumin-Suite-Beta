@@ -3059,6 +3059,365 @@
   background: rgba(255,255,255,.07);
 }
 
+/* Narrow screens: the tab strip goes emoji-only.
+   The strip scrolls horizontally, and a horizontal drag on a message is the
+   gesture SillyTavern reads as a swipe - so the two fight on a phone. Fitting
+   the tabs in the width available means there is nothing to drag and nothing
+   to fight over.
+
+   Three kinds of tab keep their label, because an emoji alone cannot identify
+   them: the open one, a repeating block's named instance (every New NPC is the
+   same emoji, so the name is all that separates two of them), and any block
+   whose emoji field is empty. Flex gap is not drawn for a display:none child,
+   so the spacing needs no separate rule. */
+@media (max-width: 560px) {
+  .meg-blocks-tab { padding: 10px 13px; }
+  .meg-blocks-tab-emoji { font-size: 1.05rem; }
+  .meg-blocks-tab-label { display: none; }
+  .meg-blocks-tab.active .meg-blocks-tab-label,
+  .meg-blocks-tab-named .meg-blocks-tab-label,
+  .meg-blocks-tab:has(.meg-blocks-tab-emoji:empty) .meg-blocks-tab-label { display: inline; }
+  .meg-blocks-tab-named .meg-blocks-tab-label { max-width: 110px; }
+  .meg-blocks-collapse { padding: 10px 13px; }
+}
+
+/* ---- CYOA CHOICES (clickable) ---- */
+/* The choices pane is the only one the reader acts on, so it gets more room
+   than the text panes and its own hit targets. */
+.meg-choices-pane { padding: 2px 0; }
+.meg-choices-intro { margin-bottom: 10px; }
+.meg-choices-intro p { color: var(--text-muted, #9aa0a6); font-style: italic; }
+
+.meg-choices { display: flex; flex-direction: column; gap: 7px; }
+
+.meg-choice {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 10px 12px; text-align: left; cursor: pointer;
+  font-family: inherit;
+  border: 1px solid var(--border-color, rgba(255,255,255,.13));
+  border-radius: 10px;
+  background: rgba(255,255,255,.03);
+  color: var(--text-main, #e8e8e8);
+  transition: background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.meg-choice:hover {
+  background: rgba(56,189,248,.1);
+  border-color: rgba(56,189,248,.45);
+}
+.meg-choice:active { transform: scale(.99); }
+.meg-choice:focus-visible { outline: 2px solid rgba(56,189,248,.7); outline-offset: 2px; }
+
+.meg-choice-num {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  font-size: .66rem; font-weight: 800;
+  background: rgba(56,189,248,.14); color: #38bdf8;
+  border: 1px solid rgba(56,189,248,.3);
+  transition: background .15s ease, color .15s ease;
+}
+.meg-choice:hover .meg-choice-num { background: #38bdf8; color: #06202e; }
+
+.meg-choice-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.meg-choice-label { font-size: .8rem; font-weight: 600; line-height: 1.4; }
+.meg-choice-detail { font-size: .72rem; line-height: 1.45; color: var(--text-muted, #9aa0a6); }
+
+/* The arrow only appears on hover — four permanent arrows down the right edge
+   is noise, and the row is already obviously a button. */
+.meg-choice-go {
+  flex: 0 0 auto; font-size: .7rem; color: #38bdf8;
+  opacity: 0; transform: translateX(-3px);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.meg-choice:hover .meg-choice-go { opacity: 1; transform: translateX(0); }
+
+.meg-choices-hint {
+  margin-top: 9px; font-size: .6rem; line-height: 1.4;
+  color: var(--text-muted, #9aa0a6); opacity: .75; text-align: center;
+}
+
+/* The BLOCKS tab preview passes no click handler, so nothing here is live. */
+.meg-choices-static .meg-choice { cursor: default; }
+.meg-choices-static .meg-choice:hover {
+  background: rgba(255,255,255,.03);
+  border-color: var(--border-color, rgba(255,255,255,.13));
+}
+.meg-choices-static .meg-choice:hover .meg-choice-num { background: rgba(56,189,248,.14); color: #38bdf8; }
+.meg-choices-static .meg-choice:hover .meg-choice-go { opacity: 0; }
+
+/* An option the model never filled in. Shown so the shape of the block is
+   honest, but dead — see parseChoices. */
+.meg-choice-placeholder {
+  cursor: default; opacity: .45; font-style: italic;
+}
+.meg-choice-placeholder:hover {
+  background: rgba(255,255,255,.03);
+  border-color: var(--border-color, rgba(255,255,255,.13));
+}
+.meg-choice-placeholder:hover .meg-choice-num { background: rgba(56,189,248,.14); color: #38bdf8; }
+.meg-choice-placeholder:hover .meg-choice-go { opacity: 0; }
+
+@media (max-width: 560px) {
+  .meg-choice { padding: 12px 11px; }
+  .meg-choice-go { display: none; }
+}
+
+/* ---- WORLD STATE - Scene Board ---- */
+/* Treatment classes are only put on the pane when the treatment actually
+   drew something, so everything below can assume parsed structure. A block
+   that fell back to prose never gets .meg-ws-pane. */
+.meg-ws-pane { display: flex; flex-direction: column; gap: 13px; }
+
+.meg-ws-rail { display: flex; flex-wrap: wrap; gap: 7px; }
+.meg-ws-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 11px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.09);
+  background: rgba(255,255,255,.032);
+  font-size: .74rem;
+}
+.meg-ws-ic { font-size: .82rem; opacity: .85; }
+.meg-ws-lb {
+  font-size: .6rem; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-muted, #9aa0a6);
+}
+.meg-ws-vl { color: var(--text-main, #e8e8e8); font-weight: 550; }
+
+.meg-ws-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(228px, 1fr)); gap: 10px; }
+.meg-ws-person {
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 10px;
+  background: rgba(255,255,255,.026);
+  overflow: hidden;
+}
+.meg-ws-person.meg-ws-pc { border-color: rgba(245,158,11,.36); background: rgba(245,158,11,.055); }
+.meg-ws-person-head {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 11px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.meg-ws-av {
+  flex: 0 0 auto; width: 26px; height: 26px;
+  display: grid; place-items: center; border-radius: 50%;
+  font-size: .68rem; font-weight: 800;
+  background: rgba(255,255,255,.08); color: var(--text-muted, #9aa0a6);
+}
+.meg-ws-pc .meg-ws-av { background: rgba(245,158,11,.22); color: #fcd34d; }
+.meg-ws-nm {
+  flex: 1 1 auto; min-width: 0;
+  font-size: .82rem; font-weight: 650;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.meg-ws-mood {
+  flex: 0 0 auto;
+  font-size: .58rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px;
+  background: rgba(168,85,247,.15); color: #c99cf7;
+  border: 1px solid rgba(168,85,247,.3);
+}
+.meg-ws-mood.meg-ws-you {
+  background: rgba(245,158,11,.16); color: #fcd34d; border-color: rgba(245,158,11,.3);
+}
+
+.meg-ws-rows { padding: 8px 11px 10px; display: grid; gap: 5px; }
+.meg-ws-row { display: grid; grid-template-columns: 62px 1fr; gap: 9px; font-size: .755rem; line-height: 1.5; }
+.meg-ws-k {
+  font-size: .58rem; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-muted, #9aa0a6); padding-top: 3px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.meg-ws-v { color: var(--text-main, #e8e8e8); opacity: .82; min-width: 0; }
+
+/* A Secret is something the PC does not know. Blurred until the reader asks
+   for it - hover, or focus, which is also what a tap does since the value
+   carries tabindex. */
+.meg-ws-secret .meg-ws-k { color: #f43f5e; }
+.meg-ws-secret .meg-ws-v { cursor: help; outline: none; }
+.meg-ws-secret .meg-ws-v > span {
+  display: inline-block;
+  filter: blur(4.2px); opacity: .7;
+  transition: filter .18s ease, opacity .18s ease;
+}
+.meg-ws-secret .meg-ws-v:hover > span,
+.meg-ws-secret .meg-ws-v:focus > span,
+.meg-ws-secret .meg-ws-v:focus-visible > span { filter: none; opacity: 1; }
+.meg-ws-secret .meg-ws-v:focus-visible { box-shadow: 0 0 0 2px rgba(244,63,94,.5); border-radius: 3px; }
+
+/* An unfilled [placeholder]. Only ever drawn in the BLOCKS tab preview, which
+   is fed the templates rather than a real reply - dimmed so the reader can see
+   the shape of the card without mistaking the template text for their data. */
+.meg-ws-ph { opacity: .5; font-style: italic; }
+.meg-ws-ph .meg-ws-lb, .meg-ws-ph .meg-ws-k { font-style: normal; }
+
+.meg-ws-foot { display: grid; gap: 10px; }
+.meg-ws-panel {
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  background: rgba(255,255,255,.022);
+  padding: 10px 12px;
+}
+.meg-ws-sub {
+  font-size: .6rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted, #9aa0a6); margin-bottom: 8px;
+}
+.meg-ws-off { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: .765rem; padding: 3px 0; }
+.meg-ws-off-nm { font-weight: 650; color: var(--text-main, #e8e8e8); }
+.meg-ws-off-tx { color: var(--text-muted, #9aa0a6); }
+
+.meg-ws-thread {
+  display: flex; align-items: flex-start; gap: 9px;
+  font-size: .775rem; padding: 3px 0;
+  color: var(--text-main, #e8e8e8); opacity: .86;
+}
+.meg-ws-dot {
+  flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%;
+  margin-top: 8px; background: var(--text-muted, #9aa0a6);
+}
+.meg-ws-dot.meg-ws-hot { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.16); }
+.meg-ws-dot.meg-ws-warm { background: #f59e0b; }
+.meg-ws-dot.meg-ws-soft { background: rgba(255,255,255,.2); }
+
+.meg-ws-phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.meg-ws-phase {
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  background: rgba(255,255,255,.022);
+  padding: 10px 12px;
+}
+.meg-ws-phase-nm { font-size: .78rem; font-weight: 650; color: var(--text-main, #e8e8e8); }
+.meg-ws-seg { display: flex; gap: 3px; margin-top: 7px; }
+.meg-ws-seg i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.09); }
+.meg-ws-seg i.meg-done { background: rgba(245,158,11,.42); }
+.meg-ws-seg i.meg-now { background: #f59e0b; box-shadow: 0 0 9px rgba(245,158,11,.55); }
+
+/* ---- NPC INNER CHATTER - Whisper Thread / Interior ---- */
+.meg-chat-pane { display: block; }
+.meg-chat-lead { margin-bottom: 10px; }
+.meg-chat-lead p { color: var(--text-muted, #9aa0a6); font-style: italic; }
+
+.meg-chat-thread { display: grid; gap: 11px; }
+.meg-chat-b { display: grid; grid-template-columns: 28px 1fr; gap: 10px; }
+.meg-chat-av {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: .68rem; font-weight: 800;
+  background: var(--meg-tint-bg, rgba(168,85,247,.18));
+  color: var(--meg-tint-ink, #cba6f7);
+  border: 1px solid var(--meg-tint-line, rgba(168,85,247,.3));
+}
+.meg-chat-bub {
+  padding: 9px 13px;
+  border-radius: 3px 12px 12px 12px;
+  background: var(--meg-tint-soft, rgba(168,85,247,.085));
+  border: 1px solid var(--meg-tint-line, rgba(168,85,247,.2));
+  min-width: 0;
+}
+.meg-chat-nm {
+  font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--meg-tint-ink, #c99cf7); margin-bottom: 4px;
+}
+.meg-chat-tx { font-size: .805rem; line-height: 1.55; font-style: italic; color: var(--text-main, #e8e8e8); }
+
+/* One tint per speaker, held for the whole card so you track who is talking
+   without re-reading the name. Four is enough - a scene with five NPCs all
+   whispering at once has a bigger problem than colour reuse. */
+.meg-chat-t0 { --meg-tint-bg: rgba(168,85,247,.18); --meg-tint-ink: #c99cf7; --meg-tint-line: rgba(168,85,247,.28); --meg-tint-soft: rgba(168,85,247,.085); }
+.meg-chat-t1 { --meg-tint-bg: rgba(56,189,248,.16); --meg-tint-ink: #7dd3fc; --meg-tint-line: rgba(56,189,248,.28); --meg-tint-soft: rgba(56,189,248,.07); }
+.meg-chat-t2 { --meg-tint-bg: rgba(244,63,94,.16); --meg-tint-ink: #fda4af; --meg-tint-line: rgba(244,63,94,.28); --meg-tint-soft: rgba(244,63,94,.07); }
+.meg-chat-t3 { --meg-tint-bg: rgba(16,185,129,.16); --meg-tint-ink: #6ee7b7; --meg-tint-line: rgba(16,185,129,.28); --meg-tint-soft: rgba(16,185,129,.07); }
+
+.meg-chat-note {
+  text-align: center; font-size: .6rem; padding-top: 3px;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-muted, #9aa0a6); opacity: .7;
+}
+
+.meg-chat-interior {
+  position: relative;
+  padding: 18px 20px 16px 50px;
+  border-radius: 10px;
+  border: 1px solid rgba(168,85,247,.2);
+  background: linear-gradient(180deg, rgba(168,85,247,.075), rgba(168,85,247,.02));
+}
+.meg-chat-interior::before {
+  content: "\201C";
+  position: absolute; left: 14px; top: 0;
+  font-size: 3.4rem; line-height: 1;
+  color: rgba(168,85,247,.34);
+  font-family: Georgia, "Times New Roman", serif;
+}
+.meg-chat-im-tx {
+  font-size: .9rem; line-height: 1.65; font-style: italic;
+  color: #ece4f6;
+}
+.meg-chat-im-who {
+  margin-top: 11px;
+  font-size: .6rem; letter-spacing: .12em; text-transform: uppercase;
+  color: #c99cf7;
+}
+.meg-chat-im-who::before { content: "\2014 "; }
+
+/* ---- CHARACTER SHEET - Rank Chips + Pack List ---- */
+/* The sheet pane still draws its meter line through the stat renderer; only
+   the list fields are treated. So .meg-stat-* rules above still apply here. */
+.meg-sheet-pane { display: flex; flex-direction: column; gap: 11px; }
+.meg-sheet-field { min-width: 0; }
+.meg-sk-nm { min-width: 0; overflow-wrap: anywhere; }
+.meg-iv-none { font-size: .765rem; color: var(--text-muted, #9aa0a6); font-style: italic; }
+
+.meg-sk-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.meg-sk-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 6px 5px 11px; border-radius: 999px;
+  font-size: .775rem;
+  color: var(--text-main, #e8e8e8);
+  border: 1px solid var(--meg-tier-line, rgba(255,255,255,.11));
+  background: var(--meg-tier-bg, rgba(255,255,255,.03));
+}
+/* A chip with no rank keeps its padding symmetrical - otherwise a rankless
+   list field sits with a gap where the badge would have been. */
+.meg-sk-chip:not(:has(.meg-sk-rk)) { padding-right: 11px; }
+.meg-sk-rk {
+  font-size: .585rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--meg-tier-pill, rgba(255,255,255,.09));
+  color: var(--meg-tier-ink, #9aa0a6);
+}
+.meg-t-novice { --meg-tier-line: rgba(255,255,255,.11); --meg-tier-bg: rgba(255,255,255,.03); --meg-tier-pill: rgba(255,255,255,.09); --meg-tier-ink: #9fadbc; }
+.meg-t-adept  { --meg-tier-line: rgba(56,189,248,.28); --meg-tier-bg: rgba(56,189,248,.07); --meg-tier-pill: rgba(56,189,248,.2); --meg-tier-ink: #7dd3fc; }
+.meg-t-expert { --meg-tier-line: rgba(168,85,247,.3); --meg-tier-bg: rgba(168,85,247,.075); --meg-tier-pill: rgba(168,85,247,.22); --meg-tier-ink: #c99cf7; }
+.meg-t-master { --meg-tier-line: rgba(245,158,11,.36); --meg-tier-bg: rgba(245,158,11,.09); --meg-tier-pill: rgba(245,158,11,.25); --meg-tier-ink: #fcd34d; }
+
+.meg-iv-pack { display: grid; gap: 10px; }
+.meg-iv-band {
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 10px;
+  background: rgba(255,255,255,.022);
+  padding: 10px 12px;
+}
+.meg-iv-band.meg-iv-held { border-color: rgba(16,185,129,.28); background: rgba(16,185,129,.05); }
+.meg-iv-band-h {
+  display: flex; align-items: center; gap: 9px;
+  font-size: .6rem; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--text-muted, #9aa0a6); margin-bottom: 8px;
+}
+.meg-iv-held .meg-iv-band-h { color: #6ee7b7; }
+.meg-iv-band-h::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.08); }
+.meg-iv-line { display: flex; align-items: baseline; gap: 11px; padding: 4px 0; font-size: .785rem; }
+.meg-iv-g { flex: 0 0 auto; width: 20px; text-align: center; font-size: .9rem; }
+.meg-iv-n { flex: 1 1 auto; min-width: 0; color: var(--text-main, #e8e8e8); }
+.meg-iv-n small { color: var(--text-muted, #9aa0a6); font-size: .78em; margin-left: 6px; }
+.meg-iv-q {
+  flex: 0 0 auto; font-size: .68rem;
+  color: var(--text-muted, #9aa0a6);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .meg-ws-grid { grid-template-columns: 1fr; }
+  .meg-ws-row { grid-template-columns: 56px 1fr; }
+}
+
 /* ---- BLOCKS TAB ---- */
 .blk-layout { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
 .blk-col { flex: 1 1 320px; min-width: 300px; }
