@@ -1,144 +1,4 @@
 {
-    "extensions": {
-        "regex_scripts": [
-            {
-                "id": "b7e086b9-630b-42b3-8958-224db054952b",
-                "scriptName": "Thinking Hide",
-                "findRegex": "/(<disclaimer>.*?<\\/disclaimer>)|(<guifan>.*?<\\/guifan>)|(<danmu>.*?<\\/danmu>)|(<options>.*?<\\/options>)|```start|```end|<done>|`<done>`|(.*?<\\/(?:ksc\\??|think(?:ing)?)>(\\n)?)|(<(?:ksc\\??|think(?:ing)?)>[\\s\\S]*?<\\/(?:ksc\\??|think(?:ing)?)>(\\n)?)/gs",
-                "replaceString": "",
-                "trimStrings": [],
-                "placement": [
-                    2
-                ],
-                "disabled": true,
-                "markdownOnly": true,
-                "promptOnly": false,
-                "runOnEdit": true,
-                "substituteRegex": 0,
-                "minDepth": null,
-                "maxDepth": null
-            },
-            {
-                "id": "009341e5-6e2d-49ff-ab57-1396f7abf1dc",
-                "scriptName": "thinking color fix",
-                "findRegex": "<\\/?font[^>]*>(?=(?:[^<]|<(?!\\/?(?:ksc\\??|think(?:ing)?)>))*<\\/(?:ksc\\??|think(?:ing)?)>)",
-                "replaceString": "",
-                "trimStrings": [],
-                "placement": [
-                    2
-                ],
-                "disabled": false,
-                "markdownOnly": true,
-                "promptOnly": false,
-                "runOnEdit": true,
-                "substituteRegex": 0,
-                "minDepth": null,
-                "maxDepth": null
-            },
-            {
-                "id": "5b090d84-1552-4da9-b3f3-34b9db567557",
-                "scriptName": "image clean up",
-                "findRegex": "/<div class=\"kazuma-img-placeholder\"[^>]*>[\\s\\S]*?<\\/div>|<img\\s+[^>]*\\/>/g",
-                "replaceString": "",
-                "trimStrings": [],
-                "placement": [
-                    2
-                ],
-                "disabled": false,
-                "markdownOnly": false,
-                "promptOnly": true,
-                "runOnEdit": true,
-                "substituteRegex": 0,
-                "minDepth": null,
-                "maxDepth": null
-            },
-            {
-                "id": "ae712608-4101-46aa-b274-a57ced4d7cde",
-                "scriptName": "image gen regex",
-                "findRegex": "/<!-- kazuma-inline-start:[^>]*-->[\\s\\S]*?title=\"([^\"]*)\"[\\s\\S]*?<!-- kazuma-inline-end:[^>]*-->/g",
-                "replaceString": "<img prompt=\"$1\">",
-                "trimStrings": [],
-                "placement": [
-                    2
-                ],
-                "disabled": false,
-                "markdownOnly": false,
-                "promptOnly": true,
-                "runOnEdit": true,
-                "substituteRegex": 0,
-                "minDepth": null,
-                "maxDepth": null
-            },
-            {
-                "id": "fc56bf5f-2775-4471-91d1-17c303f5f081",
-                "scriptName": "narration|dialogue tags cleanup",
-                "findRegex": "/(?:<|&lt;)\\/?(?:narration|dialogue).*?(?:>|&gt;)\\n?/gi",
-                "replaceString": "",
-                "trimStrings": [],
-                "placement": [
-                    2
-                ],
-                "disabled": false,
-                "markdownOnly": true,
-                "promptOnly": true,
-                "runOnEdit": true,
-                "substituteRegex": 0,
-                "minDepth": null,
-                "maxDepth": null
-            },
-            {
-                "id": "5749f2ae-67ab-493b-acfc-b1fffe4a93cc",
-                "scriptName": "Thinking Box",
-                "findRegex": "/((?:<disclaimer>.*?<\\/disclaimer>|<guifan>.*?<\\/guifan>|<danmu>.*?<\\/danmu>|<options>.*?<\\/options>|```start|```end|<done>|`<done>`|.*?<\\/(?:ksc\\??|think(?:ing)?)>\\n?|<(?:ksc\\??|think(?:ing)?)>.*?<\\/(?:ksc\\??|think(?:ing)?)>\\n?)(?:\\s*(?:<disclaimer>.*?<\\/disclaimer>|<guifan>.*?<\\/guifan>|<danmu>.*?<\\/danmu>|<options>.*?<\\/options>|```start|```end|<done>|`<done>`|.*?<\\/(?:ksc\\??|think(?:ing)?)>\\n?|<(?:ksc\\??|think(?:ing)?)>.*?<\\/(?:ksc\\??|think(?:ing)?)>\\n?))*)/gs",
-                "replaceString": "<details style=\"margin: 20px 0; border-radius: 8px; overflow: hidden; border: 1px solid #333;\">\n  <summary style=\"text-align: center; color: #aaa; letter-spacing: 2px; font-size: 0.75em; text-transform: uppercase; cursor: pointer; list-style: none; padding: 10px; background: rgba(255,255,255,0.05);\">\n    — Thinking Process —\n  </summary>\n  <div style=\"\n    padding: 25px; \n    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; \n    font-size: 0.95em; \n    color: #eee; \n    line-height: 1.6; \n    background: #1e1e1e;\n    direction: ltr; \n    text-align: left;\n    white-space: pre-wrap;\n  \">\n$0\n  </div>\n</details>\n</font></span></b></i>",
-                "trimStrings": [],
-                "placement": [
-                    2
-                ],
-                "disabled": false,
-                "markdownOnly": true,
-                "promptOnly": false,
-                "runOnEdit": true,
-                "substituteRegex": 0,
-                "minDepth": null,
-                "maxDepth": null
-            },
-            {
-                "id": "75ecf077-1e30-40d0-ad7f-c888e1843c3b",
-                "scriptName": "Thinking cleanup (don't touch)",
-                "findRegex": "/(<disclaimer>.*?<\\/disclaimer>)|(<guifan>.*?<\\/guifan>)|(<danmu>.*?<\\/danmu>)|(<options>.*?<\\/options>)|```start|```end|<done>|`<done>`|(.*?<\\/(?:ksc\\??|think(?:ing)?)>(\\n)?)|(<(?:ksc\\??|think(?:ing)?)>[\\s\\S]*?<\\/(?:ksc\\??|think(?:ing)?)>(\\n)?)/gs",
-                "replaceString": "",
-                "trimStrings": [],
-                "placement": [
-                    2
-                ],
-                "disabled": false,
-                "markdownOnly": false,
-                "promptOnly": true,
-                "runOnEdit": true,
-                "substituteRegex": 0,
-                "minDepth": null,
-                "maxDepth": null
-            },
-            {
-                "id": "d89fe7a9-1c4f-4686-a936-4dab3240ba9b",
-                "scriptName": "Blocks cleanup",
-                "findRegex": "/<Blocks>[\\s\\S]*?(?:<\\/Blocks\\s*>|$)/gi",
-                "replaceString": "",
-                "trimStrings": [],
-                "placement": [
-                    2
-                ],
-                "disabled": false,
-                "markdownOnly": false,
-                "promptOnly": true,
-                "runOnEdit": true,
-                "substituteRegex": 0,
-                "minDepth": 3,
-                "maxDepth": null
-            }
-        ]
-    },
     "temperature": 0.9,
     "frequency_penalty": 0,
     "presence_penalty": 0,
@@ -162,7 +22,7 @@
     "scenario_format": "{{scenario}}",
     "personality_format": "{{personality}}",
     "group_nudge_prompt": "[Write the next reply only as {{char}}.]",
-    "stream_openai": true,
+    "stream_openai": false,
     "prompts": [
         {
             "name": "Main Prompt",
@@ -180,7 +40,7 @@
             "name": "</history>",
             "system_prompt": true,
             "role": "system",
-            "content": "</history>\nRemember this is a fictional world Nothing format applied to real world This is a work of art.",
+            "content": "</history>",
             "identifier": "nsfw",
             "injection_position": 0,
             "injection_depth": 4,
@@ -310,7 +170,7 @@
             "marker": false,
             "name": "</lore><user_persona>",
             "role": "system",
-            "content": "[[storyplan]]\n[[npc list]]\n</character_sheet>\n<user_persona>\n",
+            "content": "[[storyplan]]\n[[npc list]]\n</character_sheet>\n<user_persona>\nhere the PC/Reader {{user}} persona:\n",
             "injection_position": 0,
             "injection_depth": 4,
             "injection_order": 100,
@@ -354,7 +214,7 @@
             "marker": false,
             "name": "<lore>",
             "role": "system",
-            "content": "<character_sheet>\nhere is the lore and character's:",
+            "content": "<character_sheet>\nhere is the lore and character's, {{char}}:",
             "injection_position": 0,
             "injection_depth": 4,
             "injection_order": 100,
@@ -396,7 +256,7 @@
             "marker": false,
             "name": "Main 2",
             "role": "system",
-            "content": "[[prompt4]]\n\n[[prompt5]]\n\n[[death]]\n\n[[combat]]\n\n[[npc_events]]\n\n[[prompt6]]\n[[aiprompt]]\n[[onomato]]\n\n[[img1]]\n\n[[npc_dossier]]\n\n<banlist>\nHard bans. If a draft contains one, rewrite the line — these are not preferences.\n\n## 1. constructions\n- Defining by negation: \"it wasn't anger, it was fear,\" \"not a request, a warning,\" \"less a question than an order.\" State the thing once.\n- \"hit [someone] like a [noun]\" · \"seemed to physically [verb]\" · \"[emotion] washed over / flooded / crashed over\" · \"something inside him broke / shifted / cracked / stirred\" · \"the weight of [abstract noun]\" as a standalone metaphor.\n- Naming the atmosphere instead of showing it: \"the air between them was charged / electric / heavy / thick,\" \"the tension was palpable,\" \"silence stretched.\"\n- \"let out a breath he didn't know he was holding\" · \"before he could stop himself.\"\n- Machine verbs for feeling — engineered, weaponized, calculated, designed to, short-circuited, executed, tactical — whenever the subject is an emotion, an attraction, or a personal choice.\n- Announcing a mask drop: \"the composed X was gone, replaced by.\" Show the new behaviour and nothing else.\n- An action followed by its own meaning — the reach, then \"as if afraid he'd vanish.\" Pick one.\n- Stacked emotional adjectives: \"raw, violent nerve,\" \"sharp, jagged gasp.\" One or none.\n\n## 2. words\nBanned in any form, including plurals and verb forms.\nfresh meat, meat, asset, prey, predatory · spine, shivers down the spine · breath hitching, breath catching, catching in his throat · husky, throaty, guttural, barely above a whisper · pupils blown wide, pupils dilated · ozone, musk · velvet, vise, vice, furnace, structural integrity, deep curve · calloused, slick, unadulterated · jaw clenched · breast · \"a beat\" as a unit of time.\n\n## 3. pronouns\n- Never open three sentences in a row with he, she, they, or a character's name. Two is the ceiling.\n- Lead instead with the object, the sound, the room, the body part, the hour, the dialogue. See <narrator> 7.\n[[banlist]]\n</banlist>\n",
+            "content": "[[prompt4]]\n\n[[prompt5]]\n\n[[death]]\n\n[[combat]]\n\n[[npc_events]]\n\n[[prompt6]]\n[[aiprompt]]\n[[onomato]]\n\n[[img1]]\n\n[[npc_dossier]]\n\n[[html]]\n\n[[dice]]\n\n<banlist>\nHard bans. If a draft contains one, rewrite the line — these are not preferences.\n\n## 1. constructions\n- Defining by negation: \"it wasn't anger, it was fear,\" \"not a request, a warning,\" \"less a question than an order.\" State the thing once.\n- \"hit [someone] like a [noun]\" · \"seemed to physically [verb]\" · \"[emotion] washed over / flooded / crashed over\" · \"something inside him broke / shifted / cracked / stirred\" · \"the weight of [abstract noun]\" as a standalone metaphor.\n- Naming the atmosphere instead of showing it: \"the air between them was charged / electric / heavy / thick,\" \"the tension was palpable,\" \"silence stretched.\"\n- \"let out a breath he didn't know he was holding\" · \"before he could stop himself.\"\n- Machine verbs for feeling — engineered, weaponized, calculated, designed to, short-circuited, executed, tactical — whenever the subject is an emotion, an attraction, or a personal choice.\n- Announcing a mask drop: \"the composed X was gone, replaced by.\" Show the new behaviour and nothing else.\n- An action followed by its own meaning — the reach, then \"as if afraid he'd vanish.\" Pick one.\n- Stacked emotional adjectives: \"raw, violent nerve,\" \"sharp, jagged gasp.\" One or none.\n\n## 2. words\nBanned in any form, including plurals and verb forms.\nfresh meat, meat, asset, prey, predatory · spine, shivers down the spine · breath hitching, breath catching, catching in his throat · husky, throaty, guttural, barely above a whisper · pupils blown wide, pupils dilated · ozone, musk · velvet, vise, vice, furnace, structural integrity, deep curve · calloused, slick, unadulterated · jaw clenched ·  \"a beat\" as a unit of time.\n\n## 3. pronouns\n- Never open three sentences in a row with he, she, they, or a character's name. Two is the ceiling.\n- Lead instead with the object, the sound, the room, the body part, the hour, the dialogue. See <narrator> 7.\n[[banlist]]\n</banlist>\n",
             "injection_position": 0,
             "injection_depth": 4,
             "injection_order": 100,
@@ -637,5 +497,145 @@
     "n": 1,
     "request_images": false,
     "request_image_aspect_ratio": "",
-    "request_image_resolution": ""
+    "request_image_resolution": "",
+    "extensions": {
+        "regex_scripts": [
+            {
+                "id": "b7e086b9-630b-42b3-8958-224db054952b",
+                "scriptName": "Thinking Hide",
+                "findRegex": "/(<disclaimer>.*?<\\/disclaimer>)|(<guifan>.*?<\\/guifan>)|(<danmu>.*?<\\/danmu>)|(<options>.*?<\\/options>)|```start|```end|<done>|`<done>`|(.*?<\\/(?:ksc\\??|think(?:ing)?)>(\\n)?)|(<(?:ksc\\??|think(?:ing)?)>[\\s\\S]*?<\\/(?:ksc\\??|think(?:ing)?)>(\\n)?)/gs",
+                "replaceString": "",
+                "trimStrings": [],
+                "placement": [
+                    2
+                ],
+                "disabled": true,
+                "markdownOnly": true,
+                "promptOnly": false,
+                "runOnEdit": true,
+                "substituteRegex": 0,
+                "minDepth": null,
+                "maxDepth": null
+            },
+            {
+                "id": "009341e5-6e2d-49ff-ab57-1396f7abf1dc",
+                "scriptName": "thinking color fix",
+                "findRegex": "<\\/?font[^>]*>(?=(?:[^<]|<(?!\\/?(?:ksc\\??|think(?:ing)?)>))*<\\/(?:ksc\\??|think(?:ing)?)>)",
+                "replaceString": "",
+                "trimStrings": [],
+                "placement": [
+                    2
+                ],
+                "disabled": false,
+                "markdownOnly": true,
+                "promptOnly": false,
+                "runOnEdit": true,
+                "substituteRegex": 0,
+                "minDepth": null,
+                "maxDepth": null
+            },
+            {
+                "id": "5b090d84-1552-4da9-b3f3-34b9db567557",
+                "scriptName": "image clean up",
+                "findRegex": "/<div class=\"kazuma-img-placeholder\"[^>]*>[\\s\\S]*?<\\/div>|<img\\s+[^>]*\\/>/g",
+                "replaceString": "",
+                "trimStrings": [],
+                "placement": [
+                    2
+                ],
+                "disabled": false,
+                "markdownOnly": false,
+                "promptOnly": true,
+                "runOnEdit": true,
+                "substituteRegex": 0,
+                "minDepth": null,
+                "maxDepth": null
+            },
+            {
+                "id": "ae712608-4101-46aa-b274-a57ced4d7cde",
+                "scriptName": "image gen regex",
+                "findRegex": "/<!-- kazuma-inline-start:[^>]*-->[\\s\\S]*?title=\"([^\"]*)\"[\\s\\S]*?<!-- kazuma-inline-end:[^>]*-->/g",
+                "replaceString": "<img prompt=\"$1\">",
+                "trimStrings": [],
+                "placement": [
+                    2
+                ],
+                "disabled": false,
+                "markdownOnly": false,
+                "promptOnly": true,
+                "runOnEdit": true,
+                "substituteRegex": 0,
+                "minDepth": null,
+                "maxDepth": null
+            },
+            {
+                "id": "fc56bf5f-2775-4471-91d1-17c303f5f081",
+                "scriptName": "narration|dialogue tags cleanup",
+                "findRegex": "/(?:<|&lt;)\\/?(?:narration|dialogue).*?(?:>|&gt;)\\n?/gi",
+                "replaceString": "",
+                "trimStrings": [],
+                "placement": [
+                    2
+                ],
+                "disabled": false,
+                "markdownOnly": true,
+                "promptOnly": true,
+                "runOnEdit": true,
+                "substituteRegex": 0,
+                "minDepth": null,
+                "maxDepth": null
+            },
+            {
+                "id": "5749f2ae-67ab-493b-acfc-b1fffe4a93cc",
+                "scriptName": "Thinking Box",
+                "findRegex": "/((?:<disclaimer>.*?<\\/disclaimer>|<guifan>.*?<\\/guifan>|<danmu>.*?<\\/danmu>|<options>.*?<\\/options>|```start|```end|<done>|`<done>`|.*?<\\/(?:ksc\\??|think(?:ing)?)>\\n?|<(?:ksc\\??|think(?:ing)?)>.*?<\\/(?:ksc\\??|think(?:ing)?)>\\n?)(?:\\s*(?:<disclaimer>.*?<\\/disclaimer>|<guifan>.*?<\\/guifan>|<danmu>.*?<\\/danmu>|<options>.*?<\\/options>|```start|```end|<done>|`<done>`|.*?<\\/(?:ksc\\??|think(?:ing)?)>\\n?|<(?:ksc\\??|think(?:ing)?)>.*?<\\/(?:ksc\\??|think(?:ing)?)>\\n?))*)/gs",
+                "replaceString": "<details style=\"margin: 20px 0; border-radius: 8px; overflow: hidden; border: 1px solid #333;\">\n  <summary style=\"text-align: center; color: #aaa; letter-spacing: 2px; font-size: 0.75em; text-transform: uppercase; cursor: pointer; list-style: none; padding: 10px; background: rgba(255,255,255,0.05);\">\n    — Thinking Process —\n  </summary>\n  <div style=\"\n    padding: 25px; \n    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; \n    font-size: 0.95em; \n    color: #eee; \n    line-height: 1.6; \n    background: #1e1e1e;\n    direction: ltr; \n    text-align: left;\n    white-space: pre-wrap;\n  \">\n$0\n  </div>\n</details>\n</font></span></b></i>",
+                "trimStrings": [],
+                "placement": [
+                    2
+                ],
+                "disabled": false,
+                "markdownOnly": true,
+                "promptOnly": false,
+                "runOnEdit": true,
+                "substituteRegex": 0,
+                "minDepth": null,
+                "maxDepth": null
+            },
+            {
+                "id": "75ecf077-1e30-40d0-ad7f-c888e1843c3b",
+                "scriptName": "Thinking cleanup (don't touch)",
+                "findRegex": "/(<disclaimer>.*?<\\/disclaimer>)|(<guifan>.*?<\\/guifan>)|(<danmu>.*?<\\/danmu>)|(<options>.*?<\\/options>)|```start|```end|<done>|`<done>`|(.*?<\\/(?:ksc\\??|think(?:ing)?)>(\\n)?)|(<(?:ksc\\??|think(?:ing)?)>[\\s\\S]*?<\\/(?:ksc\\??|think(?:ing)?)>(\\n)?)/gs",
+                "replaceString": "",
+                "trimStrings": [],
+                "placement": [
+                    2
+                ],
+                "disabled": false,
+                "markdownOnly": false,
+                "promptOnly": true,
+                "runOnEdit": true,
+                "substituteRegex": 0,
+                "minDepth": null,
+                "maxDepth": null
+            },
+            {
+                "id": "d89fe7a9-1c4f-4686-a936-4dab3240ba9b",
+                "scriptName": "Blocks cleanup",
+                "findRegex": "/<Blocks>[\\s\\S]*?(?:<\\/Blocks\\s*>|$)/gi",
+                "replaceString": "",
+                "trimStrings": [],
+                "placement": [
+                    2
+                ],
+                "disabled": false,
+                "markdownOnly": false,
+                "promptOnly": true,
+                "runOnEdit": true,
+                "substituteRegex": 0,
+                "minDepth": 3,
+                "maxDepth": null
+            }
+        ]
+    }
 }

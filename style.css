@@ -3162,6 +3162,125 @@
   .meg-choice-go { display: none; }
 }
 
+/* ---- DICE - the roll, written before the scene ---- */
+/* Outcome drives one token set, so the face, the total and the pill agree
+   without three separate rules per outcome. */
+/* A turn can carry several rolls when everyone is rolling, so the pane is a
+   stack rather than a single readout. */
+.meg-dice-pane { display: flex; flex-direction: column; gap: 8px; }
+
+.meg-dice {
+  display: flex; align-items: center; gap: 13px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--meg-d-line, rgba(255,255,255,.12));
+  background: var(--meg-d-bg, rgba(255,255,255,.03));
+}
+.meg-dice-success  { --meg-d-line: rgba(16,185,129,.34); --meg-d-bg: rgba(16,185,129,.06);  --meg-d-ink: #6ee7b7; }
+.meg-dice-cost     { --meg-d-line: rgba(245,158,11,.34); --meg-d-bg: rgba(245,158,11,.06);  --meg-d-ink: #fcd34d; }
+.meg-dice-fail     { --meg-d-line: rgba(148,163,184,.3); --meg-d-bg: rgba(148,163,184,.05); --meg-d-ink: #cbd5e1; }
+.meg-dice-crit     { --meg-d-line: rgba(34,211,238,.45); --meg-d-bg: rgba(34,211,238,.09);  --meg-d-ink: #67e8f9; }
+.meg-dice-critfail { --meg-d-line: rgba(239,68,68,.4);   --meg-d-bg: rgba(239,68,68,.07);   --meg-d-ink: #fca5a5; }
+
+/* The raw die, before any modifier - the only number that was actually rolled,
+   so it gets the weight. */
+.meg-dice-face {
+  flex: 0 0 auto;
+  width: 46px; height: 46px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--meg-d-line, rgba(255,255,255,.14));
+  background: rgba(0,0,0,.28);
+}
+.meg-dice-roll {
+  font-size: 1.15rem; font-weight: 800; line-height: 1;
+  color: var(--meg-d-ink, #e8e8e8);
+  font-variant-numeric: tabular-nums;
+}
+.meg-dice-die {
+  font-size: .5rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted, #9aa0a6); margin-top: 2px;
+}
+
+/* The reel: the number spins past a few decoys once, on arrival.
+   ---------------------------------------------------------------------------
+   The strip's RESTING transform already shows the last row, and the animation
+   supplies only a `from`. So the landed number is what the CSS says with no
+   animation at all — reduced motion, a stylesheet that half-loaded, an engine
+   that dislikes the keyframes. The motion decorates a correct readout rather
+   than producing one, which is the same rule the treatments follow: the
+   degraded state has to be right, not just non-crashing.
+
+   Whether it plays is decided in chat.js, not here. A rebuilt card gets the
+   resting markup, so the die never re-rolls while the reader is looking at it. */
+.meg-dice-reel {
+  height: var(--meg-reel-row, 22px);
+  overflow: hidden;
+}
+.meg-dice-strip {
+  display: flex; flex-direction: column;
+  transform: translateY(calc(-1 * var(--meg-reel-row, 22px) * var(--meg-decoys, 5)));
+}
+.meg-dice-strip span {
+  height: var(--meg-reel-row, 22px);
+  line-height: var(--meg-reel-row, 22px);
+  font-size: 1.15rem; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--meg-d-ink, #e8e8e8);
+}
+/* The decoys never were the result, so they never read as it. */
+.meg-dice-strip span:not(:last-child) { color: var(--text-muted, #9aa0a6); opacity: .6; }
+
+.meg-dice-animate .meg-dice-strip {
+  animation: meg-dice-reel 900ms cubic-bezier(.16,.86,.24,1);
+}
+@keyframes meg-dice-reel { from { transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .meg-dice-animate .meg-dice-strip { animation: none; }
+}
+/* A natural 20 or a natural 1 is the whole story of the roll, so the face says
+   so rather than leaving it to the verdict alone. */
+.meg-dice-crit .meg-dice-face     { box-shadow: 0 0 0 1px rgba(34,211,238,.35), 0 0 14px rgba(34,211,238,.3); }
+.meg-dice-critfail .meg-dice-face { box-shadow: 0 0 0 1px rgba(239,68,68,.32), 0 0 14px rgba(239,68,68,.25); }
+
+.meg-dice-body { flex: 1 1 auto; min-width: 0; }
+.meg-dice-attempt {
+  font-size: .8rem; line-height: 1.4; color: var(--text-main, #e8e8e8);
+  margin-bottom: 4px;
+}
+.meg-dice-sum {
+  display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+.meg-dice-total { font-size: .9rem; font-weight: 700; color: var(--meg-d-ink, #e8e8e8); }
+.meg-dice-mod   { font-size: .64rem; color: var(--text-muted, #9aa0a6); }
+.meg-dice-vs    { font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted, #9aa0a6); }
+.meg-dice-dc    { font-size: .82rem; font-weight: 650; color: var(--text-main, #e8e8e8); opacity: .8; }
+
+/* What the model wrote past the bare outcome word - "fail, the screen wakes at
+   maximum brightness". The pill keeps the outcome so the five verdicts always
+   read the same width; the consequence gets its own line. */
+.meg-dice-note {
+  font-size: .68rem; line-height: 1.45; margin-top: 4px;
+  color: var(--text-muted, #9aa0a6);
+}
+
+.meg-dice-verdict {
+  flex: 0 0 auto;
+  font-size: .6rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 999px;
+  border: 1px solid var(--meg-d-line, rgba(255,255,255,.14));
+  background: rgba(0,0,0,.22);
+  color: var(--meg-d-ink, #e8e8e8);
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .meg-dice { flex-wrap: wrap; gap: 10px; }
+  .meg-dice-verdict { order: 3; width: 100%; }
+}
+
 /* ---- WORLD STATE - Scene Board ---- */
 /* Treatment classes are only put on the pane when the treatment actually
    drew something, so everything below can assume parsed structure. A block

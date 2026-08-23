@@ -849,6 +849,186 @@ export function renderSheet(parts) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// DICE — the roll the model wrote before the scene
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// The line has a fixed shape because the add-on hands the model a skeleton:
+//
+//   🎲 lift the keys off the bar — d20+1 vs 15 → 7+1 = 8 · fail
+//
+// Every part after the attempt is numeric, so unlike the other treatments this
+// one can check its own arithmetic. It does: a total that does not equal the
+// roll plus the modifier is a line the model made up rather than worked out, and
+// drawing it as a tidy readout would launder that. Those fall back to prose,
+// where the reader can see the numbers disagree.
+
+// Tolerant about the separators, strict about the numbers. The em dash between
+// attempt and formula may arrive as a hyphen, and the arrow as "->".
+const DICE_LINE = new RegExp(
+    "^\\s*(?:\\u{1F3B2}\\s*)?" +          // the die, optional
+    "(.*?)\\s*[\\u2014\\u2013-]\\s*" +    // attempt, then a dash
+    "d\\s*20\\s*([+-]\\s*\\d+)?\\s*" +    // d20, optional modifier
+    "vs\\.?\\s*(?:DC\\s*)?(\\d+)\\s*" +     // vs 15, or vs DC 15 - the model writes both
+    "(?:\\u2192|->)\\s*" +                // arrow
+    "(\\d+)\\s*(?:[+-]\\s*\\d+)?\\s*" +   // the raw roll, modifier repeated
+    "(?:=\\s*(\\d+))?\\s*" +              // total, optional
+    "(?:[\\u00B7|,]\\s*(.+?))?\\s*$",     // verdict, optional
+    "u"
+);
+
+// Which of the five outcomes a verdict is, so the pill can be coloured without
+// the model having to write a keyword we invented. Order matters: "success, at a
+// cost" has to be tested before plain success.
+function diceOutcome(verdict, roll, total, dc) {
+    const v = String(verdict || "").toLowerCase();
+    if (roll === 20) return "crit";
+    if (roll === 1) return "critfail";
+    if (/cost|complicat|but |however/.test(v)) return "cost";
+    if (/fail|miss|no\b/.test(v)) return "fail";
+    if (/succe|pass|works|yes\b/.test(v)) return "success";
+    // No verdict written, or one in words we do not know: read it off the
+    // numbers, which is the same rule the add-on gives the model.
+    if (!Number.isFinite(total) || !Number.isFinite(dc)) return "";
+    if (total >= dc) return "success";
+    return total >= dc - 2 ? "cost" : "fail";
+}
+
+const DICE_LABELS = {
+    success: "success",
+    cost: "success, at a cost",
+    fail: "fail",
+    crit: "critical success",
+    critfail: "critical fail"
+};
+
+// One roll line, or null when it is not one.
+function parseDiceLine(line) {
+    const m = String(line).match(DICE_LINE);
+    if (!m) return null;
+
+    const attempt = plain(m[1] || "");
+    const mod = m[2] ? parseInt(m[2].replace(/\s+/g, ""), 10) : 0;
+    const dc = parseInt(m[3], 10);
+    const roll = parseInt(m[4], 10);
+    const total = m[5] !== undefined ? parseInt(m[5], 10) : roll + mod;
+
+    // A d20 is a d20. Anything outside it is not a roll this treatment can draw.
+    if (!Number.isFinite(roll) || roll < 1 || roll > 20) return null;
+    if (!Number.isFinite(dc) || dc < 1 || dc > 60) return null;
+    if (!Number.isFinite(mod) || Math.abs(mod) > 20) return null;
+    // The one check the other treatments cannot make: does the sum add up?
+    if (total !== roll + mod) return null;
+
+    const outcome = diceOutcome(m[6], roll, total, dc);
+    if (!outcome) return null;
+
+    // The model often writes the outcome and then what it cost — "fail, the
+    // screen wakes at maximum brightness". The pill shows the outcome so the
+    // five verdicts always read the same; the rest becomes a line of its own
+    // rather than a pill three times the width of the card.
+    const verdict = plain(m[6] || "") || DICE_LABELS[outcome];
+    const label = DICE_LABELS[outcome];
+    let note = "";
+    if (verdict.toLowerCase() !== label.toLowerCase()) {
+        const tail = verdict.replace(/^\s*(critical\s+)?(success|fail(?:ure)?|pass|miss)\b[\s,;:.—–-]*/i, "");
+        note = tail.trim() && tail.trim().toLowerCase() !== "at a cost" ? tail.trim() : "";
+    }
+
+    return {
+        attempt,
+        roll, mod, dc, total, outcome,
+        verdict, note, made: total >= dc
+    };
+}
+
+// The block holds one roll per line. The player-only add-on almost always
+// writes one; the everyone add-on writes one per character who tried something,
+// so a turn can legitimately carry three or four.
+//
+// EVERY non-empty line has to parse or the whole block goes back to prose. A
+// block that rendered two of four rolls would drop the other two off the screen
+// entirely, because the block region is hidden from the message — the same
+// reason the scene board refuses a body it could not place every line of.
+export function parseDice(body) {
+    const lines = String(body || "").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return null;
+
+    const rolls = [];
+    for (const line of lines) {
+        const roll = parseDiceLine(line);
+        if (!roll) return null;
+        rolls.push(roll);
+    }
+    // More than a handful is the model looping, not a busy scene.
+    if (rolls.length > 8) return null;
+    return { rolls };
+}
+
+// The numbers the reel spins past before it lands.
+//
+// Derived from the roll rather than drawn at random, for two reasons: a renderer
+// that calls Math.random is a renderer whose output cannot be tested, and the
+// same roll re-rendered should look like the same roll. Stepping by 7 works
+// because 7 and 20 share no factor, so the sequence cannot repeat itself or come
+// back round to the real number inside five steps.
+export function reelDecoys(roll, n = 5) {
+    const out = [];
+    let v = roll;
+    for (let i = 0; i < n; i++) {
+        v = ((v - 1 + 7) % 20) + 1;
+        out.push(v);
+    }
+    return out;
+}
+
+// The die face. Animated, it is a strip of numbers behind a one-row window;
+// at rest it is the number on its own.
+//
+// The strip's RESTING position already shows the last row, and the animation
+// only supplies a `from`. So if the animation never runs — reduced motion, a
+// stylesheet that failed to load, a browser that does not like the keyframes —
+// what is on screen is still the number that was rolled. The motion is the
+// decoration; the correct value is the default.
+function diceFace(d, animate) {
+    if (!animate) return `<span class="meg-dice-roll">${d.roll}</span>`;
+    const decoys = reelDecoys(d.roll);
+    return `
+        <div class="meg-dice-reel">
+            <div class="meg-dice-strip" style="--meg-decoys:${decoys.length}">
+                ${decoys.map(v => `<span>${v}</span>`).join("")}
+                <span>${d.roll}</span>
+            </div>
+        </div>`;
+}
+
+function renderOneDice(d, animate) {
+    const sign = d.mod > 0 ? `+${d.mod}` : d.mod < 0 ? String(d.mod) : "";
+    return `
+        <div class="meg-dice meg-dice-${esc(d.outcome)}${animate ? " meg-dice-animate" : ""}">
+            <div class="meg-dice-face">
+                ${diceFace(d, animate)}
+                <span class="meg-dice-die">d20</span>
+            </div>
+            <div class="meg-dice-body">
+                ${d.attempt ? `<div class="meg-dice-attempt">${inline(d.attempt)}</div>` : ""}
+                <div class="meg-dice-sum">
+                    <span class="meg-dice-total">${d.total}</span>
+                    ${sign ? `<span class="meg-dice-mod">${esc(d.roll + " " + sign)}</span>` : ""}
+                    <span class="meg-dice-vs">vs</span>
+                    <span class="meg-dice-dc">${d.dc}</span>
+                </div>
+                ${d.note ? `<div class="meg-dice-note">${inline(d.note)}</div>` : ""}
+            </div>
+            <span class="meg-dice-verdict">${esc(DICE_LABELS[d.outcome] || d.verdict)}</span>
+        </div>`;
+}
+
+export function renderDice(parsed, opts = {}) {
+    const animate = Boolean(opts.animate);
+    return parsed.rolls.map(d => renderOneDice(d, animate)).join("");
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // The table render.js routes through
 // ═════════════════════════════════════════════════════════════════════════════
 //
@@ -856,6 +1036,7 @@ export function renderSheet(parts) {
 // null, is drawn by renderBody exactly as before — which is what makes adding
 // one of these a safe change rather than a rewrite of the card.
 export const BLOCK_TREATMENTS = {
+    dice:    { parse: parseDice,       render: renderDice,       cls: "meg-dice-pane" },
     world:   { parse: parseWorldState, render: renderWorldState, cls: "meg-ws-pane" },
     chatter: { parse: parseChatter,    render: renderChatter,    cls: "meg-chat-pane" },
     sheet:   { parse: parseSheet,      render: renderSheet,      cls: "meg-sheet-pane" }

@@ -21,6 +21,7 @@ import { npcBuildTextFromData, getRelevantNpcImageTags } from "../features/npc/d
 import { npcBuildDossierPrompt, npcBuildUpdatePrompt } from "../features/npc/fields.js";
 import { memGetCachedKeywords } from "../features/memory/keywords.js";
 import { memGetRelevantVaultEntries } from "../features/memory/index.js";
+import { meguminRollD20s } from "../utils/dice.js";
 
 export function buildBaseDict(isTokenCount = false) {
     const dict = {};
@@ -97,6 +98,26 @@ export function buildBaseDict(isTokenCount = false) {
     localProfile.addons.forEach(aId => {
         const item = hardcodedLogic.addons.find(a => a.id === aId);
         if (item) dict[item.trigger] = item.content;
+    });
+
+    // The dice add-on ships with a marker where this turn's numbers go, and it
+    // is filled in HERE rather than by a second dict entry. A nested trigger
+    // would work only because Object.entries walks the dict in insertion order,
+    // so [[dice]] happens to expand before [[dice_rolls]] is searched for — a
+    // correctness that depends on the order two unrelated lines were written in.
+    // One explicit replacement cannot be broken by reordering anything.
+    //
+    // Fresh numbers every build, so a swipe re-rolls the turn rather than
+    // rewriting the prose around a die that already landed.
+    // Any add-on that declares a roll count gets this turn's numbers. Written as
+    // a loop over what the add-ons ask for rather than a branch per add-on: the
+    // player-only and everyone variants want three and six, and a third variant
+    // would otherwise mean editing the engine to add a number.
+    (localProfile.addons || []).forEach(aId => {
+        const item = hardcodedLogic.addons.find(a => a.id === aId);
+        if (!item || !item.rolls || !dict[item.trigger]) return;
+        dict[item.trigger] = dict[item.trigger]
+            .replace("[[dice_rolls]]", meguminRollD20s(item.rolls).join(", "));
     });
 
     // Stage 5 Defaults (Format Blocks)

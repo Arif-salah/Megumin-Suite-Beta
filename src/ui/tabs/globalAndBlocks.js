@@ -19,7 +19,10 @@ export function renderGlobalAndBlocks(c) {
         "direct": "Forces AI to say words like D and P. No dancing around the subject, no polite deflection. you know what i mean.",
         "color": "Each character's dialogue is color-coded for easy visual parsing.",
         "npc_events": "Requires all new story events to grow naturally from prior context or environmental cues — no random drama out of nowhere. V6 only.",
-        "dn": "Forces dialogue and narration to be wrapped in their respective XML tags. Useful for specific Models for better narration style adherence."
+        "dn": "Forces dialogue and narration to be wrapped in their respective XML tags. Useful for specific Models for better narration style adherence.",
+        "html": "When a character reads something — a phone screen, a letter, a sign — the AI draws the thing itself as HTML instead of describing it. Rare by design: one per reply at most, and most replies have none.",
+        "dice_all": "Same d20 system, but everyone rolls — NPCs included. Any character who tries something that can fail gets a roll, all of them listed before the reply. Use this OR Dice, not both.",
+        "dice": "A d20 decides whether risky attempts land. The AI rolls before it writes the scene, so the story follows the die rather than the die following the story. The roll gets its own tab on the block card."
     };
 
     const blockDescriptions = {
@@ -163,7 +166,21 @@ export function renderGlobalAndBlocks(c) {
         `);
 
         card.on("click", () => {
-            if (isSel) localProfile.addons = localProfile.addons.filter(i => i !== a.id); else localProfile.addons.push(a.id);
+            if (isSel) {
+                localProfile.addons = localProfile.addons.filter(i => i !== a.id);
+            } else {
+                // Two add-ons in the same `exclusive` group write to the same
+                // prompt anchor, so switching to one has to switch the other
+                // off — otherwise whichever the loop reached last would win and
+                // the toggles would disagree with what was actually sent.
+                if (a.exclusive) {
+                    const rivals = hardcodedLogic.addons
+                        .filter(o => o.id !== a.id && o.exclusive === a.exclusive)
+                        .map(o => o.id);
+                    localProfile.addons = localProfile.addons.filter(i => !rivals.includes(i));
+                }
+                localProfile.addons.push(a.id);
+            }
             saveProfileToMemory(); fireRefreshHook(REFRESH.SWITCH_TAB);
         }); 
         addonGrid.append(card);

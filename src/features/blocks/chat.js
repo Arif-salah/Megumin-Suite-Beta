@@ -61,6 +61,60 @@ function meguminApplyChoice(text, { send = false } = {}) {
     if (btn) btn.click();
 }
 
+// ── Playing a roll's arrival animation exactly once ──────────────────────────
+//
+// The dice reel is the first thing on this card that is not idempotent: drawing
+// it twice is visibly different from drawing it once. And the card is rebuilt
+// constantly — an edit, a swipe, an image landing, another extension redrawing
+// the body; there are a dozen paths in. Left alone, the die would re-roll in
+// front of the reader every time any of them fired, which reads as a bug and
+// quietly contradicts the one thing the feature promises, that the number is
+// fixed once written.
+//
+// So a roll animates when both are true: it is in the newest message, and it has
+// not been played before. Everything else draws the resting state, which is the
+// same markup minus one class.
+const meguminPlayedRolls = new Set();
+
+// Keyed on the message AND the text of the roll, not on the message alone: a
+// swipe replaces the reply at the same index with a different roll, and that one
+// has genuinely not been seen yet.
+function meguminRollKey(msgIndex, block) {
+    return `${msgIndex}:${String(block.body || "").slice(0, 120)}`;
+}
+
+// A chat long enough to overflow this has scrolled past every one of these
+// messages anyway, so forgetting the oldest costs at most one replay.
+function meguminRememberRoll(key) {
+    if (meguminPlayedRolls.size > 400) meguminPlayedRolls.clear();
+    meguminPlayedRolls.add(key);
+}
+
+function meguminIsNewestMessage(msgIndex) {
+    try {
+        const ctx = typeof getContext === "function" ? getContext() : null;
+        return Boolean(ctx && Array.isArray(ctx.chat) && msgIndex === ctx.chat.length - 1);
+    } catch (e) {
+        // No context means no way to tell, and the safe answer to "should this
+        // move" is always no.
+        return false;
+    }
+}
+
+// Returns the predicate the renderer calls, or null when nothing should animate
+// — an unknown message index, or any message that is not the newest. Without
+// the second half, opening a chat would set every roll in the history spinning
+// at once, because every one of them is being drawn for the first time.
+function meguminAnimateGate(msgIndex) {
+    if (typeof msgIndex !== "number" || !meguminIsNewestMessage(msgIndex)) return null;
+    return block => {
+        const key = meguminRollKey(msgIndex, block);
+        if (meguminPlayedRolls.has(key)) return false;
+        meguminRememberRoll(key);
+        return true;
+    };
+}
+
 // One message body, decorated or put back the way SillyTavern drew it.
 //
 // `msgIndex` is optional and only used to redraw the NPC Update tab from the
@@ -71,7 +125,8 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
     try {
         applyBlocksToMessage(bodyEl, mesText, meguminRenderRegistry(), {
             omit: meguminBlocksTakenByPanel(),
-            onChoice: meguminApplyChoice
+            onChoice: meguminApplyChoice,
+            shouldAnimate: meguminAnimateGate(msgIndex)
         });
         if (typeof msgIndex === "number") {
             // The card renderer stays generic — it knows nothing about NPCs. The

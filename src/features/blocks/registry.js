@@ -36,6 +36,28 @@ import { getSidePanelSettings } from "../../sidepanel/panel.js";
 // fills it in only when the block's own rules fire.
 export const MEGUMIN_BLOCK_REGISTRY = [
     {
+        id: "dice", tag: "Dice", label: "Roll",
+        emoji: "\u{1F3B2}", icon: "fa-dice-d20", color: "#22d3ee",
+        visibility: "open", builtin: true, system: true,
+        // The model writes one <Dice> per roll as often as it writes one tag
+        // holding every line, and a turn where everyone acts has several. Left
+        // non-repeating, extractBlocks took the first and the rest vanished off
+        // the screen. They are captured separately here and merged back into one
+        // pane by the renderer, so either shape draws the same card.
+        repeating: true,
+        // THE ONE BLOCK THAT IS NOT IN THE ENVELOPE. The roll has to be written
+        // before the prose or it is not a roll — a number chosen after the scene
+        // exists is chosen to fit it. So the model writes <Dice> as the FIRST
+        // thing in the reply, and the envelope, which sits at the end, never
+        // carries it. `lead` is what tells the envelope builder to skip it and
+        // the renderer to look for it at the top of the message instead of in
+        // the tail.
+        lead: true,
+        // Owned by the Dice add-on rather than by the block stack: the reader
+        // turns the add-on on and the tab follows. There is nothing to arrange.
+        requires: p => Boolean(p && (p.addons || []).includes("dice"))
+    },
+    {
         id: "cyoa", tag: "CYOA", label: "Choices",
         emoji: "🎲", icon: "fa-list-check", color: "#38bdf8",
         visibility: "open", builtin: true,
@@ -169,6 +191,12 @@ export function buildBlocksEnvelope(dict) {
 
     const parts = [];
     active.forEach(b => {
+        // A lead block is written before the prose, so it is deliberately not in
+        // the envelope at all — the envelope is the last thing in the reply, and
+        // asking for the roll there would put it after the scene it decides.
+        // Its instructions ride in its own add-on instead.
+        if (b.lead) return;
+
         // A conditional block contributes its instruction line, not a template,
         // and only on the turns its own subsystem actually asked for it.
         if (b.slot) {

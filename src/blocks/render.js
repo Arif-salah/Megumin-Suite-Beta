@@ -257,7 +257,15 @@ function renderTreated(b, opts) {
         // and the settings screen would show prose while the chat showed a card.
         const parsed = t.parse(b.body, { keepPlaceholders: Boolean(opts && opts.preview) });
         if (!parsed) return "";
-        const html = t.render(parsed);
+        // Whether this block gets its arrival animation. The card cannot decide
+        // that on its own — it is rebuilt on every edit, swipe and image insert,
+        // so "is this the first time" is a question only the caller, which knows
+        // the message index, can answer. No answer means no animation, which is
+        // why the BLOCKS tab preview is still.
+        const animate = typeof (opts && opts.shouldAnimate) === "function"
+            ? Boolean(opts.shouldAnimate(b))
+            : false;
+        const html = t.render(parsed, { animate });
         return html && html.trim() ? html : "";
     } catch (e) {
         console.debug("[Megumin Suite] block treatment declined", b.def.id, e);
@@ -470,6 +478,71 @@ function isSteppable(node) {
     return false;
 }
 
+// Takes one node out of the visible message without removing it, so
+// clearBlocksFromMessage can put it back exactly as it was.
+function hideNode(n, doc) {
+    if (n.nodeType === 3) {
+        // A bare text node cannot carry an attribute, so it gets a span that can.
+        const span = doc.createElement("span");
+        span.setAttribute(HIDDEN_ATTR, "1");
+        span.style.display = "none";
+        n.parentNode.insertBefore(span, n);
+        span.appendChild(n);
+        return;
+    }
+    n.setAttribute(HIDDEN_ATTR, "1");
+    n.style.display = "none";
+}
+
+// The node carrying a LEAD block — one the model wrote before the prose rather
+// than in the envelope at the end. Returns it, or null when it cannot be found
+// cleanly.
+//
+// The tail walk below cannot be reused for this. It works by consuming from the
+// end until it has accounted for the block text, which only makes sense because
+// the envelope is a suffix. A lead block is a prefix with the whole reply behind
+// it, so this searches forward from the top instead, over the first few nodes.
+//
+// It refuses a node holding MORE than the block. The model writes the roll on
+// its own line, but markdown joins a line to the paragraph under it when there
+// is no blank line between them, and hiding that node would take the opening
+// paragraph of the scene with it. Refusing costs the reader a tab; accepting
+// would cost them the prose.
+function findLeadNodes(root, want) {
+    if (!want) return null;
+
+    const taken = [];
+    let acc = "";
+    let node = root.firstChild;
+    let guard = 0;
+
+    // Forward walk, mirroring the backward one the envelope uses. Several nodes
+    // because the artifact is not reliably one: three rolls may arrive as one
+    // paragraph, as three, or as one with the first line of prose stuck to it,
+    // depending on where the model put its blank lines.
+    while (node && acc.length < want.length && guard++ < 12) {
+        if (isSteppable(node)) { node = node.nextSibling; continue; }
+        const have = normBody(node.textContent);
+        if (!have) { node = node.nextSibling; continue; }
+
+        const next = acc + have;
+        // Whatever is at the top either IS the block or the block was not
+        // written where it was asked for. Scanning past prose to find it would
+        // let a roll mentioned mid-scene be treated as the leading one.
+        if (!want.startsWith(next) && !next.startsWith(want)) return null;
+
+        taken.push(node);
+        acc = next;
+        node = node.nextSibling;
+    }
+
+    if (!taken.length || !acc.startsWith(want)) return null;
+    // The last node may carry prose glued to the end of the artifact. Hiding it
+    // would take the opening of the scene with it, so refuse instead: the cost
+    // is a tab, not a paragraph.
+    return acc.length <= want.length * 1.15 + 10 ? taken : null;
+}
+
 export function clearBlocksFromMessage(root) {
     if (!root) return;
     root.querySelectorAll(`.${CARD_CLASS}`).forEach(el => el.remove());
@@ -507,7 +580,58 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
     // previous pass would creep further up the message on each call.
     clearBlocksFromMessage(root);
 
-    const target = normBody(remnantTextOf(mes, blocks));
+    const doc = opts.document || document;
+
+    // A lead block is written before the prose and the envelope is written after
+    // it, so the two are found in completely different ways and the tail
+    // measurement must not include the lead. Measuring across both would span
+    // the whole reply — every paragraph between the roll and the envelope would
+    // count as block text, the walk would consume the entire message, and the
+    // guard below would rightly refuse the lot.
+    const leadBlocks = blocks.filter(b => b.def.lead);
+    const tailBlocks = blocks.filter(b => !b.def.lead);
+
+    // Lead blocks whose node was found, and which can therefore be hidden from
+    // the prose and shown in the card instead. One that cannot be found is
+    // dropped from the card entirely: the reader keeps the raw line where the
+    // model put it, which is what they would have had anyway, and it is not also
+    // repeated inside a tab.
+    // Several <Dice> tags in a row are one readout, not one per tab. Merged
+    // before anything looks for them so the search matches the text actually in
+    // the DOM, where the tags are already gone and only the lines remain.
+    const leadMerged = [];
+    leadBlocks.forEach(b => {
+        const last = leadMerged[leadMerged.length - 1];
+        if (last && last.def === b.def) {
+            last.body = `${last.body}\n${b.body}`;
+            last.truncated = last.truncated || b.truncated;
+            return;
+        }
+        leadMerged.push({ ...b });
+    });
+
+    const leadFound = [];
+    const leadNodes = [];
+    leadMerged.forEach(b => {
+        const nodes = findLeadNodes(root, normBody(b.body));
+        if (!nodes) return;
+        leadFound.push(b);
+        leadNodes.push(...nodes);
+    });
+
+    const target = normBody(remnantTextOf(mes, tailBlocks));
+
+    // Nothing but a lead block this turn — a roll on a reply that carried no
+    // envelope. There is no tail to consume, so the walk below is skipped
+    // entirely rather than run against an empty target.
+    if (!tailBlocks.length) {
+        if (!leadFound.length) { clearBlocksFromMessage(root); return false; }
+        leadNodes.forEach(n => hideNode(n, doc));
+        root.appendChild(buildBlocksCard(leadFound, opts));
+        root.setAttribute(STAMP_ATTR, stamp);
+        return true;
+    }
+
     if (!target) return false;
 
     // Walk the tail backwards collecting nodes until they account for the block
@@ -547,21 +671,13 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
         return false;
     }
 
-    consumed.forEach(n => {
-        if (n.nodeType === 3) {
-            // A bare text node cannot carry an attribute, so it gets a span that can.
-            const span = (opts.document || document).createElement("span");
-            span.setAttribute(HIDDEN_ATTR, "1");
-            span.style.display = "none";
-            n.parentNode.insertBefore(span, n);
-            span.appendChild(n);
-            return;
-        }
-        n.setAttribute(HIDDEN_ATTR, "1");
-        n.style.display = "none";
-    });
+    consumed.forEach(n => hideNode(n, doc));
+    leadNodes.forEach(n => hideNode(n, doc));
 
-    root.appendChild(buildBlocksCard(blocks, opts));
+    // Card order is message order, which puts the roll first — it is the first
+    // thing the model wrote and the first thing that happened.
+    const shown = [...leadFound, ...tailBlocks];
+    root.appendChild(buildBlocksCard(shown, opts));
     root.setAttribute(STAMP_ATTR, stamp);
     return true;
 }

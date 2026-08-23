@@ -180,10 +180,11 @@ export function renderCoreAndCot(c) {
                 else if (m.id === "v7.5") targetCotPrefix = "cot-v7.5";
                 else if (m.id.includes("v7")) targetCotPrefix = "cot-v7";
                 else if (m.id.includes("v8")) targetCotPrefix = "cot-v8";
+                else if (m.id.includes("v10")) targetCotPrefix = "cot-v10";
                 else if (m.id.includes("v9")) targetCotPrefix = "cot-v9";
                 
                 if (targetCotPrefix) {
-                    if (targetCotPrefix.includes("v7") || targetCotPrefix.includes("v8")) {
+                    if (targetCotPrefix === "cot-v10" || targetCotPrefix.includes("v7") || targetCotPrefix.includes("v8")) {
                         localProfile.model = `${targetCotPrefix}-english`;
                     } else {
                         localProfile.model = `${targetCotPrefix}-${currentLang}`;
@@ -328,7 +329,8 @@ export function renderCoreAndCot(c) {
         }
 
         let currentType = "off", currentLang = "english";
-        if (localProfile.model && localProfile.model.startsWith("cot-v1-")) { currentType = "v1"; currentLang = localProfile.model.replace("cot-v1-", ""); }
+        if (localProfile.model && localProfile.model.startsWith("cot-v10-")) { currentType = "v10"; currentLang = "english"; }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v1-")) { currentType = "v1"; currentLang = localProfile.model.replace("cot-v1-", ""); }
         else if (localProfile.model && localProfile.model.startsWith("cot-v2-")) { currentType = "v2"; currentLang = localProfile.model.replace("cot-v2-", ""); }
         else if (localProfile.model && localProfile.model.startsWith("cot-v6-lite-")) { currentType = "v6-lite"; currentLang = localProfile.model.replace("cot-v6-lite-", ""); }
         else if (localProfile.model && localProfile.model.startsWith("cot-v6-")) { currentType = "v6"; currentLang = localProfile.model.replace("cot-v6-", ""); }
@@ -344,7 +346,8 @@ export function renderCoreAndCot(c) {
         else if (localProfile.model && localProfile.model.startsWith("cot-v9-")) { currentType = "v9"; currentLang = localProfile.model.replace("cot-v9-", ""); }
 
         let allowedCotTypes = null; 
-        if (localProfile.mode.includes("v6")) allowedCotTypes = ["v6", "v6-lite"];
+        if (localProfile.mode.includes("v10")) allowedCotTypes = ["v10"];
+        else if (localProfile.mode.includes("v6")) allowedCotTypes = ["v6", "v6-lite"];
         else if (localProfile.mode === "v7.5") allowedCotTypes = ["v7.5"];
         else if (localProfile.mode.includes("v7")) allowedCotTypes = ["v7", "v7-lite"];
         else if (localProfile.mode === "v8-fusion") allowedCotTypes = ["v8-fusion"]; 
@@ -355,6 +358,7 @@ export function renderCoreAndCot(c) {
         secCot.append(`<div class="wstyle-section-head purple"><i class="fa-solid fa-diagram-project"></i> Select Framework</div>`);
         const typeGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 24px;"></div>`);
         const types = [
+            { id: "v10", label: "CoT V10 Ukiyo", desc: "The reasoning set built for V10 Ukiyo. Thinks like a writer rather than a planner \u2014 no phases, no checklists, no audits.", isNew: true },
             { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
             { id: "v2", label: "CoT V2 (New)", desc: "The new experimental framework. Stricter reality checks, info audits, better NPCs, and hook generation." },
             { id: "v6", label: "CoT V6 (Dream Team)", desc: "The full 4-phase sequence designed specifically for V6 engines. Specialized validation and modeling." },
@@ -393,7 +397,8 @@ export function renderCoreAndCot(c) {
             `);
             
             card.on("click", () => {
-                if (t.id === "v7") localProfile.model = `cot-v7-english`;
+                if (t.id === "v10") localProfile.model = `cot-v10-english`;
+                else if (t.id === "v7") localProfile.model = `cot-v7-english`;
                 else if (t.id === "v7.5") localProfile.model = `cot-v7.5-english`;
                 else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;
                 else if (t.id === "v8") localProfile.model = `cot-v8-english`;
@@ -471,7 +476,7 @@ export function renderCoreAndCot(c) {
             { id: "french", label: "French (Français)" }, { id: "zh", label: "Mandarin (中文)" }, { id: "ru", label: "Russian (Русский)" },
             { id: "jp", label: "Japanese (日本語)" }, { id: "pt", label: "Portuguese (Português)" }
         ];
-        if (currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8" || currentType === "v8-fusion" || currentType.startsWith("v9")) langs = [{ id: "english", label: "English" }];
+        if (currentType === "v10" || currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8" || currentType === "v8-fusion" || currentType.startsWith("v9")) langs = [{ id: "english", label: "English" }];
         langs.forEach(l => {
             const isSel = currentLang === l.id;
             let badges = '';
