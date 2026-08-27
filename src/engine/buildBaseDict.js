@@ -350,6 +350,12 @@ export function buildBaseDict(isTokenCount = false) {
             conditionalText = "CRITICAL INSTRUCTION: ONLY output the <img prompt=\"...\"> tag if the character is explicitly taking a photo, sending a picture, or sharing an image in this exact moment. If not, do NOT output the image tags at all.\n\n";
         }
 
+        // Quiet mode: the reply is never asked to carry an <img> tag. Instead a
+        // dedicated image-prompt request is fired after the reply lands (the
+        // auto_prompt branch in the MESSAGE_RECEIVED handler), so [[img1]]/[[img2]]
+        // stay blank no matter what the trigger mode says.
+        if (ig.injectMode === "auto_prompt") shouldInject = false;
+
         if (shouldInject) {
             const customIg = localProfile.imageGen.customPromptsEnabled ? (localProfile.imageGen.customPrompts || {}) : {};
             const defIg = DEFAULT_PROMPTS.imageGen;

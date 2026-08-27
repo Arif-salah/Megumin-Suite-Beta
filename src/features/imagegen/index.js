@@ -109,6 +109,7 @@ export function renderImageGen(c) {
                         <select id="ig_inject_mode" class="ps-modern-input" style="padding: 8px; font-size: 0.8rem; cursor: pointer;">
                             <option value="new_msg" ${s.injectMode === 'new_msg' || !s.injectMode ? 'selected' : ''}>New Message (Gallery)</option>
                             <option value="inline" ${s.injectMode === 'inline' ? 'selected' : ''}>Inline (Inside AI Reply)</option>
+                            <option value="auto_prompt" ${s.injectMode === 'auto_prompt' ? 'selected' : ''}>Background (After Every Reply)</option>
                         </select>
                     </div>
                     <div style="flex: 1;">
