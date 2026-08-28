@@ -62,9 +62,22 @@ export function renderBody(text) {
 // Anything that does not look like one falls through to ordinary text, which is
 // the correct failure: a block the model wrote loosely still reads, it just does
 // not get bars.
+//
+// The note's brackets are matched loosely on purpose. The template asks for
+// `(-4 she heard pity)`, and most models write exactly that — but some copy the
+// square brackets the template uses to mark its own placeholders and emit
+// `[(-4 she heard pity)]`, or `[=]` for no change. That is the same reading with
+// different punctuation, and refusing it cost the whole line its bars: the meter
+// branch failed on the bracket, every cell fell through to the plain renderer,
+// and the reader got the raw text back with the brackets still in it.
+//
+// So any run of opening brackets is accepted, and any run of closing ones. The
+// note is lazy and the pattern is anchored, which keeps a note that contains its
+// own parentheses intact — only the outermost run is stripped.
 const STAT_CELL = /^\s*([^:|]{1,32}?)\s*:\s*(.+?)\s*$/;
-const METER_VALUE = /^(-?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*(?:\((.*)\))?$/;
-const PLAIN_VALUE = /^(-?\d+(?:\.\d+)?)\s*(?:\((.*)\))?$/;
+const NOTE = "(?:[\\[(]+\\s*(.*?)\\s*[\\])]+)?";
+const METER_VALUE = new RegExp(`^(-?\\d+(?:\\.\\d+)?)\\s*\\/\\s*(\\d+(?:\\.\\d+)?)\\s*${NOTE}$`);
+const PLAIN_VALUE = new RegExp(`^(-?\\d+(?:\\.\\d+)?)\\s*${NOTE}$`);
 
 export function renderStatLine(line, inline) {
     if (!line.includes(":")) return null;

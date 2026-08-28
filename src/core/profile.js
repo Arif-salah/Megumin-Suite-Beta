@@ -75,6 +75,14 @@ export function initProfile() {
 
     const defaults = {
         mode: "balance",
+        // Which engines have Enhanced Dialogue switched on, keyed by engine id.
+        //
+        // Per engine rather than one flag, because the switch is drawn inside the
+        // engine card: a control that sits on the Ukiyo card and silently changes
+        // Shura's card too is lying about its own scope. Only the active engine's
+        // entry is ever read, so in practice a reader who never switches engines
+        // sees a single on/off.
+        enhancedDialogue: {},
         personality: "engine",
         v9Limits: { leanMin: 300, leanMax: 400, fullMin: 700, fullMax: 1200 },
         toggles: { ooc: false, control: false },
@@ -475,6 +483,10 @@ export function initProfile() {
             if (b.preferFirst) order.unshift(b.id); else order.push(b.id);
         });
         localProfile.blockStack = { order, custom: [], overrides: {} };
+    }
+    // A profile written before Enhanced Dialogue existed has no map at all.
+    if (!localProfile.enhancedDialogue || typeof localProfile.enhancedDialogue !== "object") {
+        localProfile.enhancedDialogue = {};
     }
     if (!localProfile.statBlocks) localProfile.statBlocks = JSON.parse(JSON.stringify(defaults.statBlocks));
     Object.keys(defaults.statBlocks).forEach(k => {

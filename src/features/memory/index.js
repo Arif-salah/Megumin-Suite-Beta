@@ -60,15 +60,12 @@ export function renderMemoryCore(c) {
 
         <div class="mtab-callout gold" style="margin-bottom: 16px;">
             <i class="fa-solid fa-triangle-exclamation"></i>
-            <span><strong>Before you switch this on, three things.</strong>
+            <span><strong>Before you switch this on, two things.</strong>
             <br>&bull; <strong>It is not cache friendly.</strong> Retrieved memories sit ahead of the
             chat history in the prompt, so when what it retrieves changes, your provider re-reads the
             whole history instead of serving it from cache.
             <br>&bull; <strong>Use Semantic Embeddings, not TF-IDF.</strong> Keyword matching is the
-            fallback and it shows &mdash; semantic search finds the right archive far more often.
-            <br>&bull; <strong>It will not work alongside MemoryBooks</strong> or any other extension
-            that hides messages with <code>/hide</code>. Both are trying to decide what reaches the
-            model and they will disagree. Run one or the other.</span>
+            fallback and it shows &mdash; semantic search finds the right archive far more often.</span>
         </div>
 
         <!-- MASTER TOGGLE -->
@@ -1525,6 +1522,34 @@ export function _updateMemoryVisualsCore() {
     $("#mem_live_tokens_saved").text(`~${memCalculateTokensSaved()}`);
 }
 
+// The array the interceptor is handed is NOT context.chat.
+//
+// SillyTavern builds `coreChat = chat.filter(x => !x.is_system)` before calling
+// generation interceptors, so what arrives here is compacted: position 0 is the
+// first NON-system message, not chat[0]. Archive ids ("170-179") are raw
+// context.chat indices, so the two only line up while the chat contains no
+// system messages at all — which is the normal case, and why this went unnoticed.
+//
+// /hide sets is_system. One hidden message shifts every later position down by
+// one, so recent working messages slide into old archived ranges and get wiped:
+// the model receives the vault and short-term summaries and none of the live
+// scene. That is not a disagreement between two extensions about what to hide,
+// which is what it looked like — it is this array being read in the wrong index
+// space.
+//
+// Rebuilding the same filter over context.chat recovers the mapping. If the two
+// do not agree on length the assumption behind it no longer holds (ST changed
+// what it passes, or something mutated the chat mid-generation), and positional
+// indexing is used unchanged — the behaviour every existing chat already has.
+function memRealIndexMap(chat, context) {
+    if (!context || !Array.isArray(context.chat)) return null;
+    const map = [];
+    for (let i = 0; i < context.chat.length; i++) {
+        if (!context.chat[i].is_system) map.push(i);
+    }
+    return map.length === chat.length ? map : null;
+}
+
 // Rule A: The Prompt Interceptor (STRICT)
 window.megumin_memory_intercept = function (chat, _contextSize, _abort, type) {
     const mem = localProfile?.memoryCore;
@@ -1534,12 +1559,16 @@ window.megumin_memory_intercept = function (chat, _contextSize, _abort, type) {
     if (!context || !context.symbols || !context.symbols.ignore) return;
 
     const IGNORE_SYMBOL = context.symbols.ignore;
+    const realIndex = memRealIndexMap(chat, context);
 
     for (let i = 0; i < chat.length; i++) {
+        // Kept even though ST has already filtered these out: the guard costs
+        // nothing and this function must stay correct if it is ever handed the
+        // unfiltered array.
         if (chat[i].is_system) continue;
 
         // ONLY wipe the message from the prompt if it has been successfully summarized
-        if (isMessageArchived(i, mem)) {
+        if (isMessageArchived(realIndex ? realIndex[i] : i, mem)) {
             // SAFE CLONE: Spread operator avoids DataCloneErrors from other extensions
             chat[i] = { ...chat[i] };
             chat[i].extra = { ...chat[i].extra };

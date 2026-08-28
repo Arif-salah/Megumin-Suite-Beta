@@ -40,7 +40,7 @@ The reader is not the camera. Never go inside their head — their body is in th
 
 What temperature is this scene asking for? Name it to yourself and commit. The quiet stays quiet; the brutal stays brutal. Do not repeat last turn's temperature, and do not open the way last turn opened. Once, somewhere, let the followed character's voice crack through the narration — the one line that sounds like their brain, not your mouth. One crack; it lands hardest when it's rare. And if this beat would land exactly like the last one, the scene is already dead — find the move from inside the world: someone acts on a want, someone arrives, news lands.
 
-Hear every line in the mouth before you write it. Who says it, at what heart rate, trying to say one thing while hiding another? A line without a want under it is filler — cut it.
+Hear every line in the mouth before you write it. Who says it, at what heart rate, trying to say one thing while hiding another — or, more often, just failing to say either?
 
 The world proves itself in the specific — not "a bar," the bar; not "a song," the song; the car with the cracked taillight. One true detail per room. The rest the reader supplies.
 

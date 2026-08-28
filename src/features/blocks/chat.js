@@ -10,7 +10,7 @@
 import { getContext } from "../../st.js";
 import { extensionName } from "../../core/constants.js";
 import { applyBlocksToMessage, clearBlocksFromMessage } from "../../blocks/render.js";
-import { meguminRenderRegistry, meguminBlocksTakenByPanel } from "./registry.js";
+import { meguminRenderRegistry, meguminBlocksTakenByPanel, meguminStatFieldMap } from "./registry.js";
 // One directed edge from the blocks feature to the NPC feature. No cycle:
 // nothing under features/npc/ imports the block card.
 import { npcDecorateUpdatePane } from "../npc/updateCard.js";
@@ -126,7 +126,9 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
         applyBlocksToMessage(bodyEl, mesText, meguminRenderRegistry(), {
             omit: meguminBlocksTakenByPanel(),
             onChoice: meguminApplyChoice,
-            shouldAnimate: meguminAnimateGate(msgIndex)
+            shouldAnimate: meguminAnimateGate(msgIndex),
+            statFields: meguminStatFieldMap(),
+            debug: Boolean(window.MEGUMIN_BLOCKS_DEBUG)
         });
         if (typeof msgIndex === "number") {
             // The card renderer stays generic — it knows nothing about NPCs. The

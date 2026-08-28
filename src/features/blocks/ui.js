@@ -15,7 +15,7 @@ import { buildBlocksCard, extractBlocks } from "../../blocks/render.js";
 import { buildBaseDict } from "../../engine/buildBaseDict.js";
 import {
     MEGUMIN_BLOCK_REGISTRY, BLOCK_VISIBILITY_CHOICES, STAT_FIELD_PACKS, STAT_FIELD_TYPES,
-    meguminRenderRegistry, meguminActiveBlocks, meguminBlockById, meguminStatFields,
+    meguminRenderRegistry, meguminActiveBlocks, meguminBlockById, meguminStatFields, meguminStatFieldMap,
     normalizeBlockBody, blockTagFromName, validateCustomBlock, meguminSyncLegacyBlockIds,
 } from "./registry.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
@@ -298,7 +298,7 @@ export function renderBlocksPreview(host) {
     }
 
     // Open on arrival: the chat card rests shut, but a shut preview shows nothing.
-    host.appendChild(buildBlocksCard(blocks, { preview: true, expanded: true }));
+    host.appendChild(buildBlocksCard(blocks, { preview: true, expanded: true, statFields: meguminStatFieldMap() }));
     const note = document.createElement("div");
     note.className = "blk-preview-source";
     note.textContent = "Showing the templates the AI is asked to fill in.";

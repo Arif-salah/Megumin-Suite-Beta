@@ -737,6 +737,25 @@ export function renderChatter(parsed) {
 const LIST_LINE = /^\s*[*_]{0,2}\s*([A-Za-z][A-Za-z \-/]{1,26}?)\s*[*_]{0,2}\s*:\s*(.+?)\s*$/;
 // The labels that mean "this is a container of things", not "these are ranks".
 const PACK_LABEL = /invent|pack|gear|bag|carr|equip|loot|belongings|supplies/i;
+
+// The declared type of a field, when the caller handed the field list down.
+//
+// Stat block fields carry a type - meter, number, text, list - set by the reader
+// in the tab. This parser used to infer it from the shape of the line instead,
+// and "two or more comma-separated parts means a list" is wrong in both
+// directions: a Status sentence with a comma in it was cut in half and drawn as
+// two tags, and a genuine one-item Skills list was demoted to a plain line.
+//
+// Returns null when the field was not declared, which is a real case - the model
+// invents a field, or the reader renamed one - and the old inference still
+// handles those.
+function declaredFieldType(fields, label) {
+    if (!Array.isArray(fields) || !fields.length) return null;
+    const want = String(label || "").trim().toLowerCase();
+    if (!want) return null;
+    const f = fields.find(x => String((x && x.label) || "").trim().toLowerCase() === want);
+    return f ? (f.type || "text") : null;
+}
 
 // Rank words, weakest first, mapped to the four tiers the chips are coloured
 // by. A rank the model invents lands in no tier and renders as a plain chip.
@@ -826,7 +845,8 @@ function splitItem(item) {
 }
 
 export function parseSheet(body, opts = {}) {
-    const keep = Boolean(opts.keepPlaceholders);
+    const keep = Boolean(opts.keepPlaceholders);
+    const fields = opts.fields;
     const template = keep || isUnfilledTemplate(body);
     const lines = String(body || "").split(/\r?\n/);
     const out = [];
@@ -881,9 +901,12 @@ export function parseSheet(body, opts = {}) {
                 found++;
                 continue;
             }
-            // One item with no comma is more likely a `text` field than a list.
-            // It still renders, just as an ordinary line.
-            if (items.length >= 2) {
+            // Whether this is a list at all. The declared type answers it outright;
+            // only an undeclared field falls back to counting commas, where one item
+            // with no comma is more likely a `text` field than a list.
+            const declared = declaredFieldType(fields, label);
+            const isList = declared ? declared === "list" : items.length >= 2;
+            if (isList && items.length) {
                 flushProse();
                 out.push({ kind: PACK_LABEL.test(label) ? "pack" : "chips", label, items, ph: keep && PLACEHOLDER.test(rest) });
                 found++;

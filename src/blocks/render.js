@@ -30,6 +30,16 @@ const CARD_CLASS = "meg-blocks";
 const HIDDEN_ATTR = "data-meg-blocks-hidden";
 const STAMP_ATTR = "data-meg-blocks-stamp";
 
+// The class the preset's "Blocks display marker" regex puts on the <details> it
+// wraps the envelope in. See findMarkerNodes for why it exists and what happens
+// when it is missing.
+// SillyTavern's sanitizer does not pass class names through untouched: a class it
+// does not recognise is rewritten with a "custom-" prefix, so the marker arrives
+// in the DOM as "custom-meg-blocks-src". Both spellings are matched — the bare
+// one in case that behaviour changes or the element reaches us unsanitized (the
+// BLOCKS tab preview builds its DOM directly).
+const MARKER_SELECTOR = ".meg-blocks-src, .custom-meg-blocks-src";
+
 // The block that is open when a card is first drawn, and the one it falls back
 // to when the reader closes whatever they opened. Everything else starts shut.
 const ALWAYS_OPEN_ID = "cyoa";
@@ -255,7 +265,13 @@ function renderTreated(b, opts) {
         // an unfilled `[placeholder]`. A treatment drops those in the chat, and
         // dropping them here would leave it nothing to draw — it would decline,
         // and the settings screen would show prose while the chat showed a card.
-        const parsed = t.parse(b.body, { keepPlaceholders: Boolean(opts && opts.preview) });
+        // The block's declared fields, when the caller supplied them. A treatment
+        // that gets them can read a field's type instead of inferring it from the
+        // line; one that does not still works, on the old inference.
+        const parsed = t.parse(b.body, {
+            keepPlaceholders: Boolean(opts && opts.preview),
+            fields: (opts && opts.statFields && opts.statFields[b.def.id]) || null
+        });
         if (!parsed) return "";
         // Whether this block gets its arrival animation. The card cannot decide
         // that on its own — it is rebuilt on every edit, swipe and image insert,
@@ -543,6 +559,36 @@ function findLeadNodes(root, want) {
     return acc.length <= want.length * 1.15 + 10 ? taken : null;
 }
 
+// The element the block region actually lives in, when there is one.
+//
+// SillyTavern's sanitizer deletes <Blocks> and keeps its text, which is why
+// everything else in this file has to work backwards from mes and guess which
+// paragraphs on screen are the remnant. The guess is only sound while the DOM is
+// a faithful render of mes, and three separate things break that: display-side
+// regex scripts rewrite the text before markdown sees it, markdown merges or
+// wraps paragraphs, and another extension can inject a subtree whose text is in
+// no version of mes at all. MVU is the third case — its stats panel sits at the
+// end of the message, the backward walk consumes it first, the safety probe
+// rightly refuses, and the card is dropped.
+//
+// So the preset carries a display-only regex that rewrites the envelope into a
+// <details class="meg-blocks-src">. <details> survives the sanitizer. When it is
+// there, the region is known rather than inferred and none of the walking below
+// runs.
+//
+// It is a fast path, never a requirement: a reader on a different preset, or one
+// who deleted the script, has no marker and falls through to the walk exactly as
+// before. Nothing here may assume the marker exists.
+//
+// Our own card is excluded because it is appended into the same body and a
+// future card could legitimately contain the class; hiding it would hide the
+// thing we just drew.
+function findMarkerNodes(root) {
+    if (!root || typeof root.querySelectorAll !== "function") return [];
+    return Array.from(root.querySelectorAll(MARKER_SELECTOR))
+        .filter(el => typeof el.closest !== "function" || !el.closest(`.${CARD_CLASS}`));
+}
+
 export function clearBlocksFromMessage(root) {
     if (!root) return;
     root.querySelectorAll(`.${CARD_CLASS}`).forEach(el => el.remove());
@@ -618,6 +664,24 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
         leadFound.push(b);
         leadNodes.push(...nodes);
     });
+
+    // The marker path. The region is an element, so it is hidden outright and
+    // there is nothing to measure, nothing to consume and nothing to refuse.
+    //
+    // The lead blocks are still found the old way: they are written before the
+    // prose and sit outside the envelope, so the regex never wrapped them.
+    const markerNodes = tailBlocks.length ? findMarkerNodes(root) : [];
+    if (opts.debug) {
+        console.debug("[Megumin Blocks] lead=%d tail=%d markers=%d",
+            leadBlocks.length, tailBlocks.length, markerNodes.length);
+    }
+    if (markerNodes.length) {
+        markerNodes.forEach(n => hideNode(n, doc));
+        leadNodes.forEach(n => hideNode(n, doc));
+        root.appendChild(buildBlocksCard([...leadFound, ...tailBlocks], opts));
+        root.setAttribute(STAMP_ATTR, stamp);
+        return true;
+    }
 
     const target = normBody(remnantTextOf(mes, tailBlocks));
 

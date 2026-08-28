@@ -5,7 +5,7 @@
 import { extension_settings, saveSettingsDebounced, Popup, POPUP_TYPE } from "../../st.js";
 import { extensionName } from "../../core/constants.js";
 import { localProfile, currentTab } from "../../core/state.js";
-import { lockedStyleIdFor, isV7Engine } from "../../core/engines.js";
+import { lockedStyleIdFor, isV7Engine, isV10Engine } from "../../core/engines.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { hardcodedLogic } from "../../../data/database.js";
@@ -13,6 +13,57 @@ import { renderDevMode } from "../devmode.js";
 import { meguminCotForMode } from "../../../data/cot/index.js";
 import { buildStoryConfigSection } from "../../features/storyconfig/ui.js";
 import { countActiveConfigFields } from "../../features/storyconfig/config.js";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enhanced Dialogue — the switch drawn inside an engine card.
+//
+// It lives on the card rather than in the tab's own toggle strip because it
+// belongs to the engine: it replaces that engine's <dialogue> section and means
+// nothing for any other generation. V10 only, because no other generation writes
+// that tag and the switch would be inert.
+//
+// Two grids draw engine cards — the official list and the custom clones — and a
+// Dev Mode clone of a V10 engine is still flagged isV10, so the switch has to
+// appear on both. Written once here rather than twice inline: the first version
+// of this was in the official card only, and the feature disappeared the moment
+// anybody cloned an engine to edit it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function enhancedDialogueOn(m) {
+    return Boolean(m && localProfile.enhancedDialogue && localProfile.enhancedDialogue[m.id]);
+}
+
+function enhancedDialogueMarkup(m, isLocked) {
+    if (!isV10Engine(m) || isLocked) return "";
+    const on = enhancedDialogueOn(m);
+    return `
+        <div class="ecard-opt ${on ? "on" : ""}" title="Swap this engine's dialogue rules for the stricter, prescriptive set: named categories, orthographic cues for emotion, and an explicit ban list. For models that read the shipped section as a suggestion.">
+            <div class="ecard-opt-text">
+                <span class="ecard-opt-label"><i class="fa-solid fa-comment-dots"></i> Enhanced Dialogue</span>
+                <span class="ecard-opt-state">${on ? "On" : "Off"}</span>
+            </div>
+            <div class="ecard-opt-switch"></div>
+        </div>`;
+}
+
+function wireEnhancedDialogue(card, m, rerender) {
+    card.find(".ecard-opt").on("click", function (ev) {
+        // Without this the click also selects the engine. Flipping a setting and
+        // switching engine are separate intentions and the card must not conflate
+        // them — the switch sits inside the card's own click target.
+        ev.stopPropagation();
+        if (!localProfile.enhancedDialogue) localProfile.enhancedDialogue = {};
+        // Deleted rather than set false, so the map only ever holds engines that
+        // are actually on and an untouched profile stays empty.
+        if (localProfile.enhancedDialogue[m.id]) delete localProfile.enhancedDialogue[m.id];
+        else localProfile.enhancedDialogue[m.id] = true;
+        saveProfileToMemory();
+        // The counter reads the engine's prompt through buildBaseDict, and the
+        // two dialogue sections are different lengths.
+        fireRefreshHook(REFRESH.TOKEN_COUNT);
+        if (typeof rerender === "function") rerender();
+    });
+}
 
 export function renderCoreAndCot(c) {
     // Preserve active sub-tab and filter before wiping the container
@@ -168,9 +219,12 @@ export function renderCoreAndCot(c) {
                     </div>
                     <p class="ecard-desc">${descriptions[m.id] || ""}</p>
                     ${badges ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">${badges}</div>` : ''}
+                    ${enhancedDialogueMarkup(m, isLocked)}
                 </div>
             </div>
         `);
+
+        wireEnhancedDialogue(card, m, () => renderCoreAndCot(c));
 
         if (!isLocked) {
             card.on("click", () => {
@@ -270,13 +324,16 @@ export function renderCoreAndCot(c) {
                             </button>
                         </div>
                         <p class="ecard-desc">Custom Engine Flow</p>
+                        ${enhancedDialogueMarkup(m, false)}
                     </div>
                 </div>
             `);
             card.on("click", (e) => {
                 if ($(e.target).closest('.btn-quick-edit').length) return;
+                if ($(e.target).closest('.ecard-opt').length) return;
                 localProfile.mode = m.id; saveProfileToMemory(); renderCoreAndCot(c);
             });
+            wireEnhancedDialogue(card, m, () => renderCoreAndCot(c));
             card.find(".btn-quick-edit").on("click", () => renderDevMode("editor", m.id, null, "tab"));
             customGrid.append(card);
         });

@@ -291,6 +291,25 @@ export function meguminStatFields(blockId) {
     return Array.isArray(cfg.fields) ? cfg.fields.filter(f => f && f.label) : [];
 }
 
+// Every stat block's declared fields, keyed by block id, for the renderers.
+//
+// The card treatments live in `src/blocks/`, which is below this file and must
+// stay generic — nothing down there is allowed to know that "sheet" has a field
+// called Skills. So the field list is handed DOWN through the render options
+// rather than imported UP, and this is what the two callers pass.
+//
+// Without it the sheet treatment has to guess a field's type from the shape of
+// the line, and the guess is wrong in a way the reader sees: "Status: cleansed,
+// starving" has a comma in it, so a sentence gets cut in half and drawn as two
+// tags. The types were declared all along.
+export function meguminStatFieldMap() {
+    const out = {};
+    Object.keys((localProfile && localProfile.statBlocks) || {}).forEach(id => {
+        out[id] = meguminStatFields(id);
+    });
+    return out;
+}
+
 // One field as the model should see it, placeholders and all.
 export function meguminStatFieldSpec(f) {
     const max = f.max || 100;

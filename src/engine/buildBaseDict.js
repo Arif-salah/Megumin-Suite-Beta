@@ -16,6 +16,7 @@ import {
 } from "../core/activeRequests.js";
 import { DEFAULT_PROMPTS } from "../prompts/index.js";
 import { hardcodedLogic } from "../../data/database.js";
+import { applyEnhancedDialogue } from "../../data/modes/v10.js";
 import { buildBlocksEnvelope } from "../features/blocks/registry.js";
 import { buildConfigBlock } from "../features/storyconfig/config.js";
 import { npcBuildTextFromData, getRelevantNpcImageTags } from "../features/npc/data.js";
@@ -160,8 +161,20 @@ export function buildBaseDict(isTokenCount = false) {
 
     if (activeEngine) {
         // Map p1-p6
+        //
+        // Enhanced Dialogue is applied here rather than at the engine definition,
+        // because this is the one place the engine's prompt text is read — the
+        // token counter comes through the same function, so the count and the
+        // prompt can never disagree about which dialogue section is in play.
+        //
+        // The swap is keyed on the engine's own id, so a clone gets its own
+        // setting rather than inheriting the original's, and it is a no-op on any
+        // engine whose prompts carry no <dialogue> tag.
+        const enhanced = Boolean(localProfile.enhancedDialogue
+            && localProfile.enhancedDialogue[activeEngine.id]);
         for (let i = 1; i <= 6; i++) {
-            const val = activeEngine[`p${i}`] || "";
+            let val = activeEngine[`p${i}`] || "";
+            if (enhanced) val = applyEnhancedDialogue(val);
             dict[`[[prompt${i}]]`] = val;
             dict[`[prompt${i}]`] = val;
         }

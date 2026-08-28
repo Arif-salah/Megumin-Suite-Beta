@@ -11,6 +11,30 @@ README on the stable branch.
 
 ## 2026-08-28
 
+> Blocks stop disappearing when you run other extensions, Memory Core stops
+> fighting `/hide`, and V10 gets a switch for models that mumble their dialogue.
+
+**Re-import the preset for this one.** It ships a new regex the blocks needs.
+
+### V10
+
+- **Enhanced Dialogue.** A switch on each V10 engine card. The engines describe what good dialogue sounds like and trust the model to follow; some models read that as a suggestion. This swaps it for a strict version — spelled-out rules, stammering and shouting written into the text, and a list of things characters may never say.
+
+### Fixes
+
+- **Blocks now render when MVU is on.** Any extension that redraws the message could stop the block card appearing — the raw text just sat at the bottom of the reply instead. The card finds its place a different way now, and other extensions can't push it out.
+- **Memory Core works with `/hide` again.** If anything hid messages — MemoryBooks, another extension, or you typing `/hide` yourself — Memory Core stopped sending the live chat entirely. The AI got the vault and the summaries and not one line of the actual scene, which is why replies suddenly went vague and stopped remembering what just happened.
+
+  It was a counting mistake, not a disagreement between the two. Memory Core remembers which messages it has archived by their position in the chat. Hiding a message doesn't delete it, but SillyTavern leaves it out of the list it hands to extensions — so every message after it shifted up, and Memory Core blanked the wrong ones. Hide enough and *everything* left lands inside the archived range, so all of it gets blanked. That's the total blackout. It bit hardest with extensions that hide from the very start of the chat, which is the common case.
+
+  It now works out each message's real position before deciding anything, so hidden messages shift nothing. Your archives were never wrong and nothing needs re-archiving — turn Memory Core on and it picks up where it was.
+- **Bonds and Character Sheet bars were missing on some models.** When the AI wrote the change note as `[(-4 she heard pity)]` instead of `(-4 she heard pity)`, the meters gave up and you got the raw line back. Both forms draw properly now.
+- **The Character Sheet's Status line was being chopped into tags.** A status with a comma in it — "cleansed, still starving" — came out as two separate chips instead of one sentence. The card now reads the field types you set in the tab instead of guessing from the punctuation, so a one-item Skills list also stays a proper list.
+
+---
+
+## 2026-08-28
+
 > A second engine for V10, a preset that stops your provider re-reading the whole
 > chat every turn, and the lag is gone — a long reply used to cost half a second
 > of processing on every single generation.
@@ -68,7 +92,7 @@ Run a few scenes on each and keep the one that sounds like the story you want to
 - **Add-ons:** pick the three or four you want, not all of them. Past a handful, the prose thins out as the AI spends its attention on bookkeeping instead of writing.
 - **Story Director:** V10 doesn't really need it — the engine drives the plot on its own. Switch it on when you want a hand on the wheel.
 - **Side Panel is discontinued.** Blocks do it better and keep up with new blocks as they land. It still works for what it already knew about, and everything it shows is drawn in the chat card anyway.
-- **Memory Core:** it isn't cache friendly, it wants Semantic Embeddings rather than TF-IDF matching, and it will not work alongside MemoryBooks or anything else that hides messages.
+- **Memory Core:** it isn't cache friendly, and it wants Semantic Embeddings rather than TF-IDF matching.
 - **Direct Language and Dialogue & Narration** are marked as not needed on V10 — that engine already does both.
 
 ### Fixes

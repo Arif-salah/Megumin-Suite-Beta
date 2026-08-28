@@ -1312,6 +1312,98 @@
     color: #3b82f6;
 }
 
+/* Enhanced Dialogue switch, inside a V10 engine card.
+   Its own class rather than .ps-switch: that one turns on via `.active` on an
+   ancestor, and `.active` already means "this is the selected engine" here, so
+   reusing it would light the switch on whichever card happens to be current. */
+.mtab-eng-card .ecard-opt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: border-color .2s ease, background .2s ease;
+}
+
+.mtab-eng-card .ecard-opt:hover {
+    border-color: rgba(244, 63, 94, 0.35);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.mtab-eng-card .ecard-opt.on {
+    border-color: rgba(16, 185, 129, 0.35);
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.mtab-eng-card .ecard-opt-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.mtab-eng-card .ecard-opt-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: var(--text-color);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mtab-eng-card .ecard-opt.on .ecard-opt-label i {
+    color: #10b981;
+}
+
+.mtab-eng-card .ecard-opt-state {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.mtab-eng-card .ecard-opt.on .ecard-opt-state {
+    color: #10b981;
+}
+
+.mtab-eng-card .ecard-opt-switch {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 19px;
+    background: #3f3f46;
+    border-radius: 10px;
+    position: relative;
+    transition: background .3s ease;
+}
+
+.mtab-eng-card .ecard-opt-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 15px;
+    height: 15px;
+    background: #fff;
+    border-radius: 50%;
+    transition: left .3s ease, background .3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mtab-eng-card .ecard-opt.on .ecard-opt-switch {
+    background: #10b981;
+}
+
+.mtab-eng-card .ecard-opt.on .ecard-opt-switch::after {
+    left: 17px;
+}
+
 .mtab-eng-card .ecard-badge.locked {
     background: rgba(82, 82, 91, 0.2);
     color: #71717a;
