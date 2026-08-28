@@ -9,6 +9,74 @@ README on the stable branch.
 
 ---
 
+## 2026-08-28
+
+> A second engine for V10, a preset that stops your provider re-reading the whole
+> chat every turn, and the lag is gone — a long reply used to cost half a second
+> of processing on every single generation.
+
+### Presets
+
+- **The lag is fixed.** One of the cleanup rules shipped inside the preset was doing an enormous amount of pointless work on every message in the chat, every time you hit send. On a long reply it cost around **600 ms on its own** — and it got worse the longer your replies were. It now costs under a millisecond. Nothing about what it cleans has changed; it just stopped doing it the slow way.
+- **A second preset: Cache Friendly.** Same engine, same everything — the pieces are just ordered so your provider can re-use most of the prompt instead of re-reading it from scratch each turn. If your API charges for cached input at a lower rate (Claude, Gemini, DeepSeek and others do), this is the one to load. If you don't know or don't care, the standard preset is Better order.
+- **Both presets ship together.** Pick one, load it, done — nothing else to configure.
+
+### V10 — there are two engines now
+
+**V10 Shura** joins V10 Ukiyo. Neither is the flagship and neither is a lite version of the other:
+
+- **Ukiyo is the storyteller.** The looser of the two — a teller with a temperament, spinning the world and its history, following whatever in the scene is most alive. It trades a little polish for invention.
+- **Shura is the writer.** The stricter of the two — no slop, no AI tells, no line that exists to manage the scene. Every character is the protagonist of their own story, acting from their own values, and none of them is a villain in their own eyes. There is no objective right or wrong for the narration to take sides on.
+
+Run a few scenes on each and keep the one that sounds like the story you want to read.
+
+- **Co-writer versions of both.** Same engines, except the AI plays your character too — reading how *you* write and matching your voice. Anything you write yourself stays canon and is never overwritten. It won't invent your backstory; only the acting is shared.
+- **Four V10 reasoning sets.** One for each engine, plus a **Thinking Cap** version of each for models that over-think — same reasoning, with a hard ceiling on how long it deliberates before writing.
+- **V10 writing styles** are in Precooked Styles, and each engine loads its own when you switch to it.
+
+### Story Config
+
+- **Moved to the Presets & CoT tab,** where it sits beside the engine it modifies.
+- **It's always on.** No master switch — a field left on *Preset default* still sends nothing, so "off" is per setting instead of all-or-nothing.
+- **Every option sends a real instruction now.** Picking *steady* used to send the word "steady". It now sends what steady actually means, written out for the AI. Same for POV, length, explicitness, difficulty, friction, disposition and narrator presence.
+- **Point of View, Length and Pace always send.** They ship set — third person limited, flexible, steady — because every story has all three whether you've thought about them or not.
+
+### Dev Mode
+
+- **Rebuilt as two doors.** **Add-ons** are the shared pieces every engine uses — thinking steps, MVU, the ban list, death, combat, dice, the output blocks — edited on their own page. **Engines** shows the actual prompt as the document it is, in the real order it gets sent, with your add-ons marked where they land. Click one to edit it and come back.
+- **It tells you when a setting is switched off.** Editing something that isn't going to be sent now says so, instead of quietly accepting the change.
+- **Edit once, applies everywhere.** Changing an add-on no longer means cloning an entire engine and getting stranded on a stale copy of it.
+
+### Mobile
+
+- **The hamburger menu is gone.** Tabs live in a floating bar at the bottom of the screen — one tap to switch, swipe along it to reach the rest.
+- **The glass is back.** The panel floats over your chat with rounded corners and the blur the desktop version has, instead of a flat sheet covering the screen.
+
+### Blocks
+
+- **Compact World State draws the scene board.** It was falling back to plain paragraphs while the full version got the card — so turning Compact on quietly cost you the nice one. Both draw the same now.
+- **Blocks explain themselves.** Hover any block, in the list or in the picker, for a line on what it actually does.
+
+### Settings
+
+- **Rebuilt** — grouped into Behaviour, Data and About, with the donation and GitHub links readable instead of squeezed into one line.
+- **Send me a card.** I've been running out of things to roleplay, so there's a form for recommending a character card or a scenario. Completely anonymous — no sign-in, no name, nothing tying it back to you.
+- **Utility Prefills is now opt-in and off by default.** It's the setting that breaks Image Gen, the Ban List and the Story Director on Claude and several other APIs. It used to be on until you found the switch; now you only turn it on if your API wants it.
+
+### Notes you'll see around the tabs
+
+- **Add-ons:** pick the three or four you want, not all of them. Past a handful, the prose thins out as the AI spends its attention on bookkeeping instead of writing.
+- **Story Director:** V10 doesn't really need it — the engine drives the plot on its own. Switch it on when you want a hand on the wheel.
+- **Side Panel is discontinued.** Blocks do it better and keep up with new blocks as they land. It still works for what it already knew about, and everything it shows is drawn in the chat card anyway.
+- **Memory Core:** it isn't cache friendly, it wants Semantic Embeddings rather than TF-IDF matching, and it will not work alongside MemoryBooks or anything else that hides messages.
+- **Direct Language and Dialogue & Narration** are marked as not needed on V10 — that engine already does both.
+
+### Fixes
+
+- **The Persona tab said "V9" while you were running V10.** So did the render-limit settings, which V10 doesn't even use — they now stay hidden unless you're actually on V9.
+- **A cleanup rule was only removing the first colour tag in a reply** and leaving the rest behind.
+
+---
 ## 2026-08-26
 **The new V10 Preset is out** — what shipped in this update:
 
