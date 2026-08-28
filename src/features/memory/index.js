@@ -1522,8 +1522,29 @@ window.megumin_memory_intercept = function (chat, _contextSize, _abort, type) {
 
     const IGNORE_SYMBOL = context.symbols.ignore;
 
+    // Enforce the working limit HERE, at prompt time. The limit is normally only
+    // applied when chunks are created and by memScrubOverlappingArchives, which
+    // runs on a rewind or "Apply Limits" — never during forward growth. That
+    // leaves the wipe at the mercy of the stored chunk indices: if they drift
+    // (deleting a message shifts every later index down, and chunks from a longer
+    // chat sharing a profile can cover a shorter chat's whole array), the wipe
+    // removes messages that today sit inside the live window, leaving the model
+    // with only summaries. Guarding here means the newest workingLimit messages
+    // can never be stripped, no matter how stale the archive indices are.
+    const realMessages = [];
+    for (let i = 0; i < chat.length; i++) {
+        if (!chat[i].is_system) realMessages.push(i);
+    }
+    const workingLimit = mem.workingLimit || 30;
+    const workingCutoffIndex = realMessages.length <= workingLimit
+        ? 0
+        : realMessages[realMessages.length - workingLimit];
+
     for (let i = 0; i < chat.length; i++) {
         if (chat[i].is_system) continue;
+
+        // NEVER wipe a message that the working limit says is live
+        if (i >= workingCutoffIndex) continue;
 
         // ONLY wipe the message from the prompt if it has been successfully summarized
         if (isMessageArchived(i, mem)) {
