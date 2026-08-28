@@ -9,6 +9,27 @@ import { extensionName } from "../../core/constants.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { hardcodedLogic } from "../../../data/database.js";
+import { meguminSlotByTrigger } from "../../../data/slots.js";
+import { hasSharedFragment } from "../../core/sharedFragments.js";
+import { engineUsesRenderLimits } from "../../core/engines.js";
+
+// "You have rewritten this one in Dev Mode."
+//
+// An add-on card said only whether the add-on was ON. It could not say that the
+// text behind it was no longer the shipped text, so a reader who reworded the
+// ban list six weeks ago had no way to be reminded of it from the screen where
+// they switch it on -- and when the output looked wrong, the edit they had
+// forgotten was invisible.
+//
+// The link between a card and its slot is the trigger both already carry
+// ([[Direct]], [[html]], [[MVU]] ...), so this needs no lookup table to fall out
+// of date. Two dice add-ons share [[dice]] and both light up, which is right:
+// the one edit applies to whichever variant is switched on.
+function customBadge(triggerOwner) {
+    const slot = meguminSlotByTrigger(triggerOwner && triggerOwner.trigger);
+    if (!slot || !slot.key || !hasSharedFragment(slot.key)) return "";
+    return `<span class="ecard-badge custom" title="You edited this in Dev Mode. It no longer uses the built-in text."><i class="fa-solid fa-pen"></i> Custom</span>`;
+}
 
 export function renderGlobalAndBlocks(c) {
     c.empty();
@@ -16,26 +37,29 @@ export function renderGlobalAndBlocks(c) {
     const addonDescriptions = {
         "death": "Enables permanent consequences. Characters — including yours — can die for real. No safety net, no plot armor.",
         "combat": "Activates a grounded, tactical combat layer. Actions have real weight, positioning matters, and you can lose badly.",
-        "direct": "Forces AI to say words like D and P. No dancing around the subject, no polite deflection. you know what i mean.",
+        "direct": "Forces AI to say words like D and P. No dancing around the subject, no polite deflection. you know what i mean. <b>Not needed on V10</b> — that engine already writes this way, so switching it on just repeats the instruction.",
         "color": "Each character's dialogue is color-coded for easy visual parsing.",
         "npc_events": "Requires all new story events to grow naturally from prior context or environmental cues — no random drama out of nowhere. V6 only.",
-        "dn": "Forces dialogue and narration to be wrapped in their respective XML tags. Useful for specific Models for better narration style adherence.",
+        "dn": "Forces dialogue and narration to be wrapped in their respective XML tags. Useful for specific Models for better narration style adherence. <b>Not recommended on V10</b> — the tags fight that engine's own prose rules.",
         "html": "When a character reads something — a phone screen, a letter, a sign — the AI draws the thing itself as HTML instead of describing it. Rare by design: one per reply at most, and most replies have none.",
         "dice_all": "Same d20 system, but everyone rolls — NPCs included. Any character who tries something that can fail gets a roll, all of them listed before the reply. Use this OR Dice, not both.",
         "dice": "A d20 decides whether risky attempts land. The AI rolls before it writes the scene, so the story follows the die rather than the die following the story. The roll gets its own tab on the block card."
     };
 
+    // Only MVU is left in this tab's Output Formats section, so only MVU needs a line
+    // here. The tracker blocks' descriptions moved onto MEGUMIN_BLOCK_REGISTRY as `desc`
+    // when they moved to the BLOCKS tab -- they were sitting here unreachable, because
+    // the section below filters to mvu and nothing else ever reached this map.
     const blockDescriptions = {
-        "info": "Appends a tidy status panel after each response showing time, weather, location, and what characters are wearing.",
-        "cyoa": "Choose-Your-Own-Adventure panel with 4 suggested actions for you to pick from each turn.",
-        "mvu": "Add MVU Compatibility still in test read more here: <a href='https://github.com/KritBlade/MVU_Game_Maker' target='_blank' style='color: var(--gold); text-decoration: underline;'>https://github.com/KritBlade/MVU_Game_Maker</a>",
-        "npc_inner_chatter": "Reveal NPC private thoughts the PC never hears — crushes, resentment, scheming, anxiety. This feeds future NPC behavior.",
-        "npc_inner_chatter_v2": "A simpler version of NPC Inner Chatter. use less input token."
+        "mvu": "Add MVU Compatibility still in test read more here: <a href='https://github.com/KritBlade/MVU_Game_Maker' target='_blank' style='color: var(--gold); text-decoration: underline;'>https://github.com/KritBlade/MVU_Game_Maker</a>"
     };
 
     const activeMode = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
     const isV6 = activeMode && (activeMode.id.includes("v6") || activeMode.label.includes("V6"));
-    const isV9 = activeMode && (activeMode.id.includes("v9") || activeMode.isV9 === true);
+    // Asked for by behaviour, not by generation: the Lean/Full split is the one thing
+    // V10 does not inherit from V9, and naming it that way keeps the next generation
+    // from having to be excluded here by hand.
+    const isV9 = engineUsesRenderLimits(activeMode);
 
     // ── UNIFIED HEADER ──
     c.append(`
@@ -59,7 +83,7 @@ export function renderGlobalAndBlocks(c) {
     c.append(`
         <div class="mtab-callout blue" style="margin-bottom: 20px;">
             <i class="fa-solid fa-circle-info"></i>
-            <span><strong>Did you know?</strong> Global Preferences shape the raw output format. Gameplay Add-ons tweak narrative rules. Response Blocks append rich UI widgets to the end of the AI's message.</span>
+            <span><strong>Did you know?</strong> Global Preferences set the language and pronouns every engine reads. Gameplay Add-ons bolt extra systems onto the story — dice, death, combat, HTML props. Output Formats is just MVU, a compatibility contract with another extension. The tracker blocks live in the <b>BLOCKS</b> tab, not here.</span>
         </div>
     `);
 
@@ -97,15 +121,7 @@ export function renderGlobalAndBlocks(c) {
                     </div>
                 </div>
             </div>
-            ` : `
-            <div class="mtab-setting-row">
-                <div class="set-info">
-                    <div class="set-label">Target Word Count</div>
-                    <div class="set-desc">Moved — response length is now the <b>length</b> field in the Story Config tab.</div>
-                </div>
-                <span style="font-size:0.7rem; color: var(--text-muted); border:1px solid var(--border-color); border-radius:6px; padding:4px 8px;"><i class="fa-solid fa-arrow-right"></i> Story Config</span>
-            </div>
-            `}
+            ` : ``}
             <div class="mtab-setting-row">
                 <div class="set-info"><div class="set-label">Language Output</div><div class="set-desc">Leave empty for default (English)</div></div>
                 <input type="text" id="ps_input_language" class="ps-modern-input" style="width: 180px;" placeholder="e.g. Arabic, French…" value="${localProfile.userLanguage || ''}" />
@@ -133,12 +149,21 @@ export function renderGlobalAndBlocks(c) {
     // ── 2. GAMEPLAY ADD-ONS ──
     // ==========================================
     c.append(`<div class="wstyle-section-head blue"><i class="fa-solid fa-puzzle-piece"></i> Gameplay Add-ons</div>`);
+    c.append(`
+        <div class="mtab-callout gold" style="margin-bottom: 16px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>Pick the three or four you actually want, not all of them. Every add-on is another
+            system the model has to hold in mind while it writes, and past a handful the prose
+            thins out as the attention goes into bookkeeping. Fewer, chosen on purpose, reads better.</span>
+        </div>
+    `);
     const addonGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 24px;"></div>`);
 
     hardcodedLogic.addons.forEach(a => {
         const isSel = localProfile.addons.includes(a.id);
         let badges = '';
         if (a.recommended) badges += `<span class="ecard-badge rec"><i class="fa-solid fa-star"></i> Recommended</span>`;
+        badges += customBadge(a);
 
         let extraClass = '';
         let v6BadgeHtml = '';
@@ -197,6 +222,7 @@ export function renderGlobalAndBlocks(c) {
                 <div class="ecard-title">
                     <span>Cinematic Sounds</span>
                     ${isOno ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
+                    ${customBadge({ trigger: "[[onomato]]" })}
                 </div>
                 <p class="ecard-desc">Force the AI to use precise phonetic sound words (e.g., click, thud) instead of abstract descriptions.</p>
                 <div style="display: ${isOno ? 'flex' : 'none'}; margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--border-color); justify-content: space-between; align-items: center;">
@@ -262,6 +288,7 @@ export function renderGlobalAndBlocks(c) {
                     <div class="ecard-title">
                         <span>${b.label}</span>
                         ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
+                        ${customBadge(b)}
                     </div>
                     <p class="ecard-desc">${blockDescriptions[b.id] || ""}</p>
                     ${isOverridden ? `<div style="margin-top:4px;"><span class="ecard-badge override"><i class="fa-solid fa-code-branch"></i> Engine Override</span></div>` : ''}

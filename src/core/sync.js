@@ -17,10 +17,10 @@ import { meguminDiffPrompts } from "../prompts/storage.js";
 // numeric map broke silently the moment a tab was inserted — every tab after it
 // synced the previous tab's keys, and nothing said so.
 export const TAB_SYNC_KEYS = {
-    "PRESETS & COT": ["mode", "model", "cotEnabled", "thinkEffort", "customThinkEffort", "thinkingV2"],
+    "PRESETS & COT": ["mode", "model", "cotEnabled", "thinkEffort", "customThinkEffort", "thinkingV2", "storyConfig"],
     "Persona": ["personality", "toggles"],
-    "Story Config": ["activeStyleId", "aiRule", "customStyles", "dnRatio", "storyConfig"],
-    "Global Toggles & Blocks": ["addons", "blocks", "userLanguage", "userPronouns", "onomatopoeia", "v9Limits"],
+    "Writing Style": ["activeStyleId", "aiRule", "customStyles", "dnRatio"],
+    "Global Toggles & Add Ons": ["addons", "blocks", "userLanguage", "userPronouns", "onomatopoeia", "v9Limits"],
     "BLOCKS": ["blockStack", "statBlocks", "blocks"],
     "Story Director": ["storyPlan"],
     "Dynamic Ban List": ["banList", "banListBackend", "banListCustomPromptsEnabled", "banListCustomPrompts"],

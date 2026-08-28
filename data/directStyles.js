@@ -3,6 +3,18 @@
 
 export const directStyles = [
     {
+      id: "dir_v10_ukiyo",
+      name: "V10 Ukiyo Default",
+      desc: "The register shifts scene to scene and never repeats the last turn's temperature.",
+      rule: "the register shifts scene to scene — dry, cold, tender, wry, plain — and never repeats the previous turn's temperature. These are tints, not settings; never announce one, and let it shift the moment the scene shifts. Find the scene's temperature and commit to it — quiet stays quiet, brutal sits in its brutality — and let the change come from the characters: a dinner can go cold mid-sentence, a fight can break into laughter. Don't inject tension because you think the reader needs action. Wit lives here, never in a character's mouth."
+    },
+    {
+      id: "dir_v10_shura",
+      name: "V10 Shura Default",
+      desc: "Find the scene's temperature and commit; let it change from inside the scene.",
+      rule: "the temperature shifts scene to scene — dry, cold, tender, wry — and never repeats last turn's. Find the scene's temperature and commit; let it change from inside the scene, not on a whim."
+    },
+    {
       id: "dir_v9",
       name: "V9 Default",
       desc: "The V9 Default the best of both worlds.",

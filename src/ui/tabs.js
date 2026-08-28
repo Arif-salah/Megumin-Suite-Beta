@@ -16,7 +16,7 @@ import { renderCoreAndCot } from "./tabs/coreAndCot.js";
 import { renderPersonality } from "./tabs/personality.js";
 import { renderGlobalAndBlocks } from "./tabs/globalAndBlocks.js";
 import { renderSidePanelTab } from "./tabs/sidePanelTab.js";
-import { renderGlobalSettings } from "./tabs/globalSettings.js";
+import { renderGlobalSettings, hasUnseenSettingsNotice } from "./tabs/globalSettings.js";
 import { renderStoryConfig } from "../features/storyconfig/ui.js";
 import { renderStoryPlanner } from "../features/storyplan/ui.js";
 import { renderBanList } from "../features/banlist/ui.js";
@@ -26,10 +26,10 @@ import { renderMemoryCore } from "../features/memory/index.js";
 import { renderBlocksTab } from "../features/blocks/ui.js";
 
 export const tabsUI = [
-    { title: "PRESETS & COT", sub: "Choose the core preset, and COT.", icon: "fa-server", render: renderCoreAndCot },
+    { title: "PRESETS & COT", sub: "Choose the core preset and COT, and set the standing rules of the story.", icon: "fa-server", render: renderCoreAndCot },
     { title: "Persona", sub: "Define the personality.", icon: "fa-user-astronaut", render: renderPersonality },
-    { title: "Story Config", sub: "Set the standing rules of the story, then pick the prose style that carries them.", icon: "fa-sliders", render: renderStoryConfig },
-    { title: "Global Toggles & Blocks", sub: "Configure global parameters, add-ons, and UI tracker blocks.", icon: "fa-earth-americas", render: renderGlobalAndBlocks },
+    { title: "Writing Style", sub: "Pick the prose voice the story is told in.", icon: "fa-pen-nib", render: renderStoryConfig },
+    { title: "Global Toggles & Add Ons", sub: "Language, pronouns, and the gameplay systems bolted onto the story.", icon: "fa-earth-americas", render: renderGlobalAndBlocks },
     { title: "BLOCKS", sub: "What goes inside the master block, in what order, and how it looks.", icon: "fa-cubes", render: renderBlocksTab },
     { title: "Story Director", sub: "Direct the narrative. Shape what happens next.", icon: "fa-clapperboard", render: renderStoryPlanner },
     { title: "Dynamic Ban List", sub: "Scan and ban repetitive AI phrases.", icon: "fa-ban", render: renderBanList },
@@ -83,6 +83,10 @@ export function switchTab(index) {
 
     $(".dock-icon").removeClass("active");
     $(`#dot_${index}`).addClass("active");
+
+    // Re-read every switch rather than only at build time: the dots are drawn once
+    // and reused, so a notice spent this session has to be able to go out again.
+    $(`#dot_${tabsUI.length - 1}`).toggleClass("has-notice", hasUnseenSettingsNotice());
 
     container.empty();
     container.off(".devDirty");

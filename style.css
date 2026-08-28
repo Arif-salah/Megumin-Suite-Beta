@@ -1625,6 +1625,15 @@
     color: #a855f7;
 }
 
+.mtab-callout.red {
+    background: rgba(239, 68, 68, 0.06);
+    border-left-color: #ef4444;
+}
+
+.mtab-callout.red i {
+    color: #ef4444;
+}
+
 /* — Engine Card Grid — */
 .mtab-card-grid {
     display: grid;
@@ -1675,20 +1684,52 @@
 
 @media (max-width: 768px) {
 
-    /* ── Modal: full-screen takeover ── */
+    /* ── Modal: inset glass panel, NOT a full-screen takeover ──
+       The full-bleed version is why mobile looked flat. --bg-panel is
+       translucent at every screen size; a panel covering the whole display
+       simply has nothing behind it to be translucent against. Inset it, give
+       the corners back, and the chat underneath does the rest. */
     .ps-modern-modal.app-container {
-        width: 100% !important;
-        max-width: 100% !important;
+        width: auto !important;
+        max-width: none !important;
         height: auto !important;
         max-height: none !important;
         position: absolute !important;
-        top: 0 !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        border-radius: 0 !important;
-        border: none !important;
-        padding-top: env(safe-area-inset-top, 0px) !important;
+        top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+        left: calc(10px + env(safe-area-inset-left, 0px)) !important;
+        right: calc(10px + env(safe-area-inset-right, 0px)) !important;
+        border-radius: 16px !important;
+        border: 1px solid rgba(255, 255, 255, 0.10) !important;
+        background: rgba(20, 20, 23, 0.74) !important;
+        backdrop-filter: blur(22px) saturate(1.25) !important;
+        -webkit-backdrop-filter: blur(22px) saturate(1.25) !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+        padding-top: 0 !important;
+    }
+
+    /* The dock's scroll affordance. Lives on the PANEL, not the dock: the dock
+       is the scroll container, so anything inside it scrolls away with the
+       tabs. The chevron is an inline SVG rather than a Font Awesome glyph so
+       it cannot break on whichever FA build SillyTavern ships. First
+       background layer paints on top. */
+    .ps-modern-modal.app-container::after {
+        content: "";
+        position: absolute;
+        right: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        width: 54px;
+        height: 62px;
+        border-radius: 0 18px 18px 0;
+        pointer-events: none;
+        z-index: 101;
+        background-image:
+            url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M9 6l6 6-6 6'/></svg>"),
+            linear-gradient(to right, rgba(28, 28, 32, 0), rgba(28, 28, 32, 0.97));
+        background-repeat: no-repeat, no-repeat;
+        background-position: right 13px center, center;
+        background-size: 17px 17px, 100% 100%;
     }
 
     #prompt-slot-modal-overlay {
@@ -1704,48 +1745,61 @@
     }
 
     /* ════════════════════════════════════════════════════
-       DOCK → Left Side Drawer (hidden by default)
-       ════════════════════════════════════════════════════ */
+       DOCK → floating bottom bar, swipeable
+       ════════════════════════════════════════════════════
+       Inset from all three edges so it reads as an object sitting over the
+       content rather than a bar welded to the frame, and carrying a heavier
+       blur than the panel behind it -- that difference is what makes it look
+       like it is above the page. Every tab is reachable by swiping; nothing
+       hides behind a "More" menu. */
     .dock {
         position: absolute !important;
-        top: 0 !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: auto !important;
-        width: 280px !important;
-        height: 100% !important;
-        padding: 20px 0 0 0 !important;
-        border-radius: 0 !important;
-        border: none !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-        flex-direction: column !important;
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        gap: 0 !important;
+        top: auto !important;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        height: 62px !important;
+        padding: 0 9px !important;
+        border-radius: 18px !important;
+        border: 1px solid rgba(255, 255, 255, 0.13) !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 7px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
         z-index: 100 !important;
-        background: var(--bg-panel) !important;
-        backdrop-filter: blur(20px) !important;
-        box-shadow: 10px 0 40px rgba(0, 0, 0, 0.6) !important;
-
-        /* Hidden off-screen by default */
-        transform: translateX(-100%);
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        background: rgba(28, 28, 32, 0.82) !important;
+        backdrop-filter: blur(26px) saturate(1.35) !important;
+        -webkit-backdrop-filter: blur(26px) saturate(1.35) !important;
+        box-shadow: 0 12px 34px rgba(0, 0, 0, 0.62),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.09) !important;
+        transform: none !important;
+        transition: none !important;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        -webkit-overflow-scrolling: touch;
     }
 
-    .dock.mobile-open {
-        transform: translateX(0) !important;
-    }
+    .dock::-webkit-scrollbar { height: 0; width: 0; }
 
-    /* When drawer is open, show the overlay */
-    .mobile-drawer-overlay.open {
-        display: block;
-        opacity: 1;
-    }
-
-    /* Force the dock to always render at expanded width */
+    /* Desktop widens the rail on hover. There is no hover here, and the width
+       is owned by left/right above. */
     .dock:hover {
-        width: 280px !important;
-        box-shadow: 10px 0 40px rgba(0, 0, 0, 0.6) !important;
+        width: auto !important;
+    }
+
+    /* Everything the drawer needed and the bar does not: the header and footer
+       index.js injects into it, and the flex spacer that pushed Global Settings
+       to the bottom of a vertical rail. One rule, because they are exactly the
+       dock's non-tab children. */
+    .dock > *:not(.dock-icon) {
+        display: none !important;
+    }
+
+    .mobile-drawer-overlay,
+    .mobile-hamburger {
+        display: none !important;
     }
 
     /* ── Drawer header (injected via JS inside dock) ── */
@@ -1764,37 +1818,42 @@
         margin: 0;
     }
 
-    /* ── Dock icon: full-width row items with labels always visible ── */
+    /* ── Dock icon: a pill. 44px tall is the touch-target floor. ── */
     .dock-icon {
         flex-direction: row !important;
-        width: 100% !important;
-        height: 46px !important;
-        padding: 0 20px !important;
+        width: auto !important;
+        height: 44px !important;
+        padding: 0 14px !important;
         margin: 0 !important;
-        margin-bottom: 2px !important;
-        font-size: 0.85rem !important;
-        font-weight: 600 !important;
-        gap: 0 !important;
+        font-size: 0.76rem !important;
+        font-weight: 700 !important;
+        gap: 7px !important;
         justify-content: flex-start !important;
         align-items: center !important;
         flex-shrink: 0 !important;
-        border-radius: 0 !important;
+        white-space: nowrap !important;
+        border-radius: 13px !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.09) !important;
         color: var(--text-muted) !important;
         transition: background 0.15s ease, color 0.15s ease !important;
     }
 
     .dock-icon i {
-        margin-right: 14px !important;
-        font-size: 1rem !important;
-        width: 20px !important;
+        margin-right: 0 !important;
+        font-size: 0.9rem !important;
+        width: auto !important;
         text-align: center !important;
     }
 
+    /* On the desktop rail the label fades in on hover. In the bar it IS the
+       tab -- icon-only pills are much harder to tell apart at a glance. */
     .dock-icon span {
         opacity: 1 !important;
         pointer-events: auto !important;
-        font-size: 0.85rem !important;
+        font-size: 0.76rem !important;
         white-space: nowrap !important;
+        transition: none !important;
     }
 
     .dock:hover .dock-icon span {
@@ -1804,19 +1863,23 @@
     .dock-icon:hover,
     .dock-icon:active {
         margin-left: 0 !important;
-        width: 100% !important;
-        border-radius: 0 !important;
-        background: rgba(255, 255, 255, 0.05) !important;
+        width: auto !important;
+        border-radius: 13px !important;
+        background: rgba(255, 255, 255, 0.09) !important;
         color: var(--text-main) !important;
     }
 
+    /* The one pill that is filled, so where you are is readable at a glance
+       while the rest of the bar is scrolling past. */
     .dock-icon.active {
         margin-left: 0 !important;
-        width: 100% !important;
-        border-radius: 0 !important;
-        background: rgba(245, 158, 11, 0.1) !important;
+        width: auto !important;
+        border-radius: 13px !important;
+        background: rgba(245, 158, 11, 0.17) !important;
+        border-color: rgba(245, 158, 11, 0.48) !important;
         color: var(--gold) !important;
-        border-left: 3px solid var(--gold) !important;
+        font-weight: 800 !important;
+        border-left-width: 1px !important;
     }
 
     /* ── Drawer footer (injected via JS at bottom of dock) ── */
@@ -1898,27 +1961,9 @@
         justify-content: space-between !important;
     }
 
-    /* Show hamburger */
-    .mobile-hamburger {
-        display: flex !important;
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        background: rgba(0, 0, 0, 0.5);
-        border: 1px solid var(--border-color);
-        backdrop-filter: blur(5px);
-        color: var(--text-main);
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        cursor: pointer;
-        flex-shrink: 0;
-        transition: background 0.2s ease;
-        -webkit-tap-highlight-color: transparent;
-    }
-    .mobile-hamburger:active {
-        background: rgba(255, 255, 255, 0.15);
-    }
+    /* No hamburger. Every tab is in the bar at the foot of the screen, so the
+       menu that used to open the drawer has nothing left to open. index.js
+       still injects the button; this is what keeps it off the screen. */
 
     .app-actions {
         gap: 6px !important;
@@ -1935,10 +1980,26 @@
         font-size: 0.85rem !important;
     }
 
-    /* Keep Save & Close with short label */
+    /* A floppy-disk icon reads as "save" on its own; a bare globe does not say
+       what it does, and it is the one that is a TOGGLE rather than an action,
+       so its state has to be legible without tapping it. Words go to the globe. */
     #ps_btn_save_close {
-        font-size: 0.7rem !important;
-        padding: 8px 12px !important;
+        font-size: 0 !important;
+        padding: 8px 11px !important;
+    }
+
+    #ps_btn_save_close i {
+        font-size: 0.95rem !important;
+        margin: 0 !important;
+    }
+
+    #btn_apply_tab_all {
+        font-size: 0.68rem !important;
+        padding: 8px 11px !important;
+    }
+
+    #btn_apply_tab_all i {
+        font-size: 0.75rem !important;
     }
 
     /* Token counter: compact */
@@ -1951,7 +2012,9 @@
        MAIN CONTENT — full space, no bottom dock
        ════════════════════════════════════════════════════ */
     .main-content {
-        padding: 10px 14px 20px 14px !important;
+        /* 92px of foot: 62 for the dock, 12 above it, 12 below, and a little
+           air so the last row does not sit flush against it. */
+        padding: 10px 14px 92px 14px !important;
         margin-top: -30px !important; /* Perfect overlap for mobile screens */
     }
 
@@ -2069,32 +2132,42 @@
         font-size: 1.15rem !important;
     }
 
+    /* The dock spans the panel at every width now -- left/right own it, so a
+       fixed width here would only fight them. */
     .dock {
-        width: 260px !important;
-    }
-    .dock:hover {
-        width: 260px !important;
+        left: 10px !important;
+        right: 10px !important;
+        padding: 0 8px !important;
     }
 
+    /* Tighter pills, but never under the 44px touch target. */
     .dock-icon {
-        height: 42px !important;
-        padding: 0 16px !important;
+        height: 44px !important;
+        padding: 0 12px !important;
+        gap: 6px !important;
     }
     .dock-icon span {
-        font-size: 0.8rem !important;
+        font-size: 0.72rem !important;
     }
 
     .app-actions .ps-modern-btn {
         padding: 5px 8px !important;
     }
 
+    /* Stays icon-only here too -- the 768px rule set font-size: 0 and this
+       block used to hand the label back. */
     #ps_btn_save_close {
-        font-size: 0.65rem !important;
-        padding: 6px 10px !important;
+        padding: 6px 9px !important;
     }
 
+    #btn_apply_tab_all {
+        font-size: 0.64rem !important;
+        padding: 6px 9px !important;
+    }
+
+    /* Keeps the dock clearance. The old 16px let it cover the last row. */
     .main-content {
-        padding: 8px 10px 16px 10px !important;
+        padding: 8px 10px 90px 10px !important;
     }
 }
 
@@ -2405,6 +2478,49 @@
     padding: 2px 8px;
     border-radius: 6px;
     font-size: 0.65rem;
+}
+
+/* "NEW" pill for a sidebar nav entry. Story Config moved onto PRESETS & COT in
+   V10 and is the thing people should find first, so it gets a shimmer rather
+   than a flat badge -- the eye lands on movement before it lands on colour.
+   Two animations rather than one: the sweep reads at a glance, the glow reads
+   from the corner of the eye when the sweep is mid-cycle. */
+.ws-new-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 0.52rem;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #1a1206;
+    background: linear-gradient(100deg, #f59e0b 0%, #fde68a 45%, #f59e0b 90%);
+    background-size: 220% 100%;
+    border: 1px solid rgba(245, 158, 11, 0.55);
+    animation: meg-new-shimmer 2.6s linear infinite,
+               meg-new-glow 2.6s ease-in-out infinite;
+}
+
+@keyframes meg-new-shimmer {
+    from { background-position: 180% 0; }
+    to   { background-position: -40% 0; }
+}
+
+@keyframes meg-new-glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.30); }
+    50%      { box-shadow: 0 0 11px rgba(245, 158, 11, 0.62); }
+}
+
+/* A pill that will not sit still is exactly what some readers have their OS set
+   to stop. Keep the colour, drop the motion. */
+@media (prefers-reduced-motion: reduce) {
+    .ws-new-pill {
+        animation: none;
+        background-position: 50% 0;
+        box-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+    }
 }
 
 .ws-main {
@@ -3694,3 +3810,874 @@
 .npc-field-row .nf-type { width: 104px; flex: 0 0 auto; padding: 5px; font-size: .68rem; cursor: pointer; }
 .npc-field-row .ws-btn-small { flex: 0 0 auto; padding: 4px 7px; white-space: nowrap; font-size: .65rem; }
 .npc-field-row .nf-placeholder { flex: 1 1 100%; padding: 4px 8px; font-size: .68rem; opacity: .85; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DEV MODE — the prompt editor.
+
+   The old editor styled itself with inline style="" on every element, which is
+   why it was impossible to change the look of a slot box without editing nine
+   template literals. Everything here is a class.
+
+   The colour scheme carries meaning and is the whole navigation aid, so it is
+   worth stating once: gold = belongs to this engine, green = shared across the
+   install, blue = filled in automatically. Nothing else in the editor is
+   coloured, so those three read as categories rather than decoration.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+
+
+
+
+
+
+.dev-actions {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 26px;
+}
+
+.dev-actions > button {
+    flex: 1;
+    padding: 12px;
+    font-size: 0.95rem;
+}
+
+.dev-rule { margin-bottom: 12px; }
+.dev-rule.gold { color: var(--gold); }
+.dev-rule.green { color: #10b981; }
+
+.dev-grid { margin-bottom: 30px; }
+
+.ps-card.dev-card-custom {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.dev-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+/* ── Editor header ─────────────────────────────────────────────────────── */
+
+.dev-bar {
+    position: sticky;
+    top: -11px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: -10px 0 14px 0;
+    padding: 10px 0 12px 0;
+    /* Opaque on purpose: --bg-panel is #18181b99, and a translucent sticky
+       bar lets the document scroll visibly underneath the controls. */
+    background: var(--bg-main);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 10px 15px -10px rgba(0, 0, 0, 0.6);
+}
+
+.dev-bar-name {
+    flex: 1;
+    min-width: 120px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    border-color: var(--gold);
+}
+
+.dev-bar-title {
+    flex: 1;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: #10b981;
+}
+
+.dev-save { background: #10b981 !important; color: #fff !important; }
+
+
+
+
+/* ── Toolbar + legend ──────────────────────────────────────────────────── */
+
+
+
+.dev-toggle-auto {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.dev-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-left: auto;
+    font-size: 0.72rem;
+}
+
+.dev-key { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.dev-key.scope-engine { color: var(--gold); }
+.dev-key.scope-shared { color: #10b981; }
+.dev-key.scope-auto { color: #60a5fa; }
+
+/* ── Document view: one card per outgoing message ──────────────────────── */
+
+.dev-card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.dev-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    background: rgba(255, 255, 255, 0.035);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dev-card-name { font-weight: 700; font-size: 0.84rem; color: var(--text-main); }
+
+.dev-card-role {
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 2px 9px;
+}
+
+.dev-card-owner { margin-left: auto; font-size: 0.72rem; color: var(--text-muted); font-style: italic; }
+
+.dev-card-body { padding: 12px 14px; }
+
+.dev-card-st { opacity: 0.5; }
+.dev-card-st .dev-card-head { border-bottom: none; }
+
+/* Literal preset text — present so you can see context, not to be edited. */
+.dev-literal {
+    margin: 0 0 10px 0;
+    padding: 9px 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    line-height: 1.55;
+    color: #71717a;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: rgba(0, 0, 0, 0.28);
+    border-left: 2px solid var(--border-color);
+    border-radius: 0 6px 6px 0;
+    max-height: 220px;
+    overflow-y: auto;
+    user-select: text;
+}
+
+/* ── A slot ────────────────────────────────────────────────────────────── */
+
+.dev-slot {
+    border: 1px solid var(--border-color);
+    border-left-width: 3px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: var(--bg-panel);
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.dev-slot.scope-engine { border-left-color: var(--gold); }
+.dev-slot.scope-shared { border-left-color: #10b981; }
+.dev-slot.scope-auto { border-left-color: #60a5fa; }
+.dev-slot.dev-slot-unknown { border-left-color: #ef4444; }
+
+.dev-slot.is-off { opacity: 0.5; }
+.dev-slot.is-open { background: rgba(255, 255, 255, 0.03); }
+.dev-slot:hover { border-color: rgba(255, 255, 255, 0.18); }
+
+.dev-slot-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.dev-slot-caret { font-size: 0.7rem; color: var(--text-muted); flex: 0 0 auto; width: 10px; }
+.dev-slot-label { font-weight: 600; font-size: 0.82rem; flex: 0 0 auto; }
+
+.dev-slot-badge {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.64rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 1px solid currentColor;
+    opacity: 0.85;
+}
+
+.scope-engine .dev-slot-badge { color: var(--gold); }
+.scope-shared .dev-slot-badge { color: #10b981; }
+.scope-auto .dev-slot-badge { color: #60a5fa; }
+
+.dev-slot-status {
+    flex: 0 0 auto;
+    font-size: 0.66rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.dev-slot-status.st-empty { color: #52525b; }
+.dev-slot-status.st-default { color: var(--text-muted); }
+.dev-slot-status.st-custom { color: #10b981; }
+.dev-slot-status.st-off { color: #ef4444; }
+.dev-slot-status.st-auto { color: #60a5fa; }
+
+.dev-slot-oneline {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+.dev-slot-body {
+    padding: 4px 12px 12px 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.dev-slot-hint {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 10px 0;
+}
+
+.dev-slot-input {
+    width: 100%;
+    height: 130px;
+    resize: vertical;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.76rem;
+    line-height: 1.55;
+}
+
+.dev-slot-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+.dev-slot-tools .ps-modern-btn { padding: 5px 11px; font-size: 0.72rem; border-radius: 6px; }
+
+
+/* ── Notices inside an open slot ───────────────────────────────────────── */
+
+.dev-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    flex-wrap: wrap;
+    padding: 9px 12px;
+    margin: 10px 0;
+    border-radius: 8px;
+    font-size: 0.76rem;
+    line-height: 1.55;
+    border: 1px solid;
+}
+
+.dev-note i { margin-top: 2px; flex: 0 0 auto; }
+.dev-note span { flex: 1 1 220px; min-width: 0; }
+
+.dev-note-off { color: #fca5a5; border-color: rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08); }
+.dev-note-shared { color: #6ee7b7; border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.08); }
+.dev-note-auto { color: #93c5fd; border-color: rgba(96, 165, 250, 0.32); background: rgba(96, 165, 250, 0.07); }
+.dev-note-warn { color: #fcd34d; border-color: rgba(245, 158, 11, 0.38); background: rgba(245, 158, 11, 0.08); }
+
+.dev-note .ps-modern-btn { padding: 4px 10px; font-size: 0.7rem; border-radius: 6px; }
+
+.dev-builtin { margin-top: 10px; }
+
+.dev-builtin summary {
+    cursor: pointer;
+    font-size: 0.73rem;
+    color: var(--text-muted);
+    padding: 4px 0;
+}
+
+.dev-builtin summary:hover { color: var(--text-main); }
+
+.dev-builtin pre {
+    margin: 8px 0 0 0;
+    padding: 10px 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.71rem;
+    line-height: 1.55;
+    color: #71717a;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: rgba(0, 0, 0, 0.32);
+    border-radius: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+/* ── Simple view ───────────────────────────────────────────────────────── */
+
+.dev-group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 24px 0 10px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.dev-group-head small { font-size: 0.74rem; font-weight: 400; color: var(--text-muted); }
+
+/* ── Preview view ──────────────────────────────────────────────────────── */
+
+
+
+
+
+
+/* ── Narrow panes ──────────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+    .dev-actions { flex-direction: column; }
+    .dev-bar { flex-wrap: wrap; }
+    .dev-bar-name, .dev-bar-title { flex: 1 1 100%; order: -1; }
+    .dev-legend { margin-left: 0; }
+    .dev-slot-oneline, .dev-chip-oneline { display: none; }
+}
+
+/* ── Custom modules: your own text bolted onto an engine prompt ─────────── */
+
+.dev-modules { margin: 0 0 10px 16px; padding-left: 12px; border-left: 2px dashed rgba(16,185,129,0.3); }
+
+.dev-module {
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 8px;
+    background: rgba(16, 185, 129, 0.06);
+    margin-bottom: 8px;
+}
+
+.dev-module-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 11px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #10b981;
+}
+
+.dev-module-name { flex: 0 0 auto; }
+
+.dev-module-where {
+    flex: 1 1 auto;
+    font-size: 0.68rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.dev-module-edit, .dev-module-del { cursor: pointer; font-size: 0.78rem; flex: 0 0 auto; }
+.dev-module-edit { color: var(--gold); }
+.dev-module-del { color: #ef4444; }
+
+.dev-module-body {
+    padding: 0 11px 9px 11px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.71rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.dev-module-add {
+    width: 100%;
+    padding: 7px;
+    font-size: 0.74rem;
+    color: #10b981;
+    background: transparent;
+    border: 1px dashed rgba(16, 185, 129, 0.4);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.dev-module-add:hover { background: rgba(16, 185, 129, 0.1); }
+
+.dev-modal { display: flex; flex-direction: column; gap: 6px; text-align: left; }
+
+.dev-modal label {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+
+/* ── The two doors ─────────────────────────────────────────────────────── */
+
+.dev-doors { display: flex; gap: 18px; margin: 14px 0 18px 0; flex-wrap: wrap; }
+
+.dev-door {
+    flex: 1 1 300px;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.dev-door:hover { transform: translateY(-3px); }
+
+.dev-door-addons {
+    border-color: rgba(16, 185, 129, 0.45);
+    background: linear-gradient(150deg, rgba(16, 185, 129, 0.13), rgba(16, 185, 129, 0.03));
+}
+
+.dev-door-addons:hover { border-color: #10b981; }
+
+.dev-door-engines {
+    border-color: rgba(245, 158, 11, 0.45);
+    background: linear-gradient(150deg, rgba(245, 158, 11, 0.13), rgba(245, 158, 11, 0.03));
+}
+
+.dev-door-engines:hover { border-color: var(--gold); }
+
+.dev-door-icon { font-size: 1.8rem; margin-bottom: 12px; }
+
+.dev-door-addons .dev-door-icon,
+.dev-door-addons .dev-door-title,
+.dev-door-addons .dev-door-go { color: #10b981; }
+
+.dev-door-engines .dev-door-icon,
+.dev-door-engines .dev-door-title,
+.dev-door-engines .dev-door-go { color: var(--gold); }
+
+.dev-door-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
+
+.dev-door-desc {
+    flex: 1;
+    font-size: 0.86rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+}
+
+.dev-door-desc b { color: var(--text-main); }
+
+.dev-door-meta {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.dev-door-go { font-size: 0.88rem; font-weight: 700; }
+
+.dev-door-hint {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    padding: 12px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+.dev-door-hint b { color: #10b981; }
+
+/* ── Add-on list ───────────────────────────────────────────────────────── */
+
+.dev-addon-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 12px;
+    align-items: center;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border-color);
+    border-left: 3px solid #10b981;
+    border-radius: 10px;
+    background: var(--bg-panel);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.dev-addon-row:hover { background: rgba(16, 185, 129, 0.07); border-color: rgba(16, 185, 129, 0.5); }
+.dev-addon-row.is-off { opacity: 0.55; }
+
+.dev-addon-main { display: flex; align-items: center; gap: 10px; grid-column: 1; }
+.dev-addon-name { font-weight: 650; font-size: 0.88rem; }
+.dev-addon-desc { grid-column: 1; font-size: 0.76rem; color: var(--text-muted); line-height: 1.5; }
+
+.dev-addon-oneline {
+    grid-column: 1;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.7rem;
+    color: #52525b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dev-addon-go { grid-column: 2; grid-row: 1 / span 3; color: var(--text-muted); font-size: 0.9rem; }
+
+/* ── Add-on page: the editor beside its placement map ──────────────────── */
+
+.dev-cols { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.dev-col-main { flex: 1 1 420px; min-width: 0; }
+.dev-col-side { flex: 0 1 330px; min-width: 0; }
+
+.dev-side-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 9px;
+}
+
+.dev-side-text {
+    font-size: 0.79rem;
+    line-height: 1.65;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+}
+
+.dev-side-text b { color: var(--text-main); }
+
+.dev-side-text code {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+.dev-map { border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; }
+
+.dev-map-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 11px;
+    font-size: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.dev-map-row:last-child { border-bottom: none; }
+.dev-map-row.is-st { opacity: 0.5; font-style: italic; }
+
+.dev-map-row.is-hit {
+    background: rgba(16, 185, 129, 0.14);
+    color: #6ee7b7;
+    font-weight: 700;
+    border-left: 3px solid #10b981;
+}
+
+.dev-map-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.dev-map-role {
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.75;
+}
+
+.dev-map-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 9px 11px;
+    background: rgba(0, 0, 0, 0.28);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dev-map-tag {
+    font-size: 0.66rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.dev-map-tag.is-target {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    font-weight: 700;
+}
+
+/* ── Add-on and automatic chips inside the engine document ─────────────── */
+
+.dev-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border-color);
+    border-left-width: 3px;
+    border-radius: 8px;
+    background: var(--bg-panel);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    min-width: 0;
+}
+
+.dev-chip.scope-shared { border-left-color: #10b981; }
+.dev-chip.scope-shared > i:first-child { color: #10b981; }
+.dev-chip.scope-auto { border-left-color: #60a5fa; }
+.dev-chip.scope-auto > i:first-child { color: #60a5fa; }
+.dev-chip-unknown { border-left-color: #ef4444; }
+.dev-chip-unknown > i:first-child { color: #ef4444; }
+
+.dev-chip.is-static { cursor: default; opacity: 0.75; }
+.dev-chip.is-off { opacity: 0.5; }
+.dev-chip:not(.is-static):hover { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.5); }
+
+.dev-chip > i:first-child { flex: 0 0 auto; font-size: 0.78rem; }
+.dev-chip-name { flex: 0 0 auto; font-weight: 600; font-size: 0.82rem; }
+
+.dev-chip-oneline {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.73rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dev-chip-go { flex: 0 0 auto; font-size: 0.72rem; font-weight: 700; color: #10b981; }
+
+/* The add-on page gives the textarea real room; it is the whole screen there. */
+.dev-col-main .dev-slot-input { height: 300px; }
+
+/* An edited add-on is loud about it. The status word alone was too quiet to
+   answer "which of these have I actually changed?" at a glance. */
+
+.dev-addon-row.is-edited {
+    border-color: rgba(16, 185, 129, 0.55);
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.dev-addon-row.is-edited .dev-addon-name { color: #10b981; }
+.dev-addon-row.is-edited .dev-addon-oneline { color: #6ee7b7; }
+
+.dev-edited-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.16);
+    border-radius: 20px;
+    padding: 2px 9px;
+}
+
+.dev-chip.scope-shared .st-custom { color: #10b981; font-weight: 700; }
+
+/* Engine slots the preset has no anchor for. Set apart so nobody reads them as
+   part of the running order. */
+.dev-card-orphan { border-style: dashed; }
+.dev-card-orphan .dev-card-name { color: var(--gold); }
+
+/* "Custom" -- this add-on's text was rewritten in Dev Mode and is no longer the
+   shipped version. Green, matching the shared-fragment colour used throughout
+   Dev Mode, so the two screens agree about what green means. */
+
+.mtab-eng-card .ecard-badge.custom,
+.ecard-badge.custom {
+    background: rgba(16, 185, 129, 0.16);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.blk-edited-flag {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.16);
+    border: 1px solid rgba(16, 185, 129, 0.45);
+    border-radius: 20px;
+    padding: 1px 7px;
+    vertical-align: middle;
+}
+
+/* A slot that rides inside another one is drawn indented beneath its carrier,
+   so the nesting is visible rather than asserted in prose. */
+.dev-carried {
+    margin: 0 0 8px 18px;
+    padding-left: 12px;
+    border-left: 2px dashed rgba(245, 158, 11, 0.35);
+}
+
+/* Load-from-a-list picker, on the reasoning slots. */
+
+.dev-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 10px 0 4px 0;
+}
+
+.dev-picker label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.dev-picker select {
+    flex: 0 1 260px;
+    padding: 5px 9px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    color: var(--gold);
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+/* ── Global Settings: submission card and about card ───────────────────── */
+
+.gs-submit { display: flex; flex-direction: column; gap: 12px; }
+
+.gs-submit-body { display: flex; align-items: flex-start; gap: 14px; }
+
+.gs-submit-icon {
+    flex: 0 0 auto;
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(168,85,247,0.22), rgba(168,85,247,0.08));
+    border: 1px solid rgba(168,85,247,0.32);
+    color: #a855f7;
+}
+
+.gs-submit-title { font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
+.gs-submit-text  { font-size: 0.76rem; color: var(--text-muted); line-height: 1.55; }
+
+.gs-submit-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px;
+    border-radius: 9px;
+    font-size: 0.8rem; font-weight: 700;
+    text-decoration: none;
+    color: #f5f3ff;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border: 1px solid rgba(168,85,247,0.5);
+    transition: filter 0.18s ease, transform 0.18s ease;
+}
+
+.gs-submit-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.gs-submit-btn:active { transform: translateY(0); }
+
+.gs-submit-note { font-size: 0.66rem; color: var(--text-muted); text-align: center; }
+
+.gs-about { text-align: center; }
+
+.gs-about-title {
+    font-size: 1.45rem; font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 2px 10px rgba(245,158,11,0.3);
+}
+
+.gs-about-by { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+
+.gs-link-grid {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-top: 16px;
+    text-align: left;
+}
+
+/* Anchors and plain rows share one look: a donation address is not clickable,
+   but it belongs in the same list as the things that are. */
+.gs-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+    border-radius: 9px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    text-decoration: none;
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.gs-link:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.18); }
+.gs-link-static { cursor: default; }
+.gs-link-static:hover { background: rgba(255,255,255,0.04); border-color: var(--border-color); }
+
+.gs-link i { font-size: 0.95rem; flex: 0 0 auto; width: 18px; text-align: center; }
+.gs-link span { display: flex; flex-direction: column; min-width: 0; }
+.gs-link b { font-size: 0.78rem; font-weight: 700; }
+
+/* The Litecoin address has to wrap rather than push the panel wide. */
+.gs-link small {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    word-break: break-all;
+    line-height: 1.35;
+}
+
+/* ── Dock notice dot ───────────────────────────────────────────────────────
+   Sits on the ICON, not the row: the dock collapses to a narrow rail of icons,
+   and a dot anchored to the 240px row would drift off to the right of nothing.
+   Gold rather than red — red already means "problem" in this UI (the
+   discontinued notice, the locked cards), and this is "come and look". */
+.dock-icon.has-notice i {
+    position: relative;
+}
+
+.dock-icon.has-notice i::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    right: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 7px rgba(245, 158, 11, 0.75);
+    animation: meg-notice-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes meg-notice-pulse {
+    0%, 100% { transform: scale(1);    opacity: 1; }
+    50%      { transform: scale(1.28); opacity: 0.72; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dock-icon.has-notice i::after { animation: none; }
+}

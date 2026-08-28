@@ -9,6 +9,26 @@ README on the stable branch.
 
 ---
 
+## 2026-08-26
+**The new V10 Preset is out** — what shipped in this update:
+
+**1 — New V10 Ukiyo engine + V10 CoT**
+The idea behind it: The world is here with you or without you and NPCs have more depth there is no evil and no good its all in perspective *this is a test will see how it go* 
+
+**2 — True random dice**
+Not like other presets. This one doesn't ask the AI to make up a number — the extension rolls it with a real random algorithm and feeds it into the prompt for the AI to use.
+Two more things that make it honest:
+• the roll is written **before** the story, so the AI can't pick a result that fits a scene it already wrote
+• the extension checks the math — if the numbers don't add up it won't draw it as a clean card
+The roll gets its own tab on the block card, with the die spinning to its number.
+
+**3 — Dice: Everyone**
+Same system, but everyone rolls, NPCs included. Any character who tries something that can fail gets a roll, all of them listed before the reply.
+
+**4 — Immersive HTML**
+When a character reads something — a phone screen, a letter, a sign, a receipt — the AI draws the thing itself instead of describing it.
+Rare on purpose: one per reply at most, and most replies have none. It will never make stat panels, status bars or menus. Only things that actually exist in the story.
+
 ## 2026-08-21
 
 > The tracker blocks stop being paragraphs. Choices you can press, World State as

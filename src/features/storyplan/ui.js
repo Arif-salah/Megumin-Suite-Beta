@@ -82,6 +82,14 @@ export function renderStoryPlanner(c) {
             </div>
         </div>
 
+        <div class="mtab-callout gold" style="margin-bottom: 16px;">
+            <i class="fa-solid fa-circle-info"></i>
+            <span><strong>V10 does not really need this.</strong> Its engine already drives the plot
+            forward on its own, so the Director is optional rather than recommended there. Switch it
+            on if you want a hand on the wheel &mdash; a specific arc, a pace change, a beat you want
+            reached &mdash; and leave it off otherwise.</span>
+        </div>
+
         <!-- MASTER TOGGLE -->
         <div class="mtab-toggle-row ${sp.enabled ? 'active' : ''}" id="sd_enable_card" style="margin-bottom: 20px;">
             <div class="toggle-info">

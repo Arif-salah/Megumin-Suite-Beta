@@ -23,7 +23,7 @@ import { hardcodedLogic } from "../../data/database.js";
 import { MEGUMIN_BLOCK_REGISTRY, meguminSyncLegacyBlockIds } from "../features/blocks/registry.js";
 import { NPC_DEFAULT_FIELDS, NPC_SYSTEM_ROLES } from "../features/npc/fields.js";
 import { npcRollbackHistoryFrom } from "../features/npc/updates.js";
-import { normalizeStoryConfig } from "../features/storyconfig/config.js";
+import { normalizeStoryConfig, applyStoryConfigDefaults } from "../features/storyconfig/config.js";
 import { escapeRegex } from "../utils/regex.js";
 import { refreshSidePanel, refreshPresentBar } from "../sidepanel/panel.js";
 
@@ -84,7 +84,7 @@ export function initProfile() {
         customStyles: [],
         activeStyleId: null,
         storyConfig: {
-            enabled: false,
+            enabled: true,
             genre: "",
             tone: "",
             pov: "",
@@ -233,7 +233,7 @@ export function initProfile() {
     if (!extension_settings[extensionName].globalSettings) {
         extension_settings[extensionName].globalSettings = {
             promptPreview: false,
-            disableUtilityPrefill: false,
+            enableUtilityPrefill: false,
             saveMode: "character"
         };
     } else if (!extension_settings[extensionName].globalSettings.saveMode) {
@@ -363,16 +363,21 @@ export function initProfile() {
     // One-time migration: the old POV dropdown becomes the config's pov field
     if (localProfile.userPov && !localProfile.storyConfig.pov) {
         localProfile.storyConfig.pov = localProfile.userPov;
-        localProfile.storyConfig.enabled = true;
         localProfile.userPov = "";
     }
     // One-time migration: the old Target Word Count becomes the config's length field
     if (localProfile.userWordCount && String(localProfile.userWordCount).trim() !== "" && !localProfile.storyConfig.length) {
         const legacyType = localProfile.userWordCountType === "min" ? "minimum" : "maximum";
         localProfile.storyConfig.length = `${legacyType} ${String(localProfile.userWordCount).trim()} words`;
-        localProfile.storyConfig.enabled = true;
         localProfile.userWordCount = "";
     }
+    // AFTER the two legacy migrations, never before: seeding pov would fill the very
+    // field `if (!localProfile.storyConfig.pov)` tests, and an upgrading reader would
+    // silently lose the POV they had set on the old dropdown.
+    //
+    // The block is always injected now, so its three standing fields ship set rather
+    // than blank. Only fills what is empty, so a reader who picked something keeps it.
+    applyStoryConfigDefaults(localProfile.storyConfig);
     if (localProfile.imageGen && localProfile.imageGen.customPromptsEnabled === undefined) localProfile.imageGen.customPromptsEnabled = false;
     if (localProfile.memoryCore && localProfile.memoryCore.customPromptsEnabled === undefined) localProfile.memoryCore.customPromptsEnabled = false;
     if (localProfile.npcBank && localProfile.npcBank.customPromptsEnabled === undefined) localProfile.npcBank.customPromptsEnabled = false;

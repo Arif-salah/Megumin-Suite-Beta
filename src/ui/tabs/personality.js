@@ -3,6 +3,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { localProfile, currentTab } from "../../core/state.js";
+import { isV7Engine, isModernEngine } from "../../core/engines.js";
 import { extension_settings } from "../../st.js";
 import { extensionName } from "../../core/constants.js";
 import { saveProfileToMemory } from "../../core/profile.js";
@@ -12,10 +13,9 @@ import { hardcodedLogic } from "../../../data/database.js";
 export function renderPersonality(c) {
     const isV6DreamTeam = localProfile.mode.includes("v6-dream-team");
     const activeEngineForPersona = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
-    const isV7 = activeEngineForPersona ? (activeEngineForPersona.id.startsWith("v7") || activeEngineForPersona.isV7 === true) : false;
-    const isV8 = activeEngineForPersona ? (activeEngineForPersona.id.startsWith("v8") || activeEngineForPersona.isV8 === true) : false;
-    const isV9 = activeEngineForPersona ? (activeEngineForPersona.id.startsWith("v9") || activeEngineForPersona.isV9 === true) : false;
-    const isLockedPersona = isV6DreamTeam || isV7 || isV8 || isV9;
+    const isV7 = isV7Engine(activeEngineForPersona);
+    const isModern = isModernEngine(activeEngineForPersona);
+    const isLockedPersona = isV6DreamTeam || isV7 || isModern;
 
     // ── HEADER ──
     c.append(`
@@ -35,12 +35,19 @@ export function renderPersonality(c) {
         </div>
     `);
 
-    if (isV8 || isV9) {
+    // Named from the engine itself, never rebuilt from a flag. Deriving the word "V9"
+    // from isV9 is what told a V10 reader they were on V9, and the next generation
+    // would have done it again. The engine already knows what it is called.
+    const lockedEngineName = (activeEngineForPersona && activeEngineForPersona.label)
+        ? activeEngineForPersona.label
+        : "This engine";
+
+    if (isModern) {
         c.append(`
             <div class="mtab-locked-state">
                 <i class="fa-solid fa-user-lock" style="color: #f59e0b;"></i>
                 <h3>Persona Locked</h3>
-                <p>The ${isV9 ? 'V9' : 'V8'} engine manages its own internal persona and strictly enforces narrative toggles natively. Standard injections are completely disabled.</p>
+                <p>${lockedEngineName} manages its own internal persona and strictly enforces narrative toggles natively. Standard injections are completely disabled.</p>
             </div>
         `);
         return;

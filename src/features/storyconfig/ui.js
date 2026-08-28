@@ -8,13 +8,15 @@
 import { extension_settings, saveSettingsDebounced } from "../../st.js";
 import { extensionName } from "../../core/constants.js";
 import { localProfile } from "../../core/state.js";
+import { engineLocksStyle, lockedStyleIdFor } from "../../core/engines.js";
 import { getCharacterKey } from "../../core/keys.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js";
+import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { hardcodedLogic } from "../../../data/database.js";
 import { escapeHtmlAttr, fieldPlaceholder } from "../../utils/html.js";
 import { cleanAIOutput } from "../../engine/chatText.js";
 import { useMeguminEngine, runMeguminTask } from "../../engine/tasks.js";
-import { storyConfigFields, getAllConfigPresets, countActiveConfigFields } from "./config.js";
+import { storyConfigFields, getAllConfigPresets, applyStoryConfigDefaults, isStandingConfigField } from "./config.js";
 
 // -------------------------------------------------------------
 // STORY CONFIG (<config> block → [[config]])
@@ -22,30 +24,19 @@ import { storyConfigFields, getAllConfigPresets, countActiveConfigFields } from 
 
 // Builds the Config pane. Text fields save on input (debounced) so typing never re-renders
 // and never steals focus; only structural changes re-render the whole tab.
-export function buildStoryConfigSection(c) {
+export function buildStoryConfigSection() {
     const cfg = localProfile.storyConfig;
+    // The standing fields can never be drawn blank: their dropdown has no
+    // "Preset default" row to select, so an empty value would show the wrong option.
+    applyStoryConfigDefaults(cfg);
     const sec = $(`<div class="ws-section" id="sec-config"></div>`);
 
     sec.append(`<h3 style="margin-top: 0; color: var(--gold); font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-sliders"></i> Story Config</h3>`);
 
-    // ── MASTER TOGGLE ──
-    const masterRow = $(`
-        <div class="cfg-master ${cfg.enabled ? 'active' : ''}">
-            <div>
-                <div class="cfg-master-title"><i class="fa-solid fa-scroll"></i> Inject Config Block</div>
-                <div class="cfg-master-desc">Standing settings for the whole story. Anything left on preset default is left to your preset.</div>
-            </div>
-            <div class="ps-toggle-card ${cfg.enabled ? 'active' : ''}" id="cfg_master_toggle" style="padding: 2px; min-width: 44px; background: transparent; border-color: ${cfg.enabled ? '#10b981' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
-                <div class="ps-switch" style="transform: scale(0.75); ${cfg.enabled ? 'background: #10b981;' : ''}"></div>
-            </div>
-        </div>
-    `);
-    masterRow.find("#cfg_master_toggle").on("click", () => {
-        cfg.enabled = !cfg.enabled;
-        saveProfileToMemory();
-        renderStoryConfig(c);
-    });
-    sec.append(masterRow);
+    // No master toggle: the block is always injected. Anything left on Preset default
+    // still emits no line, so "off" is expressed per field rather than for the whole
+    // block -- which is what people were reaching for the toggle to do anyway.
+    sec.append(`<div class="cfg-master-desc" style="margin-bottom: 14px;">Standing settings for the whole story. Anything left on preset default is left to your preset.</div>`);
 
     // ── PRESET BAR ──
     const presets = getAllConfigPresets();
@@ -76,9 +67,9 @@ export function buildStoryConfigSection(c) {
         const p = getAllConfigPresets().find(x => x.id === pid);
         if (!p) return;
         storyConfigFields.forEach(f => { cfg[f.key] = p.values[f.key] || ""; });
-        cfg.enabled = true;
+        applyStoryConfigDefaults(cfg);
         saveProfileToMemory();
-        renderStoryConfig(c);
+        fireRefreshHook(REFRESH.SWITCH_TAB);
         toastr.success(`Loaded "${p.name}".`);
     });
 
@@ -94,7 +85,7 @@ export function buildStoryConfigSection(c) {
             values
         });
         saveSettingsDebounced();
-        renderStoryConfig(c);
+        fireRefreshHook(REFRESH.SWITCH_TAB);
         toastr.success(`Saved "${name.trim()}".`);
     });
 
@@ -107,21 +98,22 @@ export function buildStoryConfigSection(c) {
         if (!confirm(`Delete the preset "${p.name}"?`)) return;
         extension_settings[extensionName].configPresets = extension_settings[extensionName].configPresets.filter(x => x.id !== pid);
         saveSettingsDebounced();
-        renderStoryConfig(c);
+        fireRefreshHook(REFRESH.SWITCH_TAB);
         toastr.success("Preset deleted.");
     });
 
     presetBar.find("#cfg_reset_all").on("click", () => {
         if (!confirm("Set every setting back to preset default?")) return;
         storyConfigFields.forEach(f => { cfg[f.key] = ""; });
+        applyStoryConfigDefaults(cfg);
         saveProfileToMemory();
-        renderStoryConfig(c);
+        fireRefreshHook(REFRESH.SWITCH_TAB);
     });
 
     sec.append(presetBar);
 
     // ── FIELD ROWS ──
-    const fieldWrap = $(`<div class="cfg-fields ${cfg.enabled ? '' : 'disabled'}"></div>`);
+    const fieldWrap = $(`<div class="cfg-fields"></div>`);
 
     storyConfigFields.forEach(f => {
         const val = cfg[f.key] || "";
@@ -174,7 +166,11 @@ export function buildStoryConfigSection(c) {
             // narrator_presence: light) name it here — picking it still drops the line,
             // because the preset already behaves that way.
             const defLabel = f.defaultLabel ? `Preset default — ${f.defaultLabel}` : `Preset default`;
-            let opts = `<option value="" ${!isOn ? 'selected' : ''}>${defLabel}</option>`;
+            // A standing field always reaches the model, so it has no "leave it to the
+            // preset" state and its dropdown does not offer one.
+            let opts = isStandingConfigField(f.key)
+                ? ""
+                : `<option value="" ${!isOn ? 'selected' : ''}>${defLabel}</option>`;
             opList.forEach(o => {
                 opts += `<option value="${escapeHtmlAttr(o.value)}" ${val === o.value ? 'selected' : ''}>${o.label}</option>`;
             });
@@ -280,18 +276,10 @@ export function renderStoryConfig(c) {
     const root = $(`<div style="display: flex; flex-direction: column; height: 100%;"></div>`);
 
     const activeEngineForStyle = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
-    const isV7ForStyle = activeEngineForStyle ? (activeEngineForStyle.id.startsWith("v7") || activeEngineForStyle.isV7 === true) : false;
-    const isV8ForStyle = activeEngineForStyle ? (activeEngineForStyle.id.startsWith("v8") || activeEngineForStyle.isV8 === true) : false;
-    const isV9ForStyle = activeEngineForStyle ? (activeEngineForStyle.id.startsWith("v9") || activeEngineForStyle.isV9 === true) : false;
-    const isLockedStyleEngine = isV7ForStyle || isV8ForStyle || isV9ForStyle;
+    const isLockedStyleEngine = engineLocksStyle(activeEngineForStyle);
 
     if (isLockedStyleEngine && !localProfile.activeStyleId) {
-        let targetStyle = "dir_v7";
-        if (localProfile.mode === "v7-core") targetStyle = "dir_v7_core";
-        else if (localProfile.mode === "v7-gentle") targetStyle = "dir_v7_gentle";
-        else if (localProfile.mode === "v7.5") targetStyle = "dir_v7.5";
-        else if (isV8ForStyle) targetStyle = "dir_v8";
-        else if (isV9ForStyle) targetStyle = "dir_v9";
+        const targetStyle = lockedStyleIdFor(activeEngineForStyle) || "dir_v7";
 
         localProfile.activeStyleId = targetStyle;
         const ds = hardcodedLogic.directStyles.find(x => x.id === targetStyle);
@@ -316,25 +304,16 @@ export function renderStoryConfig(c) {
     }
 
     // ── HEADER ──
-    const cfgCount = localProfile.storyConfig.enabled ? countActiveConfigFields(localProfile.storyConfig) : 0;
-    const cfgBadgeText = localProfile.storyConfig.enabled
-        ? (cfgCount > 0 ? `Config: ${cfgCount} field${cfgCount === 1 ? '' : 's'}` : 'Config: empty')
-        : 'Config: Off';
-
     root.append(`
         <div class="wstyle-header">
             <div class="wstyle-header-left">
                 <div class="wstyle-header-icon"><i class="fa-solid fa-sliders"></i></div>
                 <div>
-                    <h2>Story Config</h2>
-                    <p>Set the standing rules of the story, then pick the prose style that carries them.</p>
+                    <h2>Writing Style</h2>
+                    <p>Pick the prose voice the story is told in.</p>
                 </div>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-                <div class="wstyle-active-badge ${cfgCount > 0 ? '' : 'off'}">
-                    <i class="fa-solid ${cfgCount > 0 ? 'fa-circle-check' : 'fa-power-off'}"></i>
-                    ${cfgBadgeText}
-                </div>
                 <div class="wstyle-active-badge ${isOff ? 'off' : ''}">
                     <i class="fa-solid ${isOff ? 'fa-power-off' : 'fa-pen-nib'}"></i>
                     ${isOff ? 'No Style' : activeStyleName}
@@ -349,11 +328,58 @@ export function renderStoryConfig(c) {
     const mainArea = $(`<div class="ws-main"></div>`);
 
     // --- BUILD SIDEBAR ---
-    sidebar.append(`<div class="ws-sidebar-title">Story Settings</div>`);
+    // ── DN RATIO ──
+    // Its own option at the top of the sidebar rather than an afterthought under
+    // the style list: it applies to every style, so it does not belong inside the
+    // list of styles you pick between. The two ends are labelled because a bare
+    // pair of percentages does not say which half of the writing each one governs.
+    if (!localProfile.dnRatio) localProfile.dnRatio = { enabled: false, dialogue: 50 };
+    const isDNR = localProfile.dnRatio.enabled;
+    const dVal = localProfile.dnRatio.dialogue;
 
-    const btnConfig = $(`<button class="ws-nav-btn"><span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-sliders" style="color: var(--gold);"></i> Config</span> ${cfgCount > 0 ? `<span class="ws-badge">${cfgCount}</span>` : ''}</button>`);
-    sidebar.append(btnConfig);
-    sidebar.append(`<div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>`);
+    const dnPanel = $(`
+        <div style="margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-scale-balanced" style="color: #3b82f6; margin-right: 5px;"></i> DN Ratio</span>
+                <div class="ps-toggle-card ${isDNR ? 'active' : ''}" id="dnr_toggle_sb" style="padding: 2px; min-width: 36px; background: transparent; border-color: ${isDNR ? '#10b981' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
+                    <div class="ps-switch" style="transform: scale(0.65); ${isDNR ? 'background: #10b981;' : ''}"></div>
+                </div>
+            </div>
+            <div id="dnr_body_sb" style="display: ${isDNR ? 'block' : 'none'};">
+                <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 6px; margin-bottom: 6px;">
+                        <div style="text-align: left; min-width: 0;">
+                            <div style="font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted);">Narration</div>
+                            <div style="font-size: 0.9rem; font-weight: 800; color: #a855f7; line-height: 1.1;"><span id="lbl_narr">${100 - dVal}</span>%</div>
+                        </div>
+                        <div style="text-align: right; min-width: 0;">
+                            <div style="font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted);">Dialogue</div>
+                            <div style="font-size: 0.9rem; font-weight: 800; color: #10b981; line-height: 1.1;"><span id="lbl_dial">${dVal}</span>%</div>
+                        </div>
+                    </div>
+                    <input type="range" id="dnr_slider" min="0" max="100" step="10" value="${dVal}" style="width: 100%; accent-color: var(--gold); height: 4px; display: block;">
+                    <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.5rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+                        <span>&#9664; more narration</span>
+                        <span>more dialogue &#9654;</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    dnPanel.find("#dnr_toggle_sb").on("click", function (e) {
+        e.stopPropagation(); localProfile.dnRatio.enabled = !localProfile.dnRatio.enabled; saveProfileToMemory(); renderStyleLibrary(c);
+    });
+    dnPanel.find("#dnr_slider").on("input", function () {
+        let d = parseInt($(this).val()); let n = 100 - d;
+        $("#lbl_dial").text(d); $("#lbl_narr").text(n);
+    });
+    dnPanel.find("#dnr_slider").on("change", function () {
+        localProfile.dnRatio.dialogue = parseInt($(this).val()); saveProfileToMemory();
+    });
+    sidebar.append(dnPanel);
+    sidebar.append(`<div style="height: 1px; background: var(--border-color); margin: 0 0 8px 0;"></div>`);
+
     sidebar.append(`<div class="ws-sidebar-title">Writing Style</div>`);
 
     // Off Button
@@ -373,44 +399,9 @@ export function renderStoryConfig(c) {
 
     sidebar.append(btnPrecooked).append(btnCustom).append(btnGenerators);
 
-    // DN Ratio Integrated into Sidebar Bottom
-    if (!localProfile.dnRatio) localProfile.dnRatio = { enabled: false, dialogue: 50 };
-    const isDNR = localProfile.dnRatio.enabled;
-    const dVal = localProfile.dnRatio.dialogue;
-
-    const dnPanel = $(`
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-scale-balanced" style="color: #3b82f6; margin-right: 5px;"></i> DN Ratio</span>
-                <div class="ps-toggle-card ${isDNR ? 'active' : ''}" id="dnr_toggle_sb" style="padding: 2px; min-width: 36px; background: transparent; border-color: ${isDNR ? '#10b981' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
-                    <div class="ps-switch" style="transform: scale(0.65); ${isDNR ? 'background: #10b981;' : ''}"></div>
-                </div>
-            </div>
-            <div id="dnr_body_sb" style="display: ${isDNR ? 'block' : 'none'};">
-                <div style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color);">
-                    <span style="font-size: 0.65rem; font-weight:bold; color: #a855f7; width:25px; text-align:right;"><span id="lbl_narr">${100 - dVal}</span>%</span>
-                    <input type="range" id="dnr_slider" min="0" max="100" step="10" value="${dVal}" style="flex: 1; accent-color: var(--gold); height: 4px;">
-                    <span style="font-size: 0.65rem; font-weight:bold; color: #10b981; width:25px;"><span id="lbl_dial">${dVal}</span>%</span>
-                </div>
-            </div>
-        </div>
-    `);
-
-    dnPanel.find("#dnr_toggle_sb").on("click", function (e) {
-        e.stopPropagation(); localProfile.dnRatio.enabled = !localProfile.dnRatio.enabled; saveProfileToMemory(); renderStyleLibrary(c);
-    });
-    dnPanel.find("#dnr_slider").on("input", function () {
-        let d = parseInt($(this).val()); let n = 100 - d;
-        $("#lbl_dial").text(d); $("#lbl_narr").text(n);
-    });
-    dnPanel.find("#dnr_slider").on("change", function () {
-        localProfile.dnRatio.dialogue = parseInt($(this).val()); saveProfileToMemory();
-    });
-    sidebar.append(dnPanel);
     layout.append(sidebar);
 
     // --- BUILD MAIN CONTENT SECTIONS ---
-    const secConfig = buildStoryConfigSection(c);
     const secPrecooked = $(`<div class="ws-section" id="sec-precooked"></div>`);
     const secCustom = $(`<div class="ws-section" id="sec-custom" style="display:none;"></div>`);
     const secGenerators = $(`<div class="ws-section" id="sec-generators" style="display:none;"></div>`);
@@ -546,14 +537,14 @@ export function renderStoryConfig(c) {
     });
     secGenerators.append(gridGen);
 
-    mainArea.append(secConfig).append(secPrecooked).append(secCustom).append(secGenerators);
+    mainArea.append(secPrecooked).append(secCustom).append(secGenerators);
     layout.append(mainArea);
     root.append(layout);
     c.append(root);
 
     // ── NAVIGATION LOGIC ──
-    const navButtons = [btnConfig, btnPrecooked, btnCustom, btnGenerators];
-    const sections = [secConfig, secPrecooked, secCustom, secGenerators];
+    const navButtons = [btnPrecooked, btnCustom, btnGenerators];
+    const sections = [secPrecooked, secCustom, secGenerators];
 
     const switchSection = (index) => {
         navButtons.forEach((btn, i) => {
@@ -566,20 +557,20 @@ export function renderStoryConfig(c) {
         });
     };
 
-    btnConfig.on('click', () => { lastStorySection = 0; switchSection(0); });
-    btnPrecooked.on('click', () => { lastStorySection = 1; switchSection(1); });
-    btnCustom.on('click', () => { lastStorySection = 2; switchSection(2); });
-    btnGenerators.on('click', () => { lastStorySection = 3; switchSection(3); });
+    btnPrecooked.on('click', () => { lastStorySection = 0; switchSection(0); });
+    btnCustom.on('click', () => { lastStorySection = 1; switchSection(1); });
+    btnGenerators.on('click', () => { lastStorySection = 2; switchSection(2); });
 
     // Re-renders (toggling a field, loading a preset, picking a style) keep you where you were.
     if (lastStorySection === null) {
-        // First open: land on Config, unless a custom style is what's actually active.
-        lastStorySection = (localProfile.activeStyleId && localProfile.activeStyleId.startsWith("style_")) ? 2 : 0;
+        // First open: land on Precooked, unless a custom style is what's actually active.
+        lastStorySection = (localProfile.activeStyleId && localProfile.activeStyleId.startsWith("style_")) ? 1 : 0;
     }
+    if (lastStorySection > 2) lastStorySection = 0;
     switchSection(lastStorySection);
 }
 
-// Remembers which pane of the Story Config tab was open across re-renders.
+// Remembers which pane of the Writing Style tab was open across re-renders.
 export let lastStorySection = null;
 // Remembers which config row is expanded, so a re-render doesn't collapse what you were editing.
 export let openConfigRow = null;

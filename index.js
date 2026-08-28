@@ -70,7 +70,7 @@ import {
     TAB_SYNC_KEYS, TABS_ALREADY_GLOBAL, meguminGlobalSyncMap, meguminIsTabSynced,
     applyTabKeysToAllProfiles, syncPromptsGlobally,
 } from "./src/core/sync.js";
-import { cleanLegacySettings } from "./src/core/migrations.js";
+import { cleanLegacySettings, migrateRenamedTabs, migrateUtilityPrefillFlag } from "./src/core/migrations.js";
 import { meguminCompactStoredPrompts } from "./src/prompts/storage.js";
 import {
     normalizeBlockBody,
@@ -236,6 +236,8 @@ $("body").off("click", "#ps_btn_dev_mode").on("click", "#ps_btn_dev_mode", funct
 jQuery(async () => {
     try {
         cleanLegacySettings();
+        migrateRenamedTabs();
+        migrateUtilityPrefillFlag();
         initSidePanel({ profileGetter: () => localProfile });
         const h = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(h);

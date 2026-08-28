@@ -10,6 +10,7 @@
 import { getContext, extension_settings, substituteParams } from "../st.js";
 import { extensionName } from "../core/constants.js";
 import { localProfile } from "../core/state.js";
+import { isV7Engine, isV8Engine, isModernEngine, engineUsesRenderLimits } from "../core/engines.js";
 import {
     activeNpcImages, pushActiveNpcImage, clearActiveNpcImages,
 } from "../core/activeRequests.js";
@@ -22,6 +23,8 @@ import { npcBuildDossierPrompt, npcBuildUpdatePrompt } from "../features/npc/fie
 import { memGetCachedKeywords } from "../features/memory/keywords.js";
 import { memGetRelevantVaultEntries } from "../features/memory/index.js";
 import { meguminRollD20s } from "../utils/dice.js";
+import { meguminOverridableSlots, meguminSlotIsLive, meguminModuleTrigger } from "../../data/slots.js";
+import { resolveSlot } from "../core/sharedFragments.js";
 
 export function buildBaseDict(isTokenCount = false) {
     const dict = {};
@@ -29,11 +32,13 @@ export function buildBaseDict(isTokenCount = false) {
 
     const allAvailableModes = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])];
     const activeEngine = allAvailableModes.find(m => m.id === localProfile.mode);
-    const isV7 = activeEngine ? (activeEngine.id.startsWith("v7") || activeEngine.isV7 === true) : false;
-    const isV8 = activeEngine ? (activeEngine.id.startsWith("v8") || activeEngine.isV8 === true) : false;
-    const isV9 = activeEngine ? (activeEngine.id.startsWith("v9") || activeEngine.isV9 === true) : false;
+    const isV7 = isV7Engine(activeEngine);
+    const isV8 = isV8Engine(activeEngine);
+    // Everything V8/V9 does, V10 does too. The one exception is the Lean/Full render
+    // split below, which asks engineUsesRenderLimits() instead.
+    const isModern = isModernEngine(activeEngine);
 
-    if (isV9) {
+    if (engineUsesRenderLimits(activeEngine)) {
         const v9l = localProfile.v9Limits || {};
         dict["[[v9_lean_min]]"] = String(v9l.leanMin || 300);
         dict["[[v9_lean_max]]"] = String(v9l.leanMax || 400);
@@ -100,25 +105,6 @@ export function buildBaseDict(isTokenCount = false) {
         if (item) dict[item.trigger] = item.content;
     });
 
-    // The dice add-on ships with a marker where this turn's numbers go, and it
-    // is filled in HERE rather than by a second dict entry. A nested trigger
-    // would work only because Object.entries walks the dict in insertion order,
-    // so [[dice]] happens to expand before [[dice_rolls]] is searched for — a
-    // correctness that depends on the order two unrelated lines were written in.
-    // One explicit replacement cannot be broken by reordering anything.
-    //
-    // Fresh numbers every build, so a swipe re-rolls the turn rather than
-    // rewriting the prose around a die that already landed.
-    // Any add-on that declares a roll count gets this turn's numbers. Written as
-    // a loop over what the add-ons ask for rather than a branch per add-on: the
-    // player-only and everyone variants want three and six, and a third variant
-    // would otherwise mean editing the engine to add a number.
-    (localProfile.addons || []).forEach(aId => {
-        const item = hardcodedLogic.addons.find(a => a.id === aId);
-        if (!item || !item.rolls || !dict[item.trigger]) return;
-        dict[item.trigger] = dict[item.trigger]
-            .replace("[[dice_rolls]]", meguminRollD20s(item.rolls).join(", "));
-    });
 
     // Stage 5 Defaults (Format Blocks)
     localProfile.blocks.forEach(bId => {
@@ -189,44 +175,39 @@ export function buildBaseDict(isTokenCount = false) {
         if (activeEngine.A1) dict["[[AI1]]"] = activeEngine.A1;
         if (activeEngine.A2) dict["[[AI2]]"] = activeEngine.A2;
 
-        // Engine-specific Block Overwrites
-        const overrides = [
-            { key: "cot", trigger: "[[COT]]", condition: true },
-            { key: "prefill", trigger: "[[prefill]]", condition: true },
-            { key: "think", trigger: "[[THINK]]", condition: localProfile.thinkingV2 },
-            { key: "info", trigger: "[[infoblock]]", condition: localProfile.blocks.includes("info") },
-            { key: "cyoa", trigger: "[[cyoa]]", condition: localProfile.blocks.includes("cyoa") },
-            { key: "mvu", trigger: "[[MVU]]", condition: localProfile.blocks.includes("mvu") },
-            { key: "death", trigger: "[[death]]", condition: localProfile.addons.includes("death") },
-            { key: "combat", trigger: "[[combat]]", condition: localProfile.addons.includes("combat") },
-            { key: "direct", trigger: "[[Direct]]", condition: localProfile.addons.includes("direct") },
-            { key: "dn", trigger: "[[DN]]", condition: localProfile.addons.includes("dn") },
-            { key: "dialogueColor", trigger: "[[COLOR]]", condition: localProfile.addons.includes("color") }, // FIXED NAME COLLISION
-            { key: "npc_inner_chatter", trigger: "[[npc_inner_chatter]]", condition: localProfile.blocks.includes("npc_inner_chatter") || localProfile.blocks.includes("npc_inner_chatter_v2") },
-            { key: "storytracker", trigger: "[[storytracker]]", condition: localProfile.storyPlan && localProfile.storyPlan.enabled },
-            { key: "language", trigger: "[[Language]]", condition: true },
-            { key: "pronouns", trigger: "[[pronouns]]", condition: true },
-            { key: "count", trigger: "[[count]]", condition: true },
-            { key: "dnratio", trigger: "[[DNRATIO]]", condition: localProfile.dnRatio && localProfile.dnRatio.enabled },
-            { key: "onomato", trigger: "[[onomato]]", condition: localProfile.onomatopoeia && localProfile.onomatopoeia.enabled },
-            { key: "banlist", trigger: "[[banlist]]", condition: true }
-        ];
-
-        overrides.forEach(o => {
-            // Only inject the override if the toggle is ON (or if it's a global setting)
-            if (o.condition && activeEngine[o.key] && activeEngine[o.key].trim() !== "") {
-                dict[o.trigger] = activeEngine[o.key];
-            }
+        // Slot overrides, driven by MEGUMIN_SLOT_REGISTRY.
+        //
+        // This used to be a hand-written overrides[] array duplicating the list
+        // of editor boxes in devmode.js. Every placeholder now declares itself
+        // once in data/slots.js, including the condition that gates it, so the
+        // editor and the engine cannot disagree about which slots exist or when
+        // they apply.
+        //
+        // Resolution is engine → shared → built-in (see core/sharedFragments).
+        // "built-in" is deliberately NOT written back: the code above already
+        // put the shipped default in the dictionary, and rewriting it here
+        // would change nothing except add a second place for it to go wrong.
+        meguminOverridableSlots().forEach(slot => {
+            if (!meguminSlotIsLive(slot, localProfile)) return;
+            const { value, source } = resolveSlot(slot, activeEngine);
+            if (source === "builtin") return;
+            dict[slot.trigger] = value;
         });
 
+
         // Custom Toggles Appender
+        //
+        // The target used to be rebuilt here as "[[prompt" + n + "]]", which is
+        // why modules could only ever attach to p3/p5/p6. meguminModuleTrigger
+        // owns that spelling now and accepts a full trigger, so a module can
+        // hang off any slot in the document while old engines storing "p3"
+        // keep resolving exactly as before.
         if (activeEngine.customToggles) {
             activeEngine.customToggles.forEach(ct => {
-                if (localProfile.toggles[ct.id]) {
-                    const targetKey = "[[prompt" + ct.attachPoint.replace('p', '') + "]]";
-                    if (dict[targetKey] !== undefined) {
-                        dict[targetKey] += `\n\n${ct.content}`;
-                    }
+                if (!localProfile.toggles[ct.id]) return;
+                const targetKey = meguminModuleTrigger(ct.attachPoint);
+                if (targetKey && dict[targetKey] !== undefined) {
+                    dict[targetKey] += `\n\n${ct.content}`;
                 }
             });
         }
@@ -252,7 +233,7 @@ export function buildBaseDict(isTokenCount = false) {
             }
         }
         // V8/V9 Dynamic Injection & Stripping
-        if (isV8 || isV9) {
+        if (isModern) {
             // 1. Inject [[aiprompt]] directly into the engine prompts (like p6) where the tag exists
             const aiPromptVal = dict["[[aiprompt]]"] || "";
             for (let i = 1; i <= 6; i++) {
@@ -265,13 +246,39 @@ export function buildBaseDict(isTokenCount = false) {
         }
     }
 
+    // Dice numbers are filled in AFTER the override pass, not before.
+    // [[dice]] is an editable add-on now, so a reader can rewrite the dice
+    // rules and keep the [[dice_rolls]] marker. Rolling first and
+    // overriding second would replace the filled text with their unfilled
+    // copy, and the marker would then be stripped by the injector's leak
+    // guard -- the rules would arrive with the numbers silently missing.
+    // The dice add-on ships with a marker where this turn's numbers go, and it
+    // is filled in HERE rather than by a second dict entry. A nested trigger
+    // would work only because Object.entries walks the dict in insertion order,
+    // so [[dice]] happens to expand before [[dice_rolls]] is searched for — a
+    // correctness that depends on the order two unrelated lines were written in.
+    // One explicit replacement cannot be broken by reordering anything.
+    //
+    // Fresh numbers every build, so a swipe re-rolls the turn rather than
+    // rewriting the prose around a die that already landed.
+    // Any add-on that declares a roll count gets this turn's numbers. Written as
+    // a loop over what the add-ons ask for rather than a branch per add-on: the
+    // player-only and everyone variants want three and six, and a third variant
+    // would otherwise mean editing the engine to add a number.
+    (localProfile.addons || []).forEach(aId => {
+        const item = hardcodedLogic.addons.find(a => a.id === aId);
+        if (!item || !item.rolls || !dict[item.trigger]) return;
+        dict[item.trigger] = dict[item.trigger]
+            .replace("[[dice_rolls]]", meguminRollD20s(item.rolls).join(", "));
+    });
+
     // Wipe main persona for V6, V7, V8, and V9
-    if (localProfile.mode.includes("v6-dream-team") || isV7 || isV8 || isV9) {
+    if (localProfile.mode.includes("v6-dream-team") || isV7 || isModern) {
         dict["[[main]]"] = "";
     }
 
-    // Wipe Persona & Toggle tags entirely for V8/V9
-    if (isV8 || isV9) {
+    // Wipe Persona & Toggle tags entirely for V8, V9 and V10
+    if (isModern) {
         dict["[[OOC]]"] = "";
         dict["[[control]]"] = "";
         dict["[[AI1]]"] = "";
@@ -285,14 +292,33 @@ export function buildBaseDict(isTokenCount = false) {
         dict["[[COT]]"] = `Your Thinking must not be more than ${words} words.\n\n` + dict["[[COT]]"];
     }
 
-    // [[THINK]] Macro Logic
+    // [[THINK]] macro.
+    //
+    // [[COT]] never travels under its own tag. The reasoning script is wrapped
+    // in think tags and delivered inside [[THINK]], which is the tag the preset
+    // actually carries; [[COT]] is then blanked so it is not sent twice.
+    //
+    // The wrapper is the Thinking Tags add-on and {Thinking} marks where the
+    // script goes. This used to be two hardcoded template strings, which meant
+    // an edited wrapper was silently discarded: the override pass runs far
+    // above, and this line overwrote whatever it had put there. The add-on
+    // could be edited and saved and never did anything.
     if (localProfile.cotEnabled !== false && dict["[[COT]]"]) {
-        if (localProfile.thinkingV2) {
-            dict["[[THINK]]"] = `<think>\n<think>\n<think>\n${dict["[[COT]]"]}\n</think>`;
-        } else {
-            dict["[[THINK]]"] = `<think>\n${dict["[[COT]]"]}\n</think>`;
-        }
-        dict["[[COT]]"] = ""; // Clear COT so it's not injected twice
+        const defaultWrapper = localProfile.thinkingV2
+            ? "<think>\n<think>\n<think>\n{Thinking}\n</think>"
+            : "<think>\n{Thinking}\n</think>";
+
+        let wrapper = (dict["[[THINK]]"] && dict["[[THINK]]"].trim() !== "")
+            ? dict["[[THINK]]"]
+            : defaultWrapper;
+
+        // A wrapper edited down to just the tags still has to receive the
+        // script. Appending is better than dropping it on the floor, which
+        // would look exactly like the CoT setting having no effect.
+        if (!wrapper.includes("{Thinking}")) wrapper += "\n{Thinking}";
+
+        dict["[[THINK]]"] = wrapper.split("{Thinking}").join(dict["[[COT]]"]);
+        dict["[[COT]]"] = "";
     } else {
         dict["[[THINK]]"] = "";
     }

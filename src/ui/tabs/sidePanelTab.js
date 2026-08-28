@@ -47,6 +47,17 @@ export function renderSidePanelTab(c) {
             ${enabledBadge}
         </div>
 
+        <div class="mtab-callout red" style="margin-bottom: 16px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span><strong>Discontinued.</strong> Blocks do this better &mdash; a nicer card, far more
+            you can change about it, and it keeps up with new blocks as they land. And frankly,
+            Kazuma doesn't like the side panel.
+            <br><br>So it is no longer being developed and has not kept up: newer blocks, custom
+            blocks and the stat blocks may not appear in it, or may appear wrong. It still works for
+            what it already knew about, and everything it shows is drawn in the chat card
+            regardless.</span>
+        </div>
+
         <div class="mtab-toggle-row ${cfg.enabled ? 'active' : ''}" id="megsp_enabled_row" style="margin-bottom: 20px;">
             <div class="toggle-info">
                 <div class="toggle-label"><i class="fa-solid fa-table-columns" style="color:var(--gold);"></i> Enable Side Panel</div>

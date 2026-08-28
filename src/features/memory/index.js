@@ -58,6 +58,19 @@ export function renderMemoryCore(c) {
             </div>
         </div>
 
+        <div class="mtab-callout gold" style="margin-bottom: 16px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span><strong>Before you switch this on, three things.</strong>
+            <br>&bull; <strong>It is not cache friendly.</strong> Retrieved memories sit ahead of the
+            chat history in the prompt, so when what it retrieves changes, your provider re-reads the
+            whole history instead of serving it from cache.
+            <br>&bull; <strong>Use Semantic Embeddings, not TF-IDF.</strong> Keyword matching is the
+            fallback and it shows &mdash; semantic search finds the right archive far more often.
+            <br>&bull; <strong>It will not work alongside MemoryBooks</strong> or any other extension
+            that hides messages with <code>/hide</code>. Both are trying to decide what reaches the
+            model and they will disagree. Run one or the other.</span>
+        </div>
+
         <!-- MASTER TOGGLE -->
         <div class="mtab-toggle-row ${mem.enabled ? 'active' : ''}" id="mem_enable_card" style="margin-bottom: 20px;">
             <div class="toggle-info">

@@ -19,6 +19,18 @@ import {
     normalizeBlockBody, blockTagFromName, validateCustomBlock, meguminSyncLegacyBlockIds,
 } from "./registry.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
+import { meguminSlotByTrigger } from "../../../data/slots.js";
+import { hasSharedFragment } from "../../core/sharedFragments.js";
+
+// Mirrors customBadge() in ui/tabs/globalAndBlocks.js: a block whose text was
+// rewritten in Dev Mode says so here, where it is switched on and ordered.
+// The link is b.source -- the trigger the block already declares to read its
+// body out of the dictionary -- so no lookup table can rot.
+function editedFlag(b) {
+    const slot = b && b.source ? meguminSlotByTrigger(b.source) : null;
+    if (!slot || !slot.key || !hasSharedFragment(slot.key)) return "";
+    return ` <span class="blk-edited-flag" title="You edited this in Dev Mode. It no longer uses the built-in text.">edited</span>`;
+}
 
 export function renderBlocksTab(c) {
     c.empty();
@@ -59,11 +71,11 @@ export function renderBlocksTab(c) {
     inStack.forEach((b, i) => {
         const off = typeof b.requires === "function" && !b.requires(localProfile);
         const row = $(`
-            <div class="blk-row ${off ? 'blk-row-off' : ''}">
+            <div class="blk-row ${off ? 'blk-row-off' : ''}"${b.desc ? ` title="${escapeHtmlAttr(b.desc)}"` : ""}>
                 <div class="blk-row-main">
                     <span class="blk-emoji">${b.emoji || "📦"}</span>
                     <div>
-                        <div class="blk-name">${b.label}${b.builtin ? "" : ` <span class="blk-custom-flag">custom</span>`}</div>
+                        <div class="blk-name">${b.label}${b.builtin ? "" : ` <span class="blk-custom-flag">custom</span>`}${editedFlag(b)}</div>
                         <div class="blk-tag">&lt;${b.tag}&gt;${off ? " — its feature is switched off, so it is not sent" : ""}</div>
                     </div>
                 </div>
@@ -155,7 +167,7 @@ export function renderBlocksTab(c) {
     const pool = $(`<div class="blk-pool"></div>`);
     if (!available.length) pool.append(`<div class="blk-empty">Every block is already in.</div>`);
     available.forEach(b => {
-        const chip = $(`<button class="blk-add"><span>${b.emoji || "📦"}</span> ${b.label}</button>`);
+        const chip = $(`<button class="blk-add"${b.desc ? ` title="${escapeHtmlAttr(b.desc)}"` : ""}><span>${b.emoji || "📦"}</span> ${b.label}${editedFlag(b)}</button>`);
         chip.on("click", () => {
             if (b.preferFirst) stack.order.unshift(b.id); else stack.order.push(b.id);
             meguminSyncLegacyBlockIds();

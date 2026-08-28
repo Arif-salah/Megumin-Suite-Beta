@@ -34,6 +34,10 @@ import { getSidePanelSettings } from "../../sidepanel/panel.js";
 // `slot` is for a block the model emits conditionally rather than every turn: the
 // envelope carries the instruction line instead of a template, and the model
 // fills it in only when the block's own rules fire.
+//
+// `desc` is one line telling the READER what the block does, shown when they are
+// deciding whether to add it. Distinct from the template, which tells the MODEL what
+// to write. Optional -- a block without one simply shows no tooltip.
 export const MEGUMIN_BLOCK_REGISTRY = [
     {
         id: "dice", tag: "Dice", label: "Roll",
@@ -59,6 +63,7 @@ export const MEGUMIN_BLOCK_REGISTRY = [
     },
     {
         id: "cyoa", tag: "CYOA", label: "Choices",
+        desc: "Choose-Your-Own-Adventure panel with 4 suggested actions for you to pick from each turn.",
         emoji: "🎲", icon: "fa-list-check", color: "#38bdf8",
         visibility: "open", builtin: true,
         // The one block the reader acts on rather than reads, so it opens first
@@ -68,12 +73,14 @@ export const MEGUMIN_BLOCK_REGISTRY = [
     },
     {
         id: "world", tag: "World_State", label: "World State",
+        desc: "Appends a tidy status panel after each response showing time, weather, location, and what characters are wearing.",
         emoji: "📌", icon: "fa-thumbtack", color: "#f59e0b",
         visibility: "open", builtin: true,
         source: "[[infoblock]]", legacyIds: ["info"]
     },
     {
         id: "chatter", tag: "NPC_Inner_Chatter", label: "NPC Inner Chatter",
+        desc: "Reveal NPC private thoughts the PC never hears — crushes, resentment, scheming, anxiety. This feeds future NPC behavior.",
         emoji: "💭", icon: "fa-comment-dots", color: "#a855f7",
         visibility: "open", builtin: true,
         source: "[[npc_inner_chatter]]", legacyIds: ["npc_inner_chatter", "npc_inner_chatter_v2"]

@@ -50,12 +50,18 @@ export const storyConfigFields = [
         hint: "Narrative person and where the camera sits. Never loosens the {{user}} boundary.",
         customPlaceholder: "e.g. third limited, sitting behind Maya's eyes",
         options: [
-            "second person on {{user}}",
-            "third limited",
-            "third limited following one NPC",
-            "third omniscient",
-            "first person",
-            "roving"
+            { label: "second person on {{user}}", legacy: ["second person on {{user}}"],
+              value: `second person — the narration addresses {{user}} as "you". Narrate what reaches {{user}}; NEVER what {{user}} decides, says, or feels about it` },
+            { label: "third limited", legacy: ["third limited"],
+              value: "third person limited — one focal consciousness per scene. The reader learns only what the focal character perceives, and the gaps in their knowledge stand" },
+            { label: "third limited following one character", legacy: ["third limited following one NPC"],
+              value: "third person limited, locked to a single character for the whole scene — their perception is the boundary of the narration. Changing heads mid-scene is PROHIBITED; change only at a scene break" },
+            { label: "third omniscient", legacy: ["third omniscient"],
+              value: "third person omniscient — access to every interior. The narration MAY move between minds, but each shift MUST be legible rather than slid into" },
+            { label: "first person", legacy: ["first person"],
+              value: `first person — the focal character's "I", never {{user}}'s. Their bias colors every observation; they MAY be wrong about what they report` },
+            { label: "roving", legacy: ["roving"],
+              value: "third person limited, roving — the focal character MAY change between scenes, NEVER within one. Each scene commits to a vantage and holds it to the end" }
         ]
     },
     {
@@ -74,14 +80,15 @@ export const storyConfigFields = [
     },
     {
         key: "narratorPresence", tag: "narrator_presence", label: "Narrator Presence", icon: "fa-comment-dots", color: "#14b8a6", type: "select",
-        aiNote: "how visible the narrator's attitude is",
         customPlaceholder: "e.g. heavy. comment on everything",
         hint: "How visible the narrator's attitude is. Light is your preset default.",
         defaultLabel: "light",
         defaultAliases: ["light", "light (one beat per response)", "light (default: one beat per response)"],
         options: [
-            "invisible (report only, no coloring)",
-            "heavy (commentary throughout)"
+            { label: "invisible", legacy: ["invisible (report only, no coloring)"],
+              value: "report only — the narration carries no attitude toward what it describes and never editorialises" },
+            { label: "heavy", legacy: ["heavy (commentary throughout)"],
+              value: "the narrator's attitude is present throughout — dry, judging, or amused, and permitted to comment. The voice NEVER bleeds into any character's dialogue" }
         ]
     },
     {
@@ -93,75 +100,88 @@ export const storyConfigFields = [
     },
     {
         key: "npcDisposition", tag: "npc_disposition", label: "NPC Disposition", icon: "fa-users", color: "#8b5cf6", type: "select",
-        aiNote: "the cast's starting stance toward {{user}}; individuals still move based on what they actually do",
+
         customPlaceholder: "e.g. cold. the NPCs don't like {{user}}",
         hint: "How the cast feels about {{user}} before they earn anything else. Ordinary is your preset default.",
         defaultLabel: "ordinary",
         defaultAliases: ["ordinary"],
         options: [
-            "warm",
-            "wary",
-            "cold",
-            "hostile"
+            { label: "warm", legacy: ["warm"],
+              value: "the cast likes {{user}} and shows it — seeking {{user}} out, taking {{user}}'s side, and giving warmth, trust and attention freely. This is the ground state, not something {{user}} has to earn" },
+            { label: "wary", legacy: ["wary"],
+              value: "the cast is polite but reserved with {{user}} — friendly on the surface, holding back what matters until they know {{user}} better. The warmth is close to the surface and comes with time" },
+            { label: "cold", legacy: ["cold"],
+              value: "the cast is indifferent to {{user}} — {{user}}'s presence does not interest them and their own business outranks it. Attention has to be taken, not given" },
+            { label: "hostile", legacy: ["hostile"],
+              value: "the cast is against {{user}} — obstructing, needling, or freezing {{user}} out, and needing a real reason to stop" }
         ]
     },
     {
         key: "difficulty", tag: "difficulty", label: "Difficulty", icon: "fa-mountain", color: "#ef4444", type: "select",
-        aiNote: "how hard the world pushes back on what {{user}} attempts",
         customPlaceholder: "e.g. hard. the world is against {{user}}",
         hint: "How hard the world pushes back on what {{user}} attempts. Realistic is your preset default.",
         defaultLabel: "realistic",
         defaultAliases: ["realistic", "realistic (default)"],
         options: [
-            "forgiving (most attempts land)",
-            "harsh (competence required, failure common, mistakes carry a real cost)"
+            { label: "forgiving", legacy: ["forgiving (most attempts land)"],
+              value: "most attempts land. Competence is assumed; failure arrives only where the fiction makes it unavoidable" },
+            { label: "harsh", legacy: ["harsh (competence required, failure common, mistakes carry a real cost)"],
+              value: "competence is required and failure is common. Mistakes carry a cost that persists past the scene they happen in" }
         ]
     },
     {
         key: "friction", tag: "friction", label: "Friction", icon: "fa-bolt", color: "#f97316", type: "select",
-        aiNote: "how often complications arrive",
         customPlaceholder: "e.g. high. trouble is always around the corner",
         hint: "How often trouble arrives. Normal is your preset default.",
         defaultLabel: "normal",
         defaultAliases: ["normal", "normal (the preset's own curve)"],
         options: [
-            "low (only ever as earned consequence)",
-            "high (complications every scene, pressure never fully releasing)"
+            { label: "low", legacy: ["low (only ever as earned consequence)"],
+              value: "complications arrive only as earned consequence of something already in motion — never introduced to keep a scene busy" },
+            { label: "high", legacy: ["high (complications every scene, pressure never fully releasing)"],
+              value: "a complication lands every scene and pressure NEVER fully releases — one thing resolving uncovers the next" }
         ]
     },
     {
         key: "explicitness", tag: "explicitness", label: "Explicitness", icon: "fa-fire", color: "#e11d48", type: "select",
-        aiNote: "how far scenes go and how directly they are written",
         customPlaceholder: "e.g. graphic. give details",
         hint: "How far scenes go and how directly they are written.",
         options: [
-            "fade to black",
-            "plain",
-            "graphic"
+            { label: "fade to black", legacy: ["fade to black"],
+              value: "fade to black — cut at the threshold of a sexual act and resume after it. The act MAY be acknowledged as having happened; it is NEVER depicted" },
+            { label: "plain", legacy: ["plain"],
+              value: "plain — depict intimacy and violence directly but without anatomical detail. State what happens; do not linger on it" },
+            { label: "graphic", legacy: ["graphic"],
+              value: "graphic — depict sex and violence in full physical detail, using direct words for bodies and acts. NEVER cut away, NEVER euphemise" }
         ]
     },
     {
         key: "pace", tag: "pace", label: "Pace", icon: "fa-gauge-high", color: "#10b981", type: "select",
-        aiNote: "how fast story time moves and how freely scenes skip ahead",
+
         customPlaceholder: "e.g. steady, but skip anything that isn't a real beat",
         hint: "How fast story time moves.",
         options: [
-            "slow burn",
-            "steady",
-            "fast"
+            { label: "slow burn", legacy: ["slow burn"],
+              value: "slow burn — the story moves slowly. Story time advances in minutes rather than days, and a situation is allowed to keep unfolding instead of being hurried toward its conclusion" },
+            { label: "steady", legacy: ["steady"],
+              value: "steady — the story keeps moving without rushing. Scenes get the time they need and no more: do not linger on a moment past its use, and do not rush ahead before it has played out" },
+            { label: "fast", legacy: ["fast"],
+              value: "fast — the story moves quickly. Cut through any interval that changed nothing and keep landing on live moments; time jumps and changes of location come easily" }
         ]
     },
     {
         key: "length", tag: "length", label: "Length", icon: "fa-ruler-horizontal", color: "#06b6d4", type: "select",
-        aiNote: "target size of each response",
         customPlaceholder: "e.g. around 300 words, longer when a scene earns it",
         hint: "How long each reply should run.",
         options: [
-            // Flexible reads as a whole instruction, so its label and value differ.
-            { label: "flexible", value: "flexible — as short as 50 words for a quick one-on-one exchange, up to 700 when a scene earns the space. Match the length to what the moment actually needs; never pad to reach a number" },
-            "250–350 words",
-            "450–550 words",
-            "minimum 900 words"
+            { label: "flexible", legacy: ["flexible"],
+              value: "flexible — as short as 50 words for a quick one-on-one exchange, up to 700 when a scene earns the space. Match the length to what the moment actually needs; never pad to reach a number" },
+            { label: "250–350 words", legacy: ["250–350 words"],
+              value: "250–350 words per response. When trimming to fit, cut description before dialogue" },
+            { label: "450–550 words", legacy: ["450–550 words"],
+              value: "450–550 words per response. When trimming to fit, cut description before dialogue" },
+            { label: "minimum 900 words", legacy: ["minimum 900 words"],
+              value: "at least 900 words per response — earn the length with new material. NEVER pad by restating what the scene has already established" }
         ]
     },
     {
@@ -171,6 +191,40 @@ export const storyConfigFields = [
         hint: "Any standing instruction that doesn't fit a field above."
     }
 ];
+
+// The three settings the block always carries. A story has a viewpoint, a pace and a
+// length whether or not the reader has thought about one, and the block is always on
+// now, so these ship set rather than blank.
+//
+// Stored as the option LABEL, not the sentence the model reads: upgradeConfigValue
+// resolves it on load, so the wording still lives in exactly one place (the option).
+export const STORY_CONFIG_DEFAULTS = {
+    pov: "third limited following one character",
+    pace: "steady",
+    length: "flexible"
+};
+
+// Fills any of the always-on fields that has been left blank. Deliberately NOT folded
+// into normalizeStoryConfig: that runs before the legacy userPov migration in
+// profile.js, and seeding pov there would fill the very field that migration tests,
+// silently discarding a POV set on the old dropdown.
+//
+// Call it anywhere a field can be emptied -- Reset All and preset load both blank every
+// key, and without this the three standing fields stay empty until the next profile
+// load puts them back.
+export function applyStoryConfigDefaults(cfg) {
+    if (!cfg) return cfg;
+    Object.keys(STORY_CONFIG_DEFAULTS).forEach(k => {
+        if (!String(cfg[k] == null ? "" : cfg[k]).trim()) cfg[k] = STORY_CONFIG_DEFAULTS[k];
+    });
+    return normalizeStoryConfig(cfg);
+}
+
+// A field that always reaches the model has no "leave it to the preset" state, so its
+// dropdown must not offer one.
+export function isStandingConfigField(key) {
+    return Object.prototype.hasOwnProperty.call(STORY_CONFIG_DEFAULTS, key);
+}
 
 // Starter presets. These are read-only; loading one copies its values into the profile.
 export const builtInConfigPresets = [
@@ -204,8 +258,29 @@ export function getAllConfigPresets() {
 // A field whose value is its own named default (friction "normal", npc_disposition
 // "ordinary", narrator_presence "light") is the same as leaving it on Default: the line
 // is dropped. This folds those values back to "" so the UI shows Default rather than Custom…
+// Upgrades a stored value that is one of an option's older spellings -- or just its
+// short label -- to the full instruction the model now reads. Called from
+// normalizeStoryConfig, which runs on profile load and on every block build, so it is
+// idempotent and there is no separate migration to remember to run.
+//
+// A value matching nothing is returned untouched. That is either already current or
+// something the reader typed into the Custom... box, and overwriting the second would
+// throw away their words to fix a problem they do not have.
+function upgradeConfigValue(field, raw) {
+    const v = String(raw == null ? "" : raw).trim();
+    if (!v || !field.options) return v;
+    const opts = field.options.map(o => typeof o === "string" ? { label: o, value: o } : o);
+    if (opts.some(o => o.value === v)) return v;
+    const lower = v.toLowerCase();
+    const hit = opts.find(o =>
+        String(o.label).toLowerCase() === lower ||
+        (o.legacy || []).some(l => String(l).toLowerCase() === lower));
+    return hit ? hit.value : v;
+}
+
 export function normalizeStoryConfig(cfg) {
     if (!cfg) return cfg;
+    storyConfigFields.forEach(f => { cfg[f.key] = upgradeConfigValue(f, cfg[f.key]); });
     storyConfigFields.forEach(f => {
         if (!f.defaultAliases) return;
         const v = String(cfg[f.key] || "").trim().toLowerCase();
@@ -220,9 +295,10 @@ export function countActiveConfigFields(cfg) {
 }
 
 // Compiles the profile's storyConfig into the <config> block that replaces [[config]].
-// Returns "" when the config is off or every field is empty, so the tag is stripped cleanly.
+// The block is always on; it returns "" only when every field is empty, so the tag is
+// stripped cleanly on a profile that has somehow been blanked.
 export function buildConfigBlock(cfg) {
-    if (!cfg || !cfg.enabled) return "";
+    if (!cfg) return "";
 
     normalizeStoryConfig(cfg);
     const lines = [];

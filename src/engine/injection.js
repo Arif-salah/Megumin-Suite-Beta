@@ -23,6 +23,7 @@ import { memEnsureSemanticQueryFresh } from "../features/memory/vectordb.js";
 import { npcBuildDossierPrompt } from "../features/npc/fields.js";
 import { escapeRegex } from "../utils/regex.js";
 import { buildBaseDict } from "./buildBaseDict.js";
+import { meguminAllSlotTriggers } from "../../data/slots.js";
 
 // Throttles the prompt-preview popup so token counting and rapid ST background
 // triggers can't stack popups. Read and written only by the injection handler.
@@ -31,7 +32,11 @@ export let lastPromptPreviewTime = 0;
 export async function handlePromptInjection(data, type) {
     const messages = data?.messages || data?.chat || (Array.isArray(data) ? data : null);
     if (!messages || !Array.isArray(messages)) return;
-    const disablePrefill = extension_settings[extensionName]?.globalSettings?.disableUtilityPrefill === true;
+    // Opt IN, not opt out. The prefill breaks utility generations on Claude and
+    // several other APIs, and the people it breaks for are the least likely to go
+    // looking for a switch, so the safe state is the default. `!== true` also means
+    // an install that has never seen the setting is off rather than on.
+    const disablePrefill = extension_settings[extensionName]?.globalSettings?.enableUtilityPrefill !== true;
 
     // --- INJECT STORY PLANNER PROMPT ---
     if (activeStoryPlanRequest) {
@@ -324,8 +329,14 @@ export async function handlePromptInjection(data, type) {
                 }
             });
 
-            // Cleanup unused tags (Removes the tag AND the line break)
-            ["[[long-Memory]]", "[[Short-memory]]", "[[prompt1]]", "[[prompt2]]", "[[prompt3]]", "[[prompt4]]", "[[prompt5]]", "[[prompt6]]", "[prompt1]", "[prompt2]", "[prompt3]", "[prompt4]", "[prompt5]", "[prompt6]", "[[AI1]]", "[[AI2]]", "[[main]]", "[[OOC]]", "[[control]]", "[[aiprompt]]", "[[death]]", "[[combat]]", "[[Direct]]", "[[DN]]", "[[COLOR]]", "[[infoblock]]", "[[cyoa]]", "[[dice]]", "[[dice_rolls]]", "[[html]]", "[[COT]]", "[[prefill]]", "[[order]]", "[[Language]]", "[[pronouns]]", "[[banlist]]", "[[count]]", "[[MVU]]", "[[img1]]", "[[img2]]", "[[storyplan]]", "[[storytracker]]", "[[blocks]]", "[[DNRATIO]]", "[[THINK]]", "[[onomato]]", "[[npc_events]]", "[[cyoa2]]", "[[infoblock2]]", "[[storytracker2]]", "[[npc_inner_chatter]]", "[[npc_inner_chatter2]]", "[[npc_dossier]]", "[[npc_dossier2]]", "[[npc list]]", "[[npc_updates]]", "[[v9_lean_min]]", "[[v9_lean_max]]", "[[v9_full_min]]", "[[v9_full_max]]"].forEach(tr => {
+            // Cleanup unused tags (removes the tag AND the line break it sits on).
+            //
+            // This was a 60-string array written out by hand, and it was the third
+            // copy of the placeholder list. It is the one whose failure is worst:
+            // a tag missing from here does not blank, it leaks a literal
+            // "[[whatever]]" straight into the model's context. Derived from
+            // MEGUMIN_SLOT_REGISTRY now, so a new slot cannot be forgotten here.
+            meguminAllSlotTriggers().forEach(tr => {
                     if (msg.content.includes(tr)) {
                     msg.content = msg.content.replace(new RegExp(`^[ \\t]*${escapeRegex(tr)}[ \\t]*\\r?\\n?`, 'gm'), "");
                     msg.content = msg.content.replace(new RegExp(escapeRegex(tr), 'g'), ""); // Catch-all for inline tags

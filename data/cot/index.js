@@ -17,3 +17,43 @@ export const models = [
     ...cot_v7,
     ...cot_legacy,
 ];
+
+/**
+ * Which chain-of-thought an engine is written for.
+ *
+ * This mapping used to be an inline if/else chain inside the PRESETS tab's
+ * click handler, which made it invisible to anything else that needed the same
+ * answer -- and Dev Mode needs it, to fill in a clone's reasoning script. Two
+ * copies of a mapping like this drift the moment a generation is added.
+ *
+ * The language argument only matters for the generations that were translated;
+ * v7, v8 and v10 exist in English alone, so they ignore it. That asymmetry is
+ * carried over from the original chain rather than tidied, because the CoT
+ * files really are shaped that way.
+ */
+export function meguminCotForMode(modeId, lang = "english") {
+    if (!modeId) return null;
+
+    let prefix = null;
+    if (modeId.includes("v6")) prefix = "cot-v6";
+    else if (modeId === "v7.5") prefix = "cot-v7.5";
+    else if (modeId.includes("v7")) prefix = "cot-v7";
+    else if (modeId.includes("v8")) prefix = "cot-v8";
+    // Shura first: "v10-shura" contains "v10", and the specific pairing wins.
+    // The uncapped variant is the default either way -- the Thinking Cap is a
+    // remedy for a model that over-thinks, not something to hand everyone.
+    else if (modeId.includes("v10-shura")) prefix = "cot-v10-shura";
+    else if (modeId.includes("v10")) prefix = "cot-v10-ukiyo";
+    else if (modeId.includes("v9")) prefix = "cot-v9";
+    if (!prefix) return null;
+
+    const englishOnly = prefix.startsWith("cot-v10") || prefix.includes("v7") || prefix.includes("v8");
+    const id = englishOnly ? `${prefix}-english` : `${prefix}-${lang}`;
+    return models.find(m => m.id === id) ? id : null;
+}
+
+/** The CoT entry an engine is written for, or null. */
+export function meguminCotEntryForMode(modeId, lang = "english") {
+    const id = meguminCotForMode(modeId, lang);
+    return id ? models.find(m => m.id === id) || null : null;
+}

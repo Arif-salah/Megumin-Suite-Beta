@@ -5,10 +5,14 @@
 import { extension_settings, saveSettingsDebounced, Popup, POPUP_TYPE } from "../../st.js";
 import { extensionName } from "../../core/constants.js";
 import { localProfile, currentTab } from "../../core/state.js";
+import { lockedStyleIdFor, isV7Engine } from "../../core/engines.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { hardcodedLogic } from "../../../data/database.js";
 import { renderDevMode } from "../devmode.js";
+import { meguminCotForMode } from "../../../data/cot/index.js";
+import { buildStoryConfigSection } from "../../features/storyconfig/ui.js";
+import { countActiveConfigFields } from "../../features/storyconfig/config.js";
 
 export function renderCoreAndCot(c) {
     // Preserve active sub-tab and filter before wiping the container
@@ -33,6 +37,10 @@ export function renderCoreAndCot(c) {
         "v8-m": "Unmatched in complex human psychology, authentic flawed dialogue, and autonomous, multi-layered story plotting.",
         "v8-lite": "A streamlined, highly efficient version of Obsidian. Retains the core rules of psychology, dialogue, and momentum with a much lighter token footprint.",
         "v8-fusion": "The absolute pinnacle of the Megumin Suite. A hybrid engine mixing V8 Obsidian's deep psychology with V6 Dream Team's specialist writer room framework.",
+        "v10-core": "The storyteller. Ukiyo is the looser of the two — a teller with a temperament, spinning the world and its history, following whatever in the scene is most alive. It trades a little polish for invention: the prose wanders, reaches for an image, and occasionally overreaches. Pick it for atmosphere, momentum and a world that feels told rather than composed. Neither V10 is a downgrade of the other — run a few scenes on each and keep the one that sounds like the story you want to read.",
+        "v10-shura": "The writer. Shura is the stricter of the two — no slop, no AI tells, no line that exists to manage the scene. Every character is the protagonist of their own story, acting from their own values, and none of them is a villain in their own eyes; there is no objective right or wrong for the narration to take sides on. Pick it for prose that reads like a book and a cast that drives the story itself. Neither V10 is a downgrade of the other — run a few scenes on each and keep the one that sounds like the story you want to read.",
+        "v10-core-cw": "Ukiyo, with the narrator writing {{user}} as well. It reads how you write — diction, rhythm, how boldly you act — and plays your character in that voice. Anything you write yourself is canon and is never overwritten or corrected. Your history stays yours; only the acting is shared.",
+        "v10-shura-cw": "Shura with shared authorship: every character is a protagonist, {{user}} among them, and the narrator writes them all in your voice. It yields the moment you take a turn back, and never invents your past. For hands-off, cinematic play — watching the story rather than steering each beat.",
         "v9-core": "The definitive, final Megumin V9 Preset. V9 Mirage is the absolute pinnacle of narrative simulation, delivering hyper-realistic psychology, visceral atmospheric grounding, and dynamic world consequences. This is the ultimate, highly recommended preset.",
         "v9-lite": "An experimental beta engine with a slightly different, highly stylized narrative flow. Proved interesting enough to include for those who want an alternative storytelling rhythm. Note: this doesn't support custom Writing style it have it own one. ",
         "v9-director": "A unique beta hybrid blending the specialized writer-room mechanics of V8 Fusion with the raw psychological depth of V9 Xin. Highly experimental. Note: this doesn't support custom Writing style it have it own one.",
@@ -42,13 +50,14 @@ export function renderCoreAndCot(c) {
     const activeEng = hardcodedLogic.modes.find(m => m.id === localProfile.mode);
     const activeLabel = activeEng ? activeEng.label : localProfile.mode;
 
-    let v4Count = 0, v5Count = 0, v6Count = 0, v7Count = 0, v8Count = 0, v9Count = 0;
+    let v4Count = 0, v5Count = 0, v6Count = 0, v7Count = 0, v8Count = 0, v9Count = 0, v10Count = 0;
     hardcodedLogic.modes.forEach(m => {
         if (m.label.includes("V4")) v4Count++;
         else if (m.label.includes("V5")) v5Count++;
         else if (m.id.includes("v6")) v6Count++;
         else if (m.id.includes("v7")) v7Count++;
         else if (m.id.includes("v8")) v8Count++;
+        else if (m.id.includes("v10")) v10Count++;
         else if (m.id.includes("v9")) v9Count++;
     });
     const totalCount = hardcodedLogic.modes.length;
@@ -87,6 +96,10 @@ export function renderCoreAndCot(c) {
     sidebar.append(btnOfficial).append(btnCustom);
     sidebar.append(`<div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>`);
     
+    const cfgCount = countActiveConfigFields(localProfile.storyConfig);
+    const btnConfig = $(`<button class="ws-nav-btn" data-target="sec-config"><span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-sliders" style="color: var(--gold);"></i> Story Config</span> <span style="display:flex; align-items:center; gap:6px;"><span class="ws-new-pill">✨ New</span>${cfgCount > 0 ? `<span class="ws-badge">${cfgCount}</span>` : ''}</span></button>`);
+    sidebar.append(btnConfig);
+
     const btnCot = $(`<button class="ws-nav-btn" data-target="sec-cot"><span style="display:flex; align-items:center; gap:10px; color: ${localProfile.cotEnabled ? 'var(--text-main)' : 'var(--text-muted)'};"><i class="fa-solid fa-brain" style="color: ${localProfile.cotEnabled ? '#a855f7' : ''};"></i> Reasoning (CoT)</span> <span style="font-size: 0.6rem; font-weight: bold; color: ${localProfile.cotEnabled ? '#10b981' : '#ef4444'};">${localProfile.cotEnabled ? 'ON' : 'OFF'}</span></button>`);
     sidebar.append(btnCot);
 
@@ -96,6 +109,7 @@ export function renderCoreAndCot(c) {
     const secOfficial = $(`<div class="ws-section" id="sec-official"></div>`);
     const secCustom = $(`<div class="ws-section" id="sec-custom" style="display:none;"></div>`);
     const secCot = $(`<div class="ws-section" id="sec-cot" style="display:none;"></div>`);
+    const secConfig = buildStoryConfigSection().hide();
 
     // ==========================================
     // ── A. OFFICIAL ENGINES ──
@@ -117,6 +131,7 @@ export function renderCoreAndCot(c) {
             <button class="wstyle-filter-pill ${activeFilter === 'V7' ? 'active' : ''}" data-filter="V7">V7 <span class="pill-count">${v7Count}</span></button>
             <button class="wstyle-filter-pill ${activeFilter === 'V8' ? 'active' : ''}" data-filter="V8">V8 <span class="pill-count">${v8Count}</span></button>
             <button class="wstyle-filter-pill ${activeFilter === 'V9' ? 'active' : ''}" data-filter="V9">V9 <span class="pill-count">${v9Count}</span></button>
+            <button class="wstyle-filter-pill ${activeFilter === 'V10' ? 'active' : ''}" data-filter="V10">V10 <span class="pill-count">${v10Count}</span></button>
         </div>
     `);
     secOfficial.append(filterBar);
@@ -131,6 +146,8 @@ export function renderCoreAndCot(c) {
         else if (m.id.includes("v6")) version = "V6";
         else if (m.id.includes("v7")) version = "V7";
         else if (m.id.includes("v8")) version = "V8";
+        // Before the v9 test purely so the two lists stay in the same order.
+        else if (m.id.includes("v10")) version = "V10";
         else if (m.id.includes("v9")) version = "V9";
 
         const isLocked = m.locked === true;
@@ -159,37 +176,20 @@ export function renderCoreAndCot(c) {
             card.on("click", () => {
                 localProfile.mode = m.id;
 
-                if (m.id === "v7-core") {
-                    localProfile.activeStyleId = "dir_v7_core";
-                    const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v7_core");
-                    if (ds) localProfile.aiRule = ds.rule;
-                } else if (m.id.startsWith("v8")) {
-                    localProfile.activeStyleId = "dir_v8";
-                    const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v8");
-                    if (ds) localProfile.aiRule = ds.rule;
-                } else if (m.id.startsWith("v9")) {
-                    localProfile.activeStyleId = "dir_v9";
-                    const ds = hardcodedLogic.directStyles.find(x => x.id === "dir_v9");
+                // Same mapping the Writing Style tab uses when it finds a locked
+                // engine with no style set. One list, so the two cannot disagree.
+                const lockedStyle = lockedStyleIdFor(m);
+                if (lockedStyle) {
+                    localProfile.activeStyleId = lockedStyle;
+                    const ds = hardcodedLogic.directStyles.find(x => x.id === lockedStyle);
                     if (ds) localProfile.aiRule = ds.rule;
                 }
 
                 const currentLang = (localProfile.model && localProfile.model.includes("-")) ? localProfile.model.split('-').pop() : "english";
-                let targetCotPrefix = null;
-                
-                if (m.id.includes("v6")) targetCotPrefix = "cot-v6";
-                else if (m.id === "v7.5") targetCotPrefix = "cot-v7.5";
-                else if (m.id.includes("v7")) targetCotPrefix = "cot-v7";
-                else if (m.id.includes("v8")) targetCotPrefix = "cot-v8";
-                else if (m.id.includes("v10")) targetCotPrefix = "cot-v10";
-                else if (m.id.includes("v9")) targetCotPrefix = "cot-v9";
-                
-                if (targetCotPrefix) {
-                    if (targetCotPrefix === "cot-v10" || targetCotPrefix.includes("v7") || targetCotPrefix.includes("v8")) {
-                        localProfile.model = `${targetCotPrefix}-english`;
-                    } else {
-                        localProfile.model = `${targetCotPrefix}-${currentLang}`;
-                    }
-                }
+                // The engine→CoT mapping lives in data/cot/index.js now, so Dev
+                // Mode can fill a clone's reasoning script from the same source.
+                const targetCot = meguminCotForMode(m.id, currentLang);
+                if (targetCot) localProfile.model = targetCot;
                 saveProfileToMemory();
                 renderCoreAndCot(c);
             });
@@ -216,7 +216,7 @@ export function renderCoreAndCot(c) {
     });
 
     const activeEngineForToggles = [...hardcodedLogic.modes, ...(extension_settings[extensionName].customModes || [])].find(m => m.id === localProfile.mode);
-    const isV7ForToggles = activeEngineForToggles ? (activeEngineForToggles.id.startsWith("v7") || activeEngineForToggles.isV7 === true) : false;
+    const isV7ForToggles = isV7Engine(activeEngineForToggles);
     if (isV7ForToggles) {
         secOfficial.append(`<div class="wstyle-section-head blue" style="margin-top: 15px;"><i class="fa-solid fa-layer-group"></i> V7 Modules (Turn off to disable)</div>`);
         const v7ToggleList = $(`<div class="mtab-card-list"></div>`);
@@ -329,7 +329,16 @@ export function renderCoreAndCot(c) {
         }
 
         let currentType = "off", currentLang = "english";
-        if (localProfile.model && localProfile.model.startsWith("cot-v10-")) { currentType = "v10"; currentLang = "english"; }
+        // The two specific V10 sets are tested before the general one, exactly as
+        // v9-lite and v9-director are below: "cot-v10-shura-english" starts with
+        // "cot-v10-" too, so a bare test would swallow it.
+        // Longest prefix first: "cot-v10-shura-cap-" also starts with
+        // "cot-v10-shura-", so the capped ids have to be tested ahead of the plain
+        // ones or every cap reads back as its uncapped sibling.
+        if (localProfile.model && localProfile.model.startsWith("cot-v10-ukiyo-cap-")) { currentType = "v10-ukiyo-cap"; currentLang = "english"; }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v10-shura-cap-")) { currentType = "v10-shura-cap"; currentLang = "english"; }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v10-ukiyo-")) { currentType = "v10-ukiyo"; currentLang = "english"; }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v10-shura-")) { currentType = "v10-shura"; currentLang = "english"; }
         else if (localProfile.model && localProfile.model.startsWith("cot-v1-")) { currentType = "v1"; currentLang = localProfile.model.replace("cot-v1-", ""); }
         else if (localProfile.model && localProfile.model.startsWith("cot-v2-")) { currentType = "v2"; currentLang = localProfile.model.replace("cot-v2-", ""); }
         else if (localProfile.model && localProfile.model.startsWith("cot-v6-lite-")) { currentType = "v6-lite"; currentLang = localProfile.model.replace("cot-v6-lite-", ""); }
@@ -346,7 +355,7 @@ export function renderCoreAndCot(c) {
         else if (localProfile.model && localProfile.model.startsWith("cot-v9-")) { currentType = "v9"; currentLang = localProfile.model.replace("cot-v9-", ""); }
 
         let allowedCotTypes = null; 
-        if (localProfile.mode.includes("v10")) allowedCotTypes = ["v10"];
+        if (localProfile.mode.includes("v10")) allowedCotTypes = ["v10-ukiyo", "v10-ukiyo-cap", "v10-shura", "v10-shura-cap"];
         else if (localProfile.mode.includes("v6")) allowedCotTypes = ["v6", "v6-lite"];
         else if (localProfile.mode === "v7.5") allowedCotTypes = ["v7.5"];
         else if (localProfile.mode.includes("v7")) allowedCotTypes = ["v7", "v7-lite"];
@@ -358,7 +367,10 @@ export function renderCoreAndCot(c) {
         secCot.append(`<div class="wstyle-section-head purple"><i class="fa-solid fa-diagram-project"></i> Select Framework</div>`);
         const typeGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 24px;"></div>`);
         const types = [
-            { id: "v10", label: "CoT V10 Ukiyo", desc: "The reasoning set built for V10 Ukiyo. Thinks like a writer rather than a planner \u2014 no phases, no checklists, no audits.", isNew: true },
+            { id: "v10-ukiyo", label: "CoT V10 Ukiyo", desc: "The long-form reasoning built for Ukiyo. Thinks like a novelist muttering before a draft \u2014 present tense, a little messy, never a plan. No phases, no checklists, no audits.", isNew: true },
+            { id: "v10-ukiyo-cap", label: "CoT V10 Ukiyo \u2014 Thinking Cap", desc: "The same writer's mind with a hard ceiling on the thinking phase. For models that over-think.", isNew: true },
+            { id: "v10-shura", label: "CoT V10 Shura", desc: "Seven rules carried into the writing rather than a plan made before it. Built for V10 Shura, and the lightest of the four.", isNew: true },
+            { id: "v10-shura-cap", label: "CoT V10 Shura \u2014 Thinking Cap", desc: "The same seven rules with a hard ceiling on the thinking phase. For models that over-think.", isNew: true },
             { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
             { id: "v2", label: "CoT V2 (New)", desc: "The new experimental framework. Stricter reality checks, info audits, better NPCs, and hook generation." },
             { id: "v6", label: "CoT V6 (Dream Team)", desc: "The full 4-phase sequence designed specifically for V6 engines. Specialized validation and modeling." },
@@ -397,7 +409,7 @@ export function renderCoreAndCot(c) {
             `);
             
             card.on("click", () => {
-                if (t.id === "v10") localProfile.model = `cot-v10-english`;
+                if (t.id.startsWith("v10")) localProfile.model = `cot-${t.id}-english`;
                 else if (t.id === "v7") localProfile.model = `cot-v7-english`;
                 else if (t.id === "v7.5") localProfile.model = `cot-v7.5-english`;
                 else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;
@@ -476,7 +488,7 @@ export function renderCoreAndCot(c) {
             { id: "french", label: "French (Français)" }, { id: "zh", label: "Mandarin (中文)" }, { id: "ru", label: "Russian (Русский)" },
             { id: "jp", label: "Japanese (日本語)" }, { id: "pt", label: "Portuguese (Português)" }
         ];
-        if (currentType === "v10" || currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8" || currentType === "v8-fusion" || currentType.startsWith("v9")) langs = [{ id: "english", label: "English" }];
+        if (currentType.startsWith("v10") || currentType === "v7" || currentType === "v7-lite" || currentType === "v7.5" || currentType === "v8" || currentType === "v8-fusion" || currentType.startsWith("v9")) langs = [{ id: "english", label: "English" }];
         langs.forEach(l => {
             const isSel = currentLang === l.id;
             let badges = '';
@@ -501,14 +513,14 @@ export function renderCoreAndCot(c) {
     }
 
     // --- ASSEMBLE ---
-    mainArea.append(secOfficial).append(secCustom).append(secCot);
+    mainArea.append(secOfficial).append(secCustom).append(secCot).append(secConfig);
     layout.append(mainArea);
     root.append(layout);
     c.append(root);
 
     // ── NAVIGATION LOGIC ──
-    const navButtons = [btnOfficial, btnCustom, btnCot];
-    const sections = [secOfficial, secCustom, secCot];
+    const navButtons = [btnOfficial, btnCustom, btnCot, btnConfig];
+    const sections = [secOfficial, secCustom, secCot, secConfig];
 
     const switchSection = (targetId) => {
         navButtons.forEach(btn => {
@@ -524,6 +536,7 @@ export function renderCoreAndCot(c) {
     btnOfficial.on('click', () => switchSection('sec-official'));
     btnCustom.on('click', () => switchSection('sec-custom'));
     btnCot.on('click', () => switchSection('sec-cot'));
+    btnConfig.on('click', () => switchSection('sec-config'));
 
     // Trigger initial state
     switchSection(activeSubTab);
