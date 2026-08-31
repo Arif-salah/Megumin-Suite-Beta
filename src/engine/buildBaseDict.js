@@ -10,7 +10,7 @@
 import { getContext, extension_settings, substituteParams } from "../st.js";
 import { extensionName } from "../core/constants.js";
 import { localProfile } from "../core/state.js";
-import { isV7Engine, isV8Engine, isModernEngine, engineUsesRenderLimits } from "../core/engines.js";
+import { isV7Engine, isV8Engine, isModernEngine, engineUsesRenderLimits, isCoWriterEngine } from "../core/engines.js";
 import {
     activeNpcImages, pushActiveNpcImage, clearActiveNpcImages,
 } from "../core/activeRequests.js";
@@ -187,6 +187,21 @@ export function buildBaseDict(isTokenCount = false) {
         // Engine-specific AI Prefills (If defined in the engine)
         if (activeEngine.A1) dict["[[AI1]]"] = activeEngine.A1;
         if (activeEngine.A2) dict["[[AI2]]"] = activeEngine.A2;
+
+        // [[user]] -- the rule telling the model to keep its hands off {{user}}.
+        //
+        // Written here rather than by the add-on loop because it is not an add-on:
+        // there is no switch for it, it applies to every engine except the
+        // Co-writer variants, and those are precisely the engines built to write
+        // {{user}}. Sending it to a Co-writer would have one prompt argue with
+        // itself, so the slot is blanked instead of skipped -- an unwritten tag
+        // would survive as a literal "[[user]]" if the leak guard ever missed it.
+        //
+        // It sits immediately above the override pass so a Dev Mode edit of the
+        // shared fragment still wins, exactly like every other shared slot.
+        dict["[[user]]"] = isCoWriterEngine(activeEngine)
+            ? ""
+            : "4. NEVER write for or Control {{user}}";
 
         // Slot overrides, driven by MEGUMIN_SLOT_REGISTRY.
         //

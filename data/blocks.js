@@ -64,6 +64,7 @@ export const blocks = [
 [Unfiltered internal layer hidden from the PC. Reveals what NPCs truly think, feel, and say when the player isn't meant to hear.
 - If multiple NPCs are present: render this as private dialogue between them, spoken behind the PC's back. They drop their public masks and reveal their real opinions, motives, alliances, and grudges.
 - If only one NPC is present: render this as raw, unspoken thought inside that character's head stray feelings, regrets, judgments, and memories.
+- max Length is 30 words.
 Tone is honest and unguarded, contrasting with whatever the character shows on the surface.
 Example (single NPC – the father):
 "NPC NAME: What a disappointment of a son... I miss my wife. She'd know what to say to him. I never did."]

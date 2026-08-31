@@ -171,6 +171,10 @@ export function initProfile() {
             contentRating: "none",
             pacing: "natural",
             primaryGenre: "drama",
+            // Only read when primaryGenre is "custom" — the select keeps its own
+            // value either way, so switching to Custom and back does not lose
+            // whatever was typed.
+            customGenre: "",
             flavorTags: [],
             directorsNote: "",
             unrestrictedContent: false,
@@ -352,6 +356,7 @@ export function initProfile() {
         if (localProfile.storyPlan.contentRating === undefined) localProfile.storyPlan.contentRating = "none";
         if (localProfile.storyPlan.pacing === undefined) localProfile.storyPlan.pacing = "natural";
         if (localProfile.storyPlan.primaryGenre === undefined) localProfile.storyPlan.primaryGenre = "drama";
+        if (typeof localProfile.storyPlan.customGenre !== "string") localProfile.storyPlan.customGenre = "";
         if (localProfile.storyPlan.flavorTags === undefined) localProfile.storyPlan.flavorTags = [];
         if (localProfile.storyPlan.directorsNote === undefined) localProfile.storyPlan.directorsNote = "";
         if (localProfile.storyPlan.unrestrictedContent === undefined) localProfile.storyPlan.unrestrictedContent = false;

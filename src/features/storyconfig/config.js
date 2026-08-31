@@ -23,7 +23,17 @@ export const storyConfigFields = [
         placeholder: "e.g. horror, romance",
         aiNote: "sets the conventions the story plays straight, never comments on",
         hint: "The story's genre and the conventions that come with it. Played straight, never commented on.",
-        chips: ["slice of life", "noir", "horror", "romance", "workplace comedy", "political thriller", "survival", "dark fantasy", "sci-fi", "mystery", "adventure", "tragedy"]
+        // The first twelve are the genres readers asked for, in the order they
+        // asked for them, so the common answer is the nearest one to hand. The
+        // rest are the original list, kept because they are more specific than
+        // what a survey answer tends to be — somebody who wants noir will not
+        // write "drama".
+        chips: [
+            "slice of life", "romance", "fantasy", "action", "sci-fi", "drama",
+            "horror", "comedy", "thriller", "anime", "adventure", "tabletop RPG",
+            "noir", "mystery", "survival", "dark fantasy", "workplace comedy",
+            "political thriller", "tragedy"
+        ]
     },
     {
         key: "culture", tag: "culture", label: "Culture & Setting", icon: "fa-globe", color: "#22c55e", type: "text",
@@ -76,7 +86,11 @@ export const storyConfigFields = [
         placeholder: "e.g. bleak, absurd",
         aiNote: "the emotional weather over everything; overrides the default register",
         hint: "The mood that sits over the whole story, whatever is happening in a given scene.",
-        chips: ["warm", "bleak", "absurd", "tense", "melancholy", "playful", "dreamlike", "clinical", "wistful", "manic"]
+        // "lighthearted" is the one readers asked for by name — the opposite of
+        // grimdark. It sits first because it is the counterweight to what these
+        // engines default to, and warm/playful were near enough to look like it
+        // without being it.
+        chips: ["lighthearted", "warm", "bleak", "absurd", "tense", "melancholy", "playful", "dreamlike", "clinical", "wistful", "manic"]
     },
     {
         key: "narratorPresence", tag: "narrator_presence", label: "Narrator Presence", icon: "fa-comment-dots", color: "#14b8a6", type: "select",

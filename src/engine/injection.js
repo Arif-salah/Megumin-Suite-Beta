@@ -18,7 +18,7 @@ import {
     activeNpcImages, clearActiveNpcImages,
 } from "../core/activeRequests.js";
 import { DEFAULT_PROMPTS } from "../prompts/index.js";
-import { SD_GENRES } from "../features/storyplan/ui.js";
+import { sdGenreLabel } from "../features/storyplan/ui.js";
 import { memEnsureSemanticQueryFresh } from "../features/memory/vectordb.js";
 import { npcBuildDossierPrompt } from "../features/npc/fields.js";
 import { escapeRegex } from "../utils/regex.js";
@@ -56,7 +56,7 @@ export async function handlePromptInjection(data, type) {
         let settingsStr = "DIRECTOR SETTINGS:\n";
         if (sp.contentRating !== "none") settingsStr += `- Content Rating: ${sp.contentRating.toUpperCase()}\n`;
         settingsStr += `- Pacing: ${sp.pacing.toUpperCase()}\n`;
-        settingsStr += `- Primary Genre: ${SD_GENRES[sp.primaryGenre]?.label || 'Drama'}\n`;
+        settingsStr += `- Primary Genre: ${sdGenreLabel(sp)}\n`;
         if (sp.flavorTags && sp.flavorTags.length > 0) settingsStr += `- Flavor Elements: ${sp.flavorTags.join(', ')}\n`;
         if (sp.directorsNote && sp.directorsNote.trim()) settingsStr += `- Director's Note: ${sp.directorsNote.trim()}\n`;
         

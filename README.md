@@ -20,6 +20,21 @@ README on the stable branch.
 
 - **Enhanced Dialogue.** A switch on each V10 engine card. The engines describe what good dialogue sounds like and trust the model to follow; some models read that as a suggestion. This swaps it for a strict version — spelled-out rules, stammering and shouting written into the text, and a list of things characters may never say.
 
+### Story Config
+
+- **The genres you asked for.** Slice of Life, Romance, Fantasy, Action, Sci-Fi, Drama, Horror, Comedy, Thriller, Anime, Adventure and Tabletop RPG now sit at the front of the Genre field, in the order they came up in the survey. The old list is still underneath — noir, mystery, survival, dark fantasy and the rest are more specific than anything a survey answer tends to be, and worth keeping.
+- **Lighthearted is a Narration Tone now.** The most-requested tag, and the one thing the tone list had no word for — warm and playful were close but neither was it.
+
+### Story Director
+
+- **More genres.** Anime / Light Novel, Tabletop RPG, Psychological and Free-form join the list. Free-form is for when you don't want a genre imposed at all, which wasn't possible before — you had to pick something.
+- **Type your own genre.** Pick **Custom…** at the bottom of the dropdown and a box appears. Write whatever you want — "cosmic horror western", "courtroom drama" — and it goes to the Director exactly as you wrote it. Switching back to a built-in genre keeps what you typed, so you can flip between them.
+- **Twenty-two new Flavor Tags.** Lighthearted, Cozy, Grimdark, Whimsical, Enemies to Lovers, Unrequited Love, Second Chance, Mentor & Student, Conspiracy, Rescue, Escape, Space Opera, Wuxia / Xianxia, Academy, Military, Small Town, Obsession, Grief, Betrayal, Vampire, Ghost Story and Oblique Horror.
+
+### Image Generation
+
+- **There's a setup guide.** Getting ComfyUI talking to SillyTavern is the hard part and none of the settings matter until it works, so the tab now links straight to a walkthrough that covers the install, the connection and the first working image.
+
 ### Fixes
 
 - **Blocks now render when MVU is on.** Any extension that redraws the message could stop the block card appearing — the raw text just sat at the bottom of the reply instead. The card finds its place a different way now, and other extensions can't push it out.

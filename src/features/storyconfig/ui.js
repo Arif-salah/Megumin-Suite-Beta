@@ -12,6 +12,7 @@ import { engineLocksStyle, lockedStyleIdFor } from "../../core/engines.js";
 import { getCharacterKey } from "../../core/keys.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
+import { meguminStoryConfigSyncs, meguminSetStoryConfigSyncs, meguminStoryConfigHostSynced } from "../../core/sync.js";
 import { hardcodedLogic } from "../../../data/database.js";
 import { escapeHtmlAttr, fieldPlaceholder } from "../../utils/html.js";
 import { cleanAIOutput } from "../../engine/chatText.js";
@@ -24,6 +25,57 @@ import { storyConfigFields, getAllConfigPresets, applyStoryConfigDefaults, isSta
 
 // Builds the Config pane. Text fields save on input (debounced) so typing never re-renders
 // and never steals focus; only structural changes re-render the whole tab.
+// The "does Story Config travel with the tab's Global switch" row.
+//
+// Split out because it redraws itself on click rather than re-rendering the whole
+// section: the section holds text inputs, and re-rendering while somebody may be
+// mid-edit would steal focus for a control that has nothing to do with them.
+function buildConfigSyncRow() {
+    const row = $(`<div class="cfg-sync-row"></div>`);
+
+    const paint = () => {
+        const on = meguminStoryConfigSyncs();
+        const hostOn = meguminStoryConfigHostSynced();
+        row.html(`
+            <div class="cfg-sync-text">
+                <span class="cfg-sync-label"><i class="fa-solid fa-earth-americas"></i> Share Story Config with every character</span>
+                <span class="cfg-sync-desc">${hostOn
+                    ? (on
+                        ? "These fields are copied to every character along with the rest of this tab."
+                        : "The engine and CoT choice still go everywhere. These fields stay with this character.")
+                    : "Only applies once this tab's <strong>Global</strong> switch is on. It is off, so nothing is being copied anywhere."}</span>
+            </div>
+            <button class="ws-btn-small cfg-sync-btn" id="cfg_sync_toggle"
+                    style="${hostOn
+                        ? (on ? "color:#10b981; border-color:rgba(16,185,129,0.45);" : "color:var(--gold); border-color:rgba(245,158,11,0.3);")
+                        : "opacity:0.55;"}">
+                <i class="fa-solid fa-earth-americas"></i> ${on ? "On" : "Off"}
+            </button>`);
+    };
+
+    paint();
+
+    row.on("click", "#cfg_sync_toggle", () => {
+        const next = !meguminStoryConfigSyncs();
+        meguminSetStoryConfigSyncs(next);
+        paint();
+        // Turning it back on has to catch up: the other profiles missed every
+        // change made while it was off, so one save re-broadcasts the current
+        // values. Turning it off broadcasts nothing and leaves what is already
+        // out there alone — undoing a share nobody asked to undo would be worse.
+        if (next) saveProfileToMemory();
+        if (!meguminStoryConfigHostSynced()) {
+            toastr.info("Saved. It takes effect when this tab's Global switch is on.", "Megumin Suite");
+        } else {
+            toastr.success(next
+                ? "Story Config now travels with the other settings on this tab."
+                : "Story Config stays with this character now.", "Megumin Suite");
+        }
+    });
+
+    return row;
+}
+
 export function buildStoryConfigSection() {
     const cfg = localProfile.storyConfig;
     // The standing fields can never be drawn blank: their dropdown has no
@@ -36,7 +88,17 @@ export function buildStoryConfigSection() {
     // No master toggle: the block is always injected. Anything left on Preset default
     // still emits no line, so "off" is expressed per field rather than for the whole
     // block -- which is what people were reaching for the toggle to do anyway.
-    sec.append(`<div class="cfg-master-desc" style="margin-bottom: 14px;">Standing settings for the whole story. Anything left on preset default is left to your preset.</div>`);
+    sec.append(`<div class="cfg-master-desc" style="margin-bottom: 10px;">Standing settings for the whole story. Anything left on preset default is left to your preset.</div>`);
+
+    // ── GLOBAL SYNC OPT-OUT ──
+    //
+    // These fields sit on the PRESETS & COT tab, so the tab's Global switch
+    // carries them along with the engine and CoT choice. That bundles the setup
+    // (which people do want everywhere) with the story itself (which they often
+    // do not — a horror chat and a slice-of-life chat want different genres).
+    // The button is drawn greyed when the host tab is not global at all, because
+    // then nothing broadcasts and this decides nothing.
+    sec.append(buildConfigSyncRow());
 
     // ── PRESET BAR ──
     const presets = getAllConfigPresets();

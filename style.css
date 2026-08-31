@@ -3147,6 +3147,46 @@
 .cfg-master.active { border-color: rgba(16,185,129,.45); background: rgba(16,185,129,.06); }
 .cfg-master-title { font-size: .85rem; font-weight: 700; color: var(--text-main); }
 .cfg-master-title i { color: var(--gold); margin-right: 6px; }
+/* Story Config's own global-sync opt-out. Sits above the preset bar. */
+.cfg-sync-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 9px 12px;
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--gold);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cfg-sync-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.cfg-sync-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--text-main);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cfg-sync-desc {
+    font-size: 0.66rem;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.cfg-sync-btn {
+    flex: 0 0 auto;
+}
+
 .cfg-master-desc { font-size: .68rem; color: var(--text-muted); margin-top: 4px; line-height: 1.35; }
 
 .cfg-preset-bar {

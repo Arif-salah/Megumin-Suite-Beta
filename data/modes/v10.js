@@ -292,7 +292,11 @@ const SHURA_CO_WRITING = [
 ];
 
 function coWriter(base, id, label, color, patches) {
-    const out = { ...base, id, label, color, recommended: false };
+    // isCoWriter is what [[user]] gates on: the "never write for {{user}}" rule
+    // is the one instruction a Co-writer must NOT receive, since writing {{user}}
+    // is the entire point of the variant. Set here rather than on each entry so a
+    // future Co-writer gets it for free.
+    const out = { ...base, id, label, color, recommended: false, isCoWriter: true };
     patches.forEach(([find, repl], i) => {
         let hit = false;
         ["p1", "p4", "p6"].forEach(k => {

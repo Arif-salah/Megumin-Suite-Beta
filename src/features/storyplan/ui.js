@@ -12,6 +12,7 @@ import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js
 import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { cleanAIOutput, getChatForStoryDirector } from "../../engine/chatText.js";
+import { escapeHtmlAttr } from "../../utils/html.js";
 import { useMeguminEngine } from "../../engine/tasks.js";
 
 // -------------------------------------------------------------
@@ -29,23 +30,62 @@ export const SD_GENRES = {
     "fantasy": { label: "Fantasy / RPG", desc: "Magic systems, world-building, quests, power progression." },
     "horror": { label: "Horror / Dark", desc: "Dread, survival, psychological terror, body horror." },
     "scifi": { label: "Sci-Fi", desc: "Technology, space, dystopia, transhumanism." },
-    "comedy": { label: "Comedy", desc: "Humor-driven, absurdist, sitcom energy, comedic timing." }
+    "comedy": { label: "Comedy", desc: "Humor-driven, absurdist, sitcom energy, comedic timing." },
+    // Added from reader answers. Deliberately only the ones the nine above do not
+    // already cover: Thriller lives inside Mystery, Adventure inside Action and
+    // RPG inside Fantasy, so adding them again would be three ways to say the
+    // same thing in one dropdown.
+    "anime": { label: "Anime / Light Novel", desc: "Genre-savvy tropes, ensemble cast, escalating arcs, tonal swings played straight." },
+    "tabletop": { label: "Tabletop RPG", desc: "D&D, Delta Green, Call of Cthulhu — a party, a table, and a world that answers to rules." },
+    "psychological": { label: "Psychological", desc: "Interior pressure, unreliable perception, obsession, a slow unravelling." },
+    "freeform": { label: "Free-form", desc: "No genre conventions imposed. The story goes wherever the scene takes it." }
 };
 
+// The select value that means "the reader typed their own". Not a key in
+// SD_GENRES: that map is the vocabulary, and this is a UI state.
+export const SD_CUSTOM_GENRE = "custom";
+
+// What the Director is actually told the genre is.
+//
+// The tab and the prompt builder both need this answer and they must not work it
+// out separately — the reader would end up seeing one genre on screen while the
+// model was sent another. An empty custom box falls back to the shipped default
+// rather than sending a blank line.
+export function sdGenreLabel(sp) {
+    if (!sp) return "Drama";
+    if (sp.primaryGenre === SD_CUSTOM_GENRE) {
+        const typed = String(sp.customGenre || "").trim();
+        return typed || "Drama";
+    }
+    return SD_GENRES[sp.primaryGenre]?.label || "Drama";
+}
+
+// Sent to the model verbatim, so a tag has to read as an instruction on its own —
+// "Cozy" tells it something; "Interesting" does not.
+//
+// Kept free of anything the list already says another way. The most-asked tag was
+// "lighthearted", named as the opposite of grimdark, so both ends of that dial are
+// here rather than only the dark one the engines already lean toward.
 export const SD_FLAVORS = [
     // Relationship Dynamics
     "Rivals to Lovers", "Forbidden Love", "Found Family", "Toxic Attachment", "Slow Burn Romance", "Love Triangle",
+    "Enemies to Lovers", "Unrequited Love", "Second Chance", "Mentor & Student",
     // Plot Structure
     "Heist", "Revenge", "Redemption Arc", "Secret Identity", "Mystery & Deception", "Tournament Arc",
+    "Conspiracy", "Rescue", "Escape",
     // Tone & Mood
     "Dark Comedy", "Gothic", "Bittersweet", "Tragic", "Horror-Comedy", "Noir",
+    "Lighthearted", "Cozy", "Grimdark", "Whimsical",
     // Setting & World
     "Urban Fantasy", "Historical", "Survival", "Post-Apocalyptic", "Victorian Gothic", "Cyberpunk",
+    "Space Opera", "Wuxia / Xianxia", "Academy", "Military", "Small Town",
     // Character & Theme
     "Coming of Age", "Identity", "Cognitive Dissonance", "Moral Ambiguity", "Corruption Arc",
+    "Obsession", "Grief", "Betrayal",
     // Special & Niche
     "Slice of Life", "Body Horror", "Fish Out of Water", "Fish In Water", "Political Intrigue",
-    "War", "Isekai", "Harem", "Monster", "Mind Control", "Memory Loss", "Time Loop"
+    "War", "Isekai", "Harem", "Monster", "Mind Control", "Memory Loss", "Time Loop",
+    "Vampire", "Ghost Story", "Oblique Horror"
 ];
 
 export function renderStoryPlanner(c) {
@@ -57,6 +97,10 @@ export function renderStoryPlanner(c) {
     Object.entries(SD_GENRES).forEach(([id, g]) => {
         genreOptions += `<option value="${id}" ${sp.primaryGenre === id ? 'selected' : ''}>${g.label}</option>`;
     });
+    // Appended rather than added to SD_GENRES: that map is the vocabulary the
+    // Director is told about, and "Custom…" is a UI affordance, not a genre.
+    genreOptions += `<option value="${SD_CUSTOM_GENRE}" ${sp.primaryGenre === SD_CUSTOM_GENRE ? 'selected' : ''}>Custom…</option>`;
+    const isCustomGenre = sp.primaryGenre === SD_CUSTOM_GENRE;
 
     // Build flavor chips
     let flavorChips = '';
@@ -149,7 +193,13 @@ export function renderStoryPlanner(c) {
                     <select id="sd_genre" class="ps-modern-input" style="width: 100%; cursor: pointer;">
                         ${genreOptions}
                     </select>
-                    <div class="sd-genre-desc" id="sd_genre_desc">${SD_GENRES[sp.primaryGenre]?.desc || ''}</div>
+                    <input type="text" id="sd_genre_custom" class="ps-modern-input"
+                           style="width: 100%; margin-top: 8px; display: ${isCustomGenre ? 'block' : 'none'};"
+                           placeholder="e.g. cosmic horror western, courtroom drama"
+                           value="${escapeHtmlAttr(sp.customGenre || '')}">
+                    <div class="sd-genre-desc" id="sd_genre_desc">${isCustomGenre
+                        ? 'Type the genre and the conventions that come with it. Sent to the Director exactly as written.'
+                        : (SD_GENRES[sp.primaryGenre]?.desc || '')}</div>
                 </div>
 
                 <!-- Flavor Tags -->
@@ -303,8 +353,22 @@ export function renderStoryPlanner(c) {
     // Genre select
     $("#sd_genre").on("change", function () {
         sp.primaryGenre = $(this).val();
-        $("#sd_genre_desc").text(SD_GENRES[sp.primaryGenre]?.desc || '');
+        const custom = sp.primaryGenre === SD_CUSTOM_GENRE;
+        $("#sd_genre_custom").toggle(custom);
+        $("#sd_genre_desc").text(custom
+            ? 'Type the genre and the conventions that come with it. Sent to the Director exactly as written.'
+            : (SD_GENRES[sp.primaryGenre]?.desc || ''));
+        // Focus on arrival: picking Custom is a statement of intent to type, and
+        // an empty box that does nothing until you find it is a dead end.
+        if (custom) $("#sd_genre_custom").trigger("focus");
         saveProfileToMemory();
+    });
+
+    // Debounced, not saved per keystroke — this is a free-text field and the
+    // profile write is the expensive half.
+    $("#sd_genre_custom").on("input", function () {
+        sp.customGenre = $(this).val();
+        saveProfileDebounced();
     });
 
     // Flavor chips

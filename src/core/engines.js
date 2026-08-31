@@ -20,6 +20,11 @@ export const isV8Engine = m => !!m && (String(m.id || "").startsWith("v8") || m.
 export const isV9Engine = m => !!m && (String(m.id || "").startsWith("v9") || m.isV9 === true);
 export const isV10Engine = m => !!m && (String(m.id || "").startsWith("v10") || m.isV10 === true);
 
+// The Co-writer variants, which author {{user}} as well as the world. Flag first
+// so a clone of one keeps answering true, id suffix second so an engine built
+// before the flag existed still reads correctly.
+export const isCoWriterEngine = m => !!m && (m.isCoWriter === true || String(m.id || "").endsWith("-cw"));
+
 // ── Behaviour, named for what it does ────────────────────────────────────────
 //
 // V10 inherits everything V9 does EXCEPT the Lean/Full render limits, which it

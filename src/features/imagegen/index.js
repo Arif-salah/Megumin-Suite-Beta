@@ -50,6 +50,16 @@ export function renderImageGen(c) {
             </div>
         </div>
 
+        <div class="mtab-callout blue" style="margin-bottom: 16px;">
+            <i class="fa-solid fa-book-open"></i>
+            <span><strong>New to this? There's a setup guide.</strong> Getting ComfyUI talking to
+            SillyTavern is the hard part, and none of the settings below matter until it is.
+            <a href="https://www.reddit.com/r/SillyTavernAI/comments/1u87agq/tutorial_how_to_setup_inline_image_generation_in/"
+               target="_blank" rel="noopener noreferrer"
+               style="color:#3b82f6; text-decoration:underline;">Read the walkthrough</a> — it covers
+            the install, the connection and the first working image.</span>
+        </div>
+
         <!-- MASTER TOGGLE -->
         <div class="mtab-toggle-row ${s.enabled ? 'active' : ''}" id="ig_enable_card" style="margin-bottom: 20px;">
             <div class="toggle-info">
@@ -243,7 +253,7 @@ export function renderImageGen(c) {
                             
                             <div class="mtab-param-row" style="padding:0;">
                                 <span class="param-label" style="min-width:30px;">Wt</span>
-                                <input type="range" id="ig_lorawt_${i}" min="-2" max="2" step="0.1" value="${wtVal}">
+                                <input type="range" id="ig_lorawt_${i}" min="-6" max="6" step="0.1" value="${wtVal}">
                                 <span id="ig_lorawt_lbl_${i}" style="font-size:0.78rem; font-weight:600; color:var(--text-main); min-width:30px; text-align:center;">${wtVal}</span>
                             </div>
                         </div>

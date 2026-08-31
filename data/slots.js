@@ -18,7 +18,8 @@
 // you are about to hand-write is meant to be derived.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { addons, blocks, models } from "./database.js";
+import { addons, blocks, models, modes } from "./database.js";
+import { isCoWriterEngine } from "../src/core/engines.js";
 
 const addonText = id => addons.find(a => a.id === id)?.content || "";
 const blockText = id => blocks.find(b => b.id === id)?.content || "";
@@ -59,7 +60,36 @@ const GATE = {
     onomato: gate(p => !!(p.onomatopoeia && p.onomatopoeia.enabled), "Onomatopoeia", "Global"),
     dice:    gate(p => (p.addons || []).includes("dice")
                     || (p.addons || []).includes("dice_all"), "Dice", "Add-ons"),
+
+    // The one gate keyed on the ENGINE rather than a switch the reader flips.
+    // Every engine gets the "never write for {{user}}" rule except the Co-writer
+    // variants, where authoring {{user}} is the whole point -- sending it there
+    // would have the engine contradict itself inside one prompt.
+    //
+    // Custom clones are resolved from customModes as well as the shipped list,
+    // because a clone of a Co-writer is still a Co-writer.
+    notCoWriter: gate(p => !isCoWriterEngine(meguminModeById(p && p.mode)),
+                      "a non Co-writer engine", "Presets & CoT"),
 };
+
+/**
+ * Look up an engine by id across the shipped list and the reader's own clones.
+ *
+ * Gates receive the profile, not the engine, so a gate that depends on which
+ * engine is selected has to resolve it. extension_settings is read lazily off
+ * globalThis rather than imported: data/ sits below src/ in the layering and
+ * must not pull in core/state, and a missing store simply means "no clones".
+ */
+function meguminModeById(id) {
+    if (!id) return null;
+    const found = modes.find(m => m.id === id);
+    if (found) return found;
+    try {
+        const store = globalThis.extension_settings || {};
+        const bucket = store["Megumin-Suite"] || store["Megumin-Suite-Beta"] || {};
+        return (bucket.customModes || []).find(m => m.id === id) || null;
+    } catch { return null; }
+}
 
 
 // The chain-of-thought library, offered as a dropdown on the two slots that can
@@ -126,6 +156,10 @@ export const MEGUMIN_SLOT_REGISTRY = [
           { label: "Player only (3 rolls)", value: () => addonText("dice") },
           { label: "Everyone (6 rolls)", value: () => addonText("dice_all") },
       ] },
+    { key: "userControl", trigger: "[[user]]", label: "Never Write For {{user}}", scope: "shared", group: "systems",
+      gate: GATE.notCoWriter,
+      hint: "Sent on every engine except the Co-writer variants, which are built to write {{user}}. It lands as item 4 of the preset's final reminder list, so keep it written as a numbered line.",
+      fallback: () => "4. NEVER write for or Control {{user}}" },
     { key: "direct", trigger: "[[Direct]]", label: "Direct Language", scope: "shared", group: "systems",
       gate: GATE.addon("direct"), hint: "Blunt anatomical wording instead of euphemism.",
       fallback: () => addonText("direct") },
