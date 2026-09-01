@@ -27,7 +27,7 @@ import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { downloadJsonFile } from "../../utils/download.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
-import { useMeguminEngine } from "../../engine/tasks.js";
+import { useMeguminEngine, withBackgroundLock } from "../../engine/tasks.js";
 import { memGetCachedKeywords, memExtractKeywords, memStringHash } from "./keywords.js";
 import {
     memGetCollectionId, memInsertToVectorDB, memDeleteFromVectorDB,
@@ -1005,10 +1005,14 @@ export async function memProcessPendingChunks(isAuto = false) {
             setActiveMemorySummarizationRequest(chunkData.text);
 
             if (!mem.backend || mem.backend === "direct") {
-                summaryResult = await generateQuietPrompt({ prompt: "___PS_MEMORY_SUMMARIZE___" });
+                summaryResult = await withBackgroundLock(() =>
+                    generateQuietPrompt({ prompt: "___PS_MEMORY_SUMMARIZE___" })
+                );
             } else {
                 await useMeguminEngine(async () => {
-                    summaryResult = await generateQuietPrompt({ prompt: "___PS_MEMORY_SUMMARIZE___" });
+                    summaryResult = await withBackgroundLock(() =>
+                        generateQuietPrompt({ prompt: "___PS_MEMORY_SUMMARIZE___" })
+                    );
                 }, "Megumin Engine");
             }
 

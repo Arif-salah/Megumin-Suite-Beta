@@ -11,7 +11,7 @@
 import {
     getContext, getRequestHeaders, generateQuietPrompt, saveChat, reloadCurrentChat,
     addOneMessage, appendMediaToMessage, updateMessageBlock, saveBase64AsFile,
-    humanizedDateTime, Popup, POPUP_TYPE,
+    humanizedDateTime, Popup, POPUP_TYPE, isGenerating,
 } from "../../st.js";
 import { extensionName } from "../../core/constants.js";
 import { localProfile } from "../../core/state.js";
@@ -23,7 +23,7 @@ import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { showKazumaProgress } from "../../ui/progress.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
-import { useMeguminEngine } from "../../engine/tasks.js";
+import { useMeguminEngine, withBackgroundLock } from "../../engine/tasks.js";
 import { KAZUMA_PLACEHOLDERS, RESOLUTIONS } from "../../../data/image_data.js";
 import { getRelevantNpcImageTags } from "../npc/data.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
@@ -647,6 +647,14 @@ export async function igManualGenerate() {
     const s = localProfile?.imageGen;
     if (!s || !s.enabled) return;
 
+    // Same shared-generation-slot guard as the auto trigger: running this quiet
+    // prompt while a roleplay turn is streaming can flush the image-prompt text
+    // into the chat as the character's reply.
+    if (typeof isGenerating === "function" && isGenerating()) {
+        toastr.warning("A generation is already running. Wait for it to finish before generating an image.", "Megumin Suite");
+        return;
+    }
+
     showKazumaProgress("Analyzing Scene...");
 
     try {
@@ -720,7 +728,9 @@ export async function generateImagePromptText() {
         npcTagsStr: npcTagsStr // <-- ADD TO REQUEST
     });
 
-    let rawOutput = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
+    let rawOutput = await withBackgroundLock(() =>
+        generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" })
+    );
     return rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
 

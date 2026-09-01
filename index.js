@@ -12,6 +12,7 @@ import {
     getRequestHeaders,
     appendMediaToMessage,
     updateMessageBlock,
+    isGenerating,
 } from "../../../../script.js";
 import { saveBase64AsFile, cancelDebounce } from "../../../utils.js";
 import { humanizedDateTime } from "../../../RossAscends-mods.js";
@@ -656,6 +657,16 @@ jQuery(async () => {
                         // chat the user has already left during the wait.
                         if (meguminActiveDataIdentity() !== igTriggerIdentity) {
                             console.debug(`[Megumin-Suite] Auto image generation skipped: it was queued for "${igTriggerIdentity}" but "${meguminActiveDataIdentity()}" is active now.`);
+                            return;
+                        }
+                        // ST runs the roleplay and this quiet image-prompt request
+                        // through ONE shared generation slot and streaming buffer.
+                        // Starting ours while the next turn is already generating
+                        // lets the prompt text leak into the chat as the character's
+                        // reply, so skip instead — the reply that follows this one
+                        // will be timestamped by auto-clicking the button again.
+                        if (typeof isGenerating === "function" && isGenerating()) {
+                            console.debug(`[Megumin-Suite] Auto image generation skipped: a turn is already generating.`);
                             return;
                         }
                         try {
