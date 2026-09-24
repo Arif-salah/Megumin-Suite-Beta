@@ -234,11 +234,15 @@ export function parseWorldStateBlock(text) {
             condition: "",
             carrying: ""
         },
+        npcOutfits: {},
         npcs: "",
         threads: ""
     };
 
     const lines = raw.split(/\r?\n/);
+    let inNpcSection = false;
+    let currentNpc = null;
+
     for (const rawLine of lines) {
         const line = rawLine.trim();
         if (!line) continue;
@@ -255,18 +259,47 @@ export function parseWorldStateBlock(text) {
             if (wxM) state.weather = stripFormatting(wxM[1]);
         }
 
+        // Section boundary tracking
+        if (line.includes("👥 NPCs Present") || line.includes("NPCs Present")) {
+            inNpcSection = true;
+            currentNpc = null;
+            continue;
+        }
+        if (line.includes("📡") || line.includes("🔥") || /^---*$/.test(line)) {
+            if (inNpcSection && (/^---*$/.test(line) || line.includes("📡") || line.includes("🔥"))) {
+                inNpcSection = false;
+                currentNpc = null;
+            }
+        }
+
         // PC name from header line (e.g. **🧍 Kazuma:** or **🧍 Adam:**)
         if (line.includes("🧍") && !state.pc.name) {
             const pcNameM = line.match(/^[*\-•_\s]*\*\*🧍\s*([^*:\n]+)\s*:?\*\*/);
             if (pcNameM) state.pc.name = stripFormatting(pcNameM[1]);
         }
 
-        // PC outfit & posture
-        if (/Outfit\s*:/i.test(line) && !state.pc.outfit) {
-            const m = line.match(/Outfit\s*:\s*\*?\*?([^*\n]+)/i);
-            if (m) state.pc.outfit = stripFormatting(m[1]);
+        // NPC header inside NPCs Present section
+        if (inNpcSection) {
+            const npcHeaderM = line.match(/^[*\-•_\s]*\*\*([^*:\n]+)\s*:?\*\*/);
+            if (npcHeaderM && !npcHeaderM[1].includes("NPCs Present")) {
+                currentNpc = stripFormatting(npcHeaderM[1]);
+                continue;
+            }
         }
-        if (/Position\s*:/i.test(line) && !state.pc.position) {
+
+        // Outfit & posture matching
+        if (/Outfit\s*:/i.test(line)) {
+            const m = line.match(/Outfit\s*:\s*\*?\*?([^*\n]+)/i);
+            if (m) {
+                const val = stripFormatting(m[1]);
+                if (inNpcSection && currentNpc) {
+                    state.npcOutfits[currentNpc] = val;
+                } else if (!state.pc.outfit) {
+                    state.pc.outfit = val;
+                }
+            }
+        }
+        if (/Position\s*:/i.test(line) && !state.pc.position && !inNpcSection) {
             const m = line.match(/Position\s*:\s*\*?\*?([^*\n]+)/i);
             if (m) state.pc.position = stripFormatting(m[1]);
         }

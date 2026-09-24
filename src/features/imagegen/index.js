@@ -28,6 +28,8 @@ import { KAZUMA_PLACEHOLDERS, RESOLUTIONS } from "../../../data/image_data.js";
 import { getRelevantNpcImageTags } from "../npc/data.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { makeComfyClientId, openComfyProgressSocket } from "./comfyProgress.js";
+import { getWorldStateCurrent } from "../worldstate/ledger.js";
+import { escapeHtmlAttr } from "../../utils/html.js";
 
 export function renderImageGen(c) {
     c.empty();
@@ -257,6 +259,20 @@ export function renderImageGen(c) {
                     }).join('')}
                 </div>
             </div>
+
+            <!-- Character Visual Continuity (Appearance Tags) -->
+            <div class="mtab-panel" style="margin-bottom:16px;">
+                <div class="mtab-panel-title purple" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="fa-solid fa-user-tag"></i> Character Appearance & Continuity</span>
+                    <button id="ig_add_char_btn" class="ps-modern-btn secondary" style="font-size:0.7rem; padding:4px 10px; cursor:pointer;"><i class="fa-solid fa-plus"></i> Add Character</button>
+                </div>
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:10px;">
+                    Lock physical traits (hair, eyes, face, body) to eliminate character drifting. Attire and location are automatically driven by the live World State.
+                </div>
+                <div id="ig_character_tags_list" style="display:flex; flex-direction:column; gap:8px;">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
         </div>
     `);
 
@@ -304,6 +320,23 @@ export function renderImageGen(c) {
         }
     });
     c.find('#ig_main_content').append(igEditor);
+
+    // --- CHARACTER APPEARANCE LIST ---
+    renderCharacterTagsList(c.find('#ig_character_tags_list'), s);
+
+    c.find('#ig_add_char_btn').on('click', function () {
+        const name = prompt("Enter character name:");
+        if (!name || !name.trim()) return;
+        const cleanName = name.trim();
+        if (!s.characterTags) s.characterTags = {};
+        if (!s.characterTags[cleanName]) {
+            s.characterTags[cleanName] = { tags: "", locked: true, provisional: false };
+            saveProfileDebounced();
+            renderCharacterTagsList(c.find('#ig_character_tags_list'), s);
+        } else {
+            toastr.info(`Character "${cleanName}" already exists in Appearance list.`, "Megumin Suite");
+        }
+    });
 
     // --- EVENTS & BINDINGS ---
     $("#ig_enable_card").on("click", function () {
@@ -670,7 +703,138 @@ export async function igManualGenerate() {
     }
 }
 
-// New Helper Function for generating the prompt text
+// ── Character Visual Continuity Helpers ──
+export function ensureCharacterTagsMigrated() {
+    if (!localProfile) return false;
+    if (!localProfile.imageGen) localProfile.imageGen = {};
+    if (!localProfile.imageGen.characterTags) localProfile.imageGen.characterTags = {};
+
+    const charTags = localProfile.imageGen.characterTags;
+    let modified = false;
+
+    // 1. One-time non-destructive migration from NPC Bank
+    const npcs = localProfile.npcBank?.npcs || [];
+    for (const npc of npcs) {
+        const name = (npc.name || "").trim();
+        if (name && !charTags[name] && npc.imageTags && npc.imageTags.trim()) {
+            charTags[name] = {
+                tags: npc.imageTags.trim(),
+                locked: false,
+                provisional: false
+            };
+            modified = true;
+        }
+    }
+
+    // 2. Provisional entry for PC if not present
+    const pcName = localProfile.worldState?.current?.pc?.name || "";
+    if (pcName && !charTags[pcName] && !charTags["{{user}}"]) {
+        charTags[pcName] = { tags: "", locked: false, provisional: true };
+        modified = true;
+    }
+
+    return modified;
+}
+
+export function renderCharacterTagsList(container, s) {
+    if (!container || !container.length) return;
+    container.empty();
+    ensureCharacterTagsMigrated();
+    if (!s.characterTags) s.characterTags = {};
+    const tagsMap = s.characterTags;
+    const names = Object.keys(tagsMap);
+
+    if (names.length === 0) {
+        container.append(`
+            <div style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 12px; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                No character appearance tags saved yet. Click "Add Character" above or introduce characters in chat.
+            </div>
+        `);
+        return;
+    }
+
+    names.forEach(name => {
+        const item = tagsMap[name] || { tags: "", locked: false };
+        const isLocked = Boolean(item.locked);
+        const isProvisional = Boolean(item.provisional);
+
+        const card = $(`
+            <div class="ig-char-tag-row" style="background: rgba(0,0,0,0.12); border: 1px solid var(--border-color); border-left: 3px solid ${isLocked ? '#10b981' : '#f59e0b'}; padding: 10px; border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-main);">${escapeHtmlAttr(name)}</span>
+                        ${isProvisional ? '<span style="font-size:0.6rem; padding:1px 5px; border-radius:4px; background:rgba(245,158,11,0.2); color:#f59e0b;">provisional</span>' : ''}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <button class="ps-modern-btn ${isLocked ? 'primary' : 'secondary'} ig-char-lock-btn" data-name="${escapeHtmlAttr(name)}" style="font-size: 0.68rem; padding: 3px 8px; cursor: pointer;" title="${isLocked ? 'Locked: user-managed, auto-generation will never overwrite' : 'Unlocked: can be refined automatically'}">
+                            <i class="fa-solid ${isLocked ? 'fa-lock' : 'fa-lock-open'}"></i> ${isLocked ? 'Locked' : 'Unlocked'}
+                        </button>
+                        <button class="ps-modern-btn secondary ig-char-del-btn" data-name="${escapeHtmlAttr(name)}" style="font-size: 0.68rem; padding: 3px 8px; color: #ef4444; cursor: pointer;" title="Delete character tags">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <textarea class="ps-modern-input ig-char-tags-input" data-name="${escapeHtmlAttr(name)}" placeholder="Booru-style physical traits: 1girl, pale skin, blue eyes, long black hair, ponytail..." style="width: 100%; box-sizing: border-box; font-size: 0.75rem; padding: 6px; resize: vertical; min-height: 48px;">${escapeHtmlAttr(item.tags || '')}</textarea>
+            </div>
+        `);
+
+        card.find('.ig-char-lock-btn').on('click', function () {
+            item.locked = !item.locked;
+            if (item.locked) item.provisional = false;
+            saveProfileDebounced();
+            renderCharacterTagsList(container, s);
+        });
+
+        card.find('.ig-char-del-btn').on('click', function () {
+            delete tagsMap[name];
+            saveProfileDebounced();
+            renderCharacterTagsList(container, s);
+        });
+
+        card.find('.ig-char-tags-input').on('input', function () {
+            item.tags = $(this).val();
+            item.provisional = false;
+            saveProfileDebounced();
+        });
+
+        container.append(card);
+    });
+}
+
+export function buildVisualContinuityContext() {
+    ensureCharacterTagsMigrated();
+    const ws = getWorldStateCurrent();
+    const parts = [];
+
+    // 1. Relevant character physical tags (Tier 1: Static)
+    const charTagsStr = getRelevantNpcImageTags();
+    if (charTagsStr) {
+        parts.push(charTagsStr);
+    }
+
+    // 2. Active scene attire & location from World State (Tier 2: Semi-Sticky)
+    if (ws) {
+        const sceneLines = [];
+        if (ws.location) sceneLines.push(`• Location: ${ws.location}`);
+        if (ws.weather) sceneLines.push(`• Weather/Atmosphere: ${ws.weather}`);
+        if (ws.pc && ws.pc.outfit) {
+            const pcName = ws.pc.name || "{{user}}";
+            sceneLines.push(`• ${pcName} (PC) Outfit: ${ws.pc.outfit}`);
+        }
+        if (ws.npcOutfits && Object.keys(ws.npcOutfits).length > 0) {
+            for (const [npcName, outfit] of Object.entries(ws.npcOutfits)) {
+                if (outfit) sceneLines.push(`• ${npcName} Outfit: ${outfit}`);
+            }
+        }
+        if (sceneLines.length > 0) {
+            parts.push(`**ACTIVE SCENE ATTIRE & ENVIRONMENT (MANDATORY BASELINE):**\n${sceneLines.join("\n")}\n*Adhere strictly to this clothing and setting. Do not change attire or location unless the prose explicitly depicts it changing.*`);
+        }
+    }
+
+    return parts.join("\n\n");
+}
+
+// Helper Function for generating the prompt text
 export async function generateImagePromptText() {
     const ig = localProfile.imageGen;
     const chat = getContext().chat;
@@ -702,7 +866,7 @@ export async function generateImagePromptText() {
     if (!ig.includeExamples) examples = "";
 
     let directLangStr = ig.directLanguage ? "**DIRECT LANGUAGE:** Use exact Booru tags only. \"naked\" not \"wearing nothing.\" \"erection\" not \"visible arousal.\"\n\n**NSFW TAG REFERENCE (use when scene is explicit):**\nBody: naked, nude, topless, exposed nipples, small breasts, medium breasts, large breasts, spread legs, ass, erection, veins, veiny penis\nActions: hetero, sex, vaginal, anal, oral, fellatio, after fellatio, paizuri, straddling, riding, missionary, doggystyle, cowgirl position, moaning, open mouth, tongue out, ahegao, clenching teeth\nFluids: cum, cum on body, cum on breasts, cum on face, cum on hair, cum on tongue, cum in mouth, cum inside, ejaculation, facial, saliva, sweat\nState: flushed face, heavy breathing, trembling, crying with eyes open, half-closed eyes, solo focus" : "";
-    let npcTagsStr = getRelevantNpcImageTags(); // <-- GET THE TAGS
+    let continuityContext = buildVisualContinuityContext();
 
     setActiveImageGenRequest({
         chatText: lastMessages, 
@@ -710,7 +874,7 @@ export async function generateImagePromptText() {
         templateExamples: examples, 
         extraStr: ig.promptExtra || "",
         directLanguageStr: directLangStr,
-        npcTagsStr: npcTagsStr // <-- ADD TO REQUEST
+        npcTagsStr: continuityContext
     });
 
     let rawOutput = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });

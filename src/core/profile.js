@@ -208,7 +208,8 @@ export function initProfile() {
             previewPrompt: false,
             savedWorkflowStates: {},
             customPrompts: null,
-            customPromptsEnabled: false
+            customPromptsEnabled: false,
+            characterTags: {}
         },
         memoryCore: {
             enabled: false,

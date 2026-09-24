@@ -177,7 +177,9 @@ export function getRelevantNpcImageTags() {
     let scoredNpcs = [];
     // Pre-compute NPC texts ONCE instead of inside each iteration
     nb.npcs.forEach(n => {
-        if (!n.imageTags || n.imageTags.trim() === "") return; // Skip NPCs with no image tags
+        const charEntry = localProfile?.imageGen?.characterTags?.[n.name];
+        const tags = (charEntry && typeof charEntry.tags === "string") ? charEntry.tags.trim() : (n.imageTags || "").trim();
+        if (!tags) return; // Skip NPCs with no image tags
         
         let score = 0;
         const contentLower = npcBuildTextFromData(n).toLowerCase();
@@ -186,7 +188,7 @@ export function getRelevantNpcImageTags() {
         }
         
         if (score >= 1) {
-            scoredNpcs.push({ name: n.name, tags: n.imageTags, score: score });
+            scoredNpcs.push({ name: n.name, tags, score: score });
         }
     });
 

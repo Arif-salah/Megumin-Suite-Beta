@@ -171,6 +171,7 @@ export function setWorldStateBootstrap(parsedData, msgIndex = 0) {
             condition: parsedData.pc?.condition || "",
             carrying: parsedData.pc?.carrying || ""
         },
+        npcOutfits: parsedData.npcOutfits ? JSON.parse(JSON.stringify(parsedData.npcOutfits)) : {},
         npcs: parsedData.npcs || "",
         threads: parsedData.threads || "",
         bootstrapMsgIndex: msgIndex,
@@ -423,10 +424,22 @@ export function applyWorldStateUpdate(updates, msgIndex = 0) {
                 if (fields.condition) applyPcField("condition", fields.condition);
                 if (fields.carrying) applyPcField("carrying", fields.carrying);
             } else {
+                if (fields.outfit) {
+                    if (!current.npcOutfits) current.npcOutfits = {};
+                    current.npcOutfits[charName] = fields.outfit;
+                }
                 for (const [fName, fVal] of Object.entries(fields)) {
                     changes.push({ field: `${charName}.${fName}`, before: "", after: fVal });
                     applied.push({ field: `${charName}.${fName}`, before: "", after: fVal });
                 }
+            }
+        }
+    }
+
+    if (Array.isArray(updates.removedCharacters) && updates.removedCharacters.length > 0) {
+        if (current.npcOutfits) {
+            for (const rName of updates.removedCharacters) {
+                delete current.npcOutfits[rName];
             }
         }
     }

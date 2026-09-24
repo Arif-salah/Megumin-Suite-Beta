@@ -19,7 +19,8 @@ import { hardcodedLogic } from "../../data/database.js";
 import { applyEnhancedDialogue } from "../../data/modes/v10.js";
 import { buildBlocksEnvelope } from "../features/blocks/registry.js";
 import { buildConfigBlock } from "../features/storyconfig/config.js";
-import { npcBuildTextFromData, getRelevantNpcImageTags } from "../features/npc/data.js";
+import { npcBuildTextFromData } from "../features/npc/data.js";
+import { buildVisualContinuityContext } from "../features/imagegen/index.js";
 import { npcBuildDossierPrompt, npcBuildUpdatePrompt } from "../features/npc/fields.js";
 import { memGetCachedKeywords } from "../features/memory/keywords.js";
 import { memGetRelevantVaultEntries } from "../features/memory/index.js";
@@ -431,7 +432,7 @@ export function buildBaseDict(isTokenCount = false) {
             const template = customIg.injectionTemplate || defIg.injectionTemplate;
             let extraSection = ig.promptExtra ? `Extra Instructions: ${ig.promptExtra}` : "";
             let directLangStr = ig.directLanguage ? "**DIRECT LANGUAGE:** Use exact Booru tags only. \"naked\" not \"wearing nothing.\" \"erection\" not \"visible arousal.\"\n\n**NSFW TAG REFERENCE (use when scene is explicit):**\nBody: naked, nude, topless, exposed nipples, small breasts, medium breasts, large breasts, spread legs, ass, erection, veins, veiny penis\nActions: hetero, sex, vaginal, anal, oral, fellatio, after fellatio, paizuri, straddling, riding, missionary, doggystyle, cowgirl position, moaning, open mouth, tongue out, ahegao, clenching teeth\nFluids: cum, cum on body, cum on breasts, cum on face, cum on hair, cum on tongue, cum in mouth, cum inside, ejaculation, facial, saliva, sweat\nState: flushed face, heavy breathing, trembling, crying with eyes open, half-closed eyes, solo focus" : "";
-            let npcTagsStr = getRelevantNpcImageTags(); // <-- GET THE TAGS
+            let npcTagsStr = buildVisualContinuityContext(); // <-- GET THE CONTINUITY CONTEXT
             const imageCountStr = ig.imageCount || 1; 
 
             dict["[[img1]]"] = template

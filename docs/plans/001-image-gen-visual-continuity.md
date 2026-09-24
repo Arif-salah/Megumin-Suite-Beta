@@ -1,6 +1,6 @@
 # 001 — Image Gen Visual Continuity Engine
 
-Status: AWAITING_PLAN_REVIEW (Round 2)
+Status: CODING
 Date: 2026-09-24 · Author: Gemini · Reviewer: Pi
 
 ## Goal
