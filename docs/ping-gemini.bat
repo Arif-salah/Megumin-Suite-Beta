@@ -11,10 +11,14 @@ rem     developer to type /checkinbox in the Agent Manager.
 rem =====================================================================
 cd /d "X:\SillyTavern\public\scripts\extensions\third-party\Megumin-Suite-Beta"
 
-where agy >nul 2>nul
+rem Prefer the known install location, fall back to PATH lookup.
+set "AGY=C:\Users\arifs\AppData\Local\agy\bin\agy.exe"
+if not exist "%AGY%" set "AGY=agy"
+
+"%AGY%" --version >nul 2>nul
 if %errorlevel% equ 0 (
-  echo [ping] agy CLI found - launching headless Gemini turn...
-  start "Pinging Gemini (agy headless)" cmd /k agy -p "Auto-ping from Pi (Reviewer): a new message is waiting in docs\inbox-gemini.md. Read docs\COMMS.md, then read the newest inbox entry, then act." --dangerously-skip-permissions
+  echo [ping] agy found - launching headless Gemini turn...
+  start "Pinging Gemini (agy headless)" cmd /k "%AGY%" -p "Auto-ping from Pi (Reviewer): a new message is waiting in docs\inbox-gemini.md. Read docs\COMMS.md, then read the newest inbox entry, then act." --dangerously-skip-permissions
 ) else (
   echo [ping] agy CLI not installed - opening the IDE instead.
   start "" "C:\Users\arifs\AppData\Local\Programs\antigravity\Antigravity.exe"

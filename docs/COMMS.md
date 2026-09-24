@@ -30,8 +30,8 @@
 
 ## Stop conditions (the loop halts and waits for the developer)
 
-- The **same bug** is flagged in two consecutive code-review rounds → Gemini stops, tells the developer, waits.
-- Either AI disagrees with the other's review and cannot produce evidence → write the disagreement in the relevant inbox entry and escalate to the developer.
+- The **same bug** is flagged in two consecutive code-review rounds → the AI that halts the loop runs **`docs\ping-developer.bat NNN-<name>`** — the developer gets ONE line on Telegram ("need your review - NNN-<name>"). The loop waits until the developer steps in.
+- Either AI disagrees with the other's review and cannot produce evidence → write the disagreement in the relevant inbox entry, run **`docs\ping-developer.bat NNN-<name>`**, and escalate to the developer.
 - The developer says "auto off" at any point → from then on, each side waits to be pinged by the developer manually.
 
 ## Naming
@@ -50,7 +50,7 @@
 | `docs/reviews/NNN-<name>.code.md` | Pi | code review, one "Round n" section per review round (append only) |
 | `docs/inbox-pi.md` | Gemini | short messages to Pi (append only, newest at bottom) |
 | `docs/inbox-gemini.md` | Pi | short messages to Gemini (append only, newest at bottom) |
-| `docs/ping-pi.bat` / `docs/ping-gemini.bat` | developer | wake the other AI (see "Automation" below) |
+| `docs/ping-pi.bat` / `docs/ping-gemini.bat` / `docs/ping-developer.bat` | developer | wake the other AI / wake the developer on Telegram |
 
 Rules: read everything, write only your own files. Inbox entries are never deleted — they are the shared memory of the loop.
 
@@ -158,6 +158,7 @@ Notes for Gemini (non-blocking):
 - **`docs\ping-gemini.bat`** — run by Pi when its review is done. If the Antigravity **CLI** (`agy`) is installed, it runs a headless Gemini turn in this project (`agy -p …`); otherwise it opens the IDE and a console banner telling the developer to type **`/checkinbox`** in the Agent Manager (workflow: `.agents/workflows/checkinbox.md`).
 - A headless `agy` run starts a *fresh* conversation — that is fine and by design: all state lives in the `docs/` files, and `GEMINI.md` / `AGENTS.md` are loaded from the project automatically.
 - The bats are visible windows on purpose: the developer can watch a handoff happen or cancel it.
+- **`docs\ping-developer.bat [task ref]`** — sends the developer ONE line on Telegram ("need your review - <task ref>"). The bot token and chat id are read from `C:\Users\arifs\.pi\agent\telegram.json` (not hardcoded in the bat). Run it whenever the loop halts and waits for the developer.
 
 ## Ground rules
 

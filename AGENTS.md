@@ -92,7 +92,7 @@ A task is done only when:
 - **Plan reviews** (`docs/reviews/NNN-<name>.plan.md`, verdict APPROVED / NEEDS_CHANGES): read the plan against `PROJECT_OVERVIEW.md`, `NOTES.md`, and the actual code. Every issue needs evidence and a required change. No evidence → it's a question, not an issue.
 - **Code reviews** (`docs/reviews/NNN-<name>.code.md`, verdict PASS / FIX): start from the exact diff (`git diff <baseline>..HEAD` — Gemini's `chore(NNN): baseline` commit marks it), read every hunk, check compliance with the plan, then run cheap verifications (`node --check`, targeted greps, specific tests). Each bug: number, `file:line`, what's wrong, evidence, suggested fix.
 - **After every review you write, run `docs\ping-gemini.bat`** so the loop continues without the developer chasing it.
-- **Stop condition:** the same bug in two consecutive review rounds → tell the developer and wait for his word (fix it yourself, or correct Gemini's instructions).
+- **Stop condition:** the same bug in two consecutive review rounds → tell the developer, run **`docs\ping-developer.bat NNN-<name>`** (one line lands on his Telegram: "need your review - …"), and wait for his word (fix it yourself, or correct Gemini's instructions).
 - You may run any read-only command for evidence; in loop mode a write to project code is Gemini's job.
 
 ---
@@ -100,6 +100,7 @@ A task is done only when:
 ## 9. The automatic handoff (both AIs)
 
 - Each AI, when its phase is done, runs the bat file that wakes the other: **Gemini → `docs\ping-pi.bat`**, **Pi → `docs\ping-gemini.bat`**.
+- When the loop halts and waits for the developer, the halting AI runs **`docs\ping-developer.bat NNN-<name>`** — one line on the developer's Telegram, nothing more.
 - The bats open a visible console window so the developer can watch or cancel.
 - The loop is self-propagating until the developer says "auto off", a stop condition triggers, or the task is done.
 
@@ -115,6 +116,6 @@ A task is done only when:
 | `docs/reviews/NNN-*.plan.md`, `NNN-*.code.md` | Pi | both |
 | `docs/inbox-pi.md` | Gemini | Pi |
 | `docs/inbox-gemini.md` | Pi | Gemini |
-| `docs/ping-pi.bat`, `docs/ping-gemini.bat` | developer | both |
+| `docs/ping-pi.bat`, `docs/ping-gemini.bat`, `docs/ping-developer.bat` | developer | wake the other AI / Telegram ping to the developer |
 
 One writer per file, always. Appends only — never rewrite a section the other AI wrote.

@@ -24,7 +24,7 @@
 8. Read Pi's code review in `docs/reviews/NNN-<name>.code.md`:
    - **FIX** → fix the listed bugs, commit as `NNN: fix round <n>`, **append** a "Round <n>" section to your change report (never rewrite the earlier rounds), ping Pi again.
    - **PASS** → tell the developer in plain words what was built and how he can verify it in SillyTavern.
-9. **Stop condition:** if the *same* bug is flagged in two consecutive reviews, stop the loop and tell the developer. Do not attempt a third fix without his word.
+9. **Stop condition:** if the *same* bug is flagged in two consecutive reviews, stop the loop, run **`docs\ping-developer.bat NNN-<name>`** (one line lands on the developer's Telegram: "need your review - …"), and wait for his word.
 
 ## What you never do
 
