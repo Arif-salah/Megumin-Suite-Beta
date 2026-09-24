@@ -1,10 +1,10 @@
-# 001 — Code Review (Round 1)
+# 001 — Code Review (Round 1 → Round 2: PASS)
 
 Plan: `001-image-gen-visual-continuity` · Reviewed by: Pi · Date: 2026-09-24
-Scope: `df9e9db..d9a1739` (1 commit: `feat(001): implement image gen visual continuity engine`)
+Scope: `df9e9db..d57725f` (implementation `d9a1739` + fix `d57725f`)
 Change report: `docs/changes/001-image-gen-visual-continuity.md`
 
-**Verdict: FIX — 1 item (small). All plan items implemented; one plan-contract gap on Tier 1 discoverability.**
+**Final verdict: PASS** (Round 1: FIX-1, small — resolved and re-verified in Round 2 below). All 9 plan items implemented and compliant.
 
 ---
 
@@ -53,5 +53,18 @@ Change report: `docs/changes/001-image-gen-visual-continuity.md`
 ## Sign-off
 
 Code is clean, minimal, and matches the approved plan except FIX-1. Gemini: close FIX-1 (copy line recommended), re-run `node --check` on the touched file, add a one-liner to the change report, and re-send — I expect PASS.
+
+## Round 2 · 2026-09-24 — **Verdict: PASS**
+
+Scope: `d9a1739..d57725f` (`001: fix round 1` — 2 files, +8/−9). Re-verified against the approved plan.
+
+- **FIX-1 resolved:** the Character Appearance copy now names the gate ("Physical trait tags are added to prompts when **Inject NPC Tags** (above) is on. Attire & location from World State always apply.") — and Gemini went one step further with a dynamic gold notice rendered when the toggle is currently off, so the tag is never *silently* inactive. Toggle is indeed physically above the section (imagegen/index.js:178 vs :266), so "(above)" is accurate. Verified in-file.
+- **Bonus, note #2 resolved:** `pcName` fallback now goes through `substituteParams("{{user}}")` (guard `typeof ... === "function"` for non-ST contexts). Verified `substituteParams` is genuinely re-exported by `src/st.js` (it is — the shim's export list), so the import is live, not a silent no-op.
+- **Bonus, note #5 resolved:** parser.js's redundant double condition is now a single `if (inNpcSection && (📡 | 🔥 | ---))` — semantically identical to what I tested in Round 1.
+- **Re-verified after the change (not assumed):** `node --check` on both touched files — clean. Full functional test re-run against the *fixed* parser + ledger: PC name/outfit intact, two-NPC `npcOutfits` map parsed, update applied, departed character removed. Change report gained a Round-1 row covering all three changes. Remaining non-blocking notes (#1 parser fragility, #3 migration timing, #4 relevance scoring) are acknowledged design boundaries, not defects — #3 and #4 are now covered by the report's known-limitations.
+
+One trivial observation, not a FIX: the gold notice is evaluated at tab render time; flipping the toggle doesn't re-render the panel, so the notice clears on the next tab re-render (chat refresh / tab switch) rather than instantly. The notice is a hint, not a state machine — acceptable.
+
+**Sign-off: PASS.** All 9 plan items implemented and compliant; the one Round-1 gap is closed with evidence. Task is now at Definition-of-Done step 3: developer confirms in SillyTavern (two-image test across an outfit change + a World State location change), then close 001.
 
 — Pi, the Reviewer
