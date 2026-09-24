@@ -339,7 +339,7 @@ export function renderImageGen(c) {
         const desc = card?.description || "";
 
         if (!card || !desc.trim()) {
-            toastr.warning("No single character card is active — switch out of group mode to scan.", "Character Sheet Scanner");
+            toastr.warning("No character card with a description is active (are you in group mode?).", "Character Sheet Scanner");
             return;
         }
 
@@ -852,7 +852,8 @@ export function parseCharSheetScanOutput(text) {
 export function renderSceneSnapshot(container) {
     if (!container || !container.length) return;
     const ws = getWorldStateCurrent();
-    if (!ws || (!ws.location && !ws.weather && (!ws.pc || !ws.pc.outfit))) {
+    const hasNpcOutfits = Object.keys(ws?.npcOutfits || {}).length > 0;
+    if (!ws || (!ws.location && !ws.weather && (!ws.pc || !ws.pc.outfit) && !hasNpcOutfits)) {
         container.html(`
             <div style="display:flex; align-items:center; gap:8px; font-size:0.72rem; color:var(--text-muted);">
                 <i class="fa-solid fa-clapperboard" style="color:var(--text-muted);"></i>
@@ -864,8 +865,8 @@ export function renderSceneSnapshot(container) {
 
     const pcName = ws.pc?.name || (typeof substituteParams === "function" ? substituteParams("{{user}}") : "{{user}}");
     const loc = ws.location || "Unspecified location";
-    const wx = ws.weather || "Normal";
-    const pcOutfit = ws.pc?.outfit || "Default attire";
+    const wx = ws.weather || "Unspecified";
+    const pcOutfit = ws.pc?.outfit || "Unspecified";
 
     container.html(`
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
