@@ -31,6 +31,7 @@
 
 *(standing rules of this project we agreed on as we go — most important first)*
 
+- 2026-09-24 — **Developer chat overrides to Pi**: When Pi raises concerns or edge-cases that Kazuma already dismissed in chat (e.g. backward compatibility for presets missing `[[infoblockcurrent]]`), Gemini explicitly cites Kazuma's ruling to Pi in plans, reports, or inboxes so settled decisions are not re-debated. (Kazuma is the final judge; users always import the newest preset on update.)
 - 2026-09-22 — **Core vs Modules** (top priority): the heart of the extension is the placeholder swapper — engines + injection must ALWAYS work, bug-free, every send. Every other feature is an independent module with its own master switch; any on/off combination is valid. Never let a module change touch core, and never assume a module is on. (Reflected in `PROJECT_OVERVIEW.md` §0.1.)
 - 2026-09-22 — **Division of labour**: the prompt *content* design (engines, CoT / "writer's room" texts — what the AI is actually told) is the developer's job, to be designed by him later. The assistant builds the machinery around it and does not redesign prompt content unless explicitly asked. (CoT in particular: treat as inert for feature work.)
 - 2026-09-22 — Most "what the AI writes" changes live in `data/` (the prompt content library), not in code. Check there before assuming a code change is needed.
