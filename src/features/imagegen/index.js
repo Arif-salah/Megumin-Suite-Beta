@@ -23,7 +23,7 @@ import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { showKazumaProgress } from "../../ui/progress.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
-import { useMeguminEngine } from "../../engine/tasks.js";
+import { useMeguminEngine, runWithChomusuke } from "../../engine/tasks.js";
 import { KAZUMA_PLACEHOLDERS, RESOLUTIONS } from "../../../data/image_data.js";
 import { getRelevantNpcImageTags } from "../npc/data.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
@@ -74,13 +74,9 @@ export function renderImageGen(c) {
             <div class="mtab-panel-title blue"><i class="fa-solid fa-gears"></i> Prompt Generator Backend</div>
             <div class="mtab-setting-row">
                 <div class="set-info">
-                    <div class="set-label">Generation Method</div>
-                    <div class="set-desc">"Direct" is faster. "Megumin Image" is more creative.</div>
+                    <div class="set-label"><i class="fa-solid fa-cat" style="color: #f43f5e; margin-right: 6px;"></i> Background Worker</div>
+                    <div class="set-desc">Managed by the <b>Chomusuke</b> tab. Configure Chomusuke to offload visual prompt crafting to a dedicated worker LLM.</div>
                 </div>
-                <select id="img_gen_backend" class="ps-modern-input" style="width: 220px; cursor: pointer;">
-                    <option value="direct" ${s.generatorBackend === 'direct' ? 'selected' : ''}>Direct API Call (Fast)</option>
-                    <option value="preset" ${s.generatorBackend === 'preset' ? 'selected' : ''}>Megumin Image Preset</option>
-                </select>
             </div>
         </div>
 
@@ -362,10 +358,6 @@ export function renderImageGen(c) {
             $(this).removeClass("active").css("border-color", "var(--border-color)");
             $(this).find(".ps-switch").css("background", "");
         }
-    });
-    $("#img_gen_backend").on("change", function () {
-        s.generatorBackend = $(this).val();
-        saveProfileToMemory();
     });
 
     $("#ig_inject_mode").on("change", (e) => { s.injectMode = $(e.target).val(); saveProfileToMemory(); });
@@ -659,15 +651,7 @@ export async function igManualGenerate() {
     showKazumaProgress("Analyzing Scene...");
 
     try {
-        let promptText;
-        if (!s.generatorBackend || s.generatorBackend === "direct") {
-            promptText = await generateImagePromptText();
-        } else {
-            // Use the "Megumin Image" preset, but still run the exact same prompt logic
-            await useMeguminEngine(async () => {
-                promptText = await generateImagePromptText();
-            }, "Megumin Image");
-        }
+        let promptText = await runWithChomusuke("imageGen", () => generateImagePromptText());
 
         // Use capturing group 1 for the quote type, group 2 for the actual prompt text
         const imgRegex = /<img[^>]*?prompt=(["']?)([\s\S]*?)(?:\1\s*\/?>|\1\s*>|\1\s+[a-zA-Z]+=| \/>|>|$)/i;

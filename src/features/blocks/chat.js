@@ -9,11 +9,13 @@
 
 import { getContext } from "../../st.js";
 import { extensionName } from "../../core/constants.js";
+import { localProfile } from "../../core/state.js";
 import { applyBlocksToMessage, clearBlocksFromMessage } from "../../blocks/render.js";
 import { meguminRenderRegistry, meguminBlocksTakenByPanel, meguminStatFieldMap } from "./registry.js";
 // One directed edge from the blocks feature to the NPC feature. No cycle:
 // nothing under features/npc/ imports the block card.
 import { npcDecorateUpdatePane } from "../npc/updateCard.js";
+import { hasWorldState, getWorldStateTextAt } from "../worldstate/ledger.js";
 
 // ── Clicking a choice ────────────────────────────────────────────────────────
 //
@@ -123,7 +125,13 @@ function meguminAnimateGate(msgIndex) {
 // the undo buttons on that one tab.
 export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
     try {
+        let wsText = "";
+        if (localProfile?.blocks?.includes("info") && hasWorldState()) {
+            wsText = getWorldStateTextAt(msgIndex);
+        }
         applyBlocksToMessage(bodyEl, mesText, meguminRenderRegistry(), {
+            msgIndex,
+            worldStateText: wsText,
             omit: meguminBlocksTakenByPanel(),
             onChoice: meguminApplyChoice,
             shouldAnimate: meguminAnimateGate(msgIndex),

@@ -215,6 +215,8 @@ export const MEGUMIN_SLOT_REGISTRY = [
     // ── Filled live by a feature. Nothing to edit ────────────────────────────
     { key: null, trigger: "[[config]]", label: "Story Config", scope: "auto", group: "live", where: "Presets & CoT",
       hint: "The <config> block built from your Story Config choices." },
+    { key: null, trigger: "[[infoblockcurrent]]", label: "Current World State", scope: "auto", group: "live", where: "Blocks",
+      hint: "The current compiled World State context on file, injected right above <Blocks> when in delta update mode." },
     { key: null, trigger: "[[blocks]]", label: "Output Blocks", scope: "auto", group: "live", where: "Blocks",
       hint: "The whole <Blocks> envelope, assembled from the blocks you switched on." },
     { key: null, trigger: "[[long-Memory]]", label: "Long-term Memory", scope: "auto", group: "live", where: "Memory",

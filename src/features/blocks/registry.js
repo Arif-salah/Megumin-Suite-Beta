@@ -12,6 +12,7 @@
 
 import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
+import { hasWorldState } from "../worldstate/ledger.js";
 
 // -------------------------------------------------------------
 // BLOCK REGISTRY — one definition per block the <Blocks> envelope can carry
@@ -77,6 +78,14 @@ export const MEGUMIN_BLOCK_REGISTRY = [
         emoji: "📌", icon: "fa-thumbtack", color: "#f59e0b",
         visibility: "open", builtin: true,
         source: "[[infoblock]]", legacyIds: ["info"]
+    },
+    {
+        id: "worldUpdate", tag: "World_Update", label: "World Update",
+        desc: "Shows physical world state updates (location, clothing, time, posture) when they change.",
+        emoji: "📍", icon: "fa-location-dot", color: "#f59e0b",
+        visibility: "open", builtin: true, system: true,
+        // Handled dynamically inside buildBlocksEnvelope when 'world' is active
+        requires: () => false
     },
     {
         id: "chatter", tag: "NPC_Inner_Chatter", label: "NPC Inner Chatter",
@@ -209,6 +218,58 @@ export function buildBlocksEnvelope(dict) {
         if (b.slot) {
             if (typeof b.slotRequires === "function" && !b.slotRequires(dict)) return;
             parts.push(b.slot);
+            return;
+        }
+
+        // Stateful Delta World State:
+        // When baseline state already exists on file, ask for delta updates instead of full baseline.
+        if (b.id === "world" && hasWorldState()) {
+            parts.push(
+`<World_Update>
+<!-- REFERENCE: The <World_State> above is your active baseline. Do NOT output <World_State> here. -->
+<!-- RULE: Output <World_Update> ONLY if THIS scene changed something already on <World_State>, or introduced someone/something new. Omit this entire tag completely if nothing changed. -->
+<!-- EDIT BLUEPRINT: Output ONLY the specific lines or sections that changed, following this structure:
+
+**📅 Time:** [New time if advanced] | **🌤 Loc:** [New location if moved] | **🌡 Wx:** [New weather if changed]
+
+---
+
+**🧍 {{user}}:** (Include only if {{user}} changed outfit, position, or status)
+* *Outfit:* [New clothing if changed]
+* *Position:* [New posture, location, or action]
+* *Visible Condition:* [New injury, flush, tell]
+* *Carrying:* [Items picked up or dropped]
+
+---
+
+**👥 NPCs Present:** (Include only characters whose details changed, or new arrivals)
+**[NPC Name]:** (For existing NPC whose details changed — include ONLY changed fields)
+* *Outfit:* [New clothing if changed]
+* *Position:* [New posture or action]
+* *Mood:* [Shifted emotional state]
+* *Agenda:* [Shifted goal]
+* *Secret:* [Revealed or new secret]
+
+**+ [New NPC Name]:** (If an NPC newly enters the scene — provide full details: Outfit, Position, Mood, Agenda, Secret)
+
+**- [NPC Name]** (If an NPC exits or flees the scene)
+
+---
+
+**📡 Off-Screen:** (Add or update if characters leave or are tracked elsewhere)
+* [NPC Name] [Current location / activity]
+
+---
+
+**🔥 Unresolved Threads:** (Update if threads change)
+* [New or resolved friction]
+**🌱 Planted Seeds:** [New subtle detail introduced]
+**⏳ Consequence Timers:** [New or expired timer]
+**🎯 Arc Phase:** [Shifted arc phase]
+**🎬 Scene Phase:** [Shifted scene phase]
+-->
+</World_Update>`
+            );
             return;
         }
 

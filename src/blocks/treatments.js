@@ -1183,6 +1183,58 @@ function renderOneDice(d, animate) {
 export function renderDice(parsed, opts = {}) {
     const animate = Boolean(opts.animate);
     return parsed.rolls.map(d => renderOneDice(d, animate)).join("");
+}
+
+export function parseWorldUpdate(body) {
+    if (!body || typeof body !== "string") return null;
+    const lines = body.split(/\r?\n/);
+    const updates = [];
+
+    for (const raw of lines) {
+        const line = raw.trim();
+        if (!line || line.startsWith("<!--") || line.startsWith("//")) continue;
+
+        const m = line.match(/^[*\-•_\s]*([a-zA-Z\s&/]+?)[\*_\s]*:\s*(.+)$/);
+        if (!m) continue;
+
+        const rawKey = m[1].trim();
+        const value = plain(m[2]);
+        if (!value || /^\[.*\]$/.test(value)) continue;
+
+        let emoji = "📍";
+        const lk = rawKey.toLowerCase();
+        if (lk.includes("time") || lk.includes("date")) emoji = "📅";
+        else if (lk.includes("wx") || lk.includes("weather") || lk.includes("temp")) emoji = "🌡";
+        else if (lk.includes("outfit") || lk.includes("cloth")) emoji = "👗";
+        else if (lk.includes("pos") || lk.includes("posture")) emoji = "🧍";
+        else if (lk.includes("cond")) emoji = "❤️";
+        else if (lk.includes("carry") || lk.includes("item")) emoji = "🎒";
+        else if (lk.includes("npc")) emoji = "👥";
+        else if (lk.includes("thread")) emoji = "🔥";
+        else if (lk.includes("loc") || lk.includes("place")) emoji = "📍";
+
+        updates.push({ label: rawKey, value, emoji });
+    }
+
+    return updates.length > 0 ? { updates } : null;
+}
+
+export function renderWorldUpdate(parsed) {
+    const rows = parsed.updates.map(u => `
+        <div class="meg-ws-row">
+            <span class="meg-ws-k">${esc(u.emoji)} ${esc(u.label)}</span>
+            <span class="meg-ws-v">${inline(u.value)}</span>
+        </div>`).join("");
+
+    return `
+        <div class="meg-ws-person">
+            <div class="meg-ws-person-head">
+                <span class="meg-ws-av">📍</span>
+                <span class="meg-ws-nm">World State Update</span>
+                <span class="meg-ws-mood meg-ws-you">Delta</span>
+            </div>
+            <div class="meg-ws-rows">${rows}</div>
+        </div>`;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1194,7 +1246,8 @@ export function renderDice(parsed, opts = {}) {
 // one of these a safe change rather than a rewrite of the card.
 export const BLOCK_TREATMENTS = {
     dice:    { parse: parseDice,       render: renderDice,       cls: "meg-dice-pane" },
-    world:   { parse: parseWorldState, render: renderWorldState, cls: "meg-ws-pane" },
+    world:       { parse: parseWorldState, render: renderWorldState, cls: "meg-ws-pane" },
+    worldUpdate: { parse: parseWorldUpdate, render: renderWorldUpdate, cls: "meg-ws-pane" },
     chatter: { parse: parseChatter,    render: renderChatter,    cls: "meg-chat-pane" },
     sheet:   { parse: parseSheet,      render: renderSheet,      cls: "meg-sheet-pane" }
 };

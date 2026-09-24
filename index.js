@@ -86,7 +86,7 @@ import {
     STAT_FIELD_TYPES,
 } from "./src/features/blocks/registry.js";
 import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex } from "./src/engine/chatText.js";
-import { useMeguminEngine } from "./src/engine/tasks.js";
+import { useMeguminEngine, runWithChomusuke } from "./src/engine/tasks.js";
 import { escapeHtmlAttr } from "./src/utils/html.js";
 import { downloadJsonFile } from "./src/utils/download.js";
 import { showKazumaProgress } from "./src/ui/progress.js";
@@ -99,6 +99,7 @@ import {
     flushProfileSettingsToLoadedKey,
     saveProfileDebounced,
     _saveProfileDebouncedInner,
+    pruneFutureData,
 } from "./src/core/profile.js";
 import { meguminSyncLegacyBlockIds } from "./src/features/blocks/registry.js";
 import { buildConfigBlock } from "./src/features/storyconfig/config.js";
@@ -118,6 +119,8 @@ import { npcBuildTextFromData, npcParseBlock, meguminFindNpcDossiers, getRelevan
 import { npcGeneratePfp } from "./src/features/npc/pfp.js";
 import { npcParseUpdateBlocks, npcApplyUpdates, npcUndoHistoryEntry } from "./src/features/npc/updates.js";
 import { renderNpcBank, renderNpcList } from "./src/features/npc/ui.js";
+import { parseWorldUpdateBlock, parseWorldStateBlock } from "./src/features/worldstate/parser.js";
+import { applyWorldStateUpdate, setWorldStateBootstrap, worldStateRollbackHistoryFrom } from "./src/features/worldstate/ledger.js";
 import {
     meguminDecorateMessageBody, meguminRefreshBlocksInChat, meguminScheduleBlocksRefresh,
 } from "./src/features/blocks/chat.js";
@@ -434,6 +437,34 @@ jQuery(async () => {
             eventSource.on(event_types.CHAT_CHANGED, memUpdateSemanticQueryDebounced);
             // Trigger visual update when user clicks "Show more messages"
             eventSource.on(event_types.MORE_MESSAGES_LOADED, updateMemoryVisuals);
+            // Prune future data and roll back ledger on message deletion
+            eventSource.on(event_types.MESSAGE_DELETED, () => {
+                pruneFutureData();
+            });
+            // Handle swipe rewind & sync
+            eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
+                const targetIdx = typeof mesId === "number" ? mesId : (getContext().chat?.length ? getContext().chat.length - 1 : 0);
+                if (worldStateRollbackHistoryFrom(targetIdx)) {
+                    saveProfileToMemory();
+                }
+                const chat = getContext().chat;
+                if (chat && chat[targetIdx]) {
+                    const swipedMsg = chat[targetIdx];
+                    if (!swipedMsg.is_user && !swipedMsg.is_system) {
+                        const cleanMes = (swipedMsg.mes || "").replace(/<think\b[^>]*>[\s\S]*?<\/think\s*>/gi, "").trim();
+                        const updateData = parseWorldUpdateBlock(cleanMes);
+                        if (updateData) {
+                            const { applied } = applyWorldStateUpdate(updateData, targetIdx);
+                            if (applied.length > 0) saveProfileToMemory();
+                        } else {
+                            const stateData = parseWorldStateBlock(cleanMes);
+                            if (stateData) {
+                                if (setWorldStateBootstrap(stateData, targetIdx)) saveProfileToMemory();
+                            }
+                        }
+                    }
+                }
+            });
             // IMAGE GEN AUTO-GEN & SWIPE TRIGGERS
             eventSource.on(event_types.MESSAGE_RECEIVED, async () => {
                 updateMemoryVisuals();
@@ -507,7 +538,7 @@ jQuery(async () => {
                                     const chatText = getChatForStoryDirector();
                                     if (chatText.length < 100) return;
                                     try {
-                                        let output = sp.backend === "direct" ? await generateStoryPlanLogic(chatText) : await new Promise(r => useMeguminEngine(async () => r(await generateStoryPlanLogic(chatText))));
+                                        let output = await runWithChomusuke("storyPlan", () => generateStoryPlanLogic(chatText));
                                         if (meguminActiveDataIdentity() !== spIdentity) {
                                             console.debug(`[Megumin-Suite] Story Director auto-evolve declined: the chat changed while the directive was generating ("${spIdentity}" to "${meguminActiveDataIdentity()}"). The new directive was discarded, not applied.`);
                                             return;
@@ -632,6 +663,42 @@ jQuery(async () => {
                                 const npcMes = lastMsg.mes || "";
                                 const npcAt = Math.max(0, npcMes.search(/New[ _]NPC/i));
                                 console.debug(`[Megumin-Suite] New NPC block present but unparseable in message ${chat.length - 1}`, npcMes.slice(npcAt, npcAt + 200));
+                            }
+                        }
+                    }
+                }
+
+                // --- WORLD STATE LEDGER AUTO-SYNC ---
+                const wsLiveKey = getCharacterKey() || "default";
+                if (localProfile && localProfile.blocks && localProfile.blocks.includes("info")) {
+                    if (_loadedProfileKey && wsLiveKey !== _loadedProfileKey) {
+                        console.debug(`[Megumin-Suite] World State auto-sync declined: profile in memory belongs to "${_loadedProfileKey}" but message arrived in "${wsLiveKey}".`);
+                    } else {
+                        const chat = getContext().chat;
+                        if (chat && chat.length) {
+                            const lastMsg = chat[chat.length - 1];
+                            if (!lastMsg.is_user && !lastMsg.is_system) {
+                                const msgIndex = chat.length - 1;
+                                const cleanMes = (lastMsg.mes || "").replace(/<think\b[^>]*>[\s\S]*?<\/think\s*>/gi, "").trim();
+                                // 1. Check for <World_Update> delta updates
+                                const updateData = parseWorldUpdateBlock(cleanMes);
+                                if (updateData) {
+                                    const { applied } = applyWorldStateUpdate(updateData, msgIndex);
+                                    if (applied.length > 0) {
+                                        saveProfileToMemory();
+                                        console.log(`[Megumin-Suite] World State updated at message ${msgIndex}:`, applied);
+                                    }
+                                } else {
+                                    // 2. Check for <World_State> baseline bootstrap
+                                    const stateData = parseWorldStateBlock(cleanMes);
+                                    if (stateData) {
+                                        const ok = setWorldStateBootstrap(stateData, msgIndex);
+                                        if (ok) {
+                                            saveProfileToMemory();
+                                            console.log(`[Megumin-Suite] World State bootstrapped at message ${msgIndex}:`, stateData);
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

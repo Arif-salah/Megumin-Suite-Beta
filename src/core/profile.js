@@ -23,6 +23,7 @@ import { hardcodedLogic } from "../../data/database.js";
 import { MEGUMIN_BLOCK_REGISTRY, meguminSyncLegacyBlockIds } from "../features/blocks/registry.js";
 import { NPC_DEFAULT_FIELDS, NPC_SYSTEM_ROLES } from "../features/npc/fields.js";
 import { npcRollbackHistoryFrom } from "../features/npc/updates.js";
+import { worldStateRollbackHistoryFrom } from "../features/worldstate/ledger.js";
 import { normalizeStoryConfig, applyStoryConfigDefaults } from "../features/storyconfig/config.js";
 import { escapeRegex } from "../utils/regex.js";
 import { refreshSidePanel, refreshPresentBar } from "../sidepanel/panel.js";
@@ -238,6 +239,23 @@ export function initProfile() {
             scanDepth: 60,
             ignoredNames: "",
             injectionLimit: 3
+        },
+        chomusuke: {
+            enabled: false,
+            profileId: "",
+            primaryProfileId: "",
+            features: {
+                memory: true,
+                storyPlan: true,
+                npc: true,
+                banList: true,
+                imageGen: true,
+                styleGen: true
+            }
+        },
+        worldState: {
+            current: null,
+            history: []
         }
     };
 
@@ -448,7 +466,29 @@ export function initProfile() {
     }
     if (!localProfile.dnRatio) localProfile.dnRatio = defaults.dnRatio;
     if (!localProfile.onomatopoeia) localProfile.onomatopoeia = defaults.onomatopoeia;
-    if (!localProfile.worldState) localProfile.worldState = { compactEnabled: false, fullFreq: 5 };
+    if (!localProfile.worldState) {
+        localProfile.worldState = { current: null, history: [] };
+    } else {
+        if (localProfile.worldState.current === undefined) localProfile.worldState.current = null;
+        if (!Array.isArray(localProfile.worldState.history)) localProfile.worldState.history = [];
+    }
+    if (!localProfile.chomusuke) {
+        localProfile.chomusuke = JSON.parse(JSON.stringify(defaults.chomusuke));
+    } else {
+        if (localProfile.chomusuke.enabled === undefined) localProfile.chomusuke.enabled = false;
+        if (localProfile.chomusuke.profileId === undefined) localProfile.chomusuke.profileId = "";
+        if (localProfile.chomusuke.primaryProfileId === undefined) localProfile.chomusuke.primaryProfileId = "";
+        if (!localProfile.chomusuke.features) {
+            localProfile.chomusuke.features = {
+                memory: true,
+                storyPlan: true,
+                npc: true,
+                banList: true,
+                imageGen: true,
+                styleGen: true
+            };
+        }
+    }
     // Prompt blocks are stored as a diff against DEFAULT_PROMPTS. Put the untouched keys
     // back before anything reads them. Runs after the patching above has guaranteed each
     // module container exists, so a profile saved before a module shipped is covered too.
@@ -738,6 +778,9 @@ export function pruneFutureData() {
     // changed twice is restored to the value from before the EARLIER change —
     // see npcRollbackHistoryFrom, where that ordering is the whole point.
     if (npcRollbackHistoryFrom(chatLength)) {
+        changesMade = true;
+    }
+    if (worldStateRollbackHistoryFrom(chatLength)) {
         changesMade = true;
     }
 

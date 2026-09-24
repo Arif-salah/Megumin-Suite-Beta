@@ -1,6 +1,7 @@
 # Megumin-Suite-Beta — Project Overview
 
 > Generated 2026-09-21 by reading the full tree (4 sequential scout readers, verified against source).
+> Revised 2026-09-22 with the developer: §0.1 Core vs Modules, CoT reframed as per-engine option, Luka attribution, bloat status.
 > Version **1.1.0** (`manifest.json`) · author **KazumaONIISAN** · SillyTavern extension, `loading_order: 100`, no hard dependencies.
 
 ---
@@ -11,7 +12,7 @@ A **roleplay prompt-engine suite** for SillyTavern. It replaces the stock prompt
 
 | Feature | One-liner |
 |---|---|
-| **Engines + CoT** | Versioned prompt engines (incl. co-writer variants) + a "writer's room" chain-of-thought library (NORA/ANVIL/OPUS/JULIA/MIKI personas) |
+| **Engines + CoT** | Versioned prompt engines (incl. co-writer variants). CoT is a **per-engine option, not a core feature**: v6 & v8 carry the persona team (NORA/ANVIL/OPUS/JULIA/MIKI); v7 and v9's "hybrid" carry the "writer's room" pipeline (Ground Truth → Plot → Scene → Draft → Correction). No engine requires one. |
 | **Writing Styles** | Precooked style directives, 9 AI-generatable style templates, custom style library |
 | **Blocks** | Structured output the model writes at reply-end; parsed and rendered as cards (dice even gets a die-face animation) |
 | **Memory Core** | 3-tier memory (working / short-term chunks / long-term vault) with TF-IDF *or* ST-Vectra semantic retrieval |
@@ -21,6 +22,15 @@ A **roleplay prompt-engine suite** for SillyTavern. It replaces the stock prompt
 | **Dynamic Ban List** | AI-maintained banned-concept list injected into the prompt |
 
 Plus: a draggable **side panel** (can "take over" blocks from chat), a **Dev Console** (Document / Live / Log views), live **token counter**, **prompt preview popup** (send-to-AI / cancel), mobile drawer, per-profile settings with global sync, and 4 prompt presets.
+
+---
+
+## 0.1 How to read this extension: Core vs Modules
+
+At its heart this extension is a **placeholder-swapping system**: the preset carries `[[slot]]` markers, and the core fills them with what the active profile wants. Everything else is optional furniture around that one job.
+
+- **Core — always on, must always be bug-free.** The engines (`data/modes/`, `data/cot/`, `core/engines.js`) + the prompt pipeline (`buildBaseDict` → `handlePromptInjection`, §7). This is the only part that must work on every single send, in every profile. If the core breaks, the extension breaks.
+- **Modules — independent, each individually togglable.** Memory Core, NPC Bank, Story Director, Image Generation, Ban List, each Block, the Side Panel's sections. Each has its own master switch, and **any combination of on/off is a supported configuration** (e.g. Image Gen on + Story Director off). The dependency rule (§1: features → core, never feature → feature) exists precisely to keep this true: a change in one module cannot break another.
 
 ---
 
@@ -96,6 +106,8 @@ A deferred profile loader polls `ctx.chatId` (500ms × 30) to catch late ST cont
 ---
 
 ## 4. Engines & CoT (`data/modes/`, `data/cot/`, `core/engines.js`)
+
+> CoT content is **developer-owned** (see §0.1): this section maps what exists; it is not a design guide. The assistant does not redesign these texts unless explicitly asked.
 
 `core/engines.js` (60 lines, zero imports by design) holds pure predicates: `isV7/8/9/10Engine`, `isCoWriterEngine` (flag or id ends `-cw`), **`isModernEngine`** (V8+ — carries its own persona/narrative rules, so `[[main]]`/`[[OOC]]`/`[[control]]` + acknowledgements are blanked), **`engineLocksStyle`** (V7+ requires a style directive), **`engineUsesRenderLimits`** (**V9 only** — Lean/Full word counts; V10 deliberately does NOT inherit — the V10-once-flagged-`isV9` bug that made every screen say "V9"), and `lockedStyleIdFor(m)` (engine id → precooked style id, e.g. `v10-shura*→dir_v10_shura`, other V10 → `dir_v10_ukiyo`).
 
@@ -310,7 +322,7 @@ Full-screen modal, three views:
 
 ### 10.5 Side panel (`src/sidepanel/`)
 
-Standalone fixed in-chat panel with its own 1752-line CSS (`.meg-sp-*`). `chrome.js` builds `#meg-sp-panel` (header w/ title+collapse, body, 4 resize handles) + floating `#meg-sp-toggle`. `sections.js` = `Section` base → `<details class="meg-sp-section">` (drag handle, badge, chevron). **`parsers.js` (898) registers 6 sections**: `worldState`, `innerChatter`, `newNpcs`, `storyPlan`, `npcBank`, `banList` — each with a *lenient* `parse()` ("forgiving readers"), card `render()`, `onMessage()` lifecycle. `panel.js` (1538, `SidePanel` class): open/close, rebuild from registry + settings order, scale (CSS `zoom: var(--meg-sp-scale)` — non-standard property), resize handles, token counter + details popup, **`_handleHide` — "Parse First, Hide Second"**: a block is hidden from the chat ONLY when the panel successfully parsed it (per-block; drives `body.meg-sp-hide-inline` and the blocks renderer's `omit` list — a block is never shown in two places), swipe handling, badges, and **`window.LukaSuite`** (line 1481 — a frozen debug handle over panel internals under a *legacy project name*; the side panel tab documents it). `presentBar.js` — compact "present bar" strip of character cards near the chat input. `dom.js` — tiny utils.
+Standalone fixed in-chat panel with its own 1752-line CSS (`.meg-sp-*`). `chrome.js` builds `#meg-sp-panel` (header w/ title+collapse, body, 4 resize handles) + floating `#meg-sp-toggle`. `sections.js` = `Section` base → `<details class="meg-sp-section">` (drag handle, badge, chevron). **`parsers.js` (898) registers 6 sections**: `worldState`, `innerChatter`, `newNpcs`, `storyPlan`, `npcBank`, `banList` — each with a *lenient* `parse()` ("forgiving readers"), card `render()`, `onMessage()` lifecycle. `panel.js` (1538, `SidePanel` class): open/close, rebuild from registry + settings order, scale (CSS `zoom: var(--meg-sp-scale)` — non-standard property), resize handles, token counter + details popup, **`_handleHide` — "Parse First, Hide Second"**: a block is hidden from the chat ONLY when the panel successfully parsed it (per-block; drives `body.meg-sp-hide-inline` and the blocks renderer's `omit` list — a block is never shown in two places), swipe handling, badges, and **`window.LukaSuite`** (line 1481 — console-only frozen debug handle over panel internals, named after **Luka**, the contributor who wrote the side panel via PR; the side panel tab documents it). `presentBar.js` — compact "present bar" strip of character cards near the chat input. `dom.js` — tiny utils.
 
 ### 10.6 CSS families (`style.css`, 4815 lines)
 
@@ -372,13 +384,13 @@ Two names for the same minimal **injection target** preset: `constants.js: TARGE
 
 ## 13. Known issues, quirks & risks
 
-- **README "Not fixed yet" (2026-08-18)**: settings.json bloat — ComfyUI workflow states still duplicated **per profile** (~300 KB each) + a stale pre-Beta settings key (~245 KB) left behind. (Block-rendering-under-MVU was *fixed* 2026-08-28: "Blocks now render when MVU is on… raw text just sat at the bottom of the reply instead.")
+- **README "Not fixed yet" (2026-08-18)**: settings.json bloat — ComfyUI workflow states still duplicated **per profile** (~300 KB each) + a stale pre-Beta settings key (~245 KB) left behind. *Deferred by the developer as a known open issue (2026-09-22, see `NOTES.md`).* (Block-rendering-under-MVU was *fixed* 2026-08-28: "Blocks now render when MVU is on… raw text just sat at the bottom of the reply instead.")
 - **PRIORITY HACK** (`index.js:~731`): direct `eventSource._events` unshift + temporarily stomping ST's `power_user.image_overswipe` / `extension_settings.image_generation.overswipe`, restored after 200 ms — racy, documented as a hack.
 - **Timing coupling**: 200 ms deferred `initProfile`, 500 ms × 30 chatId polling, 150/600/1500/3000 ms retry sweeps — all fighting ST's DOM render races.
 - **`profile.js` is a 955-line god-module** of *implicit* inline migrations (patch-missing-keys) rather than versioned schema migrations; `migrations.js` header notes two further migrations still living in `index.js`; `activeRequests.isBackgroundGenerationActive()` deliberately omits `activeNpcScanRequest` (known one-line quirk, "fix separately").
 - **`cot-v7-english`** is the only CoT entry missing `trigger:"[[COT]]"` (harmless today — injection only reads `content`/`prefill`).
 - **V10 co-writers are derived by patch tables** at module load — any code matching engine ids by exact string must account for `v10-core-cw` / `v10-shura-cw`.
-- **`window.LukaSuite`** — debug handle under a legacy project name (side panel tab documents it).
+- **`window.LukaSuite`** — console-only debug handle over the side panel, named after **Luka**, the contributor who PR'd the side panel into the project (the side panel tab documents it; a tribute, not a leftover).
 - **Block rendering depends on `mes` being canonical** — display-side regex scripts or other extensions rewriting DOM text break the tail walk (hence the preset `<details class="meg-blocks-src">` fast path).
 - **Cache Friendly variant** breaks any "skeleton is the only shape" assumption (different slot ownership).
 - **No version constant in code** — version 1.1.0 exists only in `manifest.json`; README is changelog-only (beta branch defers to stable's README; install = a Google Drive file).

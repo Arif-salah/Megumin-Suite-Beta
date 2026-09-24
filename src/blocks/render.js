@@ -111,8 +111,9 @@ function readNameAttr(attrChunk) {
 // block body, plus the envelope's own stray text, with the tags taken out.
 // Used only to measure how much of the message tail to hide.
 function remnantTextOf(mes, blocks) {
-    if (!blocks.length) return "";
-    const first = Math.min(...blocks.map(b => b.at));
+    const withRaw = (blocks || []).filter(b => b && b.raw);
+    if (!withRaw.length) return "";
+    const first = Math.min(...withRaw.map(b => b.at));
     // From the envelope opener if there is one before the first block, so the
     // stray text of a <Blocks> line is measured too.
     const envAt = mes.search(/<Blocks\b[^>]*>/i);
@@ -121,7 +122,7 @@ function remnantTextOf(mes, blocks) {
     // model writes after the final block — a stray line, a sign-off — is not block
     // text, and counting it would come up short against what is actually hidden
     // and refuse the whole message.
-    const to = Math.max(...blocks.map(b => b.at + b.raw.length));
+    const to = Math.max(...withRaw.map(b => b.at + b.raw.length));
     return mes.slice(from, to).replace(/<[^>]*>/g, " ");
 }
 
@@ -605,6 +606,37 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
     if (!root || typeof mes !== "string") return false;
 
     const blocks = extractBlocks(mes, registry);
+
+    // If a World_Update block was emitted, transform it into the full World State
+    // block using the compiled ledger text so the card renders the complete scene board.
+    const worldDef = (registry || []).find(r => r.id === "world");
+    let hasWorld = false;
+
+    blocks.forEach(b => {
+        if (b.def && (b.def.id === "world" || b.def.id === "worldUpdate")) {
+            hasWorld = true;
+            if (b.def.id === "worldUpdate" && worldDef) {
+                b.def = worldDef;
+            }
+            if (opts.worldStateText) {
+                b.body = opts.worldStateText;
+            }
+        }
+    });
+
+    // Option B: If World State is enabled and active on this chat, ensure the
+    // full scene board is always present on every AI message.
+    if (!hasWorld && opts.worldStateText && worldDef) {
+        blocks.push({
+            def: worldDef,
+            at: mes.length,
+            raw: "",
+            name: "",
+            body: opts.worldStateText,
+            truncated: false
+        });
+    }
+
     if (!blocks.length) {
         clearBlocksFromMessage(root);
         return false;
@@ -619,7 +651,7 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
     // still matched and every card was left exactly as it was — the blocks only
     // moved out of the chat after something else forced a re-render, which is why
     // it took a chat reload.
-    const stamp = `${mes.length}:${norm(mes).length}:${blocks.length}:${(opts.omit || []).join(",")}`;
+    const stamp = `${mes.length}:${norm(mes).length}:${blocks.length}:${(opts.omit || []).join(",")}:${opts.msgIndex !== undefined ? opts.msgIndex : ""}`;
     if (root.getAttribute(STAMP_ATTR) === stamp && root.querySelector(`.${CARD_CLASS}`)) return true;
 
     // Start from whatever SillyTavern rendered, every time. Re-hiding on top of a
@@ -696,7 +728,13 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
         return true;
     }
 
-    if (!target) return false;
+    if (!target) {
+        if (!tailBlocks.length && !leadFound.length) { clearBlocksFromMessage(root); return false; }
+        leadNodes.forEach(n => hideNode(n, doc));
+        root.appendChild(buildBlocksCard([...leadFound, ...tailBlocks], opts));
+        root.setAttribute(STAMP_ATTR, stamp);
+        return true;
+    }
 
     // Walk the tail backwards collecting nodes until they account for the block
     // text. The blocks are a suffix of the reply, which is what makes this

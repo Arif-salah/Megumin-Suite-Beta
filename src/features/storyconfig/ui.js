@@ -16,7 +16,7 @@ import { meguminStoryConfigSyncs, meguminSetStoryConfigSyncs, meguminStoryConfig
 import { hardcodedLogic } from "../../../data/database.js";
 import { escapeHtmlAttr, fieldPlaceholder } from "../../utils/html.js";
 import { cleanAIOutput } from "../../engine/chatText.js";
-import { useMeguminEngine, runMeguminTask } from "../../engine/tasks.js";
+import { useMeguminEngine, runMeguminTask, runWithChomusuke } from "../../engine/tasks.js";
 import { storyConfigFields, getAllConfigPresets, applyStoryConfigDefaults, isStandingConfigField } from "./config.js";
 
 // -------------------------------------------------------------
@@ -557,7 +557,7 @@ export function renderStoryConfig(c) {
             });
             card.find(".ps-btn-regen").on("click", async function () {
                 $(this).html(`<i class="fa-solid fa-spinner fa-spin"></i>`);
-                await useMeguminEngine(async () => {
+                await runWithChomusuke("styleGen", async () => {
                     const orderText = `Inspired by ${style.notes}. Write a writing style rule based on: ${style.tags.join(", ")}. Direct instructions only. 2-3 paragraphs. No fluff.`;
                     let rule = await runMeguminTask(orderText);
                     style.rule = cleanAIOutput(rule).trim();
@@ -586,7 +586,7 @@ export function renderStoryConfig(c) {
         `);
         card.find(".ps-btn-tpl-gen").on("click", async function () {
             const btn = $(this); btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Generating...`);
-            await useMeguminEngine(async () => {
+            await runWithChomusuke("styleGen", async () => {
                 const orderText = `Inspired by ${tpl.notes}. Write a writing style rule based on: ${tpl.tags.join(", ")}. Direct instructions only. 2-3 paragraphs. No fluff.`;
                 let rule = await runMeguminTask(orderText);
                 const newId = "style_" + Date.now();
@@ -769,7 +769,7 @@ export function renderStyleEditor(c, editId, presetData = null) {
     $("#ps_btn_get_authors_style").on("click", async function () {
         if (!getCharacterKey()) return toastr.warning("Open a chat or group first so I can read the context!");
         $(this).prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Brainstorming...`);
-        await useMeguminEngine(async () => {
+        await runWithChomusuke("styleGen", async () => {
             const orderText = `Based on the active characters and scenario, give me EXACTLY 2 famous author names or literary writing styles (e.g. Edgar Allan Poe, Jane Austen style, Dark Fantasy Author) and 5 tags that fit the rp (e.g. internet culture, femboy, virtual game) whose writing style perfectly fits the tone and world. Return ONLY the 7 items separated by a comma. Do not explain them.`;
             let aiRawOutput = await runMeguminTask(orderText);
             const aiTagsTemp = cleanAIOutput(aiRawOutput).split(",").map(t => t.trim().replace(/['"[\].]/g, '')).filter(t => t.length > 0);
@@ -784,7 +784,7 @@ export function renderStyleEditor(c, editId, presetData = null) {
     $("#ps_btn_generate_style").on("click", async function () {
         if (currentStyle.tags.length === 0) return toastr.warning("Select tags first!");
         $(this).prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Finalizing...`);
-        await useMeguminEngine(async () => {
+        await runWithChomusuke("styleGen", async () => {
             const orderText = `Create a writing style prompt based on these traits:\n\nSelected style tags: ${currentStyle.tags.join(", ")}\n\nAdditional user instructions: ${currentStyle.notes}\n\nWrite a concise, well-structured writing style rule (100 words max) that the AI must follow. Combine all tags into a cohesive directive. Write it as a direct instruction. Do not use bullet points or introductory text.`;
             let rule = await runMeguminTask(orderText);
             currentStyle.rule = cleanAIOutput(rule).trim();

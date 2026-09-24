@@ -31,7 +31,8 @@ export const TAB_SYNC_KEYS = {
     "Dynamic Ban List": ["banList", "banListBackend", "banListCustomPromptsEnabled", "banListCustomPrompts"],
     "Image Generation": ["imageGen"],
     "NPCs Bank": ["npcBank"],
-    "Memory Core": ["memoryCore"]
+    "Memory Core": ["memoryCore"],
+    "Chomusuke": ["chomusuke"]
 };
 
 // These two are stored globally already, so there is nothing per-character to keep

@@ -12,6 +12,7 @@ import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { downloadJsonFile } from "../../utils/download.js";
 import { getChatForNpcScan } from "../../engine/chatText.js";
+import { runWithChomusuke } from "../../engine/tasks.js";
 import { npcBuildTextFromData, npcParseBlock, meguminFindNpcDossiers, npcCreateRecord } from "./data.js";
 import { npcBodyFields, npcVitalsFields, NPC_FIELD_TYPES, NPC_DEFAULT_FIELDS, npcBuildUpdatePrompt } from "./fields.js";
 import { npcParseUpdateBlocks, npcApplyUpdates } from "./updates.js";
@@ -293,7 +294,7 @@ export function renderNpcBank(c) {
             const existingNames = (localProfile.npcBank.npcs || []).map(n => n.name).join(", ");
             setActiveNpcScanRequest({ chatText, existingNames });
             
-            let rawOutput = await generateQuietPrompt({ prompt: "___PS_NPC_SCAN___" });
+            let rawOutput = await runWithChomusuke("npc", () => generateQuietPrompt({ prompt: "___PS_NPC_SCAN___" }));
             
             let addedCount = 0;
             for (const dossier of meguminFindNpcDossiers(rawOutput)) {
@@ -691,7 +692,7 @@ export function renderNpcList() {
                 rules
             });
             try {
-                const raw = await generateQuietPrompt({ prompt: "___PS_NPC_UPDATE___" });
+                const raw = await runWithChomusuke("npc", () => generateQuietPrompt({ prompt: "___PS_NPC_UPDATE___" }));
                 const cleaned = String(raw || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
                 if (meguminActiveDataIdentity() !== identity) {

@@ -27,7 +27,7 @@ import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { downloadJsonFile } from "../../utils/download.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
-import { useMeguminEngine } from "../../engine/tasks.js";
+import { runWithChomusuke } from "../../engine/tasks.js";
 import { memGetCachedKeywords, memExtractKeywords, memStringHash } from "./keywords.js";
 import {
     memGetCollectionId, memInsertToVectorDB, memDeleteFromVectorDB,
@@ -183,13 +183,9 @@ export function renderMemoryCore(c) {
 
                 <div class="mtab-setting-row" style="border-top: 1px solid rgba(255,255,255,0.04); padding-top: 14px;">
                     <div class="set-info">
-                        <div class="set-label">Generator Backend</div>
-                        <div class="set-desc">Bypass standard preset configs for fast direct API calls, or use defined Megumin engine settings for character-style summaries.</div>
+                        <div class="set-label"><i class="fa-solid fa-cat" style="color: #f43f5e; margin-right: 6px;"></i> Background Worker</div>
+                        <div class="set-desc">Managed by the <b>Chomusuke</b> tab. Configure Chomusuke to offload memory chunk summarization to a dedicated worker LLM.</div>
                     </div>
-                    <select id="mem_backend" class="ps-modern-input" style="width: 220px; cursor: pointer;">
-                        <option value="direct" ${mem.backend === 'direct' ? 'selected' : ''}>Direct API Call (Fast)</option>
-                        <option value="preset" ${mem.backend === 'preset' ? 'selected' : ''}>Megumin Engine Preset</option>
-                    </select>
                 </div>
                 <div class="mtab-setting-row" style="border-top: 1px solid rgba(255,255,255,0.04); padding-top: 14px;">
                     <div class="set-info">
@@ -463,11 +459,6 @@ export function renderMemoryCore(c) {
             if (inserted) toastr.success(`Vector Database Synced! (${count} archive${count === 1 ? "" : "s"})`);
             else toastr.error("Vector sync failed, see the console for the server response.");
         }
-    });
-
-    $("#mem_backend").on("change", function () {
-        mem.backend = $(this).val();
-        saveProfileToMemory();
     });
 
     // Trigger migration ONLY on 'change' (when they let go of the mouse click) to avoid spamming calculations
@@ -1014,13 +1005,9 @@ export async function memProcessPendingChunks(isAuto = false) {
             let summaryResult = "";
             setActiveMemorySummarizationRequest(chunkData.text);
 
-            if (!mem.backend || mem.backend === "direct") {
-                summaryResult = await generateQuietPrompt({ prompt: "___PS_MEMORY_SUMMARIZE___" });
-            } else {
-                await useMeguminEngine(async () => {
-                    summaryResult = await generateQuietPrompt({ prompt: "___PS_MEMORY_SUMMARIZE___" });
-                }, "Megumin Engine");
-            }
+            summaryResult = await runWithChomusuke("memory", async () => {
+                return await generateQuietPrompt({ prompt: "___PS_MEMORY_SUMMARIZE___" });
+            });
 
             if (typeof summaryResult !== "string") {
                 throw new Error(`Summarization returned no text for chunk ${chunkData.id}. SillyTavern is most likely not connected to an API - check the connection status, then run the archive again.`);

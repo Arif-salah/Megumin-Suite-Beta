@@ -26,6 +26,7 @@ import { memGetRelevantVaultEntries } from "../features/memory/index.js";
 import { meguminRollD20s } from "../utils/dice.js";
 import { meguminOverridableSlots, meguminSlotIsLive, meguminModuleTrigger } from "../../data/slots.js";
 import { resolveSlot } from "../core/sharedFragments.js";
+import { hasWorldState, formatWorldStateForPrompt } from "../features/worldstate/ledger.js";
 
 export function buildBaseDict(isTokenCount = false) {
     const dict = {};
@@ -487,6 +488,17 @@ export function buildBaseDict(isTokenCount = false) {
                 dict["[[infoblock]]"] = `Omit deep lore, unresolved threads, and off-screen tracking. Focus ONLY on immediate physical presence:\n<World_State>\n**Time & Loc:** [Time] at [Location]\n**PC:** [Brief visible clothing] | [Current posture/position]\n**NPCs Present:**\n* [Name]: [Brief visible clothing] | [Posture/position]\n</World_State>`;
             }
         }
+    }
+
+    // --- CURRENT WORLD STATE (CONTEXT FOR DELTA UPDATES) ---
+    // Injected into [[infoblockcurrent]] above [[blocks]] when a baseline state exists.
+    if (localProfile.blocks && localProfile.blocks.includes("info") && hasWorldState()) {
+        const fullWsPrompt = formatWorldStateForPrompt();
+        dict["[[infoblockcurrent]]"] = fullWsPrompt;
+        dict["[[infoblockcorrent]]"] = fullWsPrompt;
+    } else {
+        dict["[[infoblockcurrent]]"] = "";
+        dict["[[infoblockcorrent]]"] = "";
     }
 
     // --- PER-BLOCK HEADERS ---
