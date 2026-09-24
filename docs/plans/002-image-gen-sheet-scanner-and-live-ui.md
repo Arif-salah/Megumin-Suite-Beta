@@ -1,6 +1,6 @@
 # 002 — Image Gen Character Sheet Scanner & Scene Snapshot UI
 
-Status: CODING
+Status: DONE
 Date: 2026-09-24 · Author: Gemini · Reviewer: Pi
 
 ## Goal
