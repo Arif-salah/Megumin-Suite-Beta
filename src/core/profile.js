@@ -561,7 +561,8 @@ export function initProfile() {
     const metaHadOnEntry = {
         memory: !!(chat_metadata && chat_metadata["megumin_memory_core"]),
         plan: !!(chat_metadata && chat_metadata["megumin_story_plan"]),
-        npcs: !!(chat_metadata && chat_metadata["megumin_npc_bank"])
+        npcs: !!(chat_metadata && chat_metadata["megumin_npc_bank"]),
+        charTags: !!(chat_metadata && chat_metadata["megumin_character_tags"])
     };
 
     if (chat_metadata && chat_metadata["megumin_memory_core"]) {
@@ -603,6 +604,19 @@ export function initProfile() {
         saveMetadata();
     }
 
+    // --- LOAD CHARACTER TAGS FROM CHAT METADATA ---
+    if (chat_metadata && chat_metadata["megumin_character_tags"]) {
+        if (localProfile.imageGen) {
+            localProfile.imageGen.characterTags = chat_metadata["megumin_character_tags"].characterTags || {};
+        }
+    } else if (chat_metadata && localProfile.imageGen && Object.keys(localProfile.imageGen.characterTags || {}).length > 0) {
+        // Migration: If characterTags are stuck in settings.json, move them to the chat file!
+        chat_metadata["megumin_character_tags"] = {
+            characterTags: localProfile.imageGen.characterTags || {}
+        };
+        saveMetadata();
+    }
+
     // The three blocks above are still a migration SOURCE: a chat opened for the first
     // time since chat_metadata became the home for this data has its only copy sitting in
     // settings.json. That residue is the other half of what makes settings.json large, so
@@ -631,6 +645,10 @@ export function initProfile() {
             }
             if (metaHadOnEntry.npcs && stored.npcBank && stored.npcBank.npcs !== undefined) {
                 delete stored.npcBank.npcs;
+                freed = true;
+            }
+            if (metaHadOnEntry.charTags && stored.imageGen && stored.imageGen.characterTags !== undefined) {
+                delete stored.imageGen.characterTags;
                 freed = true;
             }
             if (freed) saveSettingsDebounced();
@@ -887,9 +905,16 @@ export function saveProfileToMemory() {
             chat_metadata["megumin_npc_bank"].npcs = bank.npcs || [];
         }
 
+        const charTags = localProfile.imageGen?.characterTags;
+        if (charTags && ((Object.keys(charTags).length > 0) || chat_metadata["megumin_character_tags"] !== undefined)) {
+            if (!chat_metadata["megumin_character_tags"]) chat_metadata["megumin_character_tags"] = {};
+            chat_metadata["megumin_character_tags"].characterTags = charTags || {};
+        }
+
         const hasAnyBlock = !!(chat_metadata["megumin_memory_core"]
             || chat_metadata["megumin_story_plan"]
-            || chat_metadata["megumin_npc_bank"]);
+            || chat_metadata["megumin_npc_bank"]
+            || chat_metadata["megumin_character_tags"]);
 
         if (hasAnyBlock) {
             // chat_metadata ends up holding the same array objects as localProfile, so
@@ -899,7 +924,8 @@ export function saveProfileToMemory() {
             const metaStamp = key + "|" + JSON.stringify([
                 chat_metadata["megumin_memory_core"] || null,
                 chat_metadata["megumin_story_plan"] || null,
-                chat_metadata["megumin_npc_bank"] || null
+                chat_metadata["megumin_npc_bank"] || null,
+                chat_metadata["megumin_character_tags"] || null
             ]);
             if (metaStamp !== _lastSavedMetaStamp) {
                 _lastSavedMetaStamp = metaStamp;
@@ -919,6 +945,9 @@ export function saveProfileToMemory() {
     }
     if (profileToSave.npcBank) {
         delete profileToSave.npcBank.npcs; // DO NOT save NPCs in settings.json!
+    }
+    if (profileToSave.imageGen) {
+        delete profileToSave.imageGen.characterTags; // DO NOT save characterTags in settings.json!
     }
 
     // Drop prompt text that matches DEFAULT_PROMPTS. Safe on profileToSave because it is
@@ -983,6 +1012,9 @@ export function flushProfileSettingsToLoadedKey() {
     }
     if (profileToSave.npcBank) {
         delete profileToSave.npcBank.npcs; // DO NOT save NPCs in settings.json!
+    }
+    if (profileToSave.imageGen) {
+        delete profileToSave.imageGen.characterTags; // DO NOT save characterTags in settings.json!
     }
 
     meguminSparsifyProfilePrompts(profileToSave);

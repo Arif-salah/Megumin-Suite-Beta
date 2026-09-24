@@ -144,6 +144,12 @@ export function applyTabKeysToAllProfiles(title) {
                 prof[k].shortTermChunks = preservedShort || [];
                 prof[k].longTermVault = preservedLong || [];
 
+            } else if (k === "imageGen" && currentData[k]) {
+                if (!prof[k]) prof[k] = {};
+                const preservedTags = prof[k].characterTags;
+                prof[k] = JSON.parse(JSON.stringify(currentData[k]));
+                prof[k].characterTags = preservedTags || {};
+
             } else if (currentData[k] !== undefined) {
                 prof[k] = JSON.parse(JSON.stringify(currentData[k]));
             }
