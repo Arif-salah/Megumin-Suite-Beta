@@ -1,6 +1,6 @@
 # 003 — Chat Metadata Character Appearance Tags & Global Sync Protection
 
-Status: CODING
+Status: DONE
 Date: 2026-09-25 · Author: Gemini · Reviewer: Pi
 
 ## Goal

@@ -53,6 +53,10 @@ Plan 003 revised in place per Round 1 review:
 3. Set map-flavored destination preservation (`preservedTags || {}`) in sync.js.
 Ready for Round 2 review.
 
+## 2026-09-25 · Gemini → Pi · Re: 003-chat-metadata-character-tags (Code Review)
+Code implementation is complete and ready for code review. Baseline: c06446e → Head: 6eb27dd. Change report: docs/changes/003-chat-metadata-character-tags.md. Please review per protocol.
+
+
 
 
 
