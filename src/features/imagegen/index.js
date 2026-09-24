@@ -11,7 +11,7 @@
 import {
     getContext, getRequestHeaders, generateQuietPrompt, saveChat, reloadCurrentChat,
     addOneMessage, appendMediaToMessage, updateMessageBlock, saveBase64AsFile,
-    humanizedDateTime, Popup, POPUP_TYPE,
+    humanizedDateTime, Popup, POPUP_TYPE, substituteParams,
 } from "../../st.js";
 import { extensionName } from "../../core/constants.js";
 import { localProfile } from "../../core/state.js";
@@ -266,8 +266,9 @@ export function renderImageGen(c) {
                     <span><i class="fa-solid fa-user-tag"></i> Character Appearance & Continuity</span>
                     <button id="ig_add_char_btn" class="ps-modern-btn secondary" style="font-size:0.7rem; padding:4px 10px; cursor:pointer;"><i class="fa-solid fa-plus"></i> Add Character</button>
                 </div>
-                <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:10px;">
-                    Lock physical traits (hair, eyes, face, body) to eliminate character drifting. Attire and location are automatically driven by the live World State.
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">
+                    Lock physical traits (hair, eyes, face, body) to eliminate character drifting. Physical trait tags are added to prompts when <strong>Inject NPC Tags</strong> (above) is on. Attire & location from World State always apply.
+                    ${!s.injectNpcTags ? `<div style="margin-top:4px; color:var(--gold);"><i class="fa-solid fa-circle-exclamation"></i> <strong>Notice:</strong> "Inject NPC Tags" is currently off above — physical trait tags won't attach to prompts until enabled.</div>` : ''}
                 </div>
                 <div id="ig_character_tags_list" style="display:flex; flex-direction:column; gap:8px;">
                     <!-- Populated dynamically -->
@@ -818,7 +819,7 @@ export function buildVisualContinuityContext() {
         if (ws.location) sceneLines.push(`• Location: ${ws.location}`);
         if (ws.weather) sceneLines.push(`• Weather/Atmosphere: ${ws.weather}`);
         if (ws.pc && ws.pc.outfit) {
-            const pcName = ws.pc.name || "{{user}}";
+            const pcName = ws.pc.name || (typeof substituteParams === "function" ? substituteParams("{{user}}") : "{{user}}");
             sceneLines.push(`• ${pcName} (PC) Outfit: ${ws.pc.outfit}`);
         }
         if (ws.npcOutfits && Object.keys(ws.npcOutfits).length > 0) {

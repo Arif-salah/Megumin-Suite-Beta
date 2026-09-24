@@ -265,11 +265,9 @@ export function parseWorldStateBlock(text) {
             currentNpc = null;
             continue;
         }
-        if (line.includes("📡") || line.includes("🔥") || /^---*$/.test(line)) {
-            if (inNpcSection && (/^---*$/.test(line) || line.includes("📡") || line.includes("🔥"))) {
-                inNpcSection = false;
-                currentNpc = null;
-            }
+        if (inNpcSection && (line.includes("📡") || line.includes("🔥") || /^---*$/.test(line))) {
+            inNpcSection = false;
+            currentNpc = null;
         }
 
         // PC name from header line (e.g. **🧍 Kazuma:** or **🧍 Adam:**)
