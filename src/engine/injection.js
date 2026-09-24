@@ -12,7 +12,7 @@ import { extensionName } from "../core/constants.js";
 import { localProfile } from "../core/state.js";
 import {
     activeStoryPlanRequest, activeBanListChat, activeImageGenRequest,
-    activeNpcScanRequest, activeNpcPfpRequest, activeNpcUpdateRequest,
+    activeNpcScanRequest, activeCharSheetScanRequest, activeNpcPfpRequest, activeNpcUpdateRequest,
     activeMemorySummarizationRequest,
     activeGenerationOrder, isBackgroundGenerationActive,
     activeNpcImages, clearActiveNpcImages,
@@ -117,6 +117,27 @@ export async function handlePromptInjection(data, type) {
             });
         }
         console.log(`[${extensionName}] 🎯 Injected NPC Scan array in memory.`);
+        return;
+    }
+
+    // --- INJECT CHARACTER SHEET SCAN PROMPT ---
+    if (activeCharSheetScanRequest) {
+        messages.length = 0;
+        messages.push({
+            "role": "system",
+            "content": "You are an expert AI image prompt engineer and character visual analyst. Output ONLY the requested character visual tags without conversational filler or explanations."
+        });
+        messages.push({
+            "role": "user",
+            "content": `Analyze the following character sheet / lore text carefully. Identify ALL characters (including the main character, companions, party members, side characters) described in it.\n\nFor EACH character found, extract their permanent physical appearance traits in Booru tag format (species/race, gender, age bracket, hair color and style, eye color, skin tone, facial features, body type, distinctive physical traits like animal ears/horns/wings). Do NOT include temporary clothing or location.\n\nOutput each character using EXACTLY this format:\n<Character_Visual name="[Full Name]">\n[comma-separated Booru appearance tags]\n</Character_Visual>\n\nCharacter Sheet / Lore:\n${activeCharSheetScanRequest.sheetText}`
+        });
+        if (!disablePrefill) {
+            messages.push({
+                "role": "assistant",
+                "content": "<think>\nAnalyzing character sheet for character appearances...\n"
+            });
+        }
+        console.log(`[${extensionName}] 🎯 Injected Character Sheet Scan array in memory.`);
         return;
     }
 

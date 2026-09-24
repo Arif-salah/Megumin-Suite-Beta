@@ -18,7 +18,7 @@ import { localProfile } from "../../core/state.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js";
 import { syncPromptsGlobally } from "../../core/sync.js";
 import { registerRefreshHook, REFRESH } from "../../core/refreshHooks.js";
-import { setActiveImageGenRequest } from "../../core/activeRequests.js";
+import { setActiveImageGenRequest, setActiveCharSheetScanRequest } from "../../core/activeRequests.js";
 import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { showKazumaProgress } from "../../ui/progress.js";
@@ -264,11 +264,17 @@ export function renderImageGen(c) {
             <div class="mtab-panel" style="margin-bottom:16px;">
                 <div class="mtab-panel-title purple" style="display:flex; justify-content:space-between; align-items:center;">
                     <span><i class="fa-solid fa-user-tag"></i> Character Appearance & Continuity</span>
-                    <button id="ig_add_char_btn" class="ps-modern-btn secondary" style="font-size:0.7rem; padding:4px 10px; cursor:pointer;"><i class="fa-solid fa-plus"></i> Add Character</button>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button id="ig_scan_sheet_btn" class="ps-modern-btn secondary" style="font-size:0.7rem; padding:4px 10px; cursor:pointer;" title="Scan active character sheet for all characters and extract their appearance tags"><i class="fa-solid fa-file-invoice"></i> Scan Character Sheet</button>
+                        <button id="ig_add_char_btn" class="ps-modern-btn secondary" style="font-size:0.7rem; padding:4px 10px; cursor:pointer;"><i class="fa-solid fa-plus"></i> Add Character</button>
+                    </div>
                 </div>
                 <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:10px; line-height: 1.4;">
                     Lock physical traits (hair, eyes, face, body) to eliminate character drifting. Physical trait tags are added to prompts when <strong>Inject NPC Tags</strong> (above) is on. Attire & location from World State always apply.
                     ${!s.injectNpcTags ? `<div style="margin-top:4px; color:var(--gold);"><i class="fa-solid fa-circle-exclamation"></i> <strong>Notice:</strong> "Inject NPC Tags" is currently off above — physical trait tags won't attach to prompts until enabled.</div>` : ''}
+                </div>
+                <div id="ig_scene_snapshot_box" style="margin-bottom: 12px; background: rgba(0,0,0,0.18); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
+                    <!-- Rendered by renderSceneSnapshot() -->
                 </div>
                 <div id="ig_character_tags_list" style="display:flex; flex-direction:column; gap:8px;">
                     <!-- Populated dynamically -->
@@ -322,8 +328,84 @@ export function renderImageGen(c) {
     });
     c.find('#ig_main_content').append(igEditor);
 
-    // --- CHARACTER APPEARANCE LIST ---
+    // --- CHARACTER APPEARANCE LIST & SCENE SNAPSHOT ---
+    renderSceneSnapshot(c.find('#ig_scene_snapshot_box'));
     renderCharacterTagsList(c.find('#ig_character_tags_list'), s);
+
+    c.find('#ig_scan_sheet_btn').on('click', async function () {
+        const btn = $(this);
+        const context = getContext();
+        const card = context?.characters?.[context?.characterId];
+        const desc = card?.description || "";
+
+        if (!card || !desc.trim()) {
+            toastr.warning("No single character card is active — switch out of group mode to scan.", "Character Sheet Scanner");
+            return;
+        }
+
+        // E4: Extract <character[-_]?sheet> with fallback
+        const sheetMatch = desc.match(/<character[-_]?sheet>([\s\S]*?)(?:<\/character[-_]?sheet>|$)/i);
+        const textToScan = (sheetMatch && sheetMatch[1]?.trim()) ? sheetMatch[1].trim() : desc.trim();
+
+        btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Scanning Sheet...`);
+
+        try {
+            setActiveCharSheetScanRequest({ sheetText: textToScan });
+            const rawOutput = await runWithChomusuke("imageGen", () => generateQuietPrompt({ prompt: "___PS_CHAR_SHEET_SCAN___" }));
+
+            const extracted = parseCharSheetScanOutput(rawOutput);
+            if (!extracted || extracted.length === 0) {
+                toastr.info("No characters or visual traits found in the character sheet.", "Character Sheet Scanner");
+                return;
+            }
+
+            if (!s.characterTags) s.characterTags = {};
+            let addedCount = 0;
+            let updatedCount = 0;
+            let skippedCount = 0;
+
+            for (const item of extracted) {
+                const name = item.name.trim();
+                const tags = item.tags.trim();
+                if (!name || !tags) continue;
+
+                const existingKey = Object.keys(s.characterTags).find(k => k.trim().toLowerCase() === name.toLowerCase());
+                const targetKey = existingKey || name;
+                const existing = s.characterTags[targetKey];
+
+                if (existing) {
+                    if (existing.locked) {
+                        skippedCount++;
+                    } else {
+                        existing.tags = tags;
+                        existing.provisional = true;
+                        updatedCount++;
+                    }
+                } else {
+                    s.characterTags[targetKey] = {
+                        tags: tags,
+                        locked: false,
+                        provisional: true
+                    };
+                    addedCount++;
+                }
+            }
+
+            saveProfileDebounced();
+            renderCharacterTagsList(c.find('#ig_character_tags_list'), s);
+            renderSceneSnapshot(c.find('#ig_scene_snapshot_box'));
+
+            let msg = `Scan complete: ${addedCount} added, ${updatedCount} updated.`;
+            if (skippedCount > 0) msg += ` (${skippedCount} locked character(s) preserved)`;
+            toastr.success(msg, "Character Sheet Scanner");
+        } catch (e) {
+            console.error("[Megumin-Suite] Character sheet scan failed:", e);
+            toastr.error("Failed to scan character sheet: " + (e.message || e), "Character Sheet Scanner");
+        } finally {
+            setActiveCharSheetScanRequest(null);
+            btn.prop("disabled", false).html(`<i class="fa-solid fa-file-invoice"></i> Scan Character Sheet`);
+        }
+    });
 
     c.find('#ig_add_char_btn').on('click', function () {
         const name = prompt("Enter character name:");
@@ -737,18 +819,92 @@ export function ensureCharacterTagsMigrated() {
     return modified;
 }
 
+/**
+ * Parses quiet prompt output from a character sheet scan.
+ * Expects blocks like:
+ * <Character_Visual name="Darkness">
+ * 1girl, tall female, long blonde hair, high ponytail, blue eyes
+ * </Character_Visual>
+ * @param {string} text
+ * @returns {Array<{ name: string, tags: string }>}
+ */
+export function parseCharSheetScanOutput(text) {
+    if (!text || typeof text !== "string") return [];
+    const results = [];
+    const cleanText = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+
+    const regex = /<Character_Visual\b[^>]*name=["']([^"']+)["'][^>]*>([\s\S]*?)(?:<\/Character_Visual\s*>|$)/gi;
+    let match;
+    const seen = new Set();
+    while ((match = regex.exec(cleanText)) !== null) {
+        const name = (match[1] || "").trim();
+        let tags = (match[2] || "").trim();
+        tags = tags.replace(/```[a-z]*|```/gi, "").trim();
+        tags = tags.replace(/^["']|["']$/g, "").trim();
+        if (name && tags && !seen.has(name.toLowerCase())) {
+            seen.add(name.toLowerCase());
+            results.push({ name, tags });
+        }
+    }
+    return results;
+}
+
+export function renderSceneSnapshot(container) {
+    if (!container || !container.length) return;
+    const ws = getWorldStateCurrent();
+    if (!ws || (!ws.location && !ws.weather && (!ws.pc || !ws.pc.outfit))) {
+        container.html(`
+            <div style="display:flex; align-items:center; gap:8px; font-size:0.72rem; color:var(--text-muted);">
+                <i class="fa-solid fa-clapperboard" style="color:var(--text-muted);"></i>
+                <span><strong>Active Scene Snapshot:</strong> <em>No active scene on record</em> (initializes automatically when World State generates in chat).</span>
+            </div>
+        `);
+        return;
+    }
+
+    const pcName = ws.pc?.name || (typeof substituteParams === "function" ? substituteParams("{{user}}") : "{{user}}");
+    const loc = ws.location || "Unspecified location";
+    const wx = ws.weather || "Normal";
+    const pcOutfit = ws.pc?.outfit || "Default attire";
+
+    container.html(`
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:0.72rem; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                <i class="fa-solid fa-clapperboard" style="color:#a855f7;"></i> Active Scene Snapshot
+            </div>
+            <div style="font-size:0.65rem; color:var(--text-muted);">from World State</div>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:8px; font-size:0.7rem;">
+            <div style="background:rgba(255,255,255,0.04); padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
+                <span style="color:var(--text-muted);"><i class="fa-solid fa-location-dot" style="color:#ef4444; width:14px;"></i> Location:</span>
+                <div style="font-weight:600; color:var(--text-main); margin-top:2px;">${escapeHtmlAttr(loc)}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04); padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
+                <span style="color:var(--text-muted);"><i class="fa-solid fa-cloud-sun" style="color:#38bdf8; width:14px;"></i> Atmosphere:</span>
+                <div style="font-weight:600; color:var(--text-main); margin-top:2px;">${escapeHtmlAttr(wx)}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04); padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
+                <span style="color:var(--text-muted);"><i class="fa-solid fa-user" style="color:#10b981; width:14px;"></i> ${escapeHtmlAttr(pcName)} (PC):</span>
+                <div style="font-weight:600; color:var(--text-main); margin-top:2px;">${escapeHtmlAttr(pcOutfit)}</div>
+            </div>
+        </div>
+    `);
+}
+
 export function renderCharacterTagsList(container, s) {
     if (!container || !container.length) return;
     container.empty();
     ensureCharacterTagsMigrated();
+    renderSceneSnapshot($('#ig_scene_snapshot_box'));
     if (!s.characterTags) s.characterTags = {};
     const tagsMap = s.characterTags;
     const names = Object.keys(tagsMap);
+    const ws = getWorldStateCurrent();
 
     if (names.length === 0) {
         container.append(`
             <div style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 12px; background: rgba(0,0,0,0.1); border-radius: 8px;">
-                No character appearance tags saved yet. Click "Add Character" above or introduce characters in chat.
+                No character appearance tags saved yet. Click "Add Character" or "Scan Character Sheet" above.
             </div>
         `);
         return;
@@ -758,6 +914,27 @@ export function renderCharacterTagsList(container, s) {
         const item = tagsMap[name] || { tags: "", locked: false };
         const isLocked = Boolean(item.locked);
         const isProvisional = Boolean(item.provisional);
+
+        let currentAttire = null;
+        let isPresentInScene = false;
+
+        const cleanName = name.trim().toLowerCase();
+        const pcName = (ws?.pc?.name || "").trim().toLowerCase();
+        const userPersonaName = (typeof substituteParams === "function" ? substituteParams("{{user}}") : "").trim().toLowerCase();
+
+        if (cleanName === "{{user}}" || (pcName && cleanName === pcName) || (userPersonaName && cleanName === userPersonaName)) {
+            if (ws?.pc?.outfit) {
+                currentAttire = ws.pc.outfit;
+                isPresentInScene = true;
+            }
+        } else if (ws?.npcOutfits) {
+            // E1 (Name Matching): Case-insensitive trimmed lookup against ws.npcOutfits keys
+            const matchedKey = Object.keys(ws.npcOutfits).find(k => k.trim().toLowerCase() === cleanName);
+            if (matchedKey && ws.npcOutfits[matchedKey]) {
+                currentAttire = ws.npcOutfits[matchedKey];
+                isPresentInScene = true;
+            }
+        }
 
         const card = $(`
             <div class="ig-char-tag-row" style="background: rgba(0,0,0,0.12); border: 1px solid var(--border-color); border-left: 3px solid ${isLocked ? '#10b981' : '#f59e0b'}; padding: 10px; border-radius: 8px;">
@@ -774,6 +951,12 @@ export function renderCharacterTagsList(container, s) {
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     </div>
+                </div>
+                <div style="font-size: 0.68rem; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                    ${isPresentInScene 
+                        ? `<span style="color: #10b981; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-shirt"></i> <strong>Attire (current scene):</strong> ${escapeHtmlAttr(currentAttire)}</span>`
+                        : `<span style="color: var(--text-muted); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-shirt"></i> (Not in active scene)</span>`
+                    }
                 </div>
                 <textarea class="ps-modern-input ig-char-tags-input" data-name="${escapeHtmlAttr(name)}" placeholder="Booru-style physical traits: 1girl, pale skin, blue eyes, long black hair, ponytail..." style="width: 100%; box-sizing: border-box; font-size: 0.75rem; padding: 6px; resize: vertical; min-height: 48px;">${escapeHtmlAttr(item.tags || '')}</textarea>
             </div>
