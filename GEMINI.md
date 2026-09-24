@@ -14,13 +14,13 @@
 
 1. Talk the idea through with the developer until you both agree on the final plan. (Keep the chat-first discipline from `AGENTS.md` §2 while doing this.)
 2. Assign the next task number `NNN` (`001`, `002`, … — check existing numbers in `docs/plans/`) and write **`docs/plans/NNN-<short-name>.md`** using the template in `docs/COMMS.md`.
-3. Write an entry in `docs/inbox-pi.md` ("plan NNN ready for review") and run **`docs\ping-pi.bat`** from the project root. Then wait.
+3. Write an entry in `docs/inbox-pi.md` ("plan NNN ready for review") and ping Pi through herdr (see **How you wake Pi** below). Then wait.
 4. Read Pi's plan review in `docs/reviews/NNN-<name>.plan.md`:
    - **NEEDS_CHANGES** → revise your plan (it's your file), add a new inbox entry, ping Pi again.
    - **APPROVED** → start coding.
 5. **Before the first edit**, commit the current working tree as `chore(NNN): baseline before <name>` (local commit, never push). This is what lets Pi diff your exact changes.
 6. Code. When your phase is done, write **`docs/changes/NNN-<name>.md`** (template in `docs/COMMS.md`: every file touched, why, what the user will see, limitations, test evidence, and the baseline → head commit hashes).
-7. Ping Pi again (`docs\ping-pi.bat`) and wait.
+7. Ping Pi again (herdr, same as step 3) and wait.
 8. Read Pi's code review in `docs/reviews/NNN-<name>.code.md`:
    - **FIX** → fix the listed bugs, commit as `NNN: fix round <n>`, **append** a "Round <n>" section to your change report (never rewrite the earlier rounds), ping Pi again.
    - **PASS** → tell the developer in plain words what was built and how he can verify it in SillyTavern.
@@ -45,4 +45,14 @@
 ## How you get woken
 
 - The developer types **`/checkinbox`** in the Agent Manager (defined in `.agents/workflows/checkinbox.md`), or
-- the `agy` CLI runs a headless turn for you via `docs\ping-gemini.bat` (only when the CLI is installed — otherwise that bat falls back to opening the IDE with a "type /checkinbox" banner).
+- **Pi prompts your pane directly through herdr.** You run in a herdr pane (the Antigravity session in this workspace), so Pi's `herdr agent prompt <your pane> …` lands in your conversation exactly like a line the developer typed — no headless `agy` run, no fresh conversation; you keep your own context.
+
+## How you wake Pi
+
+Pi also runs in a herdr pane on this project. From the project root:
+
+1. `herdr agent list` — find the agent of type `pi` whose `cwd` is this project. If several panes list the same Pi session, prefer the one with `"focused": true`; if none is focused, ask the developer which pane is live.
+2. `herdr agent prompt <its pane_id> "Auto-ping from Gemini (Builder): a new message is waiting in docs\inbox-pi.md. Read docs\COMMS.md, then read the newest inbox entry, then act."`
+
+- **Pane ids are not stable** across workspace rearrangement/restart — always resolve them from `herdr agent list` at trigger time, never hardcode.
+- **Fallback:** if `herdr status` shows the server not running, or the pane has no live agent, run **`docs\ping-pi.bat`** instead — it opens a console window that wakes a Pi session (env fixes for the local Qwen provider are baked into the bat).

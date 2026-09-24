@@ -18,8 +18,8 @@
 ## The loop, step by step (who does what)
 
 1. **Plan.** Developer and Gemini agree on the final plan in Gemini's chat. Gemini assigns the next task number and writes `docs/plans/NNN-<name>.md`.
-2. **Ping Pi.** Gemini appends an entry to `docs/inbox-pi.md` and runs `docs\ping-pi.bat` (opens a console that wakes the Pi session).
-3. **Plan review.** Pi reads the newest inbox entry, reviews the plan, writes `docs/reviews/NNN-<name>.plan.md` with verdict **APPROVED** or **NEEDS_CHANGES**, appends an entry to `docs/inbox-gemini.md`, and runs `docs\ping-gemini.bat`.
+2. **Ping Pi.** Gemini appends an entry to `docs/inbox-pi.md` and pings Pi through herdr (see *Automation* below; bat fallback if the herdr server is down).
+3. **Plan review.** Pi reads the newest inbox entry, reviews the plan, writes `docs/reviews/NNN-<name>.plan.md` with verdict **APPROVED** or **NEEDS_CHANGES**, appends an entry to `docs/inbox-gemini.md`, and pings Gemini through herdr (see *Automation* below; bat fallback).
 4. **Plan revision** (only if NEEDS_CHANGES). Gemini revises the plan file (its own file — in place, updating the Status line), pings Pi again. Back to step 3.
 5. **Baseline commit.** Before the first edit of the task, Gemini commits the working tree: `chore(NNN): baseline before <name>`. Local commit, never push.
 6. **Code.** Gemini implements the plan.
@@ -50,7 +50,8 @@
 | `docs/reviews/NNN-<name>.code.md` | Pi | code review, one "Round n" section per review round (append only) |
 | `docs/inbox-pi.md` | Gemini | short messages to Pi (append only, newest at bottom) |
 | `docs/inbox-gemini.md` | Pi | short messages to Gemini (append only, newest at bottom) |
-| `docs/ping-pi.bat` / `docs/ping-gemini.bat` / `docs/ping-developer.bat` | developer | wake the other AI / wake the developer on Telegram |
+| herdr panes on this project (`pi`, `agy`) | the *other* AI | primary handoff: `herdr agent prompt <pane_id> …` — pane id resolved from `herdr agent list` at trigger time |
+| `docs/ping-pi.bat` / `docs/ping-gemini.bat` / `docs/ping-developer.bat` | developer | bat fallback (herdr server down / no live agent) / wake the developer on Telegram |
 
 Rules: read everything, write only your own files. Inbox entries are never deleted — they are the shared memory of the loop.
 
@@ -152,13 +153,25 @@ Notes for Gemini (non-blocking):
 <one to three lines: what happened and what the other should do>
 ```
 
-## Automation (the bat files)
+## Automation (handoffs — herdr primary, bats as fallback)
 
-- **`docs\ping-pi.bat`** — run by Gemini when its phase is done. Opens a console window that wakes the Pi session for this project (`pi -c -p …`). If the wrong session gets woken, Pi should check `/session` and re-target with `pi --session <id>`; note the fix in the next inbox entry.
-- **`docs\ping-gemini.bat`** — run by Pi when its review is done. If the Antigravity **CLI** (`agy`) is installed, it runs a headless Gemini turn in this project (`agy -p …`); otherwise it opens the IDE and a console banner telling the developer to type **`/checkinbox`** in the Agent Manager (workflow: `.agents/workflows/checkinbox.md`).
-- A headless `agy` run starts a *fresh* conversation — that is fine and by design: all state lives in the `docs/` files, and `GEMINI.md` / `AGENTS.md` are loaded from the project automatically.
-- The bats are visible windows on purpose: the developer can watch a handoff happen or cancel it.
-- **`docs\ping-developer.bat [task ref]`** — sends the developer ONE line on Telegram ("need your review - <task ref>"). The bot token and chat id are read from `C:\Users\arifs\.pi\agent\telegram.json` (not hardcoded in the bat). Run it whenever the loop halts and waits for the developer.
+**Primary — the herdr direct prompt.** Both AIs run as panes in the herdr workspace on this project (`pi` for Pi, `agy` for Gemini). When a phase is done, the finishing AI:
+
+1. Runs `herdr agent list` and finds the *other* agent for this project (match on `cwd`). If several `pi` panes appear (panes can share one session file), prefer the one with `"focused": true`; if none is focused, ask the developer which pane is live.
+2. Runs `herdr agent prompt <its pane_id> "<ping message>"` — the text is submitted to the other agent's terminal exactly as if the developer had typed it. No new window, no fresh process, no env dance; the recipient keeps its own conversation context.
+
+The ping message stays fixed: `Auto-ping from <sender> (<role>): a new message is waiting in docs\inbox-<recipient>.md. Read docs\COMMS.md, then read the newest inbox entry, then act.`
+
+- **Pane ids are not stable** across workspace rearrangement/restart — always resolve them from `herdr agent list` at trigger time; never hardcode.
+- `--wait` is optional; the loop's state lives in the `docs/` files, so fire-and-forget is the default.
+
+**Fallback — the bat files** (kept on purpose; use when `herdr status` shows the server not running, or the target pane has no live agent):
+
+- **`docs\ping-pi.bat`** — Gemini → Pi. Opens a console window that runs a fresh `pi -c -p …` with the env fixes baked in (explicit local-Qwen provider, stale `OPENAI_API_BASE/KEY` cleared — a user-env copy of those once 401'd fresh runs). If the wrong session gets woken, Pi checks `/session` and re-targets with `pi --session <id>`; note the fix in the next inbox entry.
+- **`docs\ping-gemini.bat`** — Pi → Gemini. If the Antigravity **CLI** (`agy`) is installed it runs a headless Gemini turn (a *fresh* conversation — fine and by design: all state lives in the `docs/` files, and `GEMINI.md` / `AGENTS.md` are loaded from the project automatically); otherwise it opens the IDE with a console banner telling the developer to type **`/checkinbox`** in the Agent Manager (workflow: `.agents/workflows/checkinbox.md`).
+
+- **`docs\ping-developer.bat [task ref]`** — unaffected by herdr: sends the developer ONE line on Telegram ("need your review - <task ref>"). The bot token and chat id are read from `C:\Users\arifs\.pi\agent\telegram.json` (not hardcoded in the bat). Run it whenever the loop halts and waits for the developer.
+- Handoffs stay visible either way: a herdr pane shows the incoming turn in the workspace; a bat opens a console window the developer can watch or cancel.
 
 ## Ground rules
 
