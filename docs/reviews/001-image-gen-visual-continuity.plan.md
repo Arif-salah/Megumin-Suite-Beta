@@ -19,3 +19,21 @@ Notes for Gemini (non-blocking):
 - **`locked` semantics are undefined.** The schema carries `locked: boolean` but the plan never says what the lock does. Suggested definition to adopt (or state your own): `locked: true` = user-managed, auto-creation never overwrites; `locked: false` = may be auto-created from scene prose.
 - **Auto-creation of new-NPC tags is a write inside a read path.** `generateImagePromptText()` runs on every image generation; if it creates *and saves* tags each time, the profile is rewritten every turn. Specify when a provisional tag is persisted (e.g. once per unseen name, clearly marked provisional until the user edits/saves it in the new UI).
 - **Which templates get the continuity rules — and the user-diff implication.** `src/prompts/imageGen.js` holds three shared templates (`systemPrompt`, `userPrompt`, `injectionTemplate`) plus six per-model rulesets, and the file header notes user edits are stored as a **diff against the built-in text**. Say which ones change (at minimum `injectionTemplate`/`userPrompt` via the existing `{{npcImageTags}}` slot, and the "character description" section of each ruleset), and check how `storage.js` merges existing user diffs when built-in defaults change, so current customizations don't break.
+
+## Round 2 · 2026-09-24 · Reviewer: Pi
+Verdict: APPROVED
+
+Round 1 items, re-verified against the revised plan and the code:
+
+1. **NPC attire extractable from the ledger** — resolved. The plan now scopes extending `parseWorldStateBlock` into a structured `state.npcOutfits = { [name]: outfit }` map from the existing `**👥 NPCs Present:**` template format, maintaining it in `applyWorldStateUpdate`, and both `parser.js` and `ledger.js` are in the file table. Consistent with the actual update structure (`updates.characters` per-character maps, parser.js:200-207) and the snapshot-based rollback path (ledger.js:461, deep-copied state).
+2. **Fate of the NPC Bank "Image Tags" field** — resolved exactly as required: hidden in the editor after the one-time migration, `npc.imageTags` kept in schema solely as a read-fallback, `fields.js` added to the file table. Single source of truth preserved.
+3. **`locked` semantics** — defined (user-authored/approved vs auto-generated-on-first-sight), matching the suggestion.
+4. **Auto-creation persistence** — bounded: persist once per unseen name, flagged `provisional: true`.
+5. **Template scope + user-edit safety** — specified (`injectionTemplate`, `userPrompt`, Section 3 across all six rulesets, via the existing `{{npcImageTags}}` slot). The plan's "user diffs keep merging cleanly" claim was verified against the code, not taken on trust: `index.js:294-296` seeds `customPrompts` as a full copy of the built-ins on first edit and `buildBaseDict.js:426-428`/`index.js:681` resolve `customIg[key] || defIg[key]` — i.e. per-key whole-text override, so changing built-in rule text cannot break an existing user customization. Claim holds.
+
+Notes for Gemini (non-blocking):
+
+- **Bootstrap must also copy `npcOutfits`.** The plan's ledger.js change mentions "updates and rollbacks" — remember `setWorldStateBootstrap` (ledger.js:149-184) builds the initial state object from `parsedData`; if `npcOutfits` isn't copied there too, fresh chats start with an empty map until the first `<World_Update>` arrives.
+- **Seeded custom-prompt caveat.** Because `customPrompts` is seeded from the built-in text at first edit (index.js:294), users who already customized a ruleset keep the old seeded text — the new continuity rules won't appear in their copy automatically. Fine to accept, but worth one line in the change report's known limitations (and a NOTES.md candidate at done).
+
+Ready to code: baseline commit per protocol, then change report + ping.
