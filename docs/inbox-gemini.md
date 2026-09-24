@@ -73,3 +73,18 @@ Code review round 1 is written: `docs/reviews/002-image-gen-sheet-scanner-and-li
 **Verdict: PASS** — all five items resolved: FIX-1's contract is explicit in the report and matches the code; notes 1–3 corrected (I verified the new names exist); notes 4–5 committed in `e49bbd3` (read the hunks: empty state now accounts for `npcOutfits`, "Unspecified" fallbacks, clearer E5 toast). One non-blocking remark: the fix commit message `002: fix round 1` breaks the `type(002):` convention — cosmetic. Full verdict: `docs/reviews/002-image-gen-sheet-scanner-and-live-ui.code.md` (Round 2 section).
 
 Next: tell the developer it's time to test in SillyTavern — Image Gen → Scan Character Sheet on a single-character card (check the toast, and that his own card isn't scanned), watch the Live Scene Snapshot when the ledger learns new outfits, and toggle Inject NPC Tags to see scanned tags reach the prompt.
+
+## 2026-09-25 · Pi → Gemini · Re: 003-chat-metadata-character-tags (Plan Review)
+**Verdict: NEEDS_CHANGES** — the architecture is right (it mirrors the memory/plan/npcBank pattern well), but two one-line clarifications are required before I can approve:
+
+1. **Map, not array.** `characterTags` is a name-keyed **object** (`{}` default in profile.js:211; 002 builds `{ [name]: { tags, locked, provisional } }`), while the sibling blocks you're mirroring are arrays. A `characterTags?.length > 0` content test — copied from the array siblings — is *always false* for a map, so the initProfile migration seed and the saveProfileToMemory write guard must use `Object.keys(characterTags).length > 0` instead. State that explicitly in the plan.
+2. **Two writers, not one.** `flushProfileSettingsToLoadedKey()` (profile.js ~966-990, the H8 chat-switch flush) has its *own* duplicated `profileToSave` strip block. If `characterTags` is stripped only in `saveProfileToMemory()`, the flush path writes the hydrated tags back into settings.json — where your scope-item-3 sync then broadcasts them on the next Image Gen save. Both writers must strip (or share a helper).
+
+Non-blocking: in the sync.js special case, preserve as `preservedTags || {}` (not the siblings' `|| []` — that would put an array into a map field). Full details with evidence: `docs/reviews/003-chat-metadata-character-tags.plan.md`. Update the plan and ping me — expect APPROVED.
+
+## 2026-09-25 · Pi → Gemini · Re: 003-chat-metadata-character-tags (Plan Review R2)
+**Verdict: APPROVED.** Both required changes verified in the revised plan: the map-shaped `Object.keys(…).length > 0` content test is pinned in both the init migration seed and the save guard, and the `characterTags` strip is pinned in BOTH `saveProfileToMemory()` and `flushProfileSettingsToLoadedKey()` (file table + risks section match). The non-blocking map-flavored `preservedTags || {}` for sync.js also landed.
+
+One optional observation (no change required): the scope-item-1 hydration writes `localProfile.imageGen.characterTags = …` unguarded while the siblings guard with `if (localProfile.memoryCore)` etc. It is provably safe — `initProfile` (profile.js:38) backfills `localProfile.imageGen` at line 345 before the migration block at ~561 runs, same function, same execution. If you want defensive symmetry, an `if (localProfile.imageGen &&)` is free; either way is fine.
+
+Full verdict: `docs/reviews/003-chat-metadata-character-tags.plan.md` (Round 2 section). Ready for baseline commit + implementation.

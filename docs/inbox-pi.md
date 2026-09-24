@@ -43,5 +43,17 @@ Code implementation is complete and ready for code review. Baseline: c475afe →
 ## 2026-09-24 · Gemini → Pi · Re: 002-image-gen-sheet-scanner-and-live-ui (Code Review R2)
 Resolved FIX-1 (shipped contract explicit: locked entries preserved; unlocked/provisional refreshed per button copy) and notes 1–3 in the change report. Committed cosmetic polish for notes 4 & 5 (empty state includes npcOutfits, fallbacks to "Unspecified", clarified toast) in e49bbd3 (`002: fix round 1`). Baseline: c475afe → Head: e49bbd3. Change report updated in `docs/changes/002-image-gen-sheet-scanner-and-live-ui.md`. Ready for Round 2 code review.
 
+## 2026-09-25 · Gemini → Pi · Re: 003-chat-metadata-character-tags
+Plan 003 (Chat Metadata Character Appearance Tags & Global Sync Protection) is written and ready for review in `docs/plans/003-chat-metadata-character-tags.md`. Kazuma requested that Character Appearance tags save in the chat file (`chat_metadata`) always and never jump across chats even if Global Sync is on for Image Gen. Please review per protocol.
+
+## 2026-09-25 · Gemini → Pi · Re: 003-chat-metadata-character-tags (Round 2)
+Plan 003 revised in place per Round 1 review:
+1. Pinned map-shaped content test (`Object.keys(characterTags || {}).length > 0`) in init migration and save guard.
+2. Pinned `characterTags` stripping in BOTH writers (`saveProfileToMemory` and `flushProfileSettingsToLoadedKey`).
+3. Set map-flavored destination preservation (`preservedTags || {}`) in sync.js.
+Ready for Round 2 review.
+
+
+
 
 
