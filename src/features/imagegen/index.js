@@ -30,6 +30,7 @@ import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { makeComfyClientId, openComfyProgressSocket } from "./comfyProgress.js";
 import { getWorldStateCurrent } from "../worldstate/ledger.js";
 import { escapeHtmlAttr } from "../../utils/html.js";
+import { resolveCanonicalCharacterName, isCharacterNameMatch } from "../../utils/nameMatcher.js";
 
 export function renderImageGen(c) {
     c.empty();
@@ -364,13 +365,22 @@ export function renderImageGen(c) {
             let updatedCount = 0;
             let skippedCount = 0;
 
+            const existingKeys = Object.keys(s.characterTags);
+            const aliasesMap = {};
+            for (const k of existingKeys) {
+                if (Array.isArray(s.characterTags[k]?.aliases)) {
+                    aliasesMap[k] = s.characterTags[k].aliases;
+                }
+            }
+
             for (const item of extracted) {
                 const name = item.name.trim();
                 const tags = item.tags.trim();
+                const aliases = Array.isArray(item.aliases) ? item.aliases : [];
                 if (!name || !tags) continue;
 
-                const existingKey = Object.keys(s.characterTags).find(k => k.trim().toLowerCase() === name.toLowerCase());
-                const targetKey = existingKey || name;
+                const matchedKey = resolveCanonicalCharacterName(name, existingKeys, aliasesMap);
+                const targetKey = matchedKey || name;
                 const existing = s.characterTags[targetKey];
 
                 if (existing) {
@@ -379,15 +389,26 @@ export function renderImageGen(c) {
                     } else {
                         existing.tags = tags;
                         existing.provisional = true;
+                        if (!Array.isArray(existing.aliases)) existing.aliases = [];
+                        for (const a of aliases) {
+                            if (!existing.aliases.some(ea => ea.toLowerCase() === a.toLowerCase())) {
+                                existing.aliases.push(a);
+                            }
+                        }
                         updatedCount++;
                     }
                 } else {
                     s.characterTags[targetKey] = {
                         tags: tags,
                         locked: false,
-                        provisional: true
+                        provisional: true,
+                        aliases: aliases
                     };
                     addedCount++;
+                    existingKeys.push(targetKey);
+                    if (aliases.length > 0) {
+                        aliasesMap[targetKey] = aliases;
+                    }
                 }
             }
 
@@ -413,7 +434,7 @@ export function renderImageGen(c) {
         const cleanName = name.trim();
         if (!s.characterTags) s.characterTags = {};
         if (!s.characterTags[cleanName]) {
-            s.characterTags[cleanName] = { tags: "", locked: true, provisional: false };
+            s.characterTags[cleanName] = { tags: "", locked: true, provisional: false, aliases: [] };
             saveProfileDebounced();
             renderCharacterTagsList(c.find('#ig_character_tags_list'), s);
         } else {
@@ -803,7 +824,8 @@ export function ensureCharacterTagsMigrated() {
             charTags[name] = {
                 tags: npc.imageTags.trim(),
                 locked: false,
-                provisional: false
+                provisional: false,
+                aliases: []
             };
             modified = true;
         }
@@ -812,8 +834,16 @@ export function ensureCharacterTagsMigrated() {
     // 2. Provisional entry for PC if not present
     const pcName = localProfile.worldState?.current?.pc?.name || "";
     if (pcName && !charTags[pcName] && !charTags["{{user}}"]) {
-        charTags[pcName] = { tags: "", locked: false, provisional: true };
+        charTags[pcName] = { tags: "", locked: false, provisional: true, aliases: [] };
         modified = true;
+    }
+
+    // 3. Ensure all existing entries have aliases array
+    for (const entry of Object.values(charTags)) {
+        if (entry && !Array.isArray(entry.aliases)) {
+            entry.aliases = [];
+            modified = true;
+        }
     }
 
     return modified;
@@ -826,24 +856,40 @@ export function ensureCharacterTagsMigrated() {
  * 1girl, tall female, long blonde hair, high ponytail, blue eyes
  * </Character_Visual>
  * @param {string} text
- * @returns {Array<{ name: string, tags: string }>}
+ * @returns {Array<{ name: string, tags: string, aliases: string[] }>}
  */
 export function parseCharSheetScanOutput(text) {
     if (!text || typeof text !== "string") return [];
     const results = [];
     const cleanText = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 
-    const regex = /<Character_Visual\b[^>]*name=["']([^"']+)["'][^>]*>([\s\S]*?)(?:<\/Character_Visual\s*>|$)/gi;
+    const regex = /<Character_Visual\b[^>]*(?:name="((?:\\.|[^"])+)"|name='((?:\\.|[^'])+)')[^>]*>([\s\S]*?)(?:<\/Character_Visual\s*>|$)/gi;
     let match;
     const seen = new Set();
     while ((match = regex.exec(cleanText)) !== null) {
-        const name = (match[1] || "").trim();
-        let tags = (match[2] || "").trim();
+        let rawName = (match[1] || match[2] || "").trim();
+        rawName = rawName.replace(/\\(["'])/g, "$1").trim();
+        let tags = (match[3] || "").trim();
         tags = tags.replace(/```[a-z]*|```/gi, "").trim();
         tags = tags.replace(/^["']|["']$/g, "").trim();
-        if (name && tags && !seen.has(name.toLowerCase())) {
-            seen.add(name.toLowerCase());
-            results.push({ name, tags });
+
+        let canonicalName = rawName;
+        const aliases = [];
+
+        // Extract structured nickname variations: Matthew "Matt", Matthew 'Matt', Matthew (Matt)
+        const nickMatch = rawName.match(/^(.*?)\s*(?:["']([^"']+)["']|\(([^)]+)\))\s*$/);
+        if (nickMatch) {
+            const base = (nickMatch[1] || "").trim();
+            const nick = (nickMatch[2] || nickMatch[3] || "").trim();
+            if (base && nick) {
+                canonicalName = base;
+                aliases.push(nick);
+            }
+        }
+
+        if (canonicalName && tags && !seen.has(canonicalName.toLowerCase())) {
+            seen.add(canonicalName.toLowerCase());
+            results.push({ name: canonicalName, tags, aliases });
         }
     }
     return results;
@@ -911,8 +957,30 @@ export function renderCharacterTagsList(container, s) {
         return;
     }
 
+    // Whole-cast attire lookup: map ws.npcOutfits entries to canonical names using the shared matcher
+    const activeNpcOutfitsByChar = {};
+    if (ws?.npcOutfits) {
+        const aliasesMap = {};
+        for (const cn of names) {
+            if (Array.isArray(tagsMap[cn]?.aliases) && tagsMap[cn].aliases.length > 0) {
+                aliasesMap[cn] = tagsMap[cn].aliases;
+            }
+        }
+        for (const [npcKey, outfit] of Object.entries(ws.npcOutfits)) {
+            if (!outfit) continue;
+            const directMatch = names.find(cn => cn.toLowerCase() === npcKey.toLowerCase());
+            const targetChar = directMatch || resolveCanonicalCharacterName(npcKey, names, aliasesMap);
+            if (targetChar) {
+                activeNpcOutfitsByChar[targetChar] = outfit;
+            } else {
+                activeNpcOutfitsByChar[npcKey] = outfit;
+            }
+        }
+    }
+
     names.forEach(name => {
-        const item = tagsMap[name] || { tags: "", locked: false };
+        const item = tagsMap[name] || { tags: "", locked: false, aliases: [] };
+        if (!Array.isArray(item.aliases)) item.aliases = [];
         const isLocked = Boolean(item.locked);
         const isProvisional = Boolean(item.provisional);
 
@@ -923,18 +991,14 @@ export function renderCharacterTagsList(container, s) {
         const pcName = (ws?.pc?.name || "").trim().toLowerCase();
         const userPersonaName = (typeof substituteParams === "function" ? substituteParams("{{user}}") : "").trim().toLowerCase();
 
-        if (cleanName === "{{user}}" || (pcName && cleanName === pcName) || (userPersonaName && cleanName === userPersonaName)) {
+        if (cleanName === "{{user}}" || (pcName && (cleanName === pcName || isCharacterNameMatch(name, pcName, item.aliases))) || (userPersonaName && (cleanName === userPersonaName || isCharacterNameMatch(name, userPersonaName, item.aliases)))) {
             if (ws?.pc?.outfit) {
                 currentAttire = ws.pc.outfit;
                 isPresentInScene = true;
             }
-        } else if (ws?.npcOutfits) {
-            // E1 (Name Matching): Case-insensitive trimmed lookup against ws.npcOutfits keys
-            const matchedKey = Object.keys(ws.npcOutfits).find(k => k.trim().toLowerCase() === cleanName);
-            if (matchedKey && ws.npcOutfits[matchedKey]) {
-                currentAttire = ws.npcOutfits[matchedKey];
-                isPresentInScene = true;
-            }
+        } else if (activeNpcOutfitsByChar[name]) {
+            currentAttire = activeNpcOutfitsByChar[name];
+            isPresentInScene = true;
         }
 
         const card = $(`
@@ -959,6 +1023,9 @@ export function renderCharacterTagsList(container, s) {
                         : `<span style="color: var(--text-muted); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-shirt"></i> (Not in active scene)</span>`
                     }
                 </div>
+                <div style="margin-bottom: 6px;">
+                    <input type="text" class="ps-modern-input ig-char-aliases-input" data-name="${escapeHtmlAttr(name)}" placeholder="Aliases: Matt, Matty, etc." value="${escapeHtmlAttr((item.aliases || []).join(', '))}" style="width: 100%; box-sizing: border-box; font-size: 0.72rem; padding: 4px 8px;" title="Comma-separated nicknames or alternate names used in story dialogue" />
+                </div>
                 <textarea class="ps-modern-input ig-char-tags-input" data-name="${escapeHtmlAttr(name)}" placeholder="Booru-style physical traits: 1girl, pale skin, blue eyes, long black hair, ponytail..." style="width: 100%; box-sizing: border-box; font-size: 0.75rem; padding: 6px; resize: vertical; min-height: 48px;">${escapeHtmlAttr(item.tags || '')}</textarea>
             </div>
         `);
@@ -974,6 +1041,12 @@ export function renderCharacterTagsList(container, s) {
             delete tagsMap[name];
             saveProfileDebounced();
             renderCharacterTagsList(container, s);
+        });
+
+        card.find('.ig-char-aliases-input').on('input', function () {
+            const rawVal = $(this).val() || "";
+            item.aliases = rawVal.split(",").map(a => a.trim()).filter(Boolean);
+            saveProfileDebounced();
         });
 
         card.find('.ig-char-tags-input').on('input', function () {
@@ -1007,8 +1080,19 @@ export function buildVisualContinuityContext() {
             sceneLines.push(`• ${pcName} (PC) Outfit: ${ws.pc.outfit}`);
         }
         if (ws.npcOutfits && Object.keys(ws.npcOutfits).length > 0) {
+            const charTags = localProfile?.imageGen?.characterTags || {};
+            const canonicalList = Object.keys(charTags);
+            const aliasesMap = {};
+            for (const cn of canonicalList) {
+                if (Array.isArray(charTags[cn]?.aliases)) {
+                    aliasesMap[cn] = charTags[cn].aliases;
+                }
+            }
+
             for (const [npcName, outfit] of Object.entries(ws.npcOutfits)) {
-                if (outfit) sceneLines.push(`• ${npcName} Outfit: ${outfit}`);
+                if (!outfit) continue;
+                const resolved = resolveCanonicalCharacterName(npcName, canonicalList, aliasesMap) || npcName;
+                sceneLines.push(`• ${resolved} Outfit: ${outfit}`);
             }
         }
         if (sceneLines.length > 0) {

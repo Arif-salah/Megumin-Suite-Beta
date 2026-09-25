@@ -9,6 +9,48 @@
 
 import { localProfile } from "../../core/state.js";
 import { getContext } from "../../st.js";
+import { resolveCanonicalCharacterName } from "../../utils/nameMatcher.js";
+
+function getActiveCastNames() {
+    const list = new Set();
+    const aliasesMap = {};
+
+    // 1. Image Gen character tags
+    const charTags = localProfile?.imageGen?.characterTags;
+    if (charTags && typeof charTags === "object") {
+        for (const [name, entry] of Object.entries(charTags)) {
+            if (name) {
+                list.add(name);
+                if (entry && Array.isArray(entry.aliases) && entry.aliases.length > 0) {
+                    aliasesMap[name] = entry.aliases;
+                }
+            }
+        }
+    }
+
+    // 2. NPC Bank
+    const npcs = localProfile?.npcBank?.npcs;
+    if (Array.isArray(npcs)) {
+        for (const n of npcs) {
+            if (n && n.name) list.add(n.name);
+        }
+    }
+
+    // 3. Active character card / group from ST context
+    try {
+        const ctx = typeof getContext === "function" ? getContext() : null;
+        if (ctx?.characters && Array.isArray(ctx.characters)) {
+            if (ctx.characterId !== undefined && ctx.characters[ctx.characterId]?.name) {
+                list.add(ctx.characters[ctx.characterId].name);
+            }
+            if (ctx.groupId !== undefined && ctx.groupId !== null) {
+                ctx.characters.forEach(c => { if (c?.name) list.add(c.name); });
+            }
+        }
+    } catch (e) {}
+
+    return { canonicalList: Array.from(list), aliasesMap };
+}
 
 let _wsHistorySeq = 0;
 function nextHistoryId() {
@@ -159,6 +201,14 @@ export function setWorldStateBootstrap(parsedData, msgIndex = 0) {
 
     const rawText = (parsedData.raw || "").trim();
 
+    const rawNpcOutfits = parsedData.npcOutfits ? JSON.parse(JSON.stringify(parsedData.npcOutfits)) : {};
+    const normalizedNpcOutfits = {};
+    const { canonicalList: bootCanonical, aliasesMap: bootAliases } = getActiveCastNames();
+    for (const [nName, nOutfit] of Object.entries(rawNpcOutfits)) {
+        const resolved = resolveCanonicalCharacterName(nName, bootCanonical, bootAliases) || nName;
+        normalizedNpcOutfits[resolved] = nOutfit;
+    }
+
     const state = {
         rawText,
         dateTime: parsedData.dateTime || "",
@@ -171,7 +221,7 @@ export function setWorldStateBootstrap(parsedData, msgIndex = 0) {
             condition: parsedData.pc?.condition || "",
             carrying: parsedData.pc?.carrying || ""
         },
-        npcOutfits: parsedData.npcOutfits ? JSON.parse(JSON.stringify(parsedData.npcOutfits)) : {},
+        npcOutfits: normalizedNpcOutfits,
         npcs: parsedData.npcs || "",
         threads: parsedData.threads || "",
         bootstrapMsgIndex: msgIndex,
@@ -411,6 +461,7 @@ export function applyWorldStateUpdate(updates, msgIndex = 0) {
     }
 
     if (updates.characters) {
+        const { canonicalList, aliasesMap } = getActiveCastNames();
         for (const [charName, fields] of Object.entries(updates.characters)) {
             const currentPcName = (current.pc?.name || "").toLowerCase();
             const isPc = charName.toLowerCase() === "{{user}}" ||
@@ -424,13 +475,19 @@ export function applyWorldStateUpdate(updates, msgIndex = 0) {
                 if (fields.condition) applyPcField("condition", fields.condition);
                 if (fields.carrying) applyPcField("carrying", fields.carrying);
             } else {
+                let resolvedName = charName;
+                const matched = resolveCanonicalCharacterName(charName, canonicalList, aliasesMap);
+                if (matched) {
+                    resolvedName = matched;
+                }
+
                 if (fields.outfit) {
                     if (!current.npcOutfits) current.npcOutfits = {};
-                    current.npcOutfits[charName] = fields.outfit;
+                    current.npcOutfits[resolvedName] = fields.outfit;
                 }
                 for (const [fName, fVal] of Object.entries(fields)) {
-                    changes.push({ field: `${charName}.${fName}`, before: "", after: fVal });
-                    applied.push({ field: `${charName}.${fName}`, before: "", after: fVal });
+                    changes.push({ field: `${resolvedName}.${fName}`, before: "", after: fVal });
+                    applied.push({ field: `${resolvedName}.${fName}`, before: "", after: fVal });
                 }
             }
         }
@@ -438,8 +495,17 @@ export function applyWorldStateUpdate(updates, msgIndex = 0) {
 
     if (Array.isArray(updates.removedCharacters) && updates.removedCharacters.length > 0) {
         if (current.npcOutfits) {
+            const { aliasesMap } = getActiveCastNames();
             for (const rName of updates.removedCharacters) {
-                delete current.npcOutfits[rName];
+                if (current.npcOutfits[rName] !== undefined) {
+                    delete current.npcOutfits[rName];
+                } else {
+                    const storedKeys = Object.keys(current.npcOutfits);
+                    const matchedKey = resolveCanonicalCharacterName(rName, storedKeys, aliasesMap);
+                    if (matchedKey && current.npcOutfits[matchedKey] !== undefined) {
+                        delete current.npcOutfits[matchedKey];
+                    }
+                }
             }
         }
     }
