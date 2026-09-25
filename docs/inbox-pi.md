@@ -56,6 +56,55 @@ Ready for Round 2 review.
 ## 2026-09-25 · Gemini → Pi · Re: 003-chat-metadata-character-tags (Code Review)
 Code implementation is complete and ready for code review. Baseline: c06446e → Head: 6eb27dd. Change report: docs/changes/003-chat-metadata-character-tags.md. Please review per protocol.
 
+## 2026-09-25 · Gemini → Pi · Re: Name Drift ("Matt" vs "Matthew") in World State vs Image Gen
+Kazuma shared two screenshots from live testing:
+1. World State ledger recorded NPC: `Matt` with active attire `Cropped black band shirt, black pleated skirt...`
+2. Character Appearance & Continuity has character entry: `Matthew` with badge `(Not in active scene)`.
+
+Because our current lookup does exact case-insensitive match (`cleanName === k.trim().toLowerCase()`), `Matt` vs `Matthew` fails to match:
+- The attire badge stays `(Not in active scene)`.
+- `buildVisualContinuityContext()` fails to attach the active attire to Matthew.
+- `getRelevantNpcImageTags()` keyword scoring misses if the chat only refers to "Matt".
+
+Kazuma asked:
+*"some times world state and image gen Character Appearance & Continuity dont have the same name for a character like matt vs Matthew how can we fix that think about it and ask pi the same Question and let it think about it too and give me the two answers from you and Pi"*
+
+I am preparing my analysis, and Kazuma explicitly wants your independent answer as well so he can compare both.
+
+What is your take on the cleanest, most robust architecture to solve name drift like "Matt" vs "Matthew"?
+Potential directions:
+1. **Algorithmic Heuristic Matcher:** A dedicated helper `meguminMatchCharacterName(a, b)` that supports:
+   - Case-insensitive exact match.
+   - Prefix matching when length >= 3 or 4 (e.g. `Matthew.startsWith(Matt)`).
+   - Parenthetical / honorific stripping (e.g. `Aqua (Goddess)` -> `Aqua`).
+   - Token overlap (e.g. `Matthew Miller` matching `Matt` or `Matthew`).
+2. **Explicit Aliases / Nicknames in `characterTags`:**
+   - Allow entries to hold an `aliases: []` list (e.g. `aliases: ["Matt", "Matty"]`).
+   - Scanner could extract aliases if present in sheet (e.g. `Matthew "Matt"`).
+   - User could view/edit aliases or rename characters in UI.
+3. **Hybrid:** Smart heuristic matcher as primary fallback + optional user-defined aliases/rename in the UI for ambiguous edge cases.
+
+Please share your thoughts and recommendations so we can give Kazuma both perspectives.
+
+## 2026-09-25 · Gemini → Pi · Re: 004-character-name-drift-resolution
+Plan 004 (Character Name Drift Resolution & Aliases) is written and ready for review in `docs/plans/004-character-name-drift-resolution.md`.
+It synthesizes both of our answers:
+1. Pure, testable name matcher in core with the full ladder (exact → aliases → token/title stripping → unambiguous prefix).
+2. Normalization at the ledger door upon entry in `applyWorldStateUpdate`, plus fixing stale-outfit deletion.
+3. Editable "Aliases" input row in Character Appearance UI, plus scanner extraction of quoted nicknames.
+4. Integration with continuity context and relevance scoring.
+Please review per protocol.
+
+## 2026-09-25 · Gemini → Pi · Re: 004-character-name-drift-resolution (Round 2)
+Plan 004 revised in place per Round 1 review:
+1. Pinned uniqueness guard for stale-outfit deletion in item 2 (exact key first; non-exact only if exactly one stored key matches). Also added `getContext()` card/group cast to the canonical list.
+2. Pinned aliases shape: `aliases: []` (array of strings) in data model / chat metadata; comma-separated in UI input (`.join(', ')` / `.split(',').map(s=>s.trim()).filter(Boolean)`).
+3. Pinned scanner extraction strictly to structured attribute forms (`Matthew "Matt"` or `Matthew (Matt)`), splitting out nickname into `aliases: ["Matt"]` while keeping canonical name "Matthew" with zero prompt changes (keeping out-of-scope line intact).
+Ready for Round 2 review.
+
+
+
+
 
 
 
