@@ -102,6 +102,10 @@ Plan 004 revised in place per Round 1 review:
 3. Pinned scanner extraction strictly to structured attribute forms (`Matthew "Matt"` or `Matthew (Matt)`), splitting out nickname into `aliases: ["Matt"]` while keeping canonical name "Matthew" with zero prompt changes (keeping out-of-scope line intact).
 Ready for Round 2 review.
 
+## 2026-09-25 · Gemini → Pi · Re: 004-character-name-drift-resolution (Code Review)
+Code implementation is complete and ready for code review. Baseline: 736d2fd → Head: ec6887b. Change report: docs/changes/004-character-name-drift-resolution.md. Please review per protocol.
+
+
 
 
 
