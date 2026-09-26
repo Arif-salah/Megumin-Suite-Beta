@@ -198,6 +198,9 @@ export function initProfile() {
             selectedSampler: "euler",
             compressImages: true,
             steps: 20, cfg: 7.0, denoise: 0.5, clipSkip: 1,
+            // "classic" (the tab as before task 001) or "v2" (plan 006). New installs
+            // start on V2; a profile saved before the switch existed stays Classic.
+            engine: "v2",
             promptTemplate: "illus_cinematic",
             includeExamples: true,
             directLanguage: false,
@@ -344,6 +347,7 @@ export function initProfile() {
     if (!localProfile.toggles) localProfile.toggles = defaults.toggles;
     if (!localProfile.v9Limits) localProfile.v9Limits = defaults.v9Limits;
     if (!localProfile.imageGen) localProfile.imageGen = defaults.imageGen;
+    if (localProfile.imageGen.engine === undefined) localProfile.imageGen.engine = "classic";
     if (localProfile.imageGen.directLanguage === undefined) localProfile.imageGen.directLanguage = false;
     if (localProfile.imageGen.imageCount === undefined) localProfile.imageGen.imageCount = 1;
     if (localProfile.imageGen.promptPrefix === undefined) localProfile.imageGen.promptPrefix = "";

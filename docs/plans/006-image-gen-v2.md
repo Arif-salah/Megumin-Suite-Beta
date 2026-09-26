@@ -230,3 +230,7 @@ Top to bottom:
 ## Open questions
 - **Default page:** Classic for existing profiles (nothing changes until you switch), V2 for new profiles?
 - **Existing task 003/004 tags:** they become V2 looks as they are, including `provisional` → `source: "chat"` and the aliases. OK?
+
+## Progress
+- **Decided (defaults, user said start):** Classic for existing profiles, V2 for new installs; task 003/004 tags become V2 looks as they are.
+- **Phase 1:** `imagegen/` split into `index.js` (tab shell with the Classic | V2 switch and the generation dispatch), `comfy.js` (shared generator) and `classic/ui.js` + `classic/prompt.js`, all cut from the pre-001 file by line range. A scripted check shows every function is byte-identical to `df9e9db` except the two renames and one self-redraw call pointed at the Classic page. `prompts/imageGen.js`, `npc/fields.js` and `npc/data.js` were restored to `df9e9db` (zero diff). `utils/nameMatcher.js` was removed. The V2 page is a placeholder and V2 generation uses the Classic prompt until phase 2.

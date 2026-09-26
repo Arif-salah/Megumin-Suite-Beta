@@ -132,10 +132,9 @@ export const NPC_DEFAULT_FIELDS = [
         id: "imageTags", label: "Image Tags", type: "text", system: "imageTags",
         icon: "fa-tags", color: "#f472b6",
         fixed: true,
-        hidden: true,
         persistent: true, updatable: false,
-        placeholder: "Booru-style appearance tags — managed in Image Generation tab.",
-        hint: "Sent to ComfyUI, managed in Image Generation tab."
+        placeholder: "Booru-style appearance tags — see image_tag_rule. Body and face only.",
+        hint: "Sent to ComfyUI, withheld from the model's text so it does not copy the tag syntax into prose."
     },
     {
         id: "voice", label: "Voice", type: "text",
@@ -227,7 +226,7 @@ export function npcFieldById(id) {
 // The fields that get a row of their own, in order: everything except the name
 // and the vitals, which share the template's header line and render as a badge.
 export function npcBodyFields() {
-    return npcFields().filter(f => f.system !== "name" && f.system !== "vitals" && !f.hidden);
+    return npcFields().filter(f => f.system !== "name" && f.system !== "vitals");
 }
 
 export function npcVitalsFields() {

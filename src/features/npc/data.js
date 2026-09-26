@@ -9,8 +9,6 @@ import { getContext } from "../../st.js";
 import { localProfile } from "../../core/state.js";
 import { memGetCachedKeywords } from "../memory/keywords.js";
 import { escapeRegex } from "../../utils/regex.js";
-import { isCharacterNameMatch } from "../../utils/nameMatcher.js";
-import { getWorldStateCurrent } from "../../state/index.js";
 import { npcFields, npcFieldByRole, npcBodyFields, npcVitalsFields } from "./fields.js";
 
 // -------------------------------------------------------------
@@ -161,14 +159,13 @@ export function npcParseBlock(rawBlock) {
 }
 
 // Scans the chat and extracts Image Tags for relevant NPCs
-// OPTIMIZED: Pre-computes candidate pool from characterTags and npcBank, uses cached keywords and aliases
+// OPTIMIZED: Pre-computes NPC text once, uses cached keywords
 export function getRelevantNpcImageTags() {
     const s = localProfile?.imageGen;
     if (!s || !s.injectNpcTags) return "";
     
-    const hasCharTags = localProfile?.imageGen?.characterTags && Object.keys(localProfile.imageGen.characterTags).length > 0;
-    const hasNpcBank = localProfile?.npcBank?.npcs && localProfile.npcBank.npcs.length > 0;
-    if (!hasCharTags && !hasNpcBank) return "";
+    const nb = localProfile?.npcBank;
+    if (!nb || !nb.npcs || nb.npcs.length === 0) return "";
     
     const context = typeof getContext === 'function' ? getContext() : null;
     if (!context || !context.chat) return "";
@@ -177,76 +174,21 @@ export function getRelevantNpcImageTags() {
     const { keywords } = memGetCachedKeywords(context.chat, 4);
     if (keywords.length === 0) return "";
 
-    const candidateMap = new Map();
-    const pcName = (getWorldStateCurrent()?.pc?.name || "").trim().toLowerCase();
-
-    // 1. Image Gen character tags (including sheet-scanned characters without NPC Bank dossiers)
-    const charTags = localProfile?.imageGen?.characterTags || {};
-    for (const [name, entry] of Object.entries(charTags)) {
-        const cleanLower = (name || "").trim().toLowerCase();
-        if (!cleanLower || cleanLower === "{{user}}" || (pcName && cleanLower === pcName)) continue;
-        const tags = (entry?.tags || "").trim();
-        if (!tags) continue;
-        const aliases = Array.isArray(entry.aliases) ? entry.aliases : [];
-        candidateMap.set(name, {
-            name,
-            tags,
-            aliases,
-            searchTokens: [name, ...aliases]
-        });
-    }
-
-    // 2. NPC Bank NPCs (merge dossier into existing candidates or add new candidates)
-    const npcs = localProfile?.npcBank?.npcs || [];
-    for (const n of npcs) {
-        if (!n || !n.name) continue;
-        const name = n.name.trim();
-        const cleanLower = name.toLowerCase();
-        if (!cleanLower || cleanLower === "{{user}}" || (pcName && cleanLower === pcName)) continue;
-        const dossierText = npcBuildTextFromData(n);
-
-        let existingCand = candidateMap.get(name);
-        if (!existingCand) {
-            for (const cand of candidateMap.values()) {
-                if (isCharacterNameMatch(cand.name, name, cand.aliases)) {
-                    existingCand = cand;
-                    break;
-                }
-            }
-        }
-
-        if (existingCand) {
-            existingCand.searchTokens.push(dossierText);
-        } else {
-            const tags = (n.imageTags || "").trim();
-            if (tags) {
-                candidateMap.set(name, {
-                    name,
-                    tags,
-                    aliases: [],
-                    searchTokens: [name, dossierText]
-                });
-            }
-        }
-    }
-
-    if (candidateMap.size === 0) return "";
-
     let scoredNpcs = [];
-    for (const cand of candidateMap.values()) {
+    // Pre-compute NPC texts ONCE instead of inside each iteration
+    nb.npcs.forEach(n => {
+        if (!n.imageTags || n.imageTags.trim() === "") return; // Skip NPCs with no image tags
+        
         let score = 0;
-        const contentLower = cand.searchTokens.join(" ").toLowerCase();
+        const contentLower = npcBuildTextFromData(n).toLowerCase();
         for (const kw of keywords) {
-            if (contentLower.includes(kw)) {
-                score++;
-            } else if (isCharacterNameMatch(cand.name, kw, cand.aliases)) {
-                score++;
-            }
+            if (contentLower.includes(kw)) score++;
         }
+        
         if (score >= 1) {
-            scoredNpcs.push({ name: cand.name, tags: cand.tags, score });
+            scoredNpcs.push({ name: n.name, tags: n.imageTags, score: score });
         }
-    }
+    });
 
     if (scoredNpcs.length === 0) return "";
     
