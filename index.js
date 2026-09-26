@@ -130,7 +130,7 @@ import {
     renderImageGen, igFetchComfyLists, toggleQuickGenButton, igTestConnection,
     igPopulateWorkflows, igNewWorkflowClick, igDeleteWorkflowClick, igOpenWorkflowEditorClick,
     igManualGenerate, generateImagePromptText, addKazumaRetryButtons, kazumaRetrySweep,
-    igGenerateWithComfy,
+    igGenerateWithComfy, igAutoImageForReply,
 } from "./src/features/imagegen/index.js";
 import { buildBaseDict } from "./src/engine/buildBaseDict.js";
 import { handlePromptInjection } from "./src/engine/injection.js";
@@ -496,6 +496,12 @@ jQuery(async () => {
                 } catch (e) {
                     console.error("[Megumin-Suite] World State update failed", e);
                 }
+
+                // --- AUTOMATIC IMAGE BY CHOMUSUKE ---
+                // After World State, so its read is queued first and the image
+                // uses the newest outfits. Does nothing unless Chomusuke writes images.
+                igAutoImageForReply(receivedId, receivedType, generateImagePromptText)
+                    .catch(e => console.error("[Megumin-Suite] Automatic image failed", e));
 
                 // --- STORY DIRECTOR FEEDBACK & AUTO-EVOLVE ---
                 const sp = localProfile?.storyPlan;

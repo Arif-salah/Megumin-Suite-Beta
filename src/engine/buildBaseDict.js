@@ -20,7 +20,7 @@ import { applyEnhancedDialogue } from "../../data/modes/v10.js";
 import { buildBlocksEnvelope } from "../features/blocks/registry.js";
 import { buildConfigBlock } from "../features/storyconfig/config.js";
 import { npcBuildTextFromData } from "../features/npc/data.js";
-import { imageInjectionNpcTags, imageV2InlineInstruction } from "../features/imagegen/index.js";
+import { imageInjectionNpcTags, imageV2InlineInstruction, imageViaChomusuke } from "../features/imagegen/index.js";
 import { npcBuildDossierPrompt, npcBuildUpdatePrompt } from "../features/npc/fields.js";
 import { memGetCachedKeywords } from "../features/memory/keywords.js";
 import { memGetRelevantVaultEntries } from "../features/memory/index.js";
@@ -405,6 +405,10 @@ export function buildBaseDict(isTokenCount = false) {
             shouldInject = true;
             conditionalText = "CRITICAL INSTRUCTION: ONLY output the <img prompt=\"...\"> tag if the character is explicitly taking a photo, sending a picture, or sharing an image in this exact moment. If not, do NOT output the image tags at all.\n\n";
         }
+
+        // Chomusuke writes the automatic images after the reply (imagegen/auto.js),
+        // so the story model is not asked for an <img> tag at all.
+        if (imageViaChomusuke()) shouldInject = false;
 
         if (shouldInject) {
             const customIg = localProfile.imageGen.customPromptsEnabled ? (localProfile.imageGen.customPrompts || {}) : {};

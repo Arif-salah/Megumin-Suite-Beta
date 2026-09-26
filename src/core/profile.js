@@ -349,6 +349,7 @@ export function initProfile() {
     if (!localProfile.v9Limits) localProfile.v9Limits = defaults.v9Limits;
     if (!localProfile.imageGen) localProfile.imageGen = defaults.imageGen;
     if (localProfile.imageGen.engine === undefined) localProfile.imageGen.engine = "classic";
+    if (localProfile.imageGen.autoPlacement === undefined) localProfile.imageGen.autoPlacement = "end";
     if (!localProfile.imageGen.v2 || typeof localProfile.imageGen.v2 !== "object") {
         localProfile.imageGen.v2 = { style: "tags", shot: "cinematic", extra: "" };
     }

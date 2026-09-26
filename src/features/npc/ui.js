@@ -292,9 +292,13 @@ export function renderNpcBank(c) {
             const chat = context?.chat;
             const msgIndex = (chat && chat.length > 0) ? chat.length - 1 : 0;
             const existingNames = (localProfile.npcBank.npcs || []).map(n => n.name).join(", ");
-            setActiveNpcScanRequest({ chatText, existingNames });
             
-            let rawOutput = await runWithChomusuke("npc", () => generateQuietPrompt({ prompt: "___PS_NPC_SCAN___" }));
+            // Marker set inside the job (Chomusuke runs are queued; set while
+            // waiting, it would hijack the generation running ahead of it).
+            let rawOutput = await runWithChomusuke("npc", () => {
+                setActiveNpcScanRequest({ chatText, existingNames });
+                return generateQuietPrompt({ prompt: "___PS_NPC_SCAN___" });
+            });
             
             let addedCount = 0;
             for (const dossier of meguminFindNpcDossiers(rawOutput)) {
@@ -685,14 +689,18 @@ export function renderNpcList() {
             // built from another chat's story would be worse than not applying it.
             const identity = meguminActiveDataIdentity();
 
-            setActiveNpcUpdateRequest({
+            const updateRequest = {
                 npcName: target.name,
                 npcText: npcBuildTextFromData(target),
                 chatText: getChatForNpcScan(),
                 rules
-            });
+            };
             try {
-                const raw = await runWithChomusuke("npc", () => generateQuietPrompt({ prompt: "___PS_NPC_UPDATE___" }));
+                // Marker set inside the job (Chomusuke runs are queued).
+                const raw = await runWithChomusuke("npc", () => {
+                    setActiveNpcUpdateRequest(updateRequest);
+                    return generateQuietPrompt({ prompt: "___PS_NPC_UPDATE___" });
+                });
                 const cleaned = String(raw || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
                 if (meguminActiveDataIdentity() !== identity) {

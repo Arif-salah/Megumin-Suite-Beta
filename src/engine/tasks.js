@@ -162,6 +162,19 @@ export async function runWithChomusuke(featureKey, task, { force = false } = {})
         return await task();
     }
 
+    // One worker run at a time. Several features now run after every reply
+    // (World State read, the auto image prompt); two runs switching the
+    // connection profile over each other would restore the main profile while
+    // the other is still working. Queued in arrival order, so an image prompt
+    // started after a World State read sees the outfits that read produced.
+    const turn = workerQueue.then(() => runOnWorker(featureKey, task, chomusuke, workerProfileId));
+    workerQueue = turn.catch(() => {});
+    return turn;
+}
+
+let workerQueue = Promise.resolve();
+
+async function runOnWorker(featureKey, task, chomusuke, workerProfileId) {
     // Traffic guard: wait if SillyTavern is currently generating in the main chat
     let waitLoops = 0;
     while (typeof isGenerating === "function" && isGenerating() && waitLoops < 60) {

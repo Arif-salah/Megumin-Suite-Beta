@@ -1003,9 +1003,11 @@ export async function memProcessPendingChunks(isAuto = false) {
             toastr.info(`Extracting State: Messages ${chunkData.id} (${idx + 1}/${totalChunks})...`);
 
             let summaryResult = "";
-            setActiveMemorySummarizationRequest(chunkData.text);
 
+            // Marker set inside the job: Chomusuke runs are queued, and a marker
+            // set while waiting would hijack the generation running ahead of it.
             summaryResult = await runWithChomusuke("memory", async () => {
+                setActiveMemorySummarizationRequest(chunkData.text);
                 return await generateQuietPrompt({ prompt: "___PS_MEMORY_SUMMARIZE___" });
             });
 

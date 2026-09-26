@@ -320,9 +320,18 @@ export function worldExtractMessage(index, { force = false } = {}) {
             const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full" }));
             const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, mode), mode });
             req = { system: sub(built.system), user: sub(built.user), prefill: built.prefill };
-            setActiveWorldExtractRequest(req);
-            out = await runWithChomusuke("worldState", () =>
-                generateQuietPrompt({ prompt: "___PS_WORLD_EXTRACT___", quietPrompt: "___PS_WORLD_EXTRACT___" }));
+            // The marker is set only once this job has the worker. Chomusuke runs
+            // are queued; set while waiting, it would hijack whatever generation
+            // is running ahead of it (an image prompt would get this prompt).
+            const theReq = req;
+            out = await runWithChomusuke("worldState", async () => {
+                setActiveWorldExtractRequest(theReq);
+                try {
+                    return await generateQuietPrompt({ prompt: "___PS_WORLD_EXTRACT___", quietPrompt: "___PS_WORLD_EXTRACT___" });
+                } finally {
+                    setActiveWorldExtractRequest(null);
+                }
+            });
         } catch (e) {
             console.error("[Megumin-Suite] World State side-model read failed", e);
         } finally {

@@ -11,7 +11,7 @@ import { DEFAULT_PROMPTS } from "../../../prompts/index.js";
 import { meguminCleanChatHistoryText } from "../../../engine/chatText.js";
 import { getRelevantNpcImageTags } from "../../npc/data.js";
 
-export async function classicGenerateImagePromptText() {
+export async function classicGenerateImagePromptText({ extraInstruction = "" } = {}) {
     const ig = localProfile.imageGen;
     const chat = getContext().chat;
     const lastMessages = chat.filter(m => !m.is_user && !m.is_system).slice(-5).map(m => {
@@ -48,7 +48,7 @@ export async function classicGenerateImagePromptText() {
         chatText: lastMessages, 
         templateRules: rules, 
         templateExamples: examples, 
-        extraStr: ig.promptExtra || "",
+        extraStr: [ig.promptExtra || "", extraInstruction].filter(Boolean).join("\n"),
         directLanguageStr: directLangStr,
         npcTagsStr: npcTagsStr, // <-- ADD TO REQUEST
         characterSheets: buildCharacterSheets()

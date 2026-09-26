@@ -75,9 +75,11 @@ setImagePromptResolver(p => (imageGenEngine() === "v2" ? v2ResolveForComfy(p) : 
 // ── Generation entry points (dispatch by engine) ─────────────────────────
 
 /** The quiet "write me an image prompt" call behind the manual button. */
-export async function generateImagePromptText() {
-    return imageGenEngine() === "v2" ? v2GenerateImagePromptText() : classicGenerateImagePromptText();
+export async function generateImagePromptText(opts = {}) {
+    return imageGenEngine() === "v2" ? v2GenerateImagePromptText(opts) : classicGenerateImagePromptText(opts);
 }
+
+export { imageViaChomusuke, igAutoImageForReply } from "./auto.js";
 
 /** The NPC tag section for the Classic inline [[img1]] instruction. */
 export function imageInjectionNpcTags() {

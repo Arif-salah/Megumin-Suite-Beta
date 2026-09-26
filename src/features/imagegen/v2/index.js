@@ -66,14 +66,15 @@ function sceneLine() {
     return [s.time && `Time: ${s.time}`, s.location && `Loc: ${s.location}`, s.weather && `Wx: ${s.weather}`].filter(Boolean).join(" | ");
 }
 
-function rules() {
+function rules(extraInstruction = "") {
     const cfg = v2Settings();
-    return sub(renderV2Rules({ style: cfg.style, shot: cfg.shot, extra: cfg.extra }));
+    const extra = [cfg.extra, extraInstruction].filter(s => String(s || "").trim()).join(" ");
+    return sub(renderV2Rules({ style: cfg.style, shot: cfg.shot, extra }));
 }
 
 // ── The manual button ────────────────────────────────────────────────────
 
-export async function v2GenerateImagePromptText() {
+export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) {
     const cfg = v2Settings();
     const story = recentMessages(6)
         .map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`)
@@ -82,7 +83,7 @@ export async function v2GenerateImagePromptText() {
         castList: sub(renderCastList(currentImageCast(), { shot: cfg.shot })),
         scene: sceneLine(),
         story,
-        rules: rules()
+        rules: rules(extraInstruction)
     });
     setActiveImageGenRequest({ v2: { system: sub(built.system), user: built.user } });
     const raw = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });

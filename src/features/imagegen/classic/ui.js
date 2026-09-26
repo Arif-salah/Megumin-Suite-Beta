@@ -99,6 +99,10 @@ export function renderClassicImageGen(c) {
                             <option value="new_msg" ${s.injectMode === 'new_msg' || !s.injectMode ? 'selected' : ''}>New Message (Gallery)</option>
                             <option value="inline" ${s.injectMode === 'inline' ? 'selected' : ''}>Inline (Inside AI Reply)</option>
                         </select>
+                        <select id="ig_auto_placement" class="ps-modern-input" title="Where an image Chomusuke makes goes inside the reply (Inline mode)" style="padding: 8px; font-size: 0.8rem; cursor: pointer; margin-top: 6px; display: ${s.injectMode === 'inline' ? 'block' : 'none'};">
+                            <option value="end" ${s.autoPlacement !== 'random' ? 'selected' : ''}>At the end (above blocks)</option>
+                            <option value="random" ${s.autoPlacement === 'random' ? 'selected' : ''}>Random paragraph</option>
+                        </select>
                     </div>
                     <div style="flex: 1;">
                         <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px;">Image Count</div>
@@ -343,7 +347,11 @@ export function renderClassicImageGen(c) {
         }
     });
 
-    $("#ig_inject_mode").on("change", (e) => { s.injectMode = $(e.target).val(); saveProfileToMemory(); });
+    $("#ig_inject_mode").on("change", (e) => {
+        s.injectMode = $(e.target).val(); saveProfileToMemory();
+        $("#ig_auto_placement").toggle(s.injectMode === "inline");
+    });
+    $("#ig_auto_placement").on("change", (e) => { s.autoPlacement = $(e.target).val(); saveProfileToMemory(); });
     $("#ig_trigger_mode").on("change", (e) => {
         s.triggerMode = $(e.target).val();
         saveProfileToMemory();
