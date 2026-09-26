@@ -88,6 +88,31 @@ test("seeds, timers and phases are applied", () => {
     assert.equal(s.scene.time, "Night", "timers must not touch the scene time");
 });
 
+test("timers: writing one again is a countdown, whatever the count format", () => {
+    let s = run(U("Timer+: Guards arrive at the gate, 3 turns\nTimer+: Aqua's debt collector visits: 5 turns"), base()).state;
+    s = run(U("Timer+: Guards arrive at the gate: 2 turns"), s).state;
+    assert.deepEqual(s.timers, ["Guards arrive at the gate: 2 turns", "Aqua's debt collector visits: 5 turns"]);
+    s = run(U("Timer+: Guards arrive at the gate (1 turn)"), s).state;
+    assert.equal(s.timers[0], "Guards arrive at the gate (1 turn)");
+    s = run(U("Timer+: Guards arrive at the gate in two turns"), s).state;
+    assert.equal(s.timers.length, 2);
+    s = run(U("Timer-: Guards arrive at the gate"), s).state;
+    assert.deepEqual(s.timers, ["Aqua's debt collector visits: 5 turns"]);
+});
+
+test("timers: different subjects never merge", () => {
+    let s = run(U("Timer+: Guards arrive: 2 turns\nTimer+: Guards leave: 4 turns"), base()).state;
+    assert.equal(s.timers.length, 2);
+    s = run(U("Timer+: Guards leave: 3 turns"), s).state;
+    assert.deepEqual(s.timers, ["Guards arrive: 2 turns", "Guards leave: 3 turns"]);
+});
+
+test("removals run before additions within one reply", () => {
+    let s = run(U("Timer+: Rent due: 3 turns"), base()).state;
+    s = run(U("Timer+: Rent due: 1 turn\nTimer-: Rent due: 2 turns"), s).state;
+    assert.deepEqual(s.timers, ["Rent due: 1 turn"]);
+});
+
 test("PC by persona name, {{user}}, PC and 's forms", () => {
     let s = run(U("Kazuma.Position: under the table"), base()).state;
     assert.equal(s.pc.fields.position, "under the table");

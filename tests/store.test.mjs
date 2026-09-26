@@ -315,6 +315,30 @@ test("pending full rewrite clears when a snapshot lands", () => {
     assert.equal(e.store.isPendingFullRewrite("world"), false);
 });
 
+test("timer countdown across two swipes (reported in SillyTavern)", () => {
+    const e = env();
+    receive(e, S("Loc: Apartment\nKazuma.Outfit: hoodie\n+ Matt\nMatt.Outfit: tee\nTimer+: Rent split check due on the fridge counter, 3 turns"));
+    send(e);
+    receive(e, U([
+        "Kazuma.Position: Standing inside the bedroom, near Matt",
+        "Matt.Position: Standing inside Kazuma's bedroom near the foot of the bed, facing Kazuma",
+        "Timer+: Rent split check due on the fridge counter: 2 turns",
+        "Scene: Building"
+    ].join("\n")));
+    assert.deepEqual(world(e).timers, ["Rent split check due on the fridge counter: 2 turns"]);
+
+    swipeNew(e, 2, "<Blocks>\n" + U([
+        "Matt.Position: Standing inside the bedroom near the foot of the bed, held by the wrist, facing Kazuma",
+        "Timer+: Rent split check due on the fridge counter: 1 turn",
+        "Timer-: Rent split check due on the fridge counter: 2 turns",
+        "Scene: Building"
+    ].join("\n")) + "\n</Blocks>");
+    assert.deepEqual(world(e).timers, ["Rent split check due on the fridge counter: 1 turn"]);
+
+    swipeTo(e, 2, 0);
+    assert.deepEqual(world(e).timers, ["Rent split check due on the fridge counter: 2 turns"]);
+});
+
 test("reset clears the module", () => {
     const e = env();
     receive(e, BOOT);

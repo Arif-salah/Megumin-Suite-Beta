@@ -53,6 +53,24 @@ function findListItem(list, value) {
     return hits.length === 1 ? hits[0].idx : -1;
 }
 
+// A timer is a subject plus a count, and the count is the part that changes:
+// "Rent check due, 3 turns" and "Rent check due: 2 turns" are the same timer.
+const COUNT_TAIL = /[\s,:;—–(\[-]*(?:in\s+|about\s+)?(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|a few|few)\s*(?:more\s+)?(?:turns?|repl(?:y|ies)|messages?|scenes?|days?|hours?|minutes?|rounds?)\b.*$/i;
+
+export function timerSubject(text) {
+    return normText(String(text || "").replace(COUNT_TAIL, ""));
+}
+
+// Timers match on their subject first (a countdown), then like any list item.
+function findTimer(list, value) {
+    const subj = timerSubject(value);
+    if (subj.length >= 4) {
+        const hits = list.map((x, idx) => ({ idx, s: timerSubject(x) })).filter(h => h.s === subj);
+        if (hits.length === 1) return hits[0].idx;
+    }
+    return findListItem(list, value);
+}
+
 /**
  * @param {object} ctx { userNames?: string[] } — persona names that mean the PC
  */
@@ -110,6 +128,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
 
     // Items listed under a section header replace that list as a whole.
     const listItems = {};
+    const pendingAdds = [];
 
     const pcName = () => state.pc.name || "{{user}}";
 
@@ -207,15 +226,16 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 if (!LISTS.includes(ch.list)) break;
                 const list = state[ch.list];
                 const label = LIST_LABEL[ch.list];
+                const find = ch.list === "timers" ? findTimer : findListItem;
                 if (ch.op === "item") {
                     (listItems[ch.list] = listItems[ch.list] || []).push(ch.value);
                 } else if (ch.op === "add") {
-                    if (findListItem(list, ch.value) < 0) {
-                        list.push(ch.value);
-                        note(`${label} +`, "", ch.value);
-                    }
+                    // Held back until every removal in this reply has run, so
+                    // "Timer-: X: 2 turns" + "Timer+: X: 1 turn" ends with one
+                    // timer whichever order the model wrote them in.
+                    pendingAdds.push(ch);
                 } else if (ch.op === "remove") {
-                    const i = findListItem(list, ch.value);
+                    const i = find(list, ch.value);
                     if (i >= 0) {
                         const [gone] = list.splice(i, 1);
                         note(`${label} −`, gone, "");
@@ -226,6 +246,25 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 break;
             }
         }
+    }
+
+    for (const ch of pendingAdds) {
+        const list = state[ch.list];
+        const label = LIST_LABEL[ch.list];
+        if (ch.list === "timers") {
+            // Writing a timer again is a countdown: it replaces the old count.
+            const i = findTimer(list, ch.value);
+            if (i >= 0) {
+                const before = list[i];
+                list[i] = ch.value;
+                note(label, before, ch.value);
+                continue;
+            }
+        } else if (findListItem(list, ch.value) >= 0) {
+            continue;
+        }
+        list.push(ch.value);
+        note(`${label} +`, "", ch.value);
     }
 
     for (const [key, items] of Object.entries(listItems)) {

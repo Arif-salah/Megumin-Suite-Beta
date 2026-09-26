@@ -238,7 +238,8 @@ Wx: <new weather>
 Offscreen: <Name> = <where they are / what they are doing>
 Thread+: <new tension>        Thread-: <resolved tension, copied as written>
 Seed+: <foreshadowing detail>   Seed-: <paid-off seed>
-Timer+: <consequence: turns left>   Timer-: <expired timer>
+Timer+: <consequence>: <turns left>   to count a timer down, write it again with the new count; it replaces the old one
+Timer-: <consequence>                 the timer fired or no longer applies
 Arc: <Setup/Escalation/Complication/Crisis/Resolution>
 Scene: <Early Simmer/Building/Midpoint Tension/Climax/Breather>
 - Use names exactly as they appear in <Current_World_State>. {{user}} is written as {{user}}.
@@ -281,7 +282,7 @@ Wx: [weather, temperature, lighting]
 Offscreen: [NPC Name] = [where they are, what they are doing]
 Thread+: [a major tension or open question the story will have to answer, 3 to 5 lines total]
 Seed+: [foreshadowing detail — what it hints at]
-Timer+: [consequence — turns remaining]
+Timer+: [consequence]: [turns remaining]
 Arc: [Setup / Escalation / Complication / Crisis / Resolution]
 Scene: [Early Simmer / Building / Midpoint Tension / Climax / Breather]
 </World_State>
