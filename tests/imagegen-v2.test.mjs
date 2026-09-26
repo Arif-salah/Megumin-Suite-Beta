@@ -32,10 +32,15 @@ test("the look's own count tags never reach the prompt; the model's stay at the 
     assert.ok(!/male focus/.test(r.prompt));
 });
 
-test(".look and .outfit, and their synonyms", () => {
-    assert.equal(R("@Aqua.look, towel").prompt, "long blue hair, blue eyes, slender, towel");
-    assert.equal(R("@Aqua.outfit").prompt, "blue dress, detached sleeves");
-    assert.equal(R("@Aqua.appearance, @Aqua.clothes").prompt, "long blue hair, blue eyes, slender, blue dress, detached sleeves");
+test("@Name is the only placeholder: .look / .outfit written anyway are plain @Name", () => {
+    // The outfit always comes from World State, never from the model.
+    const full = "long blue hair, blue eyes, slender, blue dress, detached sleeves";
+    assert.equal(R("@Aqua.look").prompt, full);
+    assert.equal(R("@Aqua.outfit").prompt, full);
+    assert.equal(R("@Aqua.appearance, @Aqua.clothes").prompt, full);
+    // The reported case: the model's own clothing guess after @Matt.look is not what
+    // it wears; the stored outfit goes in (the guessed tags are the prompt's, not ours).
+    assert.match(R("1boy, @Matt.look, pov").prompt, /^1boy, two-tone black and purple hair, purple eyes, petite, cropped black tee, pleated black mini skirt, pov$/);
     // An unrelated word after a dot is left alone.
     assert.equal(R("@Aqua.").prompt, "long blue hair, blue eyes, slender, blue dress, detached sleeves, .".replace(", .", "."));
 });
@@ -145,10 +150,24 @@ test("cast list: player, in scene, mentioned; POV leaves the player out", () => 
         "@Kazuma: the player",
         "@Matthew (also @Matt): in the scene",
         "@Aqua: in the scene",
-        "@Sara: not in the scene",
+        "@Sara: not in the scene (clothing not noted: describe what they wear)",
         "</Cast>"
     ].join("\n"));
     assert.doesNotMatch(renderCastList(cast, { shot: "pov" }), /Kazuma/);
+});
+
+test("the model describes clothing only for characters with no outfit on file", () => {
+    const list = renderCastList([
+        { name: "Aqua", inScene: true, outfit: "blue dress" },
+        { name: "Wiz", inScene: true, outfit: "" }
+    ]);
+    assert.match(list, /@Aqua: in the scene\n/);
+    assert.match(list, /@Wiz: in the scene \(clothing not noted: describe what they wear\)/);
+    for (const style of ["tags", "natural"]) {
+        const r = renderV2Rules({ style });
+        assert.doesNotMatch(r, /\.look|\.outfit/, "no other placeholder is offered");
+        assert.match(r, /The one exception: when <Cast> says a character's clothing is not noted/);
+    }
 });
 
 test("rules: structure + example + rules + shot + extra, and never off-frame", () => {

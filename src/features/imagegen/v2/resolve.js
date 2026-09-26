@@ -6,10 +6,11 @@
 // point of V2: the ~70% of the prompt that describes the characters never
 // passes through the model, so it cannot drift.
 //
-//   @Aqua          → look, then outfit
-//   @Aqua.look     → look only (the model describes clothing that is different
-//                    right now: a towel, undressing, soaked…)
-//   @Aqua.outfit   → outfit only
+//   @Aqua          → look, then outfit. The only placeholder the model is given:
+//                    the outfit always comes from World State, never from the
+//                    model, so it cannot drift between images.
+//   @Aqua.look / @Aqua.outfit, if a model writes them anyway, are read as plain
+//   @Aqua (the suffix is swallowed so it never reaches ComfyUI).
 //
 // Pure: no SillyTavern, no DOM. The caller builds the cast.
 // ────────────────────────────────────────────────────────────────────────────
@@ -156,12 +157,9 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
         let possessive = "";
         const pos = text.slice(end).match(POSSESSIVE);
         if (pos) { possessive = pos[0]; end += pos[0].length; }
-        let part = "all";
+        const part = "all";
         const suffix = text.slice(end).match(/^\.([A-Za-z]+)/);
-        if (suffix && PART_SYNONYMS[suffix[1].toLowerCase()]) {
-            part = PART_SYNONYMS[suffix[1].toLowerCase()];
-            end += suffix[0].length;
-        }
+        if (suffix && PART_SYNONYMS[suffix[1].toLowerCase()]) end += suffix[0].length;
 
         // Tags: clothing or looks stuck straight onto @Name(…) are the model
         // redescribing what @Name already carries; they go.

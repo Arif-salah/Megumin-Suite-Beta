@@ -15,6 +15,7 @@ export const V2_SHOTS = ["cinematic", "pov", "portrait"];
  * @property {boolean}  [isPc]
  * @property {boolean}  [inScene]
  * @property {boolean}  [mentioned]  absent, but named in the recent text
+ * @property {string}   [outfit]     current outfit; empty = the model describes the clothing
  */
 
 /** <Cast>: the player, who is in the scene, and absent characters just mentioned. */
@@ -28,7 +29,10 @@ export function renderCastList(cast, { shot = "cinematic" } = {}) {
         const aka = (c.aliases || []).filter(Boolean);
         const name = `@${c.name}${aka.length ? ` (also ${aka.map(a => `@${a}`).join(", ")})` : ""}`;
         const where = c.isPc ? "the player" : c.inScene ? "in the scene" : "not in the scene";
-        lines.push(`${name}: ${where}`);
+        // @Name brings the outfit with it. Only with none on file does the model
+        // describe clothing, and then only for this character.
+        const clothing = String(c.outfit || "").trim() ? "" : " (clothing not noted: describe what they wear)";
+        lines.push(`${name}: ${where}${clothing}`);
     }
     return lines.length ? `<Cast>\n${lines.join("\n")}\n</Cast>` : "";
 }

@@ -27,9 +27,8 @@ export const IMAGE_V2_PROMPTS = {
             "Rules:",
             "- [who is in the shot] is the count: 1girl, 1boy, 2girls, 2boys, 1girl 1boy, no humans…",
             "- @Name stands for that character's whole appearance and clothing. Write each @Name once, right after the count, and never again.",
-            "- Never write hair, eyes, face, body or clothing tags for a @Name character.",
+            "- Never write hair, eyes, face, body or clothing tags for a @Name character. The one exception: when <Cast> says a character's clothing is not noted, put their clothing tags right after their @Name.",
             "- Write actions as plain tags without names: \"holding hands\", not \"Mira holding Theo's hand\".",
-            "- If someone's clothing is different right now (a towel, undressing, soaked, torn), write @Name.look instead of @Name, and put the clothing tags right after it.",
             "- Only characters who are in this shot; two at most works best. Use the names from <Cast>.",
             "- No quality tags (masterpiece, best quality…)."
         ].join("\n"),
@@ -43,8 +42,7 @@ export const IMAGE_V2_PROMPTS = {
             "",
             "Rules:",
             "- @Name stands for that character's whole appearance and clothing. Write each @Name once; after that, use he, she or they.",
-            "- Never describe a @Name character's hair, eyes, face, body or clothing.",
-            "- If someone's clothing is different right now (a towel, undressing, soaked, torn), write @Name.look instead of @Name and describe the clothing as it is.",
+            "- Never describe a @Name character's hair, eyes, face, body or clothing. The one exception: when <Cast> says a character's clothing is not noted, describe what they wear.",
             "- Only characters who are in this shot; two at most works best. Use the names from <Cast>."
         ].join("\n")
     },
