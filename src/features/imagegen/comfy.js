@@ -433,10 +433,20 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
         const data = await res.json();
 
         showKazumaProgress("Rendering Image...");
+        // One history check at a time, and only the first "done" answer goes on.
+        // The callback is async: while ComfyUI is busy rendering, checks pile up
+        // unanswered, and when the image lands every one of them used to see it
+        // and post it (17 copies of one image). clearInterval stops NEW ticks,
+        // not the ones already waiting on fetch.
+        let pollBusy = false;
+        let pollDone = false;
         const checkInterval = setInterval(async () => {
+            if (pollBusy || pollDone) return;
+            pollBusy = true;
             try {
                 const h = await (await fetch(`${s.comfyUrl}/history/${data.prompt_id}`)).json();
-                if (h[data.prompt_id]) {
+                if (h[data.prompt_id] && !pollDone) {
+                    pollDone = true;
                     clearInterval(checkInterval);
                     let finalImage = null;
                     for (const nodeId in h[data.prompt_id].outputs) {
@@ -544,7 +554,10 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
                         }
                     }
                 }
-            } catch (e) { }
+            } catch (e) {
+            } finally {
+                pollBusy = false;
+            }
         }, 1000);
     } catch (e) {
         progress.close(); $("#kazuma_progress_overlay").hide();

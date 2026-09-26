@@ -219,14 +219,23 @@ export async function handlePromptInjection(data, type) {
             "role": "system",
             "content": sys
         });
-        messages.push({
-            "role": "user",
-            "content": userTask.replace('{{chatHistory}}', activeImageGenRequest.chatText)
+        let imageUserContent = userTask.replace('{{chatHistory}}', activeImageGenRequest.chatText)
                                .replace('{{templateRules}}', activeImageGenRequest.templateRules)
                                .replace('{{extraStr}}', extraSection)
                                .replace('{{directLanguage}}', activeImageGenRequest.directLanguageStr)
                                .replace('{{npcImageTags}}', activeImageGenRequest.npcTagsStr) // <-- INJECT THEM
-                               .replace('{{templateExamples}}', activeImageGenRequest.templateExamples)
+                               .replace('{{templateExamples}}', activeImageGenRequest.templateExamples);
+        // Character and persona sheets: where the prompt asks for them, otherwise
+        // on top (saved custom prompts predate the token).
+        const sheets = activeImageGenRequest.characterSheets || "";
+        if (imageUserContent.includes('{{characterSheets}}')) {
+            imageUserContent = imageUserContent.replace('{{characterSheets}}', sheets);
+        } else if (sheets) {
+            imageUserContent = `${sheets}\n\n${imageUserContent}`;
+        }
+        messages.push({
+            "role": "user",
+            "content": imageUserContent
         });
         messages.push({
             "role": "system",

@@ -4,7 +4,7 @@
 // shown to it when "inject NPC tags" is on.
 // ────────────────────────────────────────────────────────────────────────────
 
-import { getContext, generateQuietPrompt } from "../../../st.js";
+import { getContext, generateQuietPrompt, substituteParams } from "../../../st.js";
 import { localProfile } from "../../../core/state.js";
 import { setActiveImageGenRequest } from "../../../core/activeRequests.js";
 import { DEFAULT_PROMPTS } from "../../../prompts/index.js";
@@ -42,7 +42,7 @@ export async function classicGenerateImagePromptText() {
     if (!ig.includeExamples) examples = "";
 
     let directLangStr = ig.directLanguage ? "**DIRECT LANGUAGE:** Use exact Booru tags only. \"naked\" not \"wearing nothing.\" \"erection\" not \"visible arousal.\"\n\n**NSFW TAG REFERENCE (use when scene is explicit):**\nBody: naked, nude, topless, exposed nipples, small breasts, medium breasts, large breasts, spread legs, ass, erection, veins, veiny penis\nActions: hetero, sex, vaginal, anal, oral, fellatio, after fellatio, paizuri, straddling, riding, missionary, doggystyle, cowgirl position, moaning, open mouth, tongue out, ahegao, clenching teeth\nFluids: cum, cum on body, cum on breasts, cum on face, cum on hair, cum on tongue, cum in mouth, cum inside, ejaculation, facial, saliva, sweat\nState: flushed face, heavy breathing, trembling, crying with eyes open, half-closed eyes, solo focus" : "";
-    let npcTagsStr = getRelevantNpcImageTags(); // <-- GET THE TAGS
+    let npcTagsStr = getRelevantNpcImageTags({ force: true }); // <-- GET THE TAGS (manual: whenever there are any)
 
     setActiveImageGenRequest({
         chatText: lastMessages, 
@@ -50,11 +50,42 @@ export async function classicGenerateImagePromptText() {
         templateExamples: examples, 
         extraStr: ig.promptExtra || "",
         directLanguageStr: directLangStr,
-        npcTagsStr: npcTagsStr // <-- ADD TO REQUEST
+        npcTagsStr: npcTagsStr, // <-- ADD TO REQUEST
+        characterSheets: buildCharacterSheets()
     });
 
     let rawOutput = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
     return rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+}
+
+/**
+ * The card description(s) and the persona, so the image prompt knows what the
+ * characters look like instead of guessing from the last few messages. In a
+ * group chat, every member's description.
+ */
+export function buildCharacterSheets() {
+    const ctx = getContext();
+    const sub = t => { try { return substituteParams(t); } catch (e) { return t; } };
+    const clean = t => String(t || "").trim();
+    const parts = [];
+    const sheet = ch => {
+        const desc = clean(ch && ch.description);
+        if (desc) parts.push(`<character_sheet name="${ch.name}">\n${sub(desc)}\n</character_sheet>`);
+    };
+    if (ctx.groupId !== undefined && ctx.groupId !== null) {
+        const group = (ctx.groups || []).find(g => g.id === ctx.groupId);
+        for (const avatar of (group && group.members) || []) {
+            sheet((ctx.characters || []).find(c => c.avatar === avatar));
+        }
+    } else {
+        sheet((ctx.characters || [])[ctx.characterId]);
+    }
+    const persona = clean(sub("{{persona}}"));
+    if (persona && persona !== "{{persona}}") {
+        parts.push(`<persona_sheet name="${sub("{{user}}")}">\n${persona}\n</persona_sheet>`);
+    }
+    if (!parts.length) return "";
+    return "Use these sheets for what each character looks like:\n\n" + parts.join("\n\n");
 }
 
 /** The NPC tag section for the inline [[img1]] instruction (Classic). */
