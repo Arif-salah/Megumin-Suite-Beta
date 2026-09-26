@@ -178,23 +178,19 @@ export function stateOnMessageReceived(messageId, type) {
     return recorded.length > 0;
 }
 
-// Swiping to a swipe that was never recorded (older than this feature, or an
-// alternate greeting) parses it now. A swipe still being generated has no
-// block yet and is left to MESSAGE_RECEIVED.
+// Swiping switches which swipe's changes count; a swipe that was never
+// recorded (older than this feature, or an alternate greeting) is parsed now.
+// A swipe being generated is left to MESSAGE_RECEIVED — see store.onSwiped for
+// why its text must not be read here.
 export function stateOnSwiped(messageId) {
     if (!inPlay()) return false;
-    stateStore.reconcile();
-    if (!repliesUpdate()) return true;
     const chat = adapter.getChat();
     const index = typeof messageId === "number" ? messageId : chat.length - 1;
-    const msg = chat[index];
-    if (!msg || msg.is_user) return true;
-    const uid = msg.extra?.megumin_uid;
-    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
-    const has = uid && stateStore.root()?.journal.some(e => e.uid === uid && e.swipe === swipe && e.module === "world");
-    if (!has && worldModule.parse(String(msg.mes || ""))) {
-        stateStore.recordMessage(index, { expect: false, moduleIds: ["world"] });
+    if (!repliesUpdate()) {
+        stateStore.reconcile();
+        return true;
     }
+    stateStore.onSwiped(index, { moduleIds: ["world"] });
     return true;
 }
 

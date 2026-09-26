@@ -205,6 +205,35 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
         return { recorded };
     }
 
+    /**
+     * A swipe was shown. Squares the journal with it, and parses a swipe that was
+     * never recorded (older than the store, or an alternate greeting).
+     *
+     * When ST swipes to generate a NEW reply it moves swipe_id to a slot that does
+     * not exist yet and leaves `mes` holding the PREVIOUS swipe's text until the
+     * new reply arrives — and builds the prompt in between. Reading `mes` here
+     * would file the old reply's changes under the new swipe and feed them into
+     * that very prompt. So only the swipe's own slot is ever read.
+     */
+    function onSwiped(index, { moduleIds } = {}) {
+        reconcile();
+        const r = root();
+        const msg = chat()[index];
+        if (!r || !msg || msg.is_user) return false;
+        const swipe = currentSwipe(msg);
+        const text = Array.isArray(msg.swipes) ? msg.swipes[swipe] : msg.mes;
+        if (typeof text !== "string") return false;      // still generating
+        const uid = msg.extra?.megumin_uid;
+        let recorded = false;
+        for (const mid of moduleIds || Object.keys(modules)) {
+            const has = uid && r.journal.some(e => e.uid === uid && e.swipe === swipe && e.module === mid && e.source !== "user");
+            if (has || !modules[mid].parse(text)) continue;
+            recordMessage(index, { expect: false, moduleIds: [mid] });
+            recorded = true;
+        }
+        return recorded;
+    }
+
     /** A swipe was deleted: its entries go, and later swipes shift down one. */
     function onSwipeDeleted(messageIndex, swipeId) {
         const r = root();
@@ -457,7 +486,7 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
     }
 
     return {
-        root, stamp, stampAll, recordMessage, onSwipeDeleted, reconcile,
+        root, stamp, stampAll, recordMessage, onSwiped, onSwipeDeleted, reconcile,
         timeline, getState, getStateAt, getStep, hasState, activeEntries,
         addUserEntry, setDisabled, removeUserEntry, reset,
         setPendingFullRewrite, isPendingFullRewrite, importFromChat,

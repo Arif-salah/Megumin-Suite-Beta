@@ -34,25 +34,32 @@ function receive(e, text) {
 }
 function send(e, text = "hi") { e.chat.push(user(text)); }
 
-// Swipe right past the last swipe: ST clones the current extra into the new one.
-function swipeNew(e, idx, text) {
+// Swipe right past the last swipe, in ST's own order (script.js swipe()):
+// syncMesToSwipe, swipe_id moves to a slot that does NOT exist yet while `mes`
+// still holds the OLD reply, MESSAGE_SWIPED fires, the prompt is built, and
+// only when the reply lands is the slot filled (extra cloned) and
+// MESSAGE_RECEIVED fired. `atPrompt` runs where the prompt is built.
+function swipeNew(e, idx, text, atPrompt) {
     const m = e.chat[idx];
+    m.swipes[m.swipe_id] = m.mes;
     m.swipe_info[m.swipe_id].extra = structuredClone(m.extra);
-    m.swipes.push(text);
-    m.swipe_info.push({ extra: structuredClone(m.extra) });
-    m.swipe_id = m.swipes.length - 1;
+    m.swipe_id = m.swipes.length;
+    e.store.onSwiped(idx);                         // MESSAGE_SWIPED
+    if (atPrompt) atPrompt();                      // Generate('swipe') builds the prompt
     m.mes = text;
-    m.extra = structuredClone(m.extra);
-    e.store.reconcile();
-    e.store.recordMessage(idx, { expect: true });
+    m.swipes[m.swipe_id] = text;
+    m.swipe_info[m.swipe_id] = { extra: structuredClone(m.extra) };
+    e.store.recordMessage(idx, { expect: true });  // MESSAGE_RECEIVED
 }
+// Swipe to an existing swipe (loadFromSwipeId), then MESSAGE_SWIPED.
 function swipeTo(e, idx, id) {
     const m = e.chat[idx];
+    m.swipes[m.swipe_id] = m.mes;
     m.swipe_info[m.swipe_id].extra = structuredClone(m.extra);
     m.swipe_id = id;
     m.mes = m.swipes[id];
     m.extra = structuredClone(m.swipe_info[id].extra);
-    e.store.reconcile();
+    e.store.onSwiped(idx);
 }
 function deleteSwipe(e, idx, id) {
     const m = e.chat[idx];
@@ -101,11 +108,43 @@ test("while a new swipe is generating, the prompt sees the state BEFORE that mes
     const e = env();
     receive(e, BOOT); send(e);
     receive(e, U("Aqua.Outfit: towel"));
-    const m = e.chat[2];
-    m.swipes.push(""); m.swipe_info.push({ extra: structuredClone(m.extra) });
-    m.swipe_id = 1; m.mes = ""; m.extra = structuredClone(m.extra);
-    e.store.reconcile();
+    let atPrompt = null;
+    swipeNew(e, 2, U("Aqua.Mood: sleepy"), () => { atPrompt = structuredClone(aqua(e)); });
+    assert.equal(atPrompt.fields.outfit, "blue dress", "the swiped-away reply must not reach the prompt");
     assert.equal(aqua(e).fields.outfit, "blue dress");
+    assert.equal(aqua(e).fields.mood, "sleepy");
+});
+
+test("timer countdown: a swipe's prompt shows the count from before the swiped reply (reported)", () => {
+    const e = env();
+    receive(e, S(["Loc: Apartment", "+ Matt", "Timer+: Rent split check due on the fridge counter: 3 turns"].join("\n")));
+    send(e);
+    receive(e, U("Timer+: Rent split check due on the fridge counter: 2 turns"));
+    assert.deepEqual(world(e).timers, ["Rent split check due on the fridge counter: 2 turns"]);
+    let promptTimers = null;
+    swipeNew(e, 2, U("Timer+: Rent split check due on the fridge counter: 2 turns"),
+        () => { promptTimers = [...world(e).timers]; });
+    assert.deepEqual(promptTimers, ["Rent split check due on the fridge counter: 3 turns"]);
+    assert.deepEqual(world(e).timers, ["Rent split check due on the fridge counter: 2 turns"]);
+    // A third swipe: its prompt still starts from 3, not from either sibling.
+    swipeNew(e, 2, U("No changes"), () => { promptTimers = [...world(e).timers]; });
+    assert.deepEqual(promptTimers, ["Rent split check due on the fridge counter: 3 turns"]);
+    assert.deepEqual(world(e).timers, ["Rent split check due on the fridge counter: 3 turns"]);
+});
+
+test("swiping to a swipe recorded before the store existed parses it; generating swipes are never read", () => {
+    const e = env();
+    receive(e, BOOT); send(e);
+    const m = ai(U("Aqua.Outfit: towel"));
+    m.swipes.push(U("Aqua.Outfit: kimono"));
+    m.swipe_info.push({ extra: {} });
+    e.chat.push(m);
+    e.store.recordMessage(2, { expect: true });
+    assert.equal(aqua(e).fields.outfit, "towel");
+    swipeTo(e, 2, 1);                                // never recorded: parsed on arrival
+    assert.equal(aqua(e).fields.outfit, "kimono");
+    swipeTo(e, 2, 0);
+    assert.equal(aqua(e).fields.outfit, "towel");
 });
 
 test("delete a swipe: later swipes shift down and stay correct", () => {
