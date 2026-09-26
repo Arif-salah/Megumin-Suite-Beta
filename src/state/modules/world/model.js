@@ -83,8 +83,45 @@ function isPcName(state, who, ctx) {
     return (ctx.userNames || []).some(n => n && nameKey(n) === k);
 }
 
-function castEntry(state, name, seq, createPresent) {
+/**
+ * The cast key a name refers to: the character's own name first, then any
+ * nickname they carry ('Matthew "Matt"' is found by "Matt" too). Unknown names
+ * map to their own key, so a new character is created under it.
+ */
+export function resolveCastKey(state, name) {
     const k = nameKey(name);
+    if (!k || !state || !state.cast || state.cast[k]) return k;
+    for (const [key, c] of Object.entries(state.cast)) {
+        if ((c.aliases || []).some(a => nameKey(a) === k)) return key;
+    }
+    return k;
+}
+
+// Gives a character their nicknames. If one of those nicknames already has a
+// record of its own (the story said "Matt" before it ever said "Matthew"),
+// that record IS this character: it is taken over rather than left as a twin.
+function adoptAliases(state, entry, aliases) {
+    if (!Array.isArray(aliases) || !aliases.length) return;
+    entry.aliases = entry.aliases || [];
+    const ownKey = nameKey(entry.name);
+    for (const a of aliases) {
+        const ak = nameKey(a);
+        if (!ak || ak === ownKey) continue;
+        if (!entry.aliases.some(x => nameKey(x) === ak)) entry.aliases.push(a);
+        const twin = state.cast[ak];
+        if (twin && twin !== entry) {
+            entry.fields = { ...twin.fields, ...entry.fields };
+            if (!entry.offscreen && twin.offscreen) entry.offscreen = twin.offscreen;
+            if (twin.present) entry.present = true;
+            entry.lastSeenSeq = Math.max(entry.lastSeenSeq || 0, twin.lastSeenSeq || 0);
+            for (const x of twin.aliases || []) if (!entry.aliases.some(y => nameKey(y) === nameKey(x))) entry.aliases.push(x);
+            delete state.cast[ak];
+        }
+    }
+}
+
+function castEntry(state, name, seq, createPresent) {
+    const k = resolveCastKey(state, name);
     if (!state.cast[k]) {
         state.cast[k] = { name, present: createPresent, fields: {}, offscreen: "", lastSeenSeq: seq };
         return { entry: state.cast[k], created: true };
@@ -180,6 +217,9 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
             case "enter": {
                 if (isPcName(state, ch.who, ctx)) break;
                 const { entry } = castEntry(state, ch.who, seq, false);
+                const wasPresent = entry.present;
+                adoptAliases(state, entry, ch.aliases);
+                if (wasPresent) entry.present = true;
                 entry.lastSeenSeq = seq;
                 if (!entry.present) {
                     entry.present = true;
@@ -203,7 +243,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
             }
             case "forget": {
                 // Editor only: a character removed outright, not just out of the scene.
-                const k = nameKey(ch.who);
+                const k = resolveCastKey(state, ch.who);
                 if (state.cast[k]) {
                     const gone = state.cast[k].name;
                     delete state.cast[k];
@@ -300,5 +340,11 @@ export function presentCast(state) {
 
 /** Looks a character up by any spelling of their name. */
 export function findCast(state, name) {
-    return (state && state.cast && state.cast[nameKey(name)]) || null;
+    return (state && state.cast && state.cast[resolveCastKey(state, name)]) || null;
+}
+
+/** 'Matthew "Matt"' — the name the model and the card should see. */
+export function castDisplayName(c) {
+    const a = (c && c.aliases) || [];
+    return a.length ? `${c.name} ${a.map(x => `"${x}"`).join(" ")}` : (c ? c.name : "");
 }

@@ -162,7 +162,7 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
      *   parsed — use this result instead of parsing the message text (side model);
      *            null records a missing update.
      */
-    function recordMessage(index, { source = "reply", expect = false, moduleIds, swipe: forSwipe, parsed: given } = {}) {
+    function recordMessage(index, { source = "reply", expect = false, moduleIds, swipe: forSwipe, parsed: given, raw } = {}) {
         const r = root();
         const msg = chat()[index];
         if (!r || !msg || msg.is_user) return { recorded: [] };
@@ -190,6 +190,9 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
                 module: mid,
                 source,
                 parsed: parsed || { kind: "delta", changes: [], skipped: [], noChanges: false },
+                // The text the entry was parsed from when it is not the message
+                // itself (a side model's answer), so a better parser can redo it.
+                ...(typeof raw === "string" ? { raw } : {}),
                 missing: !parsed,
                 orphan: false,
                 disabled: false
@@ -236,6 +239,44 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
             recorded = true;
         }
         return recorded;
+    }
+
+    /**
+     * Entries keep their parsed changes, so a parser fix would never reach them.
+     * When a module's parser version goes up, every entry is parsed again once,
+     * from its message's swipe text (or the side model's stored answer). Manual
+     * edits and entries whose text is gone are left as they are.
+     * @returns {number} entries re-parsed
+     */
+    function reparseStale(moduleId) {
+        const r = root();
+        const mod = modules[moduleId];
+        if (!r || !mod) return 0;
+        const want = mod.version || 1;
+        r.parserVersion = r.parserVersion || {};
+        if ((r.parserVersion[moduleId] || 1) >= want) return 0;
+        const byUid = new Map();
+        for (const m of chat()) if (m?.extra?.megumin_uid) byUid.set(m.extra.megumin_uid, m);
+        let n = 0;
+        for (const e of r.journal) {
+            if (e.module !== moduleId || e.source === "user") continue;
+            let text = typeof e.raw === "string" ? e.raw : null;
+            if (text == null) {
+                const m = byUid.get(e.uid);
+                if (!m) continue;
+                if (Array.isArray(m.swipes) && typeof m.swipes[e.swipe] === "string") text = m.swipes[e.swipe];
+                else if (currentSwipe(m) === e.swipe) text = String(m.mes || "");
+            }
+            if (text == null) continue;
+            const p = mod.parse(text);
+            if (!p) continue;
+            e.parsed = p;
+            e.missing = false;
+            n++;
+        }
+        r.parserVersion[moduleId] = want;
+        changed();
+        return n;
     }
 
     /** A swipe was deleted: its entries go, and later swipes shift down one. */
@@ -519,7 +560,7 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
     }
 
     return {
-        root, stamp, stampAll, recordMessage, onSwiped, onSwipeDeleted, reconcile,
+        root, stamp, stampAll, recordMessage, onSwiped, onSwipeDeleted, reconcile, reparseStale,
         timeline, getState, getStateAt, getStep, getEntryFor, listEntries, hasState, activeEntries,
         addUserEntry, setDisabled, removeUserEntry, reset,
         setPendingFullRewrite, isPendingFullRewrite, importFromChat,

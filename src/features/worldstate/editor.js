@@ -62,7 +62,7 @@ function renderStateView(state) {
     const person = c => `
         <div class="meg-wsed-person ${c.present ? "" : "is-away"}" data-name="${esc(c.name)}">
             <div class="meg-wsed-person-head">
-                <b>${esc(c.name)}</b>
+                <b>${esc(c.name)}</b>${(c.aliases || []).map(a => `<span class="meg-wsed-tag">"${esc(a)}"</span>`).join("")}
                 <select class="ps-modern-input meg-wsed-status" data-who="${esc(c.name)}">
                     <option value="in" ${c.present ? "selected" : ""}>In the scene</option>
                     <option value="away" ${c.present ? "" : "selected"}>Away</option>

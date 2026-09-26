@@ -256,7 +256,7 @@ export function buildBlocksEnvelope(dict) {
 
     const header = [
         "## At the end of your response, output exactly one <Blocks> section.",
-        "Put every block inside it, in this order, each in its own tag. Do not add tags that are not listed. Do not nest blocks inside each other. Close every tag you open. Never wrap a block in <details> or <summary> — the interface draws the header and the fold itself."
+        "Put every block inside it, in this order, each in its own tag. Do not add tags that are not listed. Do not nest blocks inside each other. Close every tag you open. Never wrap a block in <details> or <summary>; write each block as its plain tag."
     ].join("\n");
 
     const rulesText = rules.length ? `\n\n${rules.join("\n\n")}` : "";

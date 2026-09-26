@@ -344,7 +344,7 @@ export function worldExtractMessage(index, { force = false } = {}) {
         let cleaned = String(out || "").replace(/<think\b[^>]*>[\s\S]*?(<\/think\s*>|$)/gi, "").trim();
         if (cleaned && req && !/<World_(State|Update)\b/i.test(cleaned)) cleaned = req.prefill + cleaned;
         const parsed = cleaned ? worldModule.parse(cleaned) : null;
-        stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe, parsed: parsed || null });
+        stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe, parsed: parsed || null, raw: cleaned });
         if (!parsed) {
             toastr.warning("Chomusuke gave no usable World State update for that reply. Use Read again on its card.", "Megumin Suite");
         } else if (parsed.skipped.length) {
@@ -465,6 +465,8 @@ export function stateOnChatLoaded() {
     if (!inPlay()) return false;
     if (worldEnabled()) stateStore.stampAll();
     stateStore.reconcile();
+    const redone = stateStore.reparseStale("world");
+    if (redone) console.log(`[Megumin-Suite] World State: re-read ${redone} entr${redone === 1 ? "y" : "ies"} with the improved parser.`);
     if (worldEnabled() && !stateStore.root()?.imported?.world) {
         const n = stateStore.importFromChat("world");
         if (n > 0) {

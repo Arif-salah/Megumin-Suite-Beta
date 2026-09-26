@@ -12,7 +12,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { nameKey } from "./parse.js";
-import { fieldLabel, presentCast } from "./model.js";
+import { fieldLabel, presentCast, castDisplayName } from "./model.js";
 
 export const PC_FIELDS = ["outfit", "position", "condition", "carrying"];
 export const NPC_FIELDS = ["outfit", "position", "mood", "agenda", "secret"];
@@ -48,8 +48,10 @@ export function findReturning(state, recentText) {
     if (!text.trim()) return [];
     return Object.values(state?.cast || {}).filter(c => {
         if (c.present) return false;
-        const k = nameKey(c.name);
-        return k && text.includes(" " + k + " ");
+        return [c.name, ...(c.aliases || [])].some(n => {
+            const k = nameKey(n);
+            return k && text.includes(" " + k + " ");
+        });
     });
 }
 
@@ -86,7 +88,7 @@ export function renderWorldForPrompt(state, opts = {}) {
     lines.push("Present");
     if (!present.length) lines.push("  (no one else)");
     for (const c of present) {
-        lines.push(`  ${c.name}`);
+        lines.push(`  ${castDisplayName(c)}`);
         for (const f of orderedFields(c.fields, NPC_FIELDS).filter(keep)) {
             lines.push(`    ${fieldLabel(f)}: ${c.fields[f]}`);
         }
@@ -106,7 +108,7 @@ export function renderWorldForPrompt(state, opts = {}) {
         for (const c of returning) {
             const bits = orderedFields(c.fields, NPC_FIELDS).filter(keep).map(f => `${fieldLabel(f)}: ${c.fields[f]}`);
             if (c.offscreen) bits.push(`last seen: ${c.offscreen}`);
-            lines.push(`  ${c.name}${bits.length ? " | " + bits.join(" | ") : ""}`);
+            lines.push(`  ${castDisplayName(c)}${bits.length ? " | " + bits.join(" | ") : ""}`);
         }
     }
 
@@ -227,7 +229,7 @@ export function renderWorldCard(state, opts = {}) {
     if (present.length) {
         out.push("", "---", "", "**👥 NPCs Present:**");
         for (const c of present) {
-            out.push(`**${c.name}:**`);
+            out.push(`**${castDisplayName(c)}:**`);
             for (const f of orderedFields(c.fields, NPC_FIELDS)) out.push(`* *${CARD_LABEL[f] || fieldLabel(f)}:* ${c.fields[f]}`);
             out.push("");
         }
@@ -307,8 +309,11 @@ export function renderWorldExtractPrompt({ notes, exchange, mode }) {
         "You are a continuity clerk for an ongoing roleplay. You read the latest exchange and note what it changed: " +
         "the physical scene, who is present and how they look, and the story's slow deep currents. " +
         "You never write story, never explain, and never add facts the exchange does not state or clearly show.";
+    const clerkNotes = notes
+        ? notes.replace(/<!--[\s\S]*?-->/, "<!-- Where the story stood before the latest exchange. -->")
+        : "<Current_World_State>\n(Nothing has been noted about this story yet.)\n</Current_World_State>";
     const user = [
-        notes || "<Current_World_State>\n(Nothing has been noted about this story yet.)\n</Current_World_State>",
+        clerkNotes,
         "",
         "<Latest_Exchange>",
         String(exchange || "").trim(),

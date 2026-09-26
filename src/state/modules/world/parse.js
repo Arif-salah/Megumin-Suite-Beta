@@ -79,10 +79,19 @@ function customFieldKey(label) {
     return FIELD_SYNONYMS[l] || l;
 }
 
-// "🧍 Aqua (the goddess)" → { name: "Aqua", note: "the goddess", pc: true }
+// "🧍 Aqua (the goddess)" → { name: "Aqua", note: "the goddess", pc: true, aliases: [] }
+// 'Matthew "Matt"'        → { name: "Matthew", aliases: ["Matt"] }
+// A quoted nickname is a second name for the same person, not part of the name:
+// stripping the quotes used to make "Matthew Matt", a stranger to "Matt.Outfit".
 function cleanName(raw) {
     let s = String(raw || "").trim();
     const pc = s.includes("🧍");
+    const aliases = [];
+    const nick = s.match(/^(.+?)\s+["“‘']([^"”’']{1,32})["”’']\s*(\(.*\)|\[.*\])?\s*$/);
+    if (nick && nick[1].trim()) {
+        aliases.push(nick[2].trim());
+        s = (nick[1] + (nick[3] ? " " + nick[3] : "")).trim();
+    }
     s = s.replace(/[^\p{L}\p{N}\s'{}().,&\[\]-]/gu, "").trim();
     let note = "";
     const paren = s.match(/^(.*?)\s*[(\[]([^)\]]*)[)\]]?\s*$/);
@@ -93,7 +102,14 @@ function cleanName(raw) {
     s = s.replace(/^["'“”‘’]+|["'“”‘’.,:;]+$/g, "").trim();
     if (!s || s.length > 48 || s.split(/\s+/).length > 6) return null;
     if (!/^[\p{L}{]/u.test(s)) return null;
-    return { name: s, note, pc };
+    return { name: s, note, pc, aliases: aliases.filter(a => a.toLowerCase() !== s.toLowerCase()) };
+}
+
+// An enter change, carrying any nickname the name came with.
+function enterChange(cn, extra = {}) {
+    const ch = { type: "enter", who: cn.name, ...extra };
+    if (cn.aliases && cn.aliases.length) ch.aliases = cn.aliases;
+    return ch;
 }
 
 function isPlaceholder(v) {
@@ -353,12 +369,12 @@ function parseLine({ t, bullet }, ctx, out) {
                 ctx.section = "pc";
                 return push(out, { type: "pcname", name: cn.name });
             }
-            return push(out, { type: "enter", who: cn.name, implicit: true });
+            return push(out, enterChange(cn, { implicit: true }));
         }
 
         // Compact NPC line inside the NPC section: "Aqua: blue dress | by the bar"
         if (cn && value && ctx.section === "npcs") {
-            push(out, { type: "enter", who: cn.name, implicit: true });
+            push(out, enterChange(cn, { implicit: true }));
             ctx.who = cn.name;
             return parseCompactCells(cn.name, value, out);
         }
@@ -403,7 +419,7 @@ function parseArrival(rest, ctx, out) {
     const tail = colon >= 0 ? rest.slice(colon + 1).trim() : "";
     const cn = cleanName(namePart);
     if (!cn) return false;
-    push(out, { type: "enter", who: cn.name });
+    push(out, enterChange(cn));
     ctx.who = cn.name;
     ctx.section = "npcs";
     if (tail && !skipValue(tail)) {
