@@ -251,7 +251,8 @@ export function initProfile() {
                 npc: true,
                 banList: true,
                 imageGen: true,
-                styleGen: true
+                styleGen: true,
+                worldState: true
             }
         },
         // Settings only. The World State itself lives in the chat file
@@ -494,9 +495,16 @@ export function initProfile() {
                 npc: true,
                 banList: true,
                 imageGen: true,
-                styleGen: true
+                styleGen: true,
+                worldState: true
             };
         }
+    }
+    // A feature added after the profile was saved: on by default. The toggle in
+    // the Chomusuke tab flips with `!value`, so a missing key would click to
+    // true and never turn off.
+    if (localProfile.chomusuke?.features && localProfile.chomusuke.features.worldState === undefined) {
+        localProfile.chomusuke.features.worldState = true;
     }
     // Prompt blocks are stored as a diff against DEFAULT_PROMPTS. Put the untouched keys
     // back before anything reads them. Runs after the patching above has guaranteed each

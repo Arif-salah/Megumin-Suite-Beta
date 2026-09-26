@@ -155,22 +155,26 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
      * Parses one message and stores what it changed, replacing whatever the same
      * message + swipe produced before (continue, edit, reparse).
      * @param {number} index
-     * @param {{ source?: string, expect?: boolean|Record<string, boolean>, moduleIds?: string[] }} [opts]
+     * @param {{ source?: string, expect?: boolean|Record<string, boolean>, moduleIds?: string[], swipe?: number, parsed?: object|null }} [opts]
      *   expect — the model was asked for this module's block, so a missing one is recorded as `missing`.
+     *   swipe  — file under this swipe instead of the one showing (a side-model
+     *            result can land after the user has swiped elsewhere).
+     *   parsed — use this result instead of parsing the message text (side model);
+     *            null records a missing update.
      */
-    function recordMessage(index, { source = "reply", expect = false, moduleIds } = {}) {
+    function recordMessage(index, { source = "reply", expect = false, moduleIds, swipe: forSwipe, parsed: given } = {}) {
         const r = root();
         const msg = chat()[index];
         if (!r || !msg || msg.is_user) return { recorded: [] };
         const s = stamp(msg);
         if (s.seq <= r.checkpoint.seq) return { recorded: [], folded: true };
 
-        const swipe = currentSwipe(msg);
-        r.swipeOf[s.uid] = swipe;
+        const swipe = typeof forSwipe === "number" ? forSwipe : currentSwipe(msg);
+        if (swipe === currentSwipe(msg)) r.swipeOf[s.uid] = swipe;
         const recorded = [];
         for (const mid of moduleIds || Object.keys(modules)) {
             const mod = modules[mid];
-            const parsed = mod.parse(String(msg.mes || ""));
+            const parsed = given !== undefined ? given : mod.parse(String(msg.mes || ""));
             const wanted = typeof expect === "object" ? Boolean(expect[mid]) : Boolean(expect);
             const at = r.journal.findIndex(e => e.uid === s.uid && e.swipe === swipe && e.module === mid && e.source !== "user");
             if (!parsed && !wanted) {

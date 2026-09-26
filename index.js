@@ -121,6 +121,7 @@ import { npcParseUpdateBlocks, npcApplyUpdates, npcUndoHistoryEntry } from "./sr
 import { renderNpcBank, renderNpcList } from "./src/features/npc/ui.js";
 import {
     stateOnMessageReceived, stateOnSwiped, stateOnSwipeDeleted, stateOnEdited, stateOnDeleted, stateOnChatLoaded,
+    setWorldStateChangedHook,
 } from "./src/state/index.js";
 import {
     meguminDecorateMessageBody, meguminRefreshBlocksInChat, meguminScheduleBlocksRefresh,
@@ -444,6 +445,9 @@ jQuery(async () => {
                 if (stateOnDeleted()) meguminScheduleBlocksRefresh();
             });
             // Handle swipe rewind & sync
+            // World State side-model reads land in the background; redraw the
+            // cards when one starts ("Reading…") and when it lands.
+            setWorldStateChangedHook(() => meguminScheduleBlocksRefresh());
             eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
                 if (stateOnSwiped(mesId)) meguminScheduleBlocksRefresh();
             });

@@ -14,7 +14,7 @@ import { meguminRenderRegistry, meguminBlocksTakenByPanel, meguminStatFieldMap }
 // One directed edge from the blocks feature to the NPC feature. No cycle:
 // nothing under features/npc/ imports the block card.
 import { npcDecorateUpdatePane } from "../npc/updateCard.js";
-import { worldCardTextAt } from "../../state/index.js";
+import { worldCardTextAt, worldExtractMessage } from "../../state/index.js";
 import { worldDecoratePane } from "../worldstate/card.js";
 import { openWorldEditor } from "../worldstate/editor.js";
 
@@ -148,7 +148,8 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
             const wsPane = bodyEl.querySelector('.meg-block-body[data-block-id="world"]');
             if (wsPane) worldDecoratePane(wsPane, msgIndex, {
                 onEdit: () => openWorldEditor(),
-                onChanged: () => meguminScheduleBlocksRefresh()
+                onChanged: () => meguminScheduleBlocksRefresh(),
+                onReread: () => { worldExtractMessage(msgIndex, { force: true }); }
             });
         }
     } catch (e) {

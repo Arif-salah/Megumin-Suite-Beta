@@ -31,6 +31,7 @@ export function renderChomusuke(c) {
                 banList: true,
                 imageGen: true,
                 styleGen: true,
+                worldState: true,
             },
         };
     }
@@ -200,6 +201,13 @@ export function renderChomusuke(c) {
             icon: "fa-image",
             color: "#f59e0b",
             desc: "Extracting visual scene details and crafting descriptive prompts for ComfyUI."
+        },
+        {
+            key: "worldState",
+            title: "World State (side model)",
+            icon: "fa-thumbtack",
+            color: "#f59e0b",
+            desc: "Reading each reply for scene changes when World State updates are set to Side model in the Blocks tab."
         },
         {
             key: "styleGen",

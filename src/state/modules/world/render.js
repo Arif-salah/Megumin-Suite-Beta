@@ -280,3 +280,44 @@ export function describeWorldChange(ch, pcLabel = "{{user}}") {
         default: return "";
     }
 }
+
+// ── D. Side-model extraction ─────────────────────────────────────────────
+// A separate task call: the storytelling model is not asked for a block, and a
+// second call (Chomusuke's worker, or the main model) reads the latest exchange
+// and writes it. It may be told its own job; it still never hears about an
+// extension. Same rules as the inline prompt, reworded for a reader instead of
+// the writer of the reply.
+
+/**
+ * @param {{ notes: string, exchange: string, mode: "update"|"bootstrap" }} args
+ *   notes    — prompt A for the state BEFORE the exchange ("" when none yet)
+ *   exchange — the latest exchange as "Name: text" paragraphs
+ * @returns {{ system: string, user: string, prefill: string, tag: string }}
+ */
+export function renderWorldExtractPrompt({ notes, exchange, mode }) {
+    const ins = renderWorldInstructions(mode);
+    const tag = mode === "bootstrap" ? "World_State" : "World_Update";
+    const reword = t => t
+        .replace(/before your reply/g, "before the latest exchange")
+        .replace(/what your reply changed/g, "what the latest exchange changed")
+        .replace(/at the END of your reply/g, "at the END of the latest exchange")
+        .replace(/in your prose/g, "in the prose")
+        .replace(/your reply/g, "the latest exchange");
+    const system =
+        "You are a continuity clerk for an ongoing roleplay. You read the latest exchange and note what it changed: " +
+        "the physical scene, who is present and how they look, and the story's slow deep currents. " +
+        "You never write story, never explain, and never add facts the exchange does not state or clearly show.";
+    const user = [
+        notes || "<Current_World_State>\n(Nothing has been noted about this story yet.)\n</Current_World_State>",
+        "",
+        "<Latest_Exchange>",
+        String(exchange || "").trim(),
+        "</Latest_Exchange>",
+        "",
+        reword(ins.rules),
+        "",
+        `Output ONLY the <${tag}> block, nothing before or after it, in this shape:`,
+        ins.template
+    ].join("\n");
+    return { system, user, prefill: `<${tag}>\n`, tag };
+}

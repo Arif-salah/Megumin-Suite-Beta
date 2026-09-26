@@ -32,7 +32,7 @@ function changeRow(a) {
 /**
  * @param {HTMLElement} paneEl  the World State pane of one message's card
  * @param {number} msgIndex
- * @param {{ onEdit?: () => void, onChanged?: () => void }} [hooks]
+ * @param {{ onEdit?: () => void, onChanged?: () => void, onReread?: () => void }} [hooks]
  */
 export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
     if (!paneEl || typeof msgIndex !== "number") return;
@@ -42,13 +42,19 @@ export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
     const info = worldCardInfo(msgIndex);
     if (!info) return;
 
-    const { applied, skipped, notes, missing, disabled, noChanges } = info;
+    const { applied, skipped, notes, missing, disabled, noChanges, pending, unread, sideModel } = info;
     let body = "";
     let title;
-    if (disabled) {
+    if (pending) {
+        title = `<i class="fa-solid fa-spinner fa-spin"></i> Reading this reply for World State changes…`;
+    } else if (unread) {
+        title = `<i class="fa-regular fa-eye-slash"></i> Not read for World State changes yet`;
+    } else if (disabled) {
         title = `<i class="fa-solid fa-power-off"></i> This reply's World State changes are switched off`;
     } else if (missing) {
-        title = `<i class="fa-regular fa-circle-question"></i> No World Update in this reply; the scene carried over unchanged`;
+        title = sideModel
+            ? `<i class="fa-regular fa-circle-question"></i> The side model gave no update for this reply; the scene carried over unchanged`
+            : `<i class="fa-regular fa-circle-question"></i> No World Update in this reply; the scene carried over unchanged`;
     } else if (!applied.length) {
         title = `<i class="fa-solid fa-equals"></i> ${noChanges ? "No changes in this reply" : "Nothing in this reply changed the scene"}`;
     } else {
@@ -66,15 +72,19 @@ export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
             ${issues.map(i => `<div class="meg-wsdiff-issue ${i.kind}">${i.kind === "skip" ? `<code>${esc(i.t)}</code>` : esc(i.t)}</div>`).join("")}
         </details>` : "";
 
-    const canToggle = !missing && (disabled || applied.length > 0);
+    const canToggle = !pending && !unread && !missing && (disabled || applied.length > 0);
+    // Side model: read a reply that was never read, or read one again (after an
+    // edit, or when the first answer was poor).
+    const canRead = sideModel && !pending && hooks.onReread && (unread || missing || info.entry?.source === "sidemodel");
     const strip = document.createElement("div");
-    strip.className = `meg-wsdiff${disabled ? " is-off" : ""}${missing || (!applied.length && !disabled) ? " is-quiet" : ""}`;
+    strip.className = `meg-wsdiff${disabled ? " is-off" : ""}${pending || unread || missing || (!applied.length && !disabled) ? " is-quiet" : ""}`;
     strip.innerHTML = `
         <div class="meg-wsdiff-head">
             <span class="meg-wsdiff-title">${title}</span>
             <span class="meg-wsdiff-actions">
                 ${canToggle ? `<button type="button" class="meg-wsdiff-btn meg-wsdiff-toggle" title="${disabled ? "Count this reply's changes again" : "Stop counting this reply's changes; the scene goes back to how it was before it"}">
                     <i class="fa-solid ${disabled ? "fa-rotate-right" : "fa-rotate-left"}"></i> ${disabled ? "Restore" : "Revert"}</button>` : ""}
+                ${canRead ? `<button type="button" class="meg-wsdiff-btn meg-wsdiff-read" title="Have the side model read this reply for World State changes"><i class="fa-solid fa-book-open-reader"></i> ${unread ? "Read now" : "Read again"}</button>` : ""}
                 ${hooks.onEdit ? `<button type="button" class="meg-wsdiff-btn meg-wsdiff-edit" title="Open the World State editor"><i class="fa-solid fa-pen"></i> Edit</button>` : ""}
             </span>
         </div>
@@ -85,6 +95,10 @@ export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
     strip.querySelector(".meg-wsdiff-toggle")?.addEventListener("click", e => {
         e.stopPropagation();
         if (worldSetEntryDisabled(info.entry.id, !disabled) && hooks.onChanged) hooks.onChanged();
+    });
+    strip.querySelector(".meg-wsdiff-read")?.addEventListener("click", e => {
+        e.stopPropagation();
+        hooks.onReread();
     });
     strip.querySelector(".meg-wsdiff-edit")?.addEventListener("click", e => {
         e.stopPropagation();

@@ -129,9 +129,10 @@ export function renderBlocksTab(c) {
                             <span class="blk-sub-label">Updates</span>
                             <select id="blk_ws_mode" class="ps-modern-input">
                                 <option value="inline" ${ws.updateMode === "inline" ? "selected" : ""}>Inline</option>
+                                <option value="sidemodel" ${ws.updateMode === "sidemodel" ? "selected" : ""}>Side model</option>
                                 <option value="manual" ${ws.updateMode === "manual" ? "selected" : ""}>Manual</option>
                             </select>
-                            <span class="blk-sub-desc">Inline: each reply records what it changed. Manual: the state is only read.</span>
+                            <span class="blk-sub-desc">Inline: each reply records what it changed. Side model: a second call reads each reply (Chomusuke if enabled). Manual: only read.</span>
                         </label>
                         <label class="blk-ws-field">
                             <span class="blk-sub-label">Detail sent</span>
@@ -158,7 +159,10 @@ export function renderBlocksTab(c) {
                 </div>
             `);
             sub.find("#blk_ws_mode").on("change", function () {
-                ws.updateMode = $(this).val(); saveProfileToMemory();
+                ws.updateMode = $(this).val(); saveProfileToMemory(); meguminScheduleBlocksRefresh();
+                if (ws.updateMode === "sidemodel" && !localProfile.chomusuke?.enabled) {
+                    toastr.info("Side model reads each reply with a second call. Chomusuke is off, so that call uses your main model; turn Chomusuke on to use a cheaper worker.", "Megumin Suite", { timeOut: 8000 });
+                }
             });
             sub.find("#blk_ws_detail").on("change", function () {
                 ws.injectionDetail = $(this).val(); saveProfileToMemory();

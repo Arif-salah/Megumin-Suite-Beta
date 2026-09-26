@@ -13,7 +13,7 @@ import { localProfile } from "../core/state.js";
 import {
     activeStoryPlanRequest, activeBanListChat, activeImageGenRequest,
     activeNpcScanRequest, activeCharSheetScanRequest, activeNpcPfpRequest, activeNpcUpdateRequest,
-    activeMemorySummarizationRequest,
+    activeMemorySummarizationRequest, activeWorldExtractRequest,
     activeGenerationOrder, isBackgroundGenerationActive,
     activeNpcImages, clearActiveNpcImages,
 } from "../core/activeRequests.js";
@@ -145,6 +145,20 @@ export async function handlePromptInjection(data, type) {
     // The refresh button on an NPC card. Unlike the in-story update, this asks
     // about ONE named NPC and hands over their whole record, so the model is
     // comparing against what is actually on file rather than recalling it.
+    // --- WORLD STATE SIDE-MODEL EXTRACTION ---
+    // The whole prompt was built by the World State module (renderWorldExtractPrompt).
+    if (activeWorldExtractRequest) {
+        messages.length = 0;
+        const r = activeWorldExtractRequest;
+        messages.push({ "role": "system", "content": r.system });
+        messages.push({ "role": "user", "content": r.user });
+        if (!disablePrefill && r.prefill) {
+            messages.push({ "role": "assistant", "content": r.prefill });
+        }
+        console.log(`[${extensionName}] 🎯 Injected World State extraction prompt.`);
+        return;
+    }
+
     if (activeNpcUpdateRequest) {
         messages.length = 0;
         const r = activeNpcUpdateRequest;
