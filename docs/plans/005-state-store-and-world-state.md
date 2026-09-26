@@ -389,7 +389,7 @@ Editor (button on the World State card and in the Blocks tab):
 - *Chat file size:* about 200 entries × ~300 bytes ≈ 60 KB worst case, which is acceptable. Depth is configurable.
 - *Mid-chat inserts via `/sendas at=`* get a seq that sorts after later messages. This is rare and documented; the editor can fix the result.
 - **Decided:** `Mood / Agenda / Secret` stay default NPC fields. The prompts frame them, and Threads, as slow-moving deep currents (big goals, meaningful secrets, underlying mood) so the model rarely rewrites them. No hard turn-count rule is given to the model.
-- **Open:** always require the `<World_Update>` block (with `No changes`) so a missing block can be detected, or allow omitting it? The plan assumes **always required**.
+- **Decided:** the `<World_Update>` block is **always required**, with `No changes` when nothing changed. A missing block is then a detectable model slip (faint "no update" note on the card) rather than silently read as "nothing happened". It costs about 5 tokens per quiet turn.
 
 ## Evidence (current parser, run 2026-09-26)
 | Input | Result |
