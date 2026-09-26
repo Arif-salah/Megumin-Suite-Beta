@@ -4971,3 +4971,34 @@
 }
 .ig-v2-soon i { font-size: 1.2rem; color: #f59e0b; margin-top: 2px; }
 .ig-v2-soon b { color: var(--text-main); }
+/* ── Image Gen V2 page (plan 006) ───────────────────────────────────────── */
+.ig2 { display: flex; flex-direction: column; gap: 12px; }
+.ig2-card {
+    border: 1px solid var(--border-color); border-radius: 10px;
+    background: rgba(0,0,0,.18); padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.ig2-title { font-size: .85rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.ig2-title i { color: #f59e0b; }
+.ig2-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.ig2-field { display: flex; flex-direction: column; gap: 4px; font-size: .72rem; color: var(--text-muted); min-width: 0; }
+.ig2-field .ps-modern-input { width: 100%; box-sizing: border-box; font-size: .78rem; padding: 6px 8px; }
+.ig2-field small { font-size: .66rem; }
+.ig2-hint { font-size: .7rem; color: var(--text-muted); line-height: 1.45; }
+.ig2-hint code { font-size: .7rem; background: rgba(255,255,255,.06); padding: 0 4px; border-radius: 3px; }
+.ig2-status { font-size: .74rem; }
+.ig2-chip {
+    font-size: .62rem; font-weight: 600; color: var(--text-muted);
+    background: rgba(255,255,255,.06); border-radius: 10px; padding: 1px 7px;
+}
+.ig2-chip.on { color: #10b981; background: rgba(16,185,129,.12); }
+.ig2-cast-row {
+    border: 1px solid rgba(255,255,255,.07); border-radius: 8px; padding: 8px 10px;
+    display: flex; flex-direction: column; gap: 4px;
+}
+.ig2-cast-row.is-away { opacity: .7; border-style: dashed; }
+.ig2-cast-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ig2-cast-head b { color: var(--gold); }
+.ig2-cast-line { font-size: .72rem; line-height: 1.45; word-break: break-word; display: flex; gap: 8px; }
+.ig2-cast-line span { flex: none; width: 44px; color: var(--text-muted); font-size: .64rem; text-transform: uppercase; letter-spacing: .3px; padding-top: 1px; }
+.ig2-missing { color: var(--text-muted); }

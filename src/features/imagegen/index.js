@@ -15,9 +15,11 @@ import { saveProfileToMemory } from "../../core/profile.js";
 import { setActiveImageGenRequest } from "../../core/activeRequests.js";
 import { showKazumaProgress } from "../../ui/progress.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
-import { igGenerateWithComfy } from "./comfy.js";
+import { igGenerateWithComfy, setImagePromptResolver } from "./comfy.js";
 import { renderClassicImageGen } from "./classic/ui.js";
 import { classicGenerateImagePromptText, classicInlineNpcTags } from "./classic/prompt.js";
+import { v2GenerateImagePromptText, v2InlineInstruction, v2ResolveForComfy } from "./v2/index.js";
+import { renderV2ImageGen } from "./v2/ui.js";
 
 export {
     igFetchComfyLists, toggleQuickGenButton, igTestConnection, igPopulateWorkflows,
@@ -62,33 +64,29 @@ export function renderImageGen(c) {
     const page = $(`<div class="ig-engine-page"></div>`);
     c.append(page);
     if (engine === "classic") renderClassicImageGen(page);
-    else renderV2Placeholder(page);
+    else renderV2ImageGen(page);
 }
 
-// Phase 1 of plan 006: the V2 page is not built yet. Generation on V2 uses
-// the Classic prompt until it is, so switching never leaves images broken.
-function renderV2Placeholder(page) {
-    page.append(`
-        <div class="ig-v2-soon">
-            <i class="fa-solid fa-person-digging"></i>
-            <div>
-                <b>V2 is being built.</b>
-                <div>Until it is ready, images on this page are made the Classic way, with Classic's settings. Switch to Classic to change them.</div>
-            </div>
-        </div>
-    `);
-}
+// Every image goes through this before ComfyUI (manual, inline, retry). On V2
+// it turns @Name into the stored look and current outfit; a prompt that has
+// already been resolved (a retry) passes through unchanged.
+setImagePromptResolver(p => (imageGenEngine() === "v2" ? v2ResolveForComfy(p) : p));
 
 // ── Generation entry points (dispatch by engine) ─────────────────────────
 
 /** The quiet "write me an image prompt" call behind the manual button. */
 export async function generateImagePromptText() {
-    return classicGenerateImagePromptText();
+    return imageGenEngine() === "v2" ? v2GenerateImagePromptText() : classicGenerateImagePromptText();
 }
 
-/** The NPC tag section for the inline [[img1]] instruction. */
+/** The NPC tag section for the Classic inline [[img1]] instruction. */
 export function imageInjectionNpcTags() {
-    return classicInlineNpcTags();
+    return imageGenEngine() === "v2" ? "" : classicInlineNpcTags();
+}
+
+/** V2 replaces the whole inline instruction; null on Classic. */
+export function imageV2InlineInstruction(opts) {
+    return imageGenEngine() === "v2" ? v2InlineInstruction(opts) : null;
 }
 
 export async function igManualGenerate() {

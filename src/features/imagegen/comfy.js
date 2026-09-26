@@ -282,9 +282,17 @@ export function kazumaRetrySweep(msgIndex) {
     }, ms));
 }
 
+// Turns the prompt as written into the prompt as sent. Classic leaves it as it
+// is; V2 puts each character's look and outfit in place of @Name. Set by the tab
+// shell (index.js), so this file stays shared and knows neither page.
+let promptResolver = p => p;
+export function setImagePromptResolver(fn) {
+    promptResolver = typeof fn === "function" ? fn : (p => p);
+}
+
 export async function igGenerateWithComfy(positivePrompt, target = null) {
     const s = localProfile.imageGen;
-    let finalPrompt = positivePrompt;
+    let finalPrompt = promptResolver(positivePrompt);
 
     // This one writes into a CHAT MESSAGE and calls saveChat(), not into a profile, so
     // _loadedProfileKey is the wrong thing to check: what matters is whether the message
@@ -333,17 +341,19 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
     if (s.selectedLora3 && s.selectedLora3.trim() !== "" && s.loraTrigger3) loraTriggers.push(s.loraTrigger3.trim());
     if (s.selectedLora4 && s.selectedLora4.trim() !== "" && s.loraTrigger4) loraTriggers.push(s.loraTrigger4.trim());
 
+    // A retry sends back the stored prompt, which already carries the triggers
+    // and the prefix; adding them again grew the prompt on every retry.
     if (loraTriggers.length > 0) {
         let combinedTriggers = loraTriggers.join(", ");
         if (!combinedTriggers.endsWith(",")) combinedTriggers += ",";
-        finalPrompt = combinedTriggers + " " + finalPrompt;
+        if (!finalPrompt.includes(combinedTriggers)) finalPrompt = combinedTriggers + " " + finalPrompt;
     }
 
     // --- INJECT PREFIX ---
     if (s.promptPrefix && s.promptPrefix.trim() !== "") {
         let prefix = s.promptPrefix.trim();
         if (!prefix.endsWith(",")) prefix += ",";
-        finalPrompt = prefix + " " + finalPrompt;
+        if (!finalPrompt.startsWith(prefix)) finalPrompt = prefix + " " + finalPrompt;
     }
 
     // --- INTERCEPT PROMPT IF PREVIEW IS ENABLED ---

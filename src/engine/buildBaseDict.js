@@ -20,7 +20,7 @@ import { applyEnhancedDialogue } from "../../data/modes/v10.js";
 import { buildBlocksEnvelope } from "../features/blocks/registry.js";
 import { buildConfigBlock } from "../features/storyconfig/config.js";
 import { npcBuildTextFromData } from "../features/npc/data.js";
-import { imageInjectionNpcTags } from "../features/imagegen/index.js";
+import { imageInjectionNpcTags, imageV2InlineInstruction } from "../features/imagegen/index.js";
 import { npcBuildDossierPrompt, npcBuildUpdatePrompt } from "../features/npc/fields.js";
 import { memGetCachedKeywords } from "../features/memory/keywords.js";
 import { memGetRelevantVaultEntries } from "../features/memory/index.js";
@@ -444,6 +444,10 @@ export function buildBaseDict(isTokenCount = false) {
                 .replace('{{npcImageTags}}', npcTagsStr) // <-- INJECT THEM
                 .replace('{{templateExamples}}', examples);
             
+            // Image Gen V2 has its own, shorter instruction (@Name, cast list).
+            const v2Inline = imageV2InlineInstruction({ conditionalText, imageCount: imageCountStr });
+            if (v2Inline) dict["[[img1]]"] = v2Inline;
+
             // Set the new value for img2 dynamically based on the count!
             dict["[[img2]]"] = ` and the ${imageCountStr} image tag`;
         } else {

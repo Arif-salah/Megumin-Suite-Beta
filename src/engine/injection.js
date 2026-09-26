@@ -204,6 +204,15 @@ export async function handlePromptInjection(data, type) {
     }
 
     // --- INJECT IMAGE GEN PROMPT ---
+    if (activeImageGenRequest && activeImageGenRequest.v2) {
+        // Image Gen V2: the prompt was built whole by v2/prompt.js.
+        messages.length = 0;
+        messages.push({ "role": "system", "content": activeImageGenRequest.v2.system });
+        messages.push({ "role": "user", "content": activeImageGenRequest.v2.user });
+        console.log(`[${extensionName}] 🎯 Injected Image Gen V2 prompt.`);
+        return;
+    }
+
     if (activeImageGenRequest) {
         messages.length = 0;
         
