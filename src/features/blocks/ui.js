@@ -121,48 +121,39 @@ export function renderBlocksTab(c) {
         if (b.id === "world") {
             const ws = localProfile.worldState;
             const hasChat = Boolean(getContext()?.chatId);
+            const pending = stateStore.isPendingFullRewrite("world");
             const sub = $(`
-                <div class="blk-sub">
-                    <div class="blk-sub-row">
-                        <div>
-                            <div class="blk-sub-label">Updates</div>
-                            <div class="blk-sub-desc">Inline: the reply records what changed. Manual: the state is only read, never updated by replies.</div>
-                        </div>
-                        <select id="blk_ws_mode" class="ps-modern-input" style="width:auto; padding:4px; font-size:0.72rem;">
-                            <option value="inline" ${ws.updateMode === "inline" ? "selected" : ""}>Inline</option>
-                            <option value="manual" ${ws.updateMode === "manual" ? "selected" : ""}>Manual</option>
-                        </select>
+                <div class="blk-sub blk-ws">
+                    <div class="blk-ws-grid">
+                        <label class="blk-ws-field">
+                            <span class="blk-sub-label">Updates</span>
+                            <select id="blk_ws_mode" class="ps-modern-input">
+                                <option value="inline" ${ws.updateMode === "inline" ? "selected" : ""}>Inline</option>
+                                <option value="manual" ${ws.updateMode === "manual" ? "selected" : ""}>Manual</option>
+                            </select>
+                            <span class="blk-sub-desc">Inline: each reply records what it changed. Manual: the state is only read.</span>
+                        </label>
+                        <label class="blk-ws-field">
+                            <span class="blk-sub-label">Detail sent</span>
+                            <select id="blk_ws_detail" class="ps-modern-input">
+                                <option value="full" ${ws.injectionDetail === "full" ? "selected" : ""}>Full</option>
+                                <option value="scene" ${ws.injectionDetail === "scene" ? "selected" : ""}>Scene only</option>
+                            </select>
+                            <span class="blk-sub-desc">Scene only skips mood, agenda, secrets and threads to save tokens.</span>
+                        </label>
                     </div>
-                    <div class="blk-sub-row">
-                        <div>
-                            <div class="blk-sub-label">Detail sent to the model</div>
-                            <div class="blk-sub-desc">Scene only leaves out mood, agenda, secrets, threads and off-screen notes to save tokens.</div>
-                        </div>
-                        <select id="blk_ws_detail" class="ps-modern-input" style="width:auto; padding:4px; font-size:0.72rem;">
-                            <option value="full" ${ws.injectionDetail === "full" ? "selected" : ""}>Full</option>
-                            <option value="scene" ${ws.injectionDetail === "scene" ? "selected" : ""}>Scene only</option>
-                        </select>
+                    <div class="blk-ws-chips">
+                        <label class="blk-ws-chip" title="Show what each reply changed at the top of its World State card">
+                            <input type="checkbox" id="blk_ws_changes" ${ws.showChanges !== false ? "checked" : ""}/> Show what changed on cards
+                        </label>
+                        <label class="blk-ws-chip" title="When an absent character is mentioned again, remind the model how they last were">
+                            <input type="checkbox" id="blk_ws_returning" ${ws.showReturning !== false ? "checked" : ""}/> Remind the model of returning characters
+                        </label>
                     </div>
-                    <div class="blk-sub-row">
-                        <div>
-                            <div class="blk-sub-label">On the cards</div>
-                            <div class="blk-sub-desc">Show what each reply changed. Remind the model of absent characters when they are mentioned again.</div>
-                        </div>
-                        <div style="display:flex; flex-direction:column; gap:3px; font-size:0.7rem;">
-                            <label style="display:flex; gap:5px; align-items:center; cursor:pointer;"><input type="checkbox" id="blk_ws_changes" ${ws.showChanges !== false ? "checked" : ""}/> What changed</label>
-                            <label style="display:flex; gap:5px; align-items:center; cursor:pointer;"><input type="checkbox" id="blk_ws_returning" ${ws.showReturning !== false ? "checked" : ""}/> Returning characters</label>
-                        </div>
-                    </div>
-                    <div class="blk-sub-row">
-                        <div>
-                            <div class="blk-sub-label">This chat</div>
-                            <div class="blk-sub-desc">Edit the state and its history, ask the next reply to write the whole state again, or clear it and start over.</div>
-                        </div>
-                        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-                            <button id="blk_ws_editor" class="menu_button" style="font-size:0.7rem; padding:4px 8px;" ${hasChat ? "" : "disabled"}><i class="fa-solid fa-pen"></i> Editor</button>
-                            <button id="blk_ws_rewrite" class="menu_button" style="font-size:0.7rem; padding:4px 8px;" ${hasChat ? "" : "disabled"}>${stateStore.isPendingFullRewrite("world") ? "Rewrite queued" : "Rewrite next reply"}</button>
-                            <button id="blk_ws_reset" class="menu_button" style="font-size:0.7rem; padding:4px 8px;" ${hasChat ? "" : "disabled"}>Reset</button>
-                        </div>
+                    <div class="blk-ws-actions">
+                        <button id="blk_ws_editor" class="menu_button" ${hasChat ? "" : "disabled"} title="Edit this chat's World State and its history"><i class="fa-solid fa-pen"></i> Editor</button>
+                        <button id="blk_ws_rewrite" class="menu_button ${pending ? "is-on" : ""}" ${hasChat ? "" : "disabled"} title="Ask the next reply to write the whole state again"><i class="fa-solid ${pending ? "fa-check" : "fa-arrows-rotate"}"></i> ${pending ? "Rewrite queued" : "Rewrite next"}</button>
+                        <button id="blk_ws_reset" class="menu_button" ${hasChat ? "" : "disabled"} title="Clear this chat's World State"><i class="fa-solid fa-eraser"></i> Reset</button>
                     </div>
                 </div>
             `);

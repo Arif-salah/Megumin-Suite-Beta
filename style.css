@@ -3844,6 +3844,30 @@
 .blk-sub-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .blk-sub-label { font-size: .72rem; font-weight: 600; color: var(--text-main); }
 .blk-sub-desc { font-size: .62rem; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
+/* World State settings: stacked, never label-beside-control, because this
+   panel lives in the narrow left column. */
+.blk-ws { gap: 10px; padding-left: 14px; }
+.blk-ws-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.blk-ws-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.blk-ws-field select.ps-modern-input { width: 100%; box-sizing: border-box; padding: 5px 8px; font-size: .74rem; }
+.blk-ws-field .blk-sub-desc { margin-top: 0; }
+.blk-ws-chips { display: flex; flex-direction: column; gap: 5px; }
+.blk-ws-chip {
+    display: flex; align-items: center; gap: 8px;
+    font-size: .7rem; color: var(--text-main); cursor: pointer;
+    padding: 5px 8px; border-radius: 8px;
+    border: 1px solid var(--border-color); background: rgba(255,255,255,.02);
+}
+.blk-ws-chip input { margin: 0; flex: none; }
+.blk-ws-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.blk-ws-actions .menu_button {
+    width: 100%; margin: 0; box-sizing: border-box;
+    font-size: .7rem; padding: 6px 4px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.blk-ws-actions .menu_button.is-on { color: #f59e0b; border-color: rgba(245,158,11,.5); }
+.blk-ws-actions .menu_button[disabled] { opacity: .45; cursor: not-allowed; }
 
 /* System blocks in the BLOCKS tab: shown, never arranged */
 .blk-row-system { background: rgba(59,130,246,.05); border-style: dashed; }

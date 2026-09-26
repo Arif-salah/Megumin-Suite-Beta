@@ -30,6 +30,14 @@ const CARD_CLASS = "meg-blocks";
 const HIDDEN_ATTR = "data-meg-blocks-hidden";
 const STAMP_ATTR = "data-meg-blocks-stamp";
 
+// Short fingerprint of a string for the redraw stamp (djb2).
+function textHash(s) {
+    const t = String(s || "");
+    let h = 5381;
+    for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36) + t.length;
+}
+
 // The class the preset's "Blocks display marker" regex puts on the <details> it
 // wraps the envelope in. See findMarkerNodes for why it exists and what happens
 // when it is missing.
@@ -651,7 +659,11 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
     // still matched and every card was left exactly as it was — the blocks only
     // moved out of the chat after something else forced a re-render, which is why
     // it took a chat reload.
-    const stamp = `${mes.length}:${norm(mes).length}:${blocks.length}:${(opts.omit || []).join(",")}:${opts.msgIndex !== undefined ? opts.msgIndex : ""}`;
+    //
+    // The World State board is drawn from the state store, not from the text, so
+    // reverting a reply or editing the state changes the board without changing
+    // a character of the message. Its text is part of the stamp for that reason.
+    const stamp = `${mes.length}:${norm(mes).length}:${blocks.length}:${(opts.omit || []).join(",")}:${opts.msgIndex !== undefined ? opts.msgIndex : ""}:${textHash(opts.worldStateText)}`;
     if (root.getAttribute(STAMP_ATTR) === stamp && root.querySelector(`.${CARD_CLASS}`)) return true;
 
     // Start from whatever SillyTavern rendered, every time. Re-hiding on top of a
