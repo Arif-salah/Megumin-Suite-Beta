@@ -19,7 +19,7 @@ import {
     normalizeBlockBody, blockTagFromName, validateCustomBlock, meguminSyncLegacyBlockIds,
 } from "./registry.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
-import { stateStore } from "../../state/index.js";
+import { stateStore, worldUpdateMode } from "../../state/index.js";
 import { openWorldEditor } from "../worldstate/editor.js";
 import { meguminSlotByTrigger } from "../../../data/slots.js";
 import { hasSharedFragment } from "../../core/sharedFragments.js";
@@ -128,11 +128,12 @@ export function renderBlocksTab(c) {
                         <label class="blk-ws-field">
                             <span class="blk-sub-label">Updates</span>
                             <select id="blk_ws_mode" class="ps-modern-input">
-                                <option value="inline" ${ws.updateMode === "inline" ? "selected" : ""}>Inline</option>
-                                <option value="sidemodel" ${ws.updateMode === "sidemodel" ? "selected" : ""}>Side model</option>
+                                <option value="inline" ${ws.updateMode !== "manual" ? "selected" : ""}>Automatic</option>
                                 <option value="manual" ${ws.updateMode === "manual" ? "selected" : ""}>Manual</option>
                             </select>
-                            <span class="blk-sub-desc">Inline: each reply records what it changed. Side model: a second call reads each reply (Chomusuke if enabled). Manual: only read.</span>
+                            <span class="blk-sub-desc">${worldUpdateMode() === "sidemodel"
+                                ? "Automatic: Chomusuke reads each reply (set in the Chomusuke tab)."
+                                : "Automatic: each reply records what it changed. Chomusuke can take this over in its tab."} Manual: only read.</span>
                         </label>
                         <label class="blk-ws-field">
                             <span class="blk-sub-label">Detail sent</span>
@@ -159,10 +160,7 @@ export function renderBlocksTab(c) {
                 </div>
             `);
             sub.find("#blk_ws_mode").on("change", function () {
-                ws.updateMode = $(this).val(); saveProfileToMemory(); meguminScheduleBlocksRefresh();
-                if (ws.updateMode === "sidemodel" && !localProfile.chomusuke?.enabled) {
-                    toastr.info("Side model reads each reply with a second call. Chomusuke is off, so that call uses your main model; turn Chomusuke on to use a cheaper worker.", "Megumin Suite", { timeOut: 8000 });
-                }
+                ws.updateMode = $(this).val(); saveProfileToMemory(); renderBlocksTab(c); meguminScheduleBlocksRefresh();
             });
             sub.find("#blk_ws_detail").on("change", function () {
                 ws.injectionDetail = $(this).val(); saveProfileToMemory();

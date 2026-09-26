@@ -53,7 +53,7 @@ export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
         title = `<i class="fa-solid fa-power-off"></i> This reply's World State changes are switched off`;
     } else if (missing) {
         title = sideModel
-            ? `<i class="fa-regular fa-circle-question"></i> The side model gave no update for this reply; the scene carried over unchanged`
+            ? `<i class="fa-regular fa-circle-question"></i> Chomusuke gave no update for this reply; the scene carried over unchanged`
             : `<i class="fa-regular fa-circle-question"></i> No World Update in this reply; the scene carried over unchanged`;
     } else if (!applied.length) {
         title = `<i class="fa-solid fa-equals"></i> ${noChanges ? "No changes in this reply" : "Nothing in this reply changed the scene"}`;
@@ -84,7 +84,7 @@ export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
             <span class="meg-wsdiff-actions">
                 ${canToggle ? `<button type="button" class="meg-wsdiff-btn meg-wsdiff-toggle" title="${disabled ? "Count this reply's changes again" : "Stop counting this reply's changes; the scene goes back to how it was before it"}">
                     <i class="fa-solid ${disabled ? "fa-rotate-right" : "fa-rotate-left"}"></i> ${disabled ? "Restore" : "Revert"}</button>` : ""}
-                ${canRead ? `<button type="button" class="meg-wsdiff-btn meg-wsdiff-read" title="Have the side model read this reply for World State changes"><i class="fa-solid fa-book-open-reader"></i> ${unread ? "Read now" : "Read again"}</button>` : ""}
+                ${canRead ? `<button type="button" class="meg-wsdiff-btn meg-wsdiff-read" title="Have Chomusuke read this reply for World State changes"><i class="fa-solid fa-book-open-reader"></i> ${unread ? "Read now" : "Read again"}</button>` : ""}
                 ${hooks.onEdit ? `<button type="button" class="meg-wsdiff-btn meg-wsdiff-edit" title="Open the World State editor"><i class="fa-solid fa-pen"></i> Edit</button>` : ""}
             </span>
         </div>

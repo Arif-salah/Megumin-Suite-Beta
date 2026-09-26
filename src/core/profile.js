@@ -252,7 +252,8 @@ export function initProfile() {
                 banList: true,
                 imageGen: true,
                 styleGen: true,
-                worldState: true
+                // Off by default: when on, every reply costs one extra worker call.
+                worldState: false
             }
         },
         // Settings only. The World State itself lives in the chat file
@@ -496,15 +497,22 @@ export function initProfile() {
                 banList: true,
                 imageGen: true,
                 styleGen: true,
-                worldState: true
+                // Off by default: when on, every reply costs one extra worker call.
+                worldState: false
             };
         }
     }
-    // A feature added after the profile was saved: on by default. The toggle in
-    // the Chomusuke tab flips with `!value`, so a missing key would click to
-    // true and never turn off.
+    // A feature added after the profile was saved. World State starts OFF (it
+    // costs a worker call per reply). Set explicitly: the Chomusuke tab flips a
+    // toggle with `!value`, so a missing key would click to true, never to off.
     if (localProfile.chomusuke?.features && localProfile.chomusuke.features.worldState === undefined) {
-        localProfile.chomusuke.features.worldState = true;
+        localProfile.chomusuke.features.worldState = false;
+    }
+    // "Side model" briefly lived in the Blocks tab's Updates list; that choice
+    // is now the Chomusuke World State route.
+    if (localProfile.worldState?.updateMode === "sidemodel") {
+        localProfile.worldState.updateMode = "inline";
+        if (localProfile.chomusuke?.features) localProfile.chomusuke.features.worldState = true;
     }
     // Prompt blocks are stored as a diff against DEFAULT_PROMPTS. Put the untouched keys
     // back before anything reads them. Runs after the patching above has guaranteed each

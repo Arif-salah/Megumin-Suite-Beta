@@ -141,7 +141,7 @@ function renderHistoryView(showAllSwipes) {
 
         const badges = [];
         if (e.source === "import") badges.push(`<span class="meg-wsed-badge">imported</span>`);
-        if (e.source === "sidemodel") badges.push(`<span class="meg-wsed-badge">side model</span>`);
+        if (e.source === "sidemodel") badges.push(`<span class="meg-wsed-badge">chomusuke</span>`);
         if (e.parsed?.kind === "snapshot") badges.push(`<span class="meg-wsed-badge">full state</span>`);
         if (e.disabled) badges.push(`<span class="meg-wsed-badge off">off</span>`);
         else if (!r.active) badges.push(`<span class="meg-wsed-badge dim">not showing</span>`);

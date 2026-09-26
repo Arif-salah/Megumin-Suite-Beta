@@ -31,7 +31,7 @@ export function renderChomusuke(c) {
                 banList: true,
                 imageGen: true,
                 styleGen: true,
-                worldState: true,
+                worldState: false,
             },
         };
     }
@@ -204,10 +204,11 @@ export function renderChomusuke(c) {
         },
         {
             key: "worldState",
-            title: "World State (side model)",
+            title: "World State",
             icon: "fa-thumbtack",
             color: "#f59e0b",
-            desc: "Reading each reply for scene changes when World State updates are set to Side model in the Blocks tab."
+            desc: "On: Chomusuke reads every reply for scene changes (outfits, who is present, threads) and the story model no longer writes them. Off: the story model writes them in its reply. One worker call per reply.",
+            defaultOff: true
         },
         {
             key: "styleGen",
@@ -218,8 +219,12 @@ export function renderChomusuke(c) {
         }
     ];
 
+    // Most routes are on unless switched off; a route that costs a call per reply
+    // (defaultOff) is off unless switched on.
+    const featOn = feat => feat.defaultOff ? cfg.features[feat.key] === true : cfg.features[feat.key] !== false;
+
     featuresList.forEach(feat => {
-        const isFeatOn = cfg.features[feat.key] !== false;
+        const isFeatOn = featOn(feat);
         const $row = $(`
             <div class="mtab-toggle-row ${isFeatOn ? 'active' : ''}" data-feat="${feat.key}" style="cursor: pointer; margin-bottom: 8px;">
                 <div class="toggle-info">
@@ -233,7 +238,7 @@ export function renderChomusuke(c) {
         `);
 
         $row.on("click", function () {
-            const next = !cfg.features[feat.key];
+            const next = !featOn(feat);
             cfg.features[feat.key] = next;
             $(this).toggleClass("active", next);
             $(this).find(".ps-switch").css("background", next ? "#10b981" : "");

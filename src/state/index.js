@@ -21,7 +21,7 @@ import {
 
 // Settings only: the state itself lives in the chat file, never in settings.json.
 export const WORLD_SETTINGS_DEFAULTS = {
-    updateMode: "inline",        // inline | sidemodel | manual (see "Side-model extraction")
+    updateMode: "inline",        // "inline" (automatic) | "manual". Who writes the automatic updates is Chomusuke's call: see worldUpdateMode()
     injectionDetail: "full",     // full | scene
     showReturning: true,
     showChanges: true,
@@ -30,6 +30,21 @@ export const WORLD_SETTINGS_DEFAULTS = {
 
 export function worldSettings() {
     return { ...WORLD_SETTINGS_DEFAULTS, ...((localProfile && localProfile.worldState) || {}) };
+}
+
+/**
+ * How replies update the World State right now:
+ *   "manual"    — they don't (Blocks tab: Updates → Manual)
+ *   "sidemodel" — Chomusuke reads each reply (Chomusuke tab: World State route on)
+ *   "inline"    — the story model writes the block in its reply (everything else)
+ * The Chomusuke route is decided in the Chomusuke tab with every other routed
+ * feature, so the Blocks tab only says whether updates happen at all.
+ */
+export function worldUpdateMode() {
+    if (worldSettings().updateMode === "manual") return "manual";
+    const c = localProfile && localProfile.chomusuke;
+    if (c && c.enabled && c.profileId && c.features && c.features.worldState === true) return "sidemodel";
+    return "inline";
 }
 
 /** The World State block is switched on in the block stack. */
@@ -102,7 +117,7 @@ export function worldPromptBlock() {
  */
 export function worldBlockRequest() {
     if (!worldEnabled()) return null;
-    if (worldSettings().updateMode !== "inline") return null;
+    if (worldUpdateMode() !== "inline") return null;
     const mode = !stateStore.hasState("world") || stateStore.isPendingFullRewrite("world") ? "bootstrap" : "update";
     const ins = renderWorldInstructions(mode);
     return { rules: sub(ins.rules), template: sub(ins.template), mode };
@@ -155,7 +170,7 @@ export function worldCardInfo(msgIndex) {
     if (!msg || msg.is_user || !uid) return null;
     const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
     const entry = stateStore.getEntryFor("world", uid, swipe);
-    const sideModel = worldSettings().updateMode === "sidemodel";
+    const sideModel = worldUpdateMode() === "sidemodel";
     const pending = pendingExtract.has(uid + ":" + swipe);
     if (!entry) {
         // Side model: a reply not read yet (or being read right now).
@@ -212,9 +227,9 @@ export function worldChatOpen() {
 }
 
 // ── Side-model extraction ────────────────────────────────────────────────
-// Update mode "sidemodel": the storytelling model is never asked for a block.
-// After each reply a separate quiet call (Chomusuke's worker when enabled for
-// World State, the main model otherwise) reads the latest exchange and writes
+// Mode "sidemodel" (Chomusuke tab: World State route on): the storytelling model
+// is never asked for a block. After each reply Chomusuke's worker reads the
+// latest exchange and writes
 // the update, which is filed under that reply's swipe like any other entry.
 // Runs one at a time; a result is dropped if the chat, or that swipe's text,
 // changed while it was being written.
@@ -274,7 +289,7 @@ function exchangeFor(index, text, mode) {
  * @returns {Promise<boolean>} true when an entry was filed
  */
 export function worldExtractMessage(index, { force = false } = {}) {
-    if (!worldEnabled() || worldSettings().updateMode !== "sidemodel" || !adapter.getMeta()) return Promise.resolve(false);
+    if (!worldEnabled() || worldUpdateMode() !== "sidemodel" || !adapter.getMeta()) return Promise.resolve(false);
     const msg = adapter.getChat()[index];
     if (!msg || msg.is_user || msg.is_system) return Promise.resolve(false);
     const st = stateStore.stamp(msg);
@@ -331,7 +346,7 @@ export function worldExtractMessage(index, { force = false } = {}) {
         const parsed = cleaned ? worldModule.parse(cleaned) : null;
         stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe, parsed: parsed || null });
         if (!parsed) {
-            toastr.warning("The World State side model gave no usable update for that reply. Use Read again on its card.", "Megumin Suite");
+            toastr.warning("Chomusuke gave no usable World State update for that reply. Use Read again on its card.", "Megumin Suite");
         } else if (parsed.skipped.length) {
             console.debug(`[Megumin-Suite] World State (side model): lines not understood in message ${at}:`, parsed.skipped);
         }
@@ -365,7 +380,7 @@ const NOT_A_REPLY = new Set(["first_message", "command", "impersonate", "quiet"]
 
 // Manual mode: the state is read, never written by replies.
 function repliesUpdate() {
-    return worldEnabled() && worldSettings().updateMode !== "manual";
+    return worldEnabled() && worldUpdateMode() !== "manual";
 }
 
 export function stateOnMessageReceived(messageId, type) {
@@ -375,7 +390,7 @@ export function stateOnMessageReceived(messageId, type) {
     const msg = chat[index];
     if (!msg || msg.is_user || msg.is_system) return false;
     stateStore.reconcile();
-    const mode = worldSettings().updateMode;
+    const mode = worldUpdateMode();
     if (mode === "sidemodel") {
         // A reply that wrote its own block anyway is taken as it is; otherwise
         // the side model reads it (not awaited: the chat must not wait on it).
@@ -421,7 +436,7 @@ export function stateOnEdited(messageId) {
     if (!repliesUpdate() || !adapter.getMeta()) return false;
     const msg = adapter.getChat()[messageId];
     if (!msg || msg.is_user) return false;
-    const mode = worldSettings().updateMode;
+    const mode = worldUpdateMode();
     // Side model: an edit keeps the entry the side model wrote, unless the edit
     // itself put a World block in (then that is what the user meant). "Read
     // again" on the card re-reads the edited text.
