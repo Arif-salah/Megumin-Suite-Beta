@@ -417,4 +417,9 @@ Editor (button on the World State card and in the Blocks tab):
   - Old `features/worldstate/ledger.js` + `parser.js` removed. Profiles drop `worldState.current/history` on load.
   - The compact-mode toggle is replaced by Updates (Inline/Manual), Detail (Full/Scene only), "Rewrite next reply" and "Reset" under the World State row.
   - Side-model mode (D) is not exposed yet (phase 4).
-- **Phase 3 (next):** card "Changed" strip + ⚠ chip, World State editor, history list.
+- **Fixes after phase 2 testing:** timers count down instead of piling up (78df6a9); a new swipe's prompt no longer sees the swiped-away reply (d08380e).
+- **Phase 3:** UI.
+  - `features/worldstate/card.js`: "Changed in this reply" strip on the World State pane (before → after), ⚠ lines not understood + notes, "no update" note, Revert/Restore per reply, Edit.
+  - `features/worldstate/editor.js`: popup editor. State view edits scene, PC, cast (in scene/away, fields, forget) and threads/seeds/timers as user entries; editor field edits keep presence. History view lists entries with on/off, delete for own edits, plus rewrite next reply, re-read messages N–M, and a two-step reset.
+  - Blocks tab gains Editor, "What changed" and "Returning characters" toggles.
+- **Phase 4 (optional):** side-model extraction via Chomusuke (prompt D).

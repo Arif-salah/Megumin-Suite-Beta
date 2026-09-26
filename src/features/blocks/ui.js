@@ -20,6 +20,7 @@ import {
 } from "./registry.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
 import { stateStore } from "../../state/index.js";
+import { openWorldEditor } from "../worldstate/editor.js";
 import { meguminSlotByTrigger } from "../../../data/slots.js";
 import { hasSharedFragment } from "../../core/sharedFragments.js";
 
@@ -144,10 +145,21 @@ export function renderBlocksTab(c) {
                     </div>
                     <div class="blk-sub-row">
                         <div>
-                            <div class="blk-sub-label">This chat</div>
-                            <div class="blk-sub-desc">Ask the next reply to write the whole state again, or clear it and start over.</div>
+                            <div class="blk-sub-label">On the cards</div>
+                            <div class="blk-sub-desc">Show what each reply changed. Remind the model of absent characters when they are mentioned again.</div>
                         </div>
-                        <div style="display:flex; gap:6px;">
+                        <div style="display:flex; flex-direction:column; gap:3px; font-size:0.7rem;">
+                            <label style="display:flex; gap:5px; align-items:center; cursor:pointer;"><input type="checkbox" id="blk_ws_changes" ${ws.showChanges !== false ? "checked" : ""}/> What changed</label>
+                            <label style="display:flex; gap:5px; align-items:center; cursor:pointer;"><input type="checkbox" id="blk_ws_returning" ${ws.showReturning !== false ? "checked" : ""}/> Returning characters</label>
+                        </div>
+                    </div>
+                    <div class="blk-sub-row">
+                        <div>
+                            <div class="blk-sub-label">This chat</div>
+                            <div class="blk-sub-desc">Edit the state and its history, ask the next reply to write the whole state again, or clear it and start over.</div>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                            <button id="blk_ws_editor" class="menu_button" style="font-size:0.7rem; padding:4px 8px;" ${hasChat ? "" : "disabled"}><i class="fa-solid fa-pen"></i> Editor</button>
                             <button id="blk_ws_rewrite" class="menu_button" style="font-size:0.7rem; padding:4px 8px;" ${hasChat ? "" : "disabled"}>${stateStore.isPendingFullRewrite("world") ? "Rewrite queued" : "Rewrite next reply"}</button>
                             <button id="blk_ws_reset" class="menu_button" style="font-size:0.7rem; padding:4px 8px;" ${hasChat ? "" : "disabled"}>Reset</button>
                         </div>
@@ -160,6 +172,13 @@ export function renderBlocksTab(c) {
             sub.find("#blk_ws_detail").on("change", function () {
                 ws.injectionDetail = $(this).val(); saveProfileToMemory();
             });
+            sub.find("#blk_ws_changes").on("change", function () {
+                ws.showChanges = this.checked; saveProfileToMemory(); meguminScheduleBlocksRefresh();
+            });
+            sub.find("#blk_ws_returning").on("change", function () {
+                ws.showReturning = this.checked; saveProfileToMemory();
+            });
+            sub.find("#blk_ws_editor").on("click", () => openWorldEditor());
             sub.find("#blk_ws_rewrite").on("click", () => {
                 stateStore.setPendingFullRewrite("world", !stateStore.isPendingFullRewrite("world"));
                 renderBlocksTab(c);

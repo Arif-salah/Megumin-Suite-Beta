@@ -384,3 +384,23 @@ test("reset clears the module", () => {
     e.store.reset("world");
     assert.equal(e.store.hasState("world"), false);
 });
+
+test("getEntryFor finds a reply's entry whether it is on or off; listEntries marks active", () => {
+    const e = env();
+    receive(e, BOOT); send(e);
+    receive(e, U("Aqua.Outfit: towel"));
+    const uid = e.chat[2].extra.megumin_uid;
+    const entry = e.store.getEntryFor("world", uid, 0);
+    assert.ok(entry);
+    e.store.setDisabled(entry.id, true);
+    assert.equal(e.store.getEntryFor("world", uid, 0).disabled, true);
+    assert.equal(e.store.getStep("world", uid), null, "a switched-off entry is not in the timeline");
+    swipeNew(e, 2, U("Aqua.Mood: sleepy"));
+    const rows = e.store.listEntries("world");
+    const byId = Object.fromEntries(rows.map(r => [r.entry.id, r]));
+    assert.equal(byId[entry.id].active, false);
+    assert.equal(byId[entry.id].index, 2);
+    const swipe2 = rows.find(r => r.entry.uid === uid && r.entry.swipe === 1);
+    assert.equal(swipe2.active, true);
+    assert.equal(swipe2.shownSwipe, 1);
+});

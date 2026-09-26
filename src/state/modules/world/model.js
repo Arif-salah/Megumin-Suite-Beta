@@ -157,8 +157,13 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                     note(`${pcName()} · ${fieldLabel(ch.field)}`, before, ch.value);
                     break;
                 }
-                const { entry, created } = castEntry(state, ch.who, seq, true);
-                if (created) {
+                // `keepPresence` comes from the editor: fixing an away character's
+                // outfit must not walk them back into the scene. A reply writing a
+                // field for someone away DOES bring them back.
+                const { entry, created } = castEntry(state, ch.who, seq, !ch.keepPresence);
+                if (ch.keepPresence) {
+                    // presence stays exactly as it was
+                } else if (created) {
                     notes.push(`${entry.name} had no "+ ${entry.name}" line; treated as entering the scene.`);
                     note(`${entry.name} entered`, "", "present");
                 } else if (!entry.present) {
@@ -166,7 +171,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                     entry.offscreen = "";
                     note(`${entry.name} entered`, "", "present");
                 }
-                entry.lastSeenSeq = seq;
+                if (!ch.keepPresence) entry.lastSeenSeq = seq;
                 const before = entry.fields[ch.field] || "";
                 entry.fields[ch.field] = ch.value;
                 note(`${entry.name} · ${fieldLabel(ch.field)}`, before, ch.value);
@@ -194,6 +199,16 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 entry.lastSeenSeq = seq;
                 if (ch.where) entry.offscreen = ch.where;
                 if (wasPresent) note(`${entry.name} left`, "present", ch.where || "gone");
+                break;
+            }
+            case "forget": {
+                // Editor only: a character removed outright, not just out of the scene.
+                const k = nameKey(ch.who);
+                if (state.cast[k]) {
+                    const gone = state.cast[k].name;
+                    delete state.cast[k];
+                    note(`${gone} removed`, "known", "");
+                }
                 break;
             }
             case "offscreen": {

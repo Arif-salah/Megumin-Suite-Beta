@@ -374,6 +374,35 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
         return timeline(moduleId).steps.find(s => s.entry.uid === uid && s.entry.source !== "user") || null;
     }
 
+    /** The entry one message + swipe produced, whether it is on, off or orphaned. */
+    function getEntryFor(moduleId, uid, swipe) {
+        const r = root();
+        if (!r || !uid) return null;
+        return r.journal.find(e => e.module === moduleId && e.uid === uid && e.swipe === swipe && e.source !== "user") || null;
+    }
+
+    /**
+     * Every entry of a module for the history view, oldest first, each marked
+     * with whether it currently counts and where its message sits in the chat.
+     */
+    function listEntries(moduleId) {
+        const r = root();
+        if (!r) return [];
+        const present = presentMessages();
+        const activeIds = new Set(activeEntries(moduleId).map(e => e.id));
+        return r.journal
+            .filter(e => e.module === moduleId)
+            .map(e => {
+                const p = e.uid ? present.get(e.uid) : null;
+                return {
+                    entry: e,
+                    active: activeIds.has(e.id),
+                    index: p ? p.index : null,
+                    shownSwipe: p ? p.swipe : null
+                };
+            });
+    }
+
     function hasState(moduleId) {
         const r = root();
         if (!r) return false;
@@ -487,7 +516,7 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
 
     return {
         root, stamp, stampAll, recordMessage, onSwiped, onSwipeDeleted, reconcile,
-        timeline, getState, getStateAt, getStep, hasState, activeEntries,
+        timeline, getState, getStateAt, getStep, getEntryFor, listEntries, hasState, activeEntries,
         addUserEntry, setDisabled, removeUserEntry, reset,
         setPendingFullRewrite, isPendingFullRewrite, importFromChat,
         get version() { return version; }

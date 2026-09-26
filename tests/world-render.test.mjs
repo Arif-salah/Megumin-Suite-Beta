@@ -131,3 +131,44 @@ test("the update rules' own example lines parse as the rules describe", () => {
     assert.deepEqual(s.timers, []);
     assert.equal(s.arcPhase, "Crisis");
 });
+
+// ── Phase 3: editor operations ───────────────────────────────────────────
+import { describeWorldChange } from "../src/state/modules/world/render.js";
+
+test("editor field edit on an away character keeps them away", () => {
+    const s0 = scene();                                 // Sara is away
+    const r = applyWorldChanges(s0, { kind: "delta", changes: [
+        { type: "field", who: "Sara", field: "outfit", value: "raincoat", keepPresence: true }
+    ] }, {});
+    const sara = findCast(r.state, "Sara");
+    assert.equal(sara.present, false);
+    assert.equal(sara.fields.outfit, "raincoat");
+    assert.equal(sara.offscreen, "went to the market");
+    assert.ok(!r.applied.some(a => /entered/.test(a.label)));
+});
+
+test("a reply writing a field for an away character brings them back", () => {
+    const s = applyWorldChanges(scene(), parseWorldBlocks(U("Sara.Outfit: raincoat")), {}).state;
+    assert.equal(findCast(s, "Sara").present, true);
+});
+
+test("forget removes a character entirely", () => {
+    const r = applyWorldChanges(scene(), { kind: "delta", changes: [{ type: "forget", who: "wiz" }] }, {});
+    assert.equal(findCast(r.state, "Wiz"), null);
+    assert.ok(r.applied.some(a => a.label === "Wiz removed"));
+});
+
+test("describeWorldChange covers every change type", () => {
+    const d = ch => describeWorldChange(ch, "Kazuma");
+    assert.equal(d({ type: "scene", key: "location", value: "Inn" }), "Loc: Inn");
+    assert.equal(d({ type: "phase", key: "arcPhase", value: "Crisis" }), "Arc: Crisis");
+    assert.equal(d({ type: "field", who: "{{pc}}", field: "outfit", value: "cape" }), "Kazuma · Outfit: cape");
+    assert.equal(d({ type: "field", who: "Aqua", field: "mood", value: "" }), "Aqua · Mood: (cleared)");
+    assert.equal(d({ type: "enter", who: "Aqua" }), "Aqua entered");
+    assert.equal(d({ type: "leave", who: "Aqua", where: "upstairs" }), "Aqua left: upstairs");
+    assert.equal(d({ type: "offscreen", who: "Wiz", value: "shop" }), "Wiz off-screen: shop");
+    assert.equal(d({ type: "forget", who: "Wiz" }), "Wiz removed");
+    assert.equal(d({ type: "list", list: "timers", op: "add", value: "x: 2 turns" }), "Timer +: x: 2 turns");
+    assert.equal(d({ type: "list", list: "threads", op: "remove", value: "coin" }), "Thread −: coin");
+    assert.equal(d({ type: "list", list: "seeds", op: "item", value: "crest" }), "Seed: crest");
+});

@@ -13,7 +13,7 @@ import { createStateStore } from "./store.js";
 import { worldModule } from "./modules/world/index.js";
 import { presentCast } from "./modules/world/model.js";
 import {
-    renderWorldForPrompt, renderWorldInstructions, renderWorldCard, findReturning, isEmptyWorld
+    renderWorldForPrompt, renderWorldInstructions, renderWorldCard, findReturning, isEmptyWorld, describeWorldChange
 } from "./modules/world/render.js";
 
 // Settings only: the state itself lives in the chat file, never in settings.json.
@@ -137,6 +137,65 @@ export function getWorldStateCurrent() {
         },
         npcOutfits
     };
+}
+
+// ── Card and editor ──────────────────────────────────────────────────────
+
+/**
+ * What one message's shown swipe did to the World State, for its card.
+ * @returns {null | { entry: object, applied: any[], notes: string[], skipped: string[], missing: boolean, disabled: boolean, noChanges: boolean }}
+ */
+export function worldCardInfo(msgIndex) {
+    if (!worldEnabled() || !adapter.getMeta()) return null;
+    const msg = adapter.getChat()[msgIndex];
+    const uid = msg?.extra?.megumin_uid;
+    if (!msg || msg.is_user || !uid) return null;
+    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    const entry = stateStore.getEntryFor("world", uid, swipe);
+    if (!entry) return null;
+    const step = entry.disabled ? null : stateStore.getStep("world", uid);
+    return {
+        entry,
+        applied: (step?.applied || []).map(a => ({ ...a, label: sub(a.label) })),
+        notes: step?.notes || [],
+        skipped: entry.parsed?.skipped || [],
+        missing: Boolean(entry.missing),
+        disabled: Boolean(entry.disabled),
+        noChanges: Boolean(entry.parsed?.noChanges)
+    };
+}
+
+/** A manual edit from the editor. Returns the entry, or null with no chat open. */
+export function worldEdit(changes) {
+    if (!adapter.getMeta() || !Array.isArray(changes) || !changes.length) return null;
+    return stateStore.addUserEntry("world", { kind: "delta", changes, skipped: [], noChanges: false });
+}
+
+export function worldSetEntryDisabled(entryId, disabled) {
+    return stateStore.setDisabled(entryId, disabled);
+}
+
+export function worldRemoveUserEntry(entryId) {
+    return stateStore.removeUserEntry(entryId);
+}
+
+/** History rows, newest first, with each change as a readable line. */
+export function worldHistory() {
+    const pcLabel = sub("{{user}}");
+    return stateStore.listEntries("world").reverse().map(row => ({
+        ...row,
+        lines: (row.entry.parsed?.changes || []).map(ch => sub(describeWorldChange(ch, pcLabel))).filter(Boolean)
+    }));
+}
+
+/** Re-reads World blocks from messages from..to (0-based, inclusive). */
+export function worldImportRange(fromIndex, toIndex) {
+    if (!adapter.getMeta()) return 0;
+    return stateStore.importFromChat("world", { fromIndex, toIndex, force: true });
+}
+
+export function worldChatOpen() {
+    return Boolean(adapter.getMeta());
 }
 
 // ── ST events ────────────────────────────────────────────────────────────

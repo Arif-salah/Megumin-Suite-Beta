@@ -253,3 +253,30 @@ export function renderWorldCard(state, opts = {}) {
 
     return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
+
+// ── One raw change as a line of text ─────────────────────────────────────
+// For the history view, which also lists entries that are switched off and so
+// have no computed before/after.
+
+const SCENE_NAME = { time: "Time", location: "Loc", weather: "Wx" };
+const PHASE_NAME = { arcPhase: "Arc", scenePhase: "Scene" };
+const LIST_NAME = { threads: "Thread", seeds: "Seed", timers: "Timer" };
+
+export function describeWorldChange(ch, pcLabel = "{{user}}") {
+    const who = w => (w === "{{pc}}" ? pcLabel : w);
+    switch (ch && ch.type) {
+        case "scene": return `${SCENE_NAME[ch.key] || ch.key}: ${ch.value}`;
+        case "phase": return `${PHASE_NAME[ch.key] || ch.key}: ${ch.value}`;
+        case "field": return `${who(ch.who)} · ${fieldLabel(ch.field)}: ${ch.value || "(cleared)"}`;
+        case "enter": return `${who(ch.who)} entered`;
+        case "leave": return `${who(ch.who)} left${ch.where ? `: ${ch.where}` : ""}`;
+        case "offscreen": return `${ch.who ? who(ch.who) + " " : ""}off-screen: ${ch.value}`;
+        case "forget": return `${who(ch.who)} removed`;
+        case "pcname": return `Player character: ${ch.name}`;
+        case "list": {
+            const n = LIST_NAME[ch.list] || ch.list;
+            return ch.op === "remove" ? `${n} −: ${ch.value}` : ch.op === "add" ? `${n} +: ${ch.value}` : `${n}: ${ch.value}`;
+        }
+        default: return "";
+    }
+}
