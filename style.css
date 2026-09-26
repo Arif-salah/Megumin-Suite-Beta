@@ -5002,3 +5002,14 @@
 .ig2-cast-line { font-size: .72rem; line-height: 1.45; word-break: break-word; display: flex; gap: 8px; }
 .ig2-cast-line span { flex: none; width: 44px; color: var(--text-muted); font-size: .64rem; text-transform: uppercase; letter-spacing: .3px; padding-top: 1px; }
 .ig2-missing { color: var(--text-muted); }
+/* V2 selected but World State off: say so, and grey the page out. */
+.ig-v2-inactive {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    border: 1px solid rgba(239,68,68,.55); border-left: 3px solid #ef4444;
+    background: rgba(239,68,68,.08); border-radius: 8px;
+    padding: 8px 10px; font-size: .74rem; color: var(--text-main);
+}
+.ig-v2-inactive > i { color: #ef4444; }
+.ig-v2-inactive > div { flex: 1; min-width: 180px; }
+.ig-v2-inactive .menu_button { width: auto; margin: 0; font-size: .72rem; padding: 5px 10px; }
+.ig-engine-page.is-inactive { opacity: .45; filter: grayscale(.6); pointer-events: none; user-select: none; }

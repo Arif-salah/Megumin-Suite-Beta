@@ -12,6 +12,10 @@
 
 import { localProfile } from "../../core/state.js";
 import { saveProfileToMemory } from "../../core/profile.js";
+import { Popup, POPUP_TYPE } from "../../st.js";
+import { worldEnabled } from "../../state/index.js";
+import { meguminSyncLegacyBlockIds } from "../blocks/registry.js";
+import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { setActiveImageGenRequest } from "../../core/activeRequests.js";
 import { showKazumaProgress } from "../../ui/progress.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
@@ -27,16 +31,49 @@ export {
     addKazumaRetryButtons, kazumaRetrySweep, igGenerateWithComfy,
 } from "./comfy.js";
 
-/** "classic" | "v2" — which page and which prompt side are in use. */
-export function imageGenEngine() {
+/** The page the user picked: "classic" | "v2". */
+export function imageGenSelectedEngine() {
     return localProfile?.imageGen?.engine === "v2" ? "v2" : "classic";
+}
+
+/**
+ * The prompt side actually in use. V2 lives on World State (outfits, who is
+ * present), so with World State off it is inactive and images are made the
+ * Classic way until World State is back on.
+ */
+export function imageGenEngine() {
+    return imageGenSelectedEngine() === "v2" && worldEnabled() ? "v2" : "classic";
+}
+
+/** Puts the World State block into the block stack, as the Blocks tab does. */
+function enableWorldState() {
+    const stack = localProfile.blockStack;
+    if (!stack || !Array.isArray(stack.order)) return false;
+    if (!stack.order.includes("world")) stack.order.push("world");
+    meguminSyncLegacyBlockIds();
+    saveProfileToMemory();
+    meguminScheduleBlocksRefresh();
+    return worldEnabled();
+}
+
+async function askToEnableWorldState() {
+    const $msg = $(`
+        <div style="text-align:left; display:flex; flex-direction:column; gap:8px;">
+            <div><b>V2 needs World State.</b></div>
+            <div>V2 takes each character's outfit, and who is in the scene, from World State, so outfits stay the same from image to image until the story changes them.</div>
+            <div>Turn World State on now? Without it, V2 stays inactive and images are made the Classic way.</div>
+        </div>
+    `);
+    const ok = await new Popup($msg, POPUP_TYPE.CONFIRM, "", { okButton: "Turn on World State", cancelButton: "Not now" }).show();
+    return ok ? enableWorldState() : false;
 }
 
 // ── The tab ──────────────────────────────────────────────────────────────
 
 export function renderImageGen(c) {
     c.empty();
-    const engine = imageGenEngine();
+    const engine = imageGenSelectedEngine();
+    const v2Inactive = engine === "v2" && !worldEnabled();
     const head = $(`
         <div class="ig-engine-switch">
             <div class="ig-engine-tabs" role="tablist">
@@ -48,20 +85,31 @@ export function renderImageGen(c) {
                 </button>
             </div>
             <div class="ig-engine-desc">${engine === "classic"
-                ? "The image tab as it has always worked: the model writes the whole image prompt."
-                : "Consistent characters: saved looks and current outfits go into every image unchanged."}</div>
+                ? "The image tab as it has always worked: the model writes the whole image prompt, appearance and clothing included."
+                : "V2 uses World State so the extension manages each character's look and outfit tags. They don't change at random, and characters stay consistent from image to image using only the prompt."}</div>
+            ${v2Inactive ? `
+            <div class="ig-v2-inactive">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <div><b>V2 is not active: World State is off.</b> Images are being made the Classic way until it is on.</div>
+                <button type="button" class="menu_button ig-v2-enable-ws"><i class="fa-solid fa-thumbtack"></i> Turn on World State</button>
+            </div>` : ""}
         </div>
     `);
-    head.find(".ig-engine-tab").on("click", function () {
+    head.find(".ig-engine-tab").on("click", async function () {
         const next = $(this).data("engine");
-        if (next === imageGenEngine()) return;
+        if (next === imageGenSelectedEngine()) return;
         localProfile.imageGen.engine = next;
         saveProfileToMemory();
+        if (next === "v2" && !worldEnabled()) await askToEnableWorldState();
+        renderImageGen(c);
+    });
+    head.find(".ig-v2-enable-ws").on("click", () => {
+        if (enableWorldState()) toastr.success("World State is on. V2 is active.", "Megumin Suite");
         renderImageGen(c);
     });
     c.append(head);
 
-    const page = $(`<div class="ig-engine-page"></div>`);
+    const page = $(`<div class="ig-engine-page${v2Inactive ? " is-inactive" : ""}"></div>`);
     c.append(page);
     if (engine === "classic") renderClassicImageGen(page);
     else renderV2ImageGen(page);

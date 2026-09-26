@@ -182,7 +182,13 @@ test("rules: structure + example + rules + shot + extra, and never off-frame", (
             assert.doesNotMatch(r, OFF_FRAME);
         }
     }
-    assert.match(renderV2Rules({ style: "tags" }), /\[who is in the shot\], \[@Name of each character\], \[pose and action\]/);
+    assert.match(renderV2Rules({ style: "tags" }), /\[who is in the shot\], \[@Name, then what only they are doing and their expression\], \[the next @Name, then theirs\], \[what they do together\]/);
+    // Multi-character guidance, both styles.
+    assert.match(renderV2Rules({ style: "tags" }), /One character: add solo/);
+    assert.match(renderV2Rules({ style: "tags" }), /Right after each @Name, put what only that character is doing/);
+    assert.match(renderV2Rules({ style: "tags" }), /Three or more people: write @Name only for the two/);
+    assert.match(renderV2Rules({ style: "natural" }), /Two characters: say where each one is/);
+    assert.match(renderV2Rules({ style: "natural" }), /Three or more people: focus on the two/);
     assert.match(renderV2Rules({ style: "tags" }), /"holding hands", not "Mira holding Theo's hand"/);
     assert.match(renderV2Rules({ style: "natural" }), /2 to 4 plain sentences/);
     assert.match(renderV2Rules({ shot: "pov" }), /through \{\{user\}\}'s eyes/);
@@ -194,7 +200,7 @@ test("the prompt examples resolve cleanly when those characters exist", () => {
     const theo = { name: "Theo", look: "1boy, black hair", outfit: "grey coat" };
     const example = renderV2Rules({ style: "tags" }).split("\n").find(l => l.startsWith("1girl, 1boy, @Mira"));
     assert.equal(resolveImagePrompt(example, { cast: [mira, theo] }).prompt,
-        "1girl, 1boy, red hair, green eyes, white blouse, black hair, grey coat, sitting at a table, holding a mug, leaning forward, laughing, looking at another, tavern, night, warm lamplight, medium shot, from side");
+        "1girl, 1boy, red hair, green eyes, white blouse, laughing, holding a mug, black hair, grey coat, leaning on the counter, smiling, looking at another, facing another, tavern, night, warm lamplight, medium shot, from side");
 });
 
 test("manual and inline prompts carry the cast and the rules", () => {
