@@ -86,6 +86,21 @@ function nameIndex(cast) {
 
 const isNameChar = ch => /[\p{L}\p{N}_'-]/u.test(ch || "");
 
+// "@Matthew's hand": a possessive ends the name.
+const POSSESSIVE = /^['’]s(?![\p{L}\p{N}])/u;
+const endsName = (text, at) => !isNameChar(text[at]) || POSSESSIVE.test(text.slice(at));
+
+// Index just past a "( … )" starting at `at`, or -1 when it is not closed.
+function skipParens(text, at) {
+    if (text[at] !== "(") return -1;
+    let depth = 0;
+    for (let j = at; j < text.length; j++) {
+        if (text[j] === "(") depth++;
+        else if (text[j] === ")" && --depth === 0) return j + 1;
+    }
+    return -1;
+}
+
 /**
  * Replaces every @Name in an image prompt.
  * @param {string} prompt
@@ -99,6 +114,10 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
     const filled = [];
     const unknown = [];
     const noLook = [];
+    // Only a character's FIRST mention carries their look and outfit. A model
+    // that writes @Name again ("@Kazuma holding @Matthew's hand") would
+    // otherwise paste the whole tag set in two or three times.
+    const seen = new Map();   // name → Set of parts already put in ("look", "outfit")
     let out = "";
     let i = 0;
 
@@ -113,7 +132,7 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
         let hit = null;
         for (const e of index) {
             const cand = lower.slice(at + 1, at + 1 + e.len).replace(/\s+/g, " ");
-            if (cand === e.key && !isNameChar(text[at + 1 + e.len])) { hit = e; break; }
+            if (cand === e.key && endsName(text, at + 1 + e.len)) { hit = e; break; }
         }
 
         let end;
@@ -133,7 +152,10 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
             unknown.push(displayName);
         }
 
-        // Optional .look / .outfit
+        // Optional possessive, then optional .look / .outfit
+        let possessive = "";
+        const pos = text.slice(end).match(POSSESSIVE);
+        if (pos) { possessive = pos[0]; end += pos[0].length; }
         let part = "all";
         const suffix = text.slice(end).match(/^\.([A-Za-z]+)/);
         if (suffix && PART_SYNONYMS[suffix[1].toLowerCase()]) {
@@ -141,22 +163,52 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
             end += suffix[0].length;
         }
 
+        // Tags: clothing or looks stuck straight onto @Name(…) are the model
+        // redescribing what @Name already carries; they go.
+        if (style === "tags" && member) {
+            const after = skipParens(text, end);
+            if (after > 0) end = after;
+        }
+
         if (!member) {
-            out += displayName;
+            out += displayName + (style === "natural" ? possessive : "");
+        } else if (coveredAlready(seen, member.name, part)) {
+            // A repeat: nothing in Tags (a name means nothing to the image
+            // model), the plain name in Natural so the sentence still reads.
+            out += style === "natural" ? member.name + possessive : "";
+        } else if (style === "natural" && possessive && !seen.has(member.name)) {
+            // "@Theo's hand" as the first mention: keep the sentence; the
+            // description waits for a plain mention (or is left out).
+            out += member.name + possessive;
         } else {
-            out += renderMember(member, part, style, noLook);
-            filled.push({ name: member.name, part });
+            // Only the parts not put in yet: "@Aqua.look … @Aqua.outfit" keeps
+            // both, "@Aqua … @Aqua" keeps one copy.
+            const done = seen.get(member.name) || new Set();
+            const want = part === "all" ? ["look", "outfit"] : [part];
+            const missing = want.filter(x => !done.has(x));
+            const renderPart = missing.length === 2 ? "all" : missing[0];
+            missing.forEach(x => done.add(x));
+            seen.set(member.name, done);
+            out += renderMember(member, renderPart, style, noLook);
+            filled.push({ name: member.name, part: renderPart });
         }
         i = end;
     }
 
     let result = out;
     if (style === "tags") {
-        result = dedupeTags(result);
+        result = dedupeTags(splitTags(result).map(t => t.replace(/\s{2,}/g, " ").trim()).join(", "));
     } else {
         result = result.replace(/\s+,/g, ",").replace(/,\s*,/g, ",").replace(/[ \t]{2,}/g, " ").trim();
     }
     return { prompt: result, filled, unknown, noLook };
+}
+
+function coveredAlready(seen, name, part) {
+    const done = seen.get(name);
+    if (!done) return false;
+    const want = part === "all" ? ["look", "outfit"] : [part];
+    return want.every(x => done.has(x));
 }
 
 function renderMember(m, part, style, noLook) {

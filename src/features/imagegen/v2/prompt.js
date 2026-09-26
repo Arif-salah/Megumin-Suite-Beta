@@ -33,9 +33,9 @@ export function renderCastList(cast, { shot = "cinematic" } = {}) {
     return lines.length ? `<Cast>\n${lines.join("\n")}\n</Cast>` : "";
 }
 
-/** Base rules + the style block + the shot block (+ extra instructions). */
+/** The style guide (structure + example + rules), the shot line, extra instructions. */
 export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "" } = {}) {
-    const parts = [P.baseRules, P.style[style] || P.style.tags, P.shot[shot] || P.shot.cinematic];
+    const parts = [P.style[style] || P.style.tags, P.shot[shot] || P.shot.cinematic];
     if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
     return parts.join("\n");
 }

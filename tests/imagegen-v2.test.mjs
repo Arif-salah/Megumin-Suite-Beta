@@ -151,28 +151,76 @@ test("cast list: player, in scene, mentioned; POV leaves the player out", () => 
     assert.doesNotMatch(renderCastList(cast, { shot: "pov" }), /Kazuma/);
 });
 
-test("rules: base + style + shot + extra, and never off-frame", () => {
+test("rules: structure + example + rules + shot + extra, and never off-frame", () => {
     for (const style of ["tags", "natural"]) {
         for (const shot of ["cinematic", "pov", "portrait"]) {
             const r = renderV2Rules({ style, shot, extra: "moody" });
-            assert.match(r, /^## Image prompt rules\n@Name stands for/);
+            assert.match(r, /^## How to write the image prompt\nFill in this structure/);
+            assert.match(r, /Example \(made-up characters; use the names from <Cast>\):\n/);
+            assert.match(r, /Write each @Name once/);
+            assert.match(r, /\nShot: /);
             assert.match(r, /Extra instructions: moody$/);
             assert.doesNotMatch(r, OFF_FRAME);
         }
     }
-    assert.match(renderV2Rules({ style: "tags" }), /Start with who is in the shot: 1girl/);
+    assert.match(renderV2Rules({ style: "tags" }), /\[who is in the shot\], \[@Name of each character\], \[pose and action\]/);
+    assert.match(renderV2Rules({ style: "tags" }), /"holding hands", not "Mira holding Theo's hand"/);
     assert.match(renderV2Rules({ style: "natural" }), /2 to 4 plain sentences/);
-    assert.match(renderV2Rules({ shot: "pov" }), /\{\{user\}\}'s eyes/);
+    assert.match(renderV2Rules({ shot: "pov" }), /through \{\{user\}\}'s eyes/);
+});
+
+test("the prompt examples resolve cleanly when those characters exist", () => {
+    // The example line is itself a valid prompt: run it through the resolver.
+    const mira = { name: "Mira", look: "1girl, red hair, green eyes", outfit: "white blouse" };
+    const theo = { name: "Theo", look: "1boy, black hair", outfit: "grey coat" };
+    const example = renderV2Rules({ style: "tags" }).split("\n").find(l => l.startsWith("1girl, 1boy, @Mira"));
+    assert.equal(resolveImagePrompt(example, { cast: [mira, theo] }).prompt,
+        "1girl, 1boy, red hair, green eyes, white blouse, black hair, grey coat, sitting at a table, holding a mug, leaning forward, laughing, looking at another, tavern, night, warm lamplight, medium shot, from side");
 });
 
 test("manual and inline prompts carry the cast and the rules", () => {
     const castList = "<Cast>\n@Aqua: in the scene\n</Cast>";
     const rules = renderV2Rules({});
     const m = renderV2ManualPrompt({ castList, scene: "Loc: Tavern", story: "Aqua: Hi.", rules });
-    assert.match(m.user, /^<Cast>[\s\S]*<Scene>\nLoc: Tavern\n<\/Scene>[\s\S]*<Recent_Story>\nAqua: Hi\.\n<\/Recent_Story>[\s\S]*## Image prompt rules[\s\S]*Output only the prompt, nothing else\.$/);
+    assert.match(m.user, /^<Cast>[\s\S]*<Scene>\nLoc: Tavern\n<\/Scene>[\s\S]*<Recent_Story>\nAqua: Hi\.\n<\/Recent_Story>[\s\S]*## How to write the image prompt[\s\S]*Output only the prompt, nothing else\.$/);
     assert.doesNotMatch(m.system + m.user, OFF_FRAME);
     const inl = renderV2InlineInstruction({ conditionalText: "ONLY IF A PHOTO. ", imageCount: 2, castList, rules });
     assert.match(inl, /^### IMAGE\nONLY IF A PHOTO\. Within your response, insert 2 image tag\(s\)/);
     assert.match(inl, /never use double quotes\.$/);
     assert.doesNotMatch(inl, OFF_FRAME);
+});
+
+// ── The reported output (the model broke the rules; the resolver still copes) ──
+
+const KAZUMA = { name: "Kazuma", look: "", outfit: "Casual loungewear" };
+const MATTHEW = {
+    name: "Matthew", aliases: ["Matt"],
+    look: "male, young adult, black hair, purple hair, two-tone hair, purple eyes, petite, flat stomach",
+    outfit: "Cropped black graphic tee, pleated black mini skirt, barefoot"
+};
+const REPORTED = "2boys, @Kazuma, @Matthew(cropped black band t-shirt, midriff, pleated miniskirt, black thighhighs), holding hands, close standing, @Kazuma holding @Matthew's hand, @Matthew looking down, blushing intensely, shy, bedroom, warm indoor lighting, medium shot";
+
+test("reported output: each character's tags appear once; the model's own clothing is dropped", () => {
+    const r = resolveImagePrompt(REPORTED, { cast: [KAZUMA, MATTHEW] });
+    const count = tag => r.prompt.split(", ").filter(t => t === tag).length;
+    assert.equal(count("purple eyes"), 1);
+    assert.equal(count("Cropped black graphic tee"), 1);
+    assert.equal(count("Casual loungewear"), 1);
+    assert.ok(!/thighhighs|band t-shirt|midriff/.test(r.prompt), "clothing stuck onto @Matthew(…) is gone");
+    assert.ok(!/@|Matthew|Kazuma/.test(r.prompt), "no names or raw @ reach ComfyUI in Tags style");
+    assert.ok(r.prompt.startsWith("2boys, Casual loungewear, male, young adult"));
+    assert.match(r.prompt, /holding hands, close standing, holding hand, looking down, blushing intensely/);
+    assert.deepEqual(r.noLook, ["Kazuma"]);
+});
+
+test("possessives: '@Name's' is recognised", () => {
+    assert.equal(resolveImagePrompt("@Matt's hand", { cast: [MATTHEW] }).prompt,
+        "male, young adult, black hair, purple hair, two-tone hair, purple eyes, petite, flat stomach, Cropped black graphic tee, pleated black mini skirt, barefoot hand");
+    const n = resolveImagePrompt("@Kazuma takes @Matthew's hand; @Matthew looks down.", { cast: [KAZUMA, MATTHEW], style: "natural" }).prompt;
+    assert.equal(n, "Kazuma (wearing Casual loungewear) takes Matthew's hand; Matthew (male, young adult, black hair, purple hair, two-tone hair, purple eyes, petite, flat stomach, wearing Cropped black graphic tee, pleated black mini skirt, barefoot) looks down.");
+});
+
+test("repeats: the second @Name adds nothing in Tags, the plain name in Natural", () => {
+    assert.equal(resolveImagePrompt("1boy, @Matt, @Matthew, sitting", { cast: [MATTHEW] }).prompt.split("purple eyes").length, 2);
+    assert.match(resolveImagePrompt("@Matt sits. Then @Matt stands.", { cast: [MATTHEW], style: "natural" }).prompt, /\. Then Matthew stands\.$/);
 });
