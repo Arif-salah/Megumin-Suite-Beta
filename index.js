@@ -86,7 +86,7 @@ import {
     STAT_FIELD_TYPES,
 } from "./src/features/blocks/registry.js";
 import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex } from "./src/engine/chatText.js";
-import { useMeguminEngine, runWithChomusuke } from "./src/engine/tasks.js";
+import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise } from "./src/engine/tasks.js";
 import { escapeHtmlAttr } from "./src/utils/html.js";
 import { downloadJsonFile } from "./src/utils/download.js";
 import { showKazumaProgress } from "./src/ui/progress.js";
@@ -448,6 +448,23 @@ jQuery(async () => {
             // World State side-model reads land in the background; redraw the
             // cards when one starts ("Reading…") and when it lands.
             setWorldStateChangedHook(() => meguminScheduleBlocksRefresh());
+            // Send guard: SillyTavern waits for this handler before it talks to
+            // the API, so a reply sent while Chomusuke has the worker profile
+            // switched in (switching in or back, when Send is still live) waits
+            // for the main profile to return. Background (quiet) generations and
+            // token-count dry runs pass straight through; 30s cap so a stuck
+            // worker can never block the chat.
+            eventSource.on(event_types.GENERATION_STARTED, async (genType, _params, dryRun) => {
+                if (dryRun || genType === "quiet") return;
+                const session = chomusukeSessionPromise();
+                if (!session) return;
+                toastr.info("Waiting a moment for Chomusuke to hand the connection back…", "Megumin Suite", { timeOut: 3000 });
+                const gaveUp = await Promise.race([
+                    session.then(() => false),
+                    new Promise(r => setTimeout(() => r(true), 30000))
+                ]);
+                if (gaveUp) console.warn("[Megumin-Suite] Send guard: Chomusuke still busy after 30s; sending anyway.");
+            });
             eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
                 if (stateOnSwiped(mesId)) meguminScheduleBlocksRefresh();
             });

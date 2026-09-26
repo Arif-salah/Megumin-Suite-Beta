@@ -138,6 +138,19 @@ export async function applyConnectionProfileById(profileId, timeoutMs = 10000) {
  * @param {{ force?: boolean }} [options]
  * @returns {Promise<any>}
  */
+// ── Worker session ───────────────────────────────────────────────────────
+// From the moment the worker profile is switched IN until the main profile is
+// switched back, SillyTavern's active connection is the worker. SillyTavern
+// swaps Send for Stop while the worker is generating, but not while the profile
+// is switching either way, so a message sent in those gaps would go to the
+// worker. The session promise lets the send guard (index.js) wait it out.
+let workerSession = null;
+
+/** Resolves when the current Chomusuke run has switched back; null when none is running. */
+export function chomusukeSessionPromise() {
+    return workerSession;
+}
+
 export async function runWithChomusuke(featureKey, task, { force = false } = {}) {
     const chomusuke = localProfile?.chomusuke;
     const isEnabled = Boolean(chomusuke?.enabled) || force;
@@ -166,6 +179,9 @@ export async function runWithChomusuke(featureKey, task, { force = false } = {})
     }
 
     let switchedToWorker = false;
+    let endSession;
+    const session = new Promise(resolve => { endSession = resolve; });
+    workerSession = session;
 
     try {
         switchedToWorker = await applyConnectionProfileById(workerProfileId, 10000);
@@ -193,6 +209,8 @@ export async function runWithChomusuke(featureKey, task, { force = false } = {})
                 console.error(`[${extensionName}] Failed to restore primary connection profile "${originalProfileId}":`, restoreErr);
             }
         }
+        if (workerSession === session) workerSession = null;
+        endSession();
     }
 }
 
