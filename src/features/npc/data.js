@@ -10,6 +10,7 @@ import { localProfile } from "../../core/state.js";
 import { memGetCachedKeywords } from "../memory/keywords.js";
 import { escapeRegex } from "../../utils/regex.js";
 import { isCharacterNameMatch } from "../../utils/nameMatcher.js";
+import { getWorldStateCurrent } from "../../state/index.js";
 import { npcFields, npcFieldByRole, npcBodyFields, npcVitalsFields } from "./fields.js";
 
 // -------------------------------------------------------------
@@ -177,7 +178,7 @@ export function getRelevantNpcImageTags() {
     if (keywords.length === 0) return "";
 
     const candidateMap = new Map();
-    const pcName = (localProfile?.worldState?.current?.pc?.name || "").trim().toLowerCase();
+    const pcName = (getWorldStateCurrent()?.pc?.name || "").trim().toLowerCase();
 
     // 1. Image Gen character tags (including sheet-scanned characters without NPC Bank dossiers)
     const charTags = localProfile?.imageGen?.characterTags || {};

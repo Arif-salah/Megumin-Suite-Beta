@@ -239,12 +239,20 @@ function parseLine({ t, bullet }, ctx, out) {
 
     // ── Scene line with several cells: "Time: Night | Loc: Tavern | Wx: Rain"
     if (t.includes("|")) {
-        const cells = t.split("|").map(c => c.trim()).filter(Boolean);
-        const first = cells[0].match(/^([^:]{1,24}):\s*(.*)$/);
-        if (first && (SCENE_LABELS[normLabel(first[1])] || normLabel(first[1]) === "time & loc")) {
-            for (const cell of cells) {
-                if (!parseLine({ t: cell, bullet: false }, ctx, out)) out.skipped.push(cell);
-            }
+        // Cut at the LABELS, not at the pipes: "Loc: Axel | tavern" is one
+        // location with a pipe inside it, not a location and a stray cell.
+        const labelRe = /(^|\|)\s*([^|:]{1,24}?)\s*:/g;
+        const hits = [];
+        let lm;
+        while ((lm = labelRe.exec(t)) !== null) {
+            const L = normLabel(lm[2]);
+            if (SCENE_LABELS[L] || L === "time & loc") hits.push({ start: lm.index, end: lm.index + lm[0].length, label: lm[2] });
+        }
+        if (hits.length >= 2 && hits[0].start === 0) {
+            hits.forEach((h, i) => {
+                const value = t.slice(h.end, i + 1 < hits.length ? hits[i + 1].start : t.length).trim();
+                parseLine({ t: `${h.label}: ${value}`, bullet: false }, ctx, out);
+            });
             return true;
         }
     }
@@ -429,6 +437,8 @@ function parseOffscreenItem(text, out) {
     const t = String(text || "").trim();
     if (skipValue(t)) return true;
     const m = t.match(/^(.{1,48}?)\s*(?:=|:|—|–|\s-\s)\s*(.+)$/);
+    // The template's own "[NPC Name] = [where they are]" echoed back.
+    if (m && (isPlaceholder(m[1]) || skipValue(m[2]))) return true;
     if (m) {
         const cn = cleanName(m[1]);
         if (cn) return push(out, { type: "offscreen", who: cn.name, value: m[2].trim() });

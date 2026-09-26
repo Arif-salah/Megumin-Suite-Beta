@@ -27,7 +27,7 @@ import { memGetRelevantVaultEntries } from "../features/memory/index.js";
 import { meguminRollD20s } from "../utils/dice.js";
 import { meguminOverridableSlots, meguminSlotIsLive, meguminModuleTrigger } from "../../data/slots.js";
 import { resolveSlot } from "../core/sharedFragments.js";
-import { hasWorldState, formatWorldStateForPrompt } from "../features/worldstate/ledger.js";
+import { worldPromptBlock } from "../state/index.js";
 
 export function buildBaseDict(isTokenCount = false) {
     const dict = {};
@@ -476,31 +476,13 @@ export function buildBaseDict(isTokenCount = false) {
         }
     });
 
-    // --- COMPACT WORLD STATE LOGIC ---
-    if (localProfile.blocks.includes("info") && dict["[[infoblock]]"] && localProfile.worldState && localProfile.worldState.compactEnabled) {
-        const context = typeof getContext === "function" ? getContext() : null;
-        if (context && context.chat) {
-            // Count how many AI messages exist so far
-            const aiMsgCount = context.chat.filter(m => !m.is_user && !m.is_system).length;
-            const freq = localProfile.worldState.fullFreq || 5;
-            
-            // If checking tokens for the UI, OR if the upcoming reply is NOT a multiple of the full frequency
-            if (isTokenCount || (aiMsgCount + 1) % freq !== 0) {
-                dict["[[infoblock]]"] = `Omit deep lore, unresolved threads, and off-screen tracking. Focus ONLY on immediate physical presence:\n<World_State>\n**Time & Loc:** [Time] at [Location]\n**PC:** [Brief visible clothing] | [Current posture/position]\n**NPCs Present:**\n* [Name]: [Brief visible clothing] | [Posture/position]\n</World_State>`;
-            }
-        }
-    }
-
-    // --- CURRENT WORLD STATE (CONTEXT FOR DELTA UPDATES) ---
-    // Injected into [[infoblockcurrent]] above [[blocks]] when a baseline state exists.
-    if (localProfile.blocks && localProfile.blocks.includes("info") && hasWorldState()) {
-        const fullWsPrompt = formatWorldStateForPrompt();
-        dict["[[infoblockcurrent]]"] = fullWsPrompt;
-        dict["[[infoblockcorrent]]"] = fullWsPrompt;
-    } else {
-        dict["[[infoblockcurrent]]"] = "";
-        dict["[[infoblockcorrent]]"] = "";
-    }
+    // --- CURRENT WORLD STATE (continuity notes) ---
+    // Injected into [[infoblockcurrent]] above [[blocks]] once the story has a
+    // state on file. The state store owns it; see src/state/index.js.
+    // [[infoblockcorrent]] is an old misspelling some presets still carry.
+    const worldNotes = localProfile.blocks && localProfile.blocks.includes("info") ? worldPromptBlock() : "";
+    dict["[[infoblockcurrent]]"] = worldNotes;
+    dict["[[infoblockcorrent]]"] = worldNotes;
 
     // --- PER-BLOCK HEADERS ---
     // The envelope carries its own header, once, above everything. These lines

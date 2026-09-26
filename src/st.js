@@ -12,7 +12,7 @@
 // path inside OUR tree, so it moves with the file and is easy to fix).
 // ─────────────────────────────────────────────────────────────────────────────
 
-export { extension_settings, getContext } from "../../../../extensions.js";
+export { extension_settings, getContext, saveMetadataDebounced } from "../../../../extensions.js";
 
 import {
     saveSettingsDebounced,
@@ -30,6 +30,8 @@ import {
     saveMetadata,
     isGenerating,
     online_status,
+    saveChatDebounced,
+    name1,
 } from "../../../../../script.js";
 
 import { saveBase64AsFile, debounce, cancelDebounce, waitUntilCondition } from "../../../../utils.js";
@@ -51,6 +53,8 @@ export {
     saveMetadata,
     isGenerating,
     online_status,
+    saveChatDebounced,
+    name1,
     saveBase64AsFile,
     debounce,
     cancelDebounce,

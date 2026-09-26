@@ -23,7 +23,7 @@ import { hardcodedLogic } from "../../data/database.js";
 import { MEGUMIN_BLOCK_REGISTRY, meguminSyncLegacyBlockIds } from "../features/blocks/registry.js";
 import { NPC_DEFAULT_FIELDS, NPC_SYSTEM_ROLES } from "../features/npc/fields.js";
 import { npcRollbackHistoryFrom } from "../features/npc/updates.js";
-import { worldStateRollbackHistoryFrom } from "../features/worldstate/ledger.js";
+import { WORLD_SETTINGS_DEFAULTS } from "../state/index.js";
 import { normalizeStoryConfig, applyStoryConfigDefaults } from "../features/storyconfig/config.js";
 import { escapeRegex } from "../utils/regex.js";
 import { refreshSidePanel, refreshPresentBar } from "../sidepanel/panel.js";
@@ -254,10 +254,9 @@ export function initProfile() {
                 styleGen: true
             }
         },
-        worldState: {
-            current: null,
-            history: []
-        }
+        // Settings only. The World State itself lives in the chat file
+        // (chat_metadata.megumin_state), never here.
+        worldState: { ...WORLD_SETTINGS_DEFAULTS }
     };
 
 
@@ -467,11 +466,20 @@ export function initProfile() {
     }
     if (!localProfile.dnRatio) localProfile.dnRatio = defaults.dnRatio;
     if (!localProfile.onomatopoeia) localProfile.onomatopoeia = defaults.onomatopoeia;
-    if (!localProfile.worldState) {
-        localProfile.worldState = { current: null, history: [] };
+    // World State: settings only. Profiles written before the state store kept
+    // the state itself here, per CHARACTER rather than per chat, which is how
+    // one chat's outfits vanished on reload. That copy is dropped; each chat's
+    // own messages are imported into its chat file instead.
+    if (!localProfile.worldState || typeof localProfile.worldState !== "object") {
+        localProfile.worldState = { ...WORLD_SETTINGS_DEFAULTS };
     } else {
-        if (localProfile.worldState.current === undefined) localProfile.worldState.current = null;
-        if (!Array.isArray(localProfile.worldState.history)) localProfile.worldState.history = [];
+        delete localProfile.worldState.current;
+        delete localProfile.worldState.history;
+        delete localProfile.worldState.compactEnabled;
+        delete localProfile.worldState.fullFreq;
+        for (const [k, v] of Object.entries(WORLD_SETTINGS_DEFAULTS)) {
+            if (localProfile.worldState[k] === undefined) localProfile.worldState[k] = v;
+        }
     }
     if (!localProfile.chomusuke) {
         localProfile.chomusuke = JSON.parse(JSON.stringify(defaults.chomusuke));
@@ -799,9 +807,8 @@ export function pruneFutureData() {
     if (npcRollbackHistoryFrom(chatLength)) {
         changesMade = true;
     }
-    if (worldStateRollbackHistoryFrom(chatLength)) {
-        changesMade = true;
-    }
+    // World State needs no rollback here: the state store squares itself with
+    // the chat on MESSAGE_DELETED (src/state/index.js).
 
     // 2b. Rebalance the working window.
     //
@@ -949,6 +956,10 @@ export function saveProfileToMemory() {
     if (profileToSave.imageGen) {
         delete profileToSave.imageGen.characterTags; // DO NOT save characterTags in settings.json!
     }
+    if (profileToSave.worldState) {
+        delete profileToSave.worldState.current; // World State lives in the chat file
+        delete profileToSave.worldState.history;
+    }
 
     // Drop prompt text that matches DEFAULT_PROMPTS. Safe on profileToSave because it is
     // already a clone; localProfile keeps the full text the editor is bound to.
@@ -1015,6 +1026,10 @@ export function flushProfileSettingsToLoadedKey() {
     }
     if (profileToSave.imageGen) {
         delete profileToSave.imageGen.characterTags; // DO NOT save characterTags in settings.json!
+    }
+    if (profileToSave.worldState) {
+        delete profileToSave.worldState.current; // World State lives in the chat file
+        delete profileToSave.worldState.history;
     }
 
     meguminSparsifyProfilePrompts(profileToSave);

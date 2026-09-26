@@ -44,7 +44,7 @@ function emptyRoot() {
  * @param {{
  *   adapter: { getChat: () => any[], getMeta: () => object|null, saveMeta: () => void, saveChat?: () => void, getUserNames?: () => string[] },
  *   modules: Record<string, { empty: () => object, parse: (text: string) => object|null, apply: (state: object, parsed: object, ctx: object) => { state: object, applied: any[], notes: string[] } }>,
- *   journalDepth?: number,
+ *   journalDepth?: number | (() => number),
  *   rootKey?: string
  * }} opts
  */
@@ -267,8 +267,9 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
     // ── Checkpointing ───────────────────────────────────────────────────
     function compact(r) {
         const seqs = [...new Set(r.journal.filter(e => e.source !== "user").map(e => e.seq))].sort((a, b) => a - b);
-        if (seqs.length <= journalDepth) return false;
-        const cutSeq = seqs[seqs.length - journalDepth - 1];
+        const depth = Math.max(1, Number(typeof journalDepth === "function" ? journalDepth() : journalDepth) || 200);
+        if (seqs.length <= depth) return false;
+        const cutSeq = seqs[seqs.length - depth - 1];
         const present = presentMessages();
         const userNames = adapter.getUserNames ? adapter.getUserNames() : [];
         for (const mid of Object.keys(modules)) {

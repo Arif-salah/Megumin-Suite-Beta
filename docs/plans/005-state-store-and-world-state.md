@@ -406,3 +406,14 @@ Editor (button on the World State card and in the Blocks tab):
 | `<World_State>` without 🧍 or with `**NPCs:**` | PC name empty; all NPC outfits lost |
 | Compact NPC line `* **Aqua:** blue dress` | NPC outfit lost |
 | `settings.json` | `Gin.png` holds a `{rawText}`-only stub; `Matt.png` holds state with no `npcOutfits` and no bootstrap entry, stored under the character key |
+
+## Progress
+- **Phase 1 (d950867):** store, world parser, world model, 61 node tests.
+- **Phase 2:** wired into SillyTavern.
+  - `src/state/index.js` bridges ST ↔ store (adapter over `chat_metadata`, events, prompt/card/compat accessors).
+  - `src/state/modules/world/render.js` renders prompt A, instructions B/C and the card markdown (round-trip tested against `src/blocks/treatments.js`).
+  - Envelope rules now sit above `<Blocks>`.
+  - Old `features/worldstate/ledger.js` + `parser.js` removed. Profiles drop `worldState.current/history` on load.
+  - The compact-mode toggle is replaced by Updates (Inline/Manual), Detail (Full/Scene only), "Rewrite next reply" and "Reset" under the World State row.
+  - Side-model mode (D) is not exposed yet (phase 4).
+- **Phase 3 (next):** card "Changed" strip + ⚠ chip, World State editor, history list.

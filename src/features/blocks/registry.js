@@ -12,7 +12,7 @@
 
 import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
-import { hasWorldState } from "../worldstate/ledger.js";
+import { worldBlockRequest } from "../../state/index.js";
 
 // -------------------------------------------------------------
 // BLOCK REGISTRY — one definition per block the <Blocks> envelope can carry
@@ -206,6 +206,7 @@ export function buildBlocksEnvelope(dict) {
     if (!active.length) return "";
 
     const parts = [];
+    const rules = [];   // per-block rules, written above <Blocks>
     active.forEach(b => {
         // A lead block is written before the prose, so it is deliberately not in
         // the envelope at all — the envelope is the last thing in the reply, and
@@ -221,55 +222,15 @@ export function buildBlocksEnvelope(dict) {
             return;
         }
 
-        // Stateful Delta World State:
-        // When baseline state already exists on file, ask for delta updates instead of full baseline.
-        if (b.id === "world" && hasWorldState()) {
-            parts.push(
-`<World_Update>
-<!-- REFERENCE: The <World_State> above is your active baseline. Do NOT output <World_State> here. -->
-<!-- RULE: Output <World_Update> ONLY if THIS scene changed something already on <World_State>, or introduced someone/something new. Omit this entire tag completely if nothing changed. -->
-<!-- EDIT BLUEPRINT: Output ONLY the specific lines or sections that changed, following this structure:
-
-**📅 Time:** [New time if advanced] | **🌤 Loc:** [New location if moved] | **🌡 Wx:** [New weather if changed]
-
----
-
-**🧍 {{user}}:** (Include only if {{user}} changed outfit, position, or status)
-* *Outfit:* [New clothing if changed]
-* *Position:* [New posture, location, or action]
-* *Visible Condition:* [New injury, flush, tell]
-* *Carrying:* [Items picked up or dropped]
-
----
-
-**👥 NPCs Present:** (Include only characters whose details changed, or new arrivals)
-**[NPC Name]:** (For existing NPC whose details changed — include ONLY changed fields)
-* *Outfit:* [New clothing if changed]
-* *Position:* [New posture or action]
-* *Mood:* [Shifted emotional state]
-* *Agenda:* [Shifted goal]
-* *Secret:* [Revealed or new secret]
-
-**+ [New NPC Name]:** (If an NPC newly enters the scene — provide full details: Outfit, Position, Mood, Agenda, Secret)
-
-**- [NPC Name]** (If an NPC exits or flees the scene)
-
----
-
-**📡 Off-Screen:** (Add or update if characters leave or are tracked elsewhere)
-* [NPC Name] [Current location / activity]
-
----
-
-**🔥 Unresolved Threads:** (Update if threads change)
-* [New or resolved friction]
-**🌱 Planted Seeds:** [New subtle detail introduced]
-**⏳ Consequence Timers:** [New or expired timer]
-**🎯 Arc Phase:** [Shifted arc phase]
-**🎬 Scene Phase:** [Shifted scene phase]
--->
-</World_Update>`
-            );
+        // World State is owned by the state store: it decides between the first
+        // full snapshot and a short update, and whether the main model is asked
+        // at all (side-model and manual modes leave it out). Its rules sit above
+        // <Blocks> so the template itself stays small enough not to be echoed.
+        if (b.id === "world") {
+            const req = worldBlockRequest();
+            if (!req) return;
+            rules.push(req.rules);
+            parts.push(req.template);
             return;
         }
 
@@ -298,7 +259,8 @@ export function buildBlocksEnvelope(dict) {
         "Put every block inside it, in this order, each in its own tag. Do not add tags that are not listed. Do not nest blocks inside each other. Close every tag you open. Never wrap a block in <details> or <summary> — the interface draws the header and the fold itself."
     ].join("\n");
 
-    return `${header}\n\n<Blocks>\n${parts.join("\n")}\n</Blocks>`;
+    const rulesText = rules.length ? `\n\n${rules.join("\n\n")}` : "";
+    return `${header}${rulesText}\n\n<Blocks>\n${parts.join("\n")}\n</Blocks>`;
 }
 
 //

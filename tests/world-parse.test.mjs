@@ -360,6 +360,15 @@ test("names with Loc/Time/Temp/Seed/Thread inside are safe", () => {
     assert.equal(s.scene.time, "Night");
 });
 
+test("a pipe inside a location is kept, in both formats", () => {
+    let s = run(U("Loc: Axel | guild tavern"), base()).state;
+    assert.equal(s.scene.location, "Axel | guild tavern");
+    s = run(U("**📅 Time:** Dusk | **🌤 Loc:** Axel | back alley | **🌡 Wx:** fog"), base()).state;
+    assert.equal(s.scene.time, "Dusk");
+    assert.equal(s.scene.location, "Axel | back alley");
+    assert.equal(s.scene.weather, "fog");
+});
+
 test("CRLF line endings", () => {
     const s = run(U("Aqua.Outfit: robe\r\nTime: Dawn"), base()).state;
     assert.equal(findCast(s, "Aqua").fields.outfit, "robe");

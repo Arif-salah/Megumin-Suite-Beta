@@ -28,7 +28,7 @@ import { KAZUMA_PLACEHOLDERS, RESOLUTIONS } from "../../../data/image_data.js";
 import { getRelevantNpcImageTags } from "../npc/data.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { makeComfyClientId, openComfyProgressSocket } from "./comfyProgress.js";
-import { getWorldStateCurrent } from "../worldstate/ledger.js";
+import { getWorldStateCurrent } from "../../state/index.js";
 import { escapeHtmlAttr } from "../../utils/html.js";
 import { resolveCanonicalCharacterName, isCharacterNameMatch } from "../../utils/nameMatcher.js";
 
@@ -832,7 +832,7 @@ export function ensureCharacterTagsMigrated() {
     }
 
     // 2. Provisional entry for PC if not present
-    const pcName = localProfile.worldState?.current?.pc?.name || "";
+    const pcName = getWorldStateCurrent()?.pc?.name || "";
     if (pcName && !charTags[pcName] && !charTags["{{user}}"]) {
         charTags[pcName] = { tags: "", locked: false, provisional: true, aliases: [] };
         modified = true;
