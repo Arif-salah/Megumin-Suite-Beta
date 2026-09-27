@@ -247,7 +247,10 @@ export function addKazumaRetryButtons(msgIndex) {
             const regenRegex = new RegExp(`<!-- kazuma-inline-start:${wrapperId} -->[\\s\\S]*?<!-- kazuma-inline-end:${wrapperId} -->`, "g");
             const placeholder = `<div id="${wrapperId}" class="kazuma-img-placeholder" style="color:var(--gold); font-style: italic; margin: 10px 0;">[Regenerating Image...]</div>`;
 
+            // Kept so a cancelled regenerate can put the old image back.
+            let oldBlock = "";
             if (msg.mes.includes(`kazuma-inline-start:${wrapperId}`)) {
+                oldBlock = (msg.mes.match(regenRegex) || [""])[0];
                 msg.mes = msg.mes.replace(regenRegex, placeholder);
             } else {
                 toastr.warning("Could not find the original image block to replace.");
@@ -264,7 +267,7 @@ export function addKazumaRetryButtons(msgIndex) {
             }
 
             toastr.info("Regenerating inline image...");
-            igGenerateWithComfy(prompt, { message: msg, index: currentMsgIndex, mode: "inline", isInlineAuto: true, placeholderId: wrapperId });
+            igGenerateWithComfy(prompt, { message: msg, index: currentMsgIndex, mode: "inline", isInlineAuto: true, placeholderId: wrapperId, restoreHtml: oldBlock });
         });
 
         wrapper.appendChild(btn);
@@ -337,12 +340,19 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
 
     // An inline image that ends before ComfyUI is reached (preview cancelled,
     // empty prompt, workflow not loaded) would leave "[Generating Image...]" in
-    // the reply for good. Take it back out.
+    // the reply for good. Take it back out, or, for a regenerate, put the old
+    // image back where it was.
     const igDropPlaceholder = async () => {
         if (!target || !target.isInlineAuto || target.mode !== "inline" || !target.placeholderId) return;
         if (!igResolveTarget() || !target.message.mes.includes(`id="${target.placeholderId}"`)) return;
-        target.message.mes = target.message.mes
-            .replace(new RegExp(`\\s*<div id="${target.placeholderId}"[^>]*>[\\s\\S]*?<\\/div>\\s*`), "\n\n").trim();
+        if (target.restoreHtml) {
+            target.message.mes = target.message.mes
+                .replace(new RegExp(`<div id="${target.placeholderId}" class="kazuma-img-placeholder"[^>]*>[\\s\\S]*?<\\/div>`), () => target.restoreHtml);
+            kazumaRetrySweep(target.index);
+        } else {
+            target.message.mes = target.message.mes
+                .replace(new RegExp(`\\s*<div id="${target.placeholderId}"[^>]*>[\\s\\S]*?<\\/div>\\s*`), "\n\n").trim();
+        }
         await saveChat();
         if (typeof updateMessageBlock === "function") {
             updateMessageBlock(target.index, target.message);
