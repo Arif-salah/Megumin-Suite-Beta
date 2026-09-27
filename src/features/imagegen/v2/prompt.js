@@ -65,7 +65,8 @@ export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", 
         : (P.style[style] || P.style.tags);
     const parts = [guide, P.shot[shot] || P.shot.cinematic];
     if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
-    return parts.join("\n");
+    // A blank line, so the shot line never reads as part of the example above it.
+    return parts.join("\n\n");
 }
 
 const previousBlock = previous =>
@@ -82,12 +83,13 @@ export function renderSheetsBlock(sheets) {
  * sheets, scene, story), the tasks together at the end.
  * @returns {{ system: string, user: string }}
  */
-export function renderV2ManualPrompt({ castList = "", sheets = "", scene = "", story = "", rules = "", method = "placeholders", previous = "", extras = "" } = {}) {
+export function renderV2ManualPrompt({ castList = "", sheets = "", scene = "", earlier = "", last = "", rules = "", method = "placeholders", previous = "", extras = "" } = {}) {
     const user = [
         castList,
         renderSheetsBlock(sheets),
         scene ? `<Scene>\n${scene}\n</Scene>` : "",
-        `<Recent_Story>\n${String(story || "").trim()}\n</Recent_Story>`,
+        String(earlier || "").trim() ? `<Earlier_Story>\n${String(earlier).trim()}\n</Earlier_Story>` : "",
+        `<Last_Message>\n${String(last || "").trim()}\n</Last_Message>`,
         method === "reference" ? previousBlock(previous) : "",
         rules,
         // With extra sections the answer has a shape of its own (see renderV2Extras).
@@ -225,7 +227,7 @@ export function renderCombinedPrompt(a) {
         `# Task 1: ${tag === "World_State" ? "World State" : "World Update"}\n${a.world.rules}`,
         [
             "# Task 2: Image prompt",
-            `The image shows the moment the latest exchange ends on. ${follow}`,
+            `The image shows the moment the latest exchange ends on; draw nothing that has already ended (someone who put an item away no longer holds it). ${follow}`,
             a.imageRules,
             a.onlyIfPhoto ? "If nobody in the latest exchange takes, sends or shares a picture, write <Image_Prompt>NONE</Image_Prompt>." : ""
         ].filter(Boolean).join("\n"),

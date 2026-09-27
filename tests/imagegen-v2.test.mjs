@@ -2,7 +2,7 @@
 // Image Gen V2 (plan 006): @Name substitution, the image cast, and the prompts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveImagePrompt, stripCountTags, dedupeTags, splitTags } from "../src/features/imagegen/v2/resolve.js";
+import { resolveImagePrompt, stripCountTags, dedupeTags, splitTags, isLineLayout, wearingPhrase } from "../src/features/imagegen/v2/resolve.js";
 import { buildImageCast } from "../src/features/imagegen/v2/cast.js";
 import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction } from "../src/features/imagegen/v2/prompt.js";
 import { parseWorldBlocks } from "../src/state/modules/world/parse.js";
@@ -88,7 +88,7 @@ test("weights keep their commas and survive", () => {
 test("natural style: the description and 'wearing', in the sentence", () => {
     const r = R("@Aqua leans on the bar while @Matt watches her.", "natural");
     assert.equal(r.prompt,
-        "Aqua (a slender young woman with long blue hair and blue eyes, wearing blue dress, detached sleeves) leans on the bar while Matthew (two-tone black and purple hair, purple eyes, petite, wearing cropped black tee, pleated black mini skirt) watches her.");
+        "Aqua, a slender young woman with long blue hair and blue eyes, wearing a blue dress, detached sleeves, leans on the bar while Matthew, two-tone black and purple hair, purple eyes, petite, wearing a cropped black tee, pleated black mini skirt, watches her.");
 });
 
 test("a finished prompt goes through unchanged (Retry reproduces the image)", () => {
@@ -180,48 +180,87 @@ test("the model describes clothing only for characters with no outfit on file", 
     for (const style of ["tags", "natural"]) {
         const r = renderV2Rules({ style });
         assert.doesNotMatch(r, /\.look|\.outfit/, "no other placeholder is offered");
-        assert.match(r, /The one exception: when <Cast> says a character's clothing is not noted/);
+        assert.match(r, /The one exception: when <Cast> says their clothing is not noted/);
     }
 });
 
-test("rules: structure + example + rules + shot + extra, and never off-frame", () => {
+test("rules: numbered layout + rules + example + shot + extra, and never off-frame", () => {
     for (const style of ["tags", "natural"]) {
         for (const shot of ["cinematic", "pov", "portrait"]) {
             const r = renderV2Rules({ style, shot, extra: "moody" });
-            assert.match(r, /^## How to write the image prompt\nFill in this structure/);
+            assert.match(r, /^## How to write the image prompt\nWrite it top to bottom/);
+            assert.match(r, /2\. \*\*One (line|sentence) per character\*\*: where they are in the frame/);
             assert.match(r, /Example \(made-up characters; use the names from <Cast>\):\n/);
-            assert.match(r, /Write each @Name once/);
+            assert.match(r, /Write each @Name once\. Use no names anywhere else/);
+            assert.match(r, /not "Mira's bedroom"/);
             assert.match(r, /\nShot: /);
             assert.match(r, /Extra instructions: moody$/);
             assert.doesNotMatch(r, OFF_FRAME);
         }
     }
-    assert.match(renderV2Rules({ style: "tags" }), /\[who is in the shot\], \[@Name, then what only they are doing and their expression\], \[the next @Name, then theirs\], \[what they do together\]/);
-    // Multi-character guidance, both styles.
-    assert.match(renderV2Rules({ style: "tags" }), /One character: add solo/);
-    assert.match(renderV2Rules({ style: "tags" }), /Right after each @Name, put what only that character is doing/);
-    assert.match(renderV2Rules({ style: "tags" }), /Three or more people: write @Name only for the two/);
-    assert.match(renderV2Rules({ style: "natural" }), /Two characters: say where each one is/);
-    assert.match(renderV2Rules({ style: "natural" }), /Three or more people: focus on the two/);
-    assert.match(renderV2Rules({ style: "tags" }), /"holding hands", not "Mira holding Theo's hand"/);
-    assert.match(renderV2Rules({ style: "natural" }), /2 to 4 plain sentences/);
-    assert.match(renderV2Rules({ shot: "pov" }), /through \{\{user\}\}'s eyes/);
+    assert.match(renderV2Rules({ style: "tags" }), /exactly ONE framing/);
+    assert.match(renderV2Rules({ style: "tags" }), /one person: add solo/);
+    assert.match(renderV2Rules({ style: "tags" }), /No quality tags/);
+    assert.match(renderV2Rules({ style: "natural" }), /in plain sentences/);
+    assert.match(renderV2Rules({ shot: "pov" }), /through \{\{user\}\}'s eyes\. Include pov\. \{\{user\}\} is the viewer: write "the viewer" for them/);
 });
 
 test("the prompt examples resolve cleanly when those characters exist", () => {
     // The example line is itself a valid prompt: run it through the resolver.
     const mira = { name: "Mira", look: "1girl, red hair, green eyes", outfit: "white blouse" };
     const theo = { name: "Theo", look: "1boy, black hair", outfit: "grey coat" };
-    const example = renderV2Rules({ style: "tags" }).split("\n").find(l => l.startsWith("1girl, 1boy, @Mira"));
-    assert.equal(resolveImagePrompt(example, { cast: [mira, theo] }).prompt,
-        "1girl, 1boy, red hair, green eyes, white blouse, laughing, holding a mug, black hair, grey coat, leaning on the counter, smiling, looking at another, facing another, tavern, night, warm lamplight, medium shot, from side");
+    const rules = renderV2Rules({ style: "tags" });
+    const example = rules.slice(rules.indexOf("1girl, 1boy, indoors")).split("\nShot:")[0];
+    assert.equal(resolveImagePrompt(example, { cast: [mira, theo] }).prompt, [
+        "1girl, 1boy, indoors, tavern, night, medium shot,",
+        "On the left is Mira, red hair, green eyes, wearing a white blouse. She sits at the bar laughing, one hand around a mug.",
+        "On the right is Theo, black hair, wearing a grey coat. He leans on the counter, smiling at her.",
+        "wooden bar, shelves of bottles, rain on the windows, warm lamplight"
+    ].join("\n"));
+    const nat = renderV2Rules({ style: "natural" });
+    const natExample = nat.slice(nat.indexOf("A medium shot inside")).split("\nShot:")[0];
+    assert.match(resolveImagePrompt(natExample, { cast: [mira, theo], style: "natural" }).prompt,
+        /\nOn the left is Mira, red hair, green eyes, wearing a white blouse\. She sits/);
+});
+
+test("line layout: each character's look in their own sentence, nothing deduplicated across them", () => {
+    const anno = { name: "Anno", look: "female, young adult, black hair, blue eyes", body: "petite, thick thighs", outfit: "white cat-print bra, blue dolphin shorts" };
+    const matt = { name: "Matt", look: "male, young adult, brown hair, blue eyes", outfit: "oversized pink sweater" };
+    const p = "1girl, 1boy, pov, indoors, bedroom, night, medium shot,\nIn the foreground on the right is @Anno. She looks at the viewer.\nIn the background on the left is @Matt. He blushes.\nneon monitor glow";
+    const r = resolveImagePrompt(p, { cast: [anno, matt] });
+    assert.equal(r.prompt, [
+        "1girl, 1boy, pov, indoors, bedroom, night, medium shot,",
+        "In the foreground on the right is Anno, female, young adult, black hair, blue eyes, wearing a white cat-print bra, blue dolphin shorts. She looks at the viewer.",
+        "In the background on the left is Matt, male, young adult, brown hair, blue eyes, wearing an oversized pink sweater. He blushes.",
+        "neon monitor glow"
+    ].join("\n"));
+    // Full-body framing adds the body; a one-line "is @Name" prompt is still the line layout.
+    const one = resolveImagePrompt("1girl, solo, full body, On the left is @Anno. She waves.", { cast: [anno] }).prompt;
+    assert.match(one, /is Anno, female, young adult, black hair, blue eyes, petite, thick thighs, wearing a white cat-print bra/);
+    // A repeat in the line layout is the plain name; the old flat line is unchanged.
+    assert.match(resolveImagePrompt("On the left is @Anno. @Anno waves.", { cast: [anno] }).prompt, /\. Anno waves\.$/);
+    assert.equal(isLineLayout("1girl, @Anno, waving"), false);
+    assert.equal(isLineLayout("1girl\nOn the left is @Anno."), true);
+});
+
+test("wearing: the article from the first word; states of dress as they are", () => {
+    assert.equal(wearingPhrase("grey hoodie"), "wearing a grey hoodie");
+    assert.equal(wearingPhrase("oversized sweater"), "wearing an oversized sweater");
+    assert.equal(wearingPhrase("wearing a towel"), "wearing a towel");
+    assert.equal(wearingPhrase("her school uniform"), "wearing her school uniform");
+    assert.equal(wearingPhrase("naked"), "naked");
+    assert.equal(wearingPhrase(""), "");
+    // No look: name and outfit; no look and no outfit: just the name.
+    assert.equal(resolveImagePrompt("On the left is @Wiz.", { cast: [{ name: "Wiz", outfit: "purple robe" }] }).prompt, "On the left is Wiz, wearing a purple robe.");
+    assert.equal(resolveImagePrompt("On the left is @Wiz.", { cast: [{ name: "Wiz" }] }).prompt, "On the left is Wiz.");
 });
 
 test("manual and inline prompts carry the cast and the rules", () => {
     const castList = "<Cast>\n@Aqua: in the scene\n</Cast>";
     const rules = renderV2Rules({});
-    const m = renderV2ManualPrompt({ castList, scene: "Loc: Tavern", story: "Aqua: Hi.", rules });
-    assert.match(m.user, /^<Cast>[\s\S]*<Scene>\nLoc: Tavern\n<\/Scene>[\s\S]*<Recent_Story>\nAqua: Hi\.\n<\/Recent_Story>[\s\S]*## How to write the image prompt[\s\S]*Output only the prompt, nothing else\.$/);
+    const m = renderV2ManualPrompt({ castList, scene: "Loc: Tavern", earlier: "Theo: Evening.", last: "Aqua: Hi.", rules });
+    assert.match(m.user, /^<Cast>[\s\S]*<Scene>\nLoc: Tavern\n<\/Scene>\n\n<Earlier_Story>\nTheo: Evening\.\n<\/Earlier_Story>\n\n<Last_Message>\nAqua: Hi\.\n<\/Last_Message>[\s\S]*## How to write the image prompt[\s\S]*The image shows the moment <Last_Message> ends on\.[\s\S]*Output only the prompt, nothing else\.$/);
+    assert.doesNotMatch(renderV2ManualPrompt({ last: "Aqua: Hi.", rules }).user, /<Earlier_Story>\n/, "no empty earlier block");
     assert.doesNotMatch(m.system + m.user, OFF_FRAME);
     const inl = renderV2InlineInstruction({ conditionalText: "ONLY IF A PHOTO. ", imageCount: 2, castList, rules });
     assert.match(inl, /^### IMAGE\nONLY IF A PHOTO\. Within your response, insert 2 image tag\(s\)/);
@@ -256,7 +295,7 @@ test("possessives: '@Name's' is recognised", () => {
     assert.equal(resolveImagePrompt("@Matt's hand", { cast: [MATTHEW] }).prompt,
         "male, young adult, black hair, purple hair, two-tone hair, purple eyes, petite, flat stomach, Cropped black graphic tee, pleated black mini skirt, barefoot hand");
     const n = resolveImagePrompt("@Kazuma takes @Matthew's hand; @Matthew looks down.", { cast: [KAZUMA, MATTHEW], style: "natural" }).prompt;
-    assert.equal(n, "Kazuma (wearing Casual loungewear) takes Matthew's hand; Matthew (male, young adult, black hair, purple hair, two-tone hair, purple eyes, petite, flat stomach, wearing Cropped black graphic tee, pleated black mini skirt, barefoot) looks down.");
+    assert.equal(n, "Kazuma, wearing a Casual loungewear, takes Matthew's hand; Matthew, male, young adult, black hair, purple hair, two-tone hair, purple eyes, petite, flat stomach, wearing a Cropped black graphic tee, pleated black mini skirt, barefoot, looks down.");
 });
 
 test("repeats: the second @Name adds nothing in Tags, the plain name in Natural", () => {
@@ -312,7 +351,7 @@ import { parseOutfitBlocks, parseLookBlocks } from "../src/features/imagegen/v2/
 
 test("extras: nothing needed → nothing asked, and the answer stays a plain prompt", () => {
     assert.equal(renderV2Extras({}), "");
-    const m = renderV2ManualPrompt({ story: "x", rules: "r", extras: "" });
+    const m = renderV2ManualPrompt({ last: "x", rules: "r", extras: "" });
     assert.match(m.user, /Output only the prompt, nothing else\.$/);
 });
 
@@ -324,8 +363,8 @@ test("extras: only the sections that are needed, and the answer shape", () => {
     const onlyLooks = renderV2Extras({ looks: ["Wiz"] });
     assert.match(onlyLooks, /Appearance of Wiz/);
     assert.doesNotMatch(onlyLooks, /<\/Character_Sheets>|Outfit_Tags/, "the sheets block never sits among the tasks");
-    const m = renderV2ManualPrompt({ story: "x", rules: "r", extras: onlyOutfit });
-    assert.match(m.user, /Write the image prompt for the latest moment\.\n\n## In the same answer/);
+    const m = renderV2ManualPrompt({ last: "x", rules: "r", extras: onlyOutfit });
+    assert.match(m.user, /Write the image prompt for that moment\.\n\n## In the same answer/);
     assert.doesNotMatch(m.user, /Output only the prompt/);
 });
 
@@ -333,14 +372,16 @@ test("sheets go before the story; all the tasks come after it", () => {
     const m = renderV2ManualPrompt({
         castList: "<Cast>\n@Wiz: in the scene\n</Cast>",
         sheets: "<character_sheet name=\"Wiz\">A shopkeeper.</character_sheet>",
-        story: "Wiz: Hello.",
+        earlier: "Wiz: Welcome.",
+        last: "Wiz: Hello.",
         rules: "## How to write the image prompt",
         extras: renderV2Extras({ looks: ["Wiz"] })
     }).user;
     const at = s => m.indexOf(s);
     assert.ok(at("<Cast>") < at("<Character_Sheets>"));
-    assert.ok(at("<Character_Sheets>") < at("<Recent_Story>"));
-    assert.ok(at("</Recent_Story>") < at("## How to write the image prompt"));
+    assert.ok(at("<Character_Sheets>") < at("<Earlier_Story>"));
+    assert.ok(at("</Earlier_Story>") < at("<Last_Message>"));
+    assert.ok(at("</Last_Message>") < at("## How to write the image prompt"));
     assert.ok(at("## How to write the image prompt") < at("## In the same answer"));
 });
 

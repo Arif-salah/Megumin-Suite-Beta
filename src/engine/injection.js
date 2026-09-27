@@ -211,7 +211,13 @@ export async function handlePromptInjection(data, type) {
             "role": "system",
             "content": sys
         });
-        let imageUserContent = userTask.replace('{{chatHistory}}', activeImageGenRequest.chatText)
+        // A saved custom prompt from before {{lastMessage}} gets the whole story in {{chatHistory}}.
+        const lastMsg = activeImageGenRequest.lastMessage || "";
+        const history = userTask.includes('{{lastMessage}}')
+            ? activeImageGenRequest.chatText
+            : [activeImageGenRequest.chatText, lastMsg].filter(Boolean).join("\n\n");
+        let imageUserContent = userTask.replace('{{chatHistory}}', () => history)
+                               .replace('{{lastMessage}}', () => lastMsg)
                                .replace('{{templateRules}}', activeImageGenRequest.templateRules)
                                .replace('{{extraStr}}', extraSection)
                                .replace('{{directLanguage}}', activeImageGenRequest.directLanguageStr)

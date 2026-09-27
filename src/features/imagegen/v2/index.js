@@ -115,15 +115,17 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
         outfits: staleOutfits.map(m => ({ name: m.name, outfit: m.outfitText })),
         looks: missingLooks.map(m => m.name)
     });
-    const story = recentMessages(6)
-        .map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`)
-        .join("\n\n");
+    // The image shows the moment the last message ends on; the ones before
+    // it are context only, so the model does not draw what already ended.
+    const story = recentMessages(6).map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`);
+    const last = story.pop() || "";
     const built = renderV2ManualPrompt({
         castList: sub(renderCastList(currentImageCast(), { shot: cfg.shot, method: cfg.method })),
         // The sheets the missing looks are read from go BEFORE the story.
         sheets: missingLooks.length ? sheetSource() : "",
         scene: sceneLine(),
-        story,
+        earlier: story.join("\n\n"),
+        last,
         method: cfg.method,
         previous: getLastImagePrompt(),
         extras: sub(extras),

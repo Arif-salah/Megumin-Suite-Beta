@@ -26,9 +26,12 @@ export async function classicGenerateImagePromptText({ extraInstruction = "" } =
 export function classicImageParts({ extraInstruction = "" } = {}) {
     const ig = localProfile.imageGen;
     const chat = getContext().chat;
-    const lastMessages = chat.filter(m => !m.is_user && !m.is_system).slice(-5).map(m => {
+    const recent = chat.filter(m => !m.is_user && !m.is_system).slice(-5).map(m => {
         return `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`;
-    }).join("\n\n");
+    });
+    // The image shows the moment the last message ends on; the rest is context.
+    const lastMessage = recent.pop() || "";
+    const earlierMessages = recent.join("\n\n");
 
     const customIg = ig.customPromptsEnabled ? (ig.customPrompts || {}) : {};
     const defIg = DEFAULT_PROMPTS.imageGen;
@@ -57,7 +60,8 @@ export function classicImageParts({ extraInstruction = "" } = {}) {
     let npcTagsStr = getRelevantNpcImageTags({ force: true }); // <-- GET THE TAGS (manual: whenever there are any)
 
     return {
-        chatText: lastMessages,
+        chatText: earlierMessages,
+        lastMessage,
         templateRules: rules,
         templateExamples: examples,
         extraStr: [ig.promptExtra || "", extraInstruction].filter(Boolean).join("\n"),

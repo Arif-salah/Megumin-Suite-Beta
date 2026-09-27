@@ -16,49 +16,53 @@ export const IMAGE_V2_PROMPTS = {
         "their expressions and poses, the place, the light and the framing.",
 
     style: {
+        // Plan 007: one line per character. After @Name is filled in, each
+        // character's look sits in its own sentence with their name in front,
+        // so the image model keeps every tag with the right person.
         tags: [
             "## How to write the image prompt",
-            "Fill in this structure as ONE line of comma-separated booru tags:",
-            "[who is in the shot], [@Name, then what only they are doing and their expression], [the next @Name, then theirs], [what they do together], [place], [time and lighting], [camera and framing]",
+            "Write it top to bottom in this order:",
             "",
-            "Example (made-up characters; use the names from <Cast>):",
-            "1girl, 1boy, @Mira, laughing, holding a mug, @Theo, leaning on the counter, smiling, looking at another, facing another, tavern, night, warm lamplight, medium shot, from side",
+            "1. **Count, camera, place, time, framing**, as tags on the first line: the count (1girl, 1boy, 1girl 1boy, 2girls, no humans…; <Cast> says who is male and who is female; one person: add solo), indoors or outdoors, the place, the time, and exactly ONE framing (close-up, portrait, upper body, cowboy shot, medium shot, full body, wide shot). The framing decides how much of each character is shown.",
+            "2. **One line per character**: where they are in the frame (on the left, on the right, in the center, in the foreground, in the background), then \"is @Name.\" @Name carries that character's whole look and clothing, so each description stays in its own sentence.",
+            "3. **Right after, what only they are doing**, starting with He, She or They: pose, action, expression, what they hold. The one the moment is about comes first. Two characters at most; anyone else goes in as background tags (people in background, crowd).",
+            "4. **Last line: background, objects and lighting**, as tags.",
             "",
             "Rules:",
-            "- [who is in the shot] is the count: 1girl, 1boy, 2girls, 2boys, 1girl 1boy, no humans… <Cast> says who is male and who is female.",
-            "- <Cast> shows each character's look and clothing so you can pick the count and the framing. It is reference only: copy none of it; @Name carries it.",
-            "- Always end with the framing (close-up, portrait, upper body, cowboy shot, full body, wide shot…): it decides how much of each character is shown.",
-            "- @Name stands for that character's whole appearance and clothing. Write each @Name once and never again.",
-            "- One character: add solo after the count.",
-            "- Two characters: put the one the moment is about first. Right after each @Name, put what only that character is doing (their pose, their expression, what they hold), so each tag stays with the right person. After both, put what they do together and how they are placed: holding hands, hug, facing another, side-by-side, sitting on lap, looking at another…",
-            "- Three or more people: write @Name only for the two the moment is about; everyone else goes in as background tags without @Name (people in background, crowd).",
-            "- Never write hair, eyes, face, body or clothing tags for a @Name character. The one exception: when <Cast> says a character's clothing is not noted, put their clothing tags right after their @Name.",
-            "- Write actions as plain tags without names: \"holding hands\", not \"Mira holding Theo's hand\".",
-            "- Only characters who are in this shot; two at most works best. Use the names from <Cast>.",
-            "- No quality tags (masterpiece, best quality…)."
+            "- <Cast> is reference only. Never write hair, eyes, face, body or clothing for a @Name character. The one exception: when <Cast> says their clothing is not noted, add \"wearing …\" right after their @Name.",
+            "- Write each @Name once. Use no names anywhere else: \"holding her hand\", not \"holding Theo's hand\"; \"bedroom\", not \"Mira's bedroom\".",
+            "- No quality tags (masterpiece, best quality…).",
+            "",
+            "Example (made-up characters; use the names from <Cast>):",
+            "1girl, 1boy, indoors, tavern, night, medium shot,",
+            "On the left is @Mira. She sits at the bar laughing, one hand around a mug.",
+            "On the right is @Theo. He leans on the counter, smiling at her.",
+            "wooden bar, shelves of bottles, rain on the windows, warm lamplight"
         ].join("\n"),
         natural: [
             "## How to write the image prompt",
-            "Fill in this structure in 2 to 4 plain sentences:",
-            "[each character as @Name, what they are doing and their expression] [the place, time and light] [the camera and framing]",
+            "Write it top to bottom in plain sentences, in this order:",
             "",
-            "Example (made-up characters; use the names from <Cast>):",
-            "@Mira sits at the bar laughing, one hand around a mug, while @Theo leans on the counter and watches her. A warm, lamplit tavern at night, rain streaking the windows. Medium shot from the side.",
+            "1. **The shot**, in one short sentence: the framing (close-up, from the waist up, medium shot, full body, wide shot), the place and the time. The framing decides how much of each character is shown.",
+            "2. **One sentence per character**: where they are in the frame (on the left, on the right, in the center, in the foreground, in the background), then \"is @Name.\" @Name carries that character's whole look and clothing, so each description stays in its own sentence.",
+            "3. **Right after, what only they are doing**, starting with He, She or They: pose, action, expression, what they hold. The one the moment is about comes first. Two characters at most; mention anyone else briefly as background.",
+            "4. **Last: the background, objects and light**, in one or two sentences.",
             "",
             "Rules:",
-            "- @Name stands for that character's whole appearance and clothing. Write each @Name once; after that, use he, she or they.",
-            "- Never describe a @Name character's hair, eyes, face, body or clothing. The one exception: when <Cast> says a character's clothing is not noted, describe what they wear.",
-            "- Two characters: say where each one is (left or right, in front or behind) and give each their own action and expression in their own clause.",
-            "- Three or more people: focus on the two the moment is about; mention the rest briefly as background, without @Name.",
-            "- Only characters who are in this shot; two at most works best. Use the names from <Cast>.",
-            "- <Cast> shows each character's look and clothing so you know who they are. It is reference only: describe none of it; @Name carries it.",
-            "- Always say how the shot is framed (close-up, from the waist up, full body, wide shot): it decides how much of each character is shown."
+            "- <Cast> is reference only. Never describe a @Name character's hair, eyes, face, body or clothing. The one exception: when <Cast> says their clothing is not noted, describe what they wear right after their @Name.",
+            "- Write each @Name once. Use no names anywhere else: \"holding her hand\", not \"holding Theo's hand\"; \"a bedroom\", not \"Mira's bedroom\".",
+            "",
+            "Example (made-up characters; use the names from <Cast>):",
+            "A medium shot inside a tavern at night.",
+            "On the left is @Mira. She sits at the bar laughing, one hand around a mug.",
+            "On the right is @Theo. He leans on the counter, smiling at her.",
+            "Shelves of bottles line the wall behind them, rain streaks the windows, and warm lamplight fills the room."
         ].join("\n")
     },
 
     shot: {
         cinematic: "Shot: a film still of the moment. Pick a wide, medium or close shot to suit it.",
-        pov: "Shot: through {{user}}'s eyes. Include pov. {{user}} is never in the shot, except their hands when they touch something.",
+        pov: "Shot: through {{user}}'s eyes. Include pov. {{user}} is the viewer: write \"the viewer\" for them (looking at the viewer, holding the viewer's hand), never their name. They are never in the shot, except their hands when they touch something.",
         portrait: "Shot: one character, head-and-shoulders or chest-up, focused on face and expression, with a simple background from the place."
     },
 
@@ -82,8 +86,8 @@ export const IMAGE_V2_PROMPTS = {
         natural: "- 2 to 4 plain sentences: each character's appearance and clothing as in <Cast>, what they are doing, the place, the light, and how the shot is framed."
     },
 
-    manualTask: "Write the image prompt for the latest moment. Output only the prompt, nothing else.",
-    manualTaskWithExtras: "Write the image prompt for the latest moment.",
+    manualTask: "The image shows the moment <Last_Message> ends on. <Earlier_Story> is only there so you understand it: draw nothing that has already ended (someone who put an item away no longer holds it). Write the image prompt for that moment. Output only the prompt, nothing else.",
+    manualTaskWithExtras: "The image shows the moment <Last_Message> ends on. <Earlier_Story> is only there so you understand it: draw nothing that has already ended (someone who put an item away no longer holds it). Write the image prompt for that moment.",
 
     inlineHead: "### IMAGE\n{{conditionalText}}Within your response, insert {{imageCount}} image tag(s) like this: <img prompt=\"...\"> at the moment the image shows.",
     inlineTail: "Inside prompt=\"...\", never use double quotes."

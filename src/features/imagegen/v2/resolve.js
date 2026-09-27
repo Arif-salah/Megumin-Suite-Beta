@@ -12,6 +12,13 @@
 //   @Aqua.look / @Aqua.outfit, if a model writes them anyway, are read as plain
 //   @Aqua (the suffix is swallowed so it never reaches ComfyUI).
 //
+// Line layout (plan 007): the model writes one line per character,
+// "On the left is @Mira. She sits…". There @Mira becomes
+// "Mira, <look>, wearing a <outfit>": the name anchors the character and
+// "wearing a" marks where the look ends, so the image model keeps each
+// character's tags with that character. An old flat tag line ("1girl, @Mira,
+// laughing") still resolves the old way: tags only, deduplicated.
+//
 // Body tags (a member's `body`) go in only when the prompt frames the body
 // (full body, wide shot, cowboy shot…): in a close-up they would pull the image
 // toward a full figure.
@@ -119,6 +126,7 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
     const text = String(prompt || "");
     const index = nameIndex(cast);
     const showBody = framingShowsBody(text);
+    const layout = style === "natural" || isLineLayout(text);
     const lower = text.toLowerCase();
     const filled = [];
     const unknown = [];
@@ -177,12 +185,12 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
         }
 
         if (!member) {
-            out += displayName + (style === "natural" ? possessive : "");
+            out += displayName + (layout ? possessive : "");
         } else if (coveredAlready(seen, member.name, part)) {
-            // A repeat: nothing in Tags (a name means nothing to the image
-            // model), the plain name in Natural so the sentence still reads.
-            out += style === "natural" ? member.name + possessive : "";
-        } else if (style === "natural" && possessive && !seen.has(member.name)) {
+            // A repeat: nothing in a flat tag line (a name means nothing to the
+            // image model), the plain name in sentences so they still read.
+            out += layout ? member.name + possessive : "";
+        } else if (layout && possessive && !seen.has(member.name)) {
             // "@Theo's hand" as the first mention: keep the sentence; the
             // description waits for a plain mention (or is left out).
             out += member.name + possessive;
@@ -195,19 +203,59 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
             const renderPart = missing.length === 2 ? "all" : missing[0];
             missing.forEach(x => done.add(x));
             seen.set(member.name, done);
-            out += renderMember(member, renderPart, style, noLook, showBody);
+            out += layout
+                ? renderInLine(member, renderPart, style, noLook, showBody, /^\s*[A-Za-z]/.test(text.slice(end)))
+                : renderMember(member, renderPart, style, noLook, showBody);
             filled.push({ name: member.name, part: renderPart });
         }
         i = end;
     }
 
     let result = out;
-    if (style === "tags") {
+    if (layout) {
+        result = result.split("\n")
+            .map(l => l.replace(/\s+,/g, ",").replace(/,\s*,/g, ",").replace(/,\s*\./g, ".").replace(/[ \t]{2,}/g, " ").trim())
+            .join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    } else if (style === "tags") {
         result = dedupeTags(splitTags(result).map(t => t.replace(/\s{2,}/g, " ").trim()).join(", "));
     } else {
         result = result.replace(/\s+,/g, ",").replace(/,\s*,/g, ",").replace(/[ \t]{2,}/g, " ").trim();
     }
     return { prompt: result, filled, unknown, noLook };
+}
+
+/**
+ * A prompt in the line layout: "… is @Name." lines, or several lines. A single
+ * flat line of tags is the old layout.
+ */
+export function isLineLayout(text) {
+    const s = String(text || "").trim();
+    return /\bis\s+@/i.test(s) || /\n/.test(s);
+}
+
+/** "wearing a grey hoodie": the article from the first word; states of dress go as they are. */
+export function wearingPhrase(outfit) {
+    const o = String(outfit || "").trim().replace(/^wearing\s+/i, "");
+    if (!o) return "";
+    if (/^(naked|nude|topless|bottomless|barefoot|shirtless)\b/i.test(o)) return o;
+    if (/^(a|an|the|his|her|their|nothing|no|only)\b/i.test(o)) return `wearing ${o}`;
+    return `wearing ${/^[aeiou]/i.test(o) ? "an" : "a"} ${o}`;
+}
+
+/**
+ * A character in the line layout: "Mira, <look>, wearing a <outfit>".
+ * When a verb follows ("@Mira sits…") a closing comma keeps the sentence readable.
+ */
+function renderInLine(m, part, style, noLook, showBody, wordFollows) {
+    const lookTags = stripCountTags([m.look, showBody ? m.body : ""].filter(s => String(s || "").trim()).join(", "));
+    if (!lookTags && !m.body && !m.lookNatural && part !== "outfit" && !noLook.includes(m.name)) noLook.push(m.name);
+    const look = style === "natural" ? (String(m.lookNatural || "").trim() || lookTags) : lookTags;
+    const wearing = wearingPhrase(m.outfit);
+    const bits = [m.name];
+    if (part !== "outfit" && look) bits.push(look);
+    if (part !== "look" && wearing) bits.push(wearing);
+    const s = bits.join(", ");
+    return bits.length > 1 && wordFollows ? `${s},` : s;
 }
 
 function coveredAlready(seen, name, part) {

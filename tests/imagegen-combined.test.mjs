@@ -53,7 +53,7 @@ test("Classic: its own rules and sheets; no cast, no outfit tags, no looks", () 
     }));
     assert.doesNotMatch(user, /<Cast>|Outfit_Tags|Character_Visual|# Also in the same answer/);
     assert.ok(user.indexOf("<Character_Sheets>") < user.indexOf("<Latest_Exchange>"));
-    assert.match(user, /# Task 2: Image prompt\nThe image shows the moment the latest exchange ends on\. Where your World_Update changes someone's clothing, draw them in the new clothing\.\n\*\*RELEVANT NPC IMAGE TAGS/);
+    assert.match(user, /# Task 2: Image prompt\nThe image shows the moment the latest exchange ends on; draw nothing that has already ended \(someone who put an item away no longer holds it\)\. Where your World_Update changes someone's clothing, draw them in the new clothing\.\n\*\*RELEVANT NPC IMAGE TAGS/);
     assert.match(user, /<\/World_Update>\n<Image_Prompt>the image prompt<\/Image_Prompt>$/);
 });
 
