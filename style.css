@@ -5013,3 +5013,33 @@
 .ig-v2-inactive > div { flex: 1; min-width: 180px; }
 .ig-v2-inactive .menu_button { width: auto; margin: 0; font-size: .72rem; padding: 5px 10px; }
 .ig-engine-page.is-inactive { opacity: .45; filter: grayscale(.6); pointer-events: none; user-select: none; }
+/* V2 cast cards (phase 3) */
+.ig2-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ig2-actions .menu_button, .ig2-add .menu_button { width: auto; margin: 0; font-size: .72rem; padding: 6px 10px; display: inline-flex; align-items: center; gap: 6px; }
+.ig2-add { display: flex; gap: 6px; }
+.ig2-add .ps-modern-input { flex: 1; min-width: 0; font-size: .76rem; padding: 6px 8px; }
+.ig2-spacer { flex: 1; }
+.ig2-mini {
+    background: transparent; border: 1px solid rgba(255,255,255,.12); border-radius: 6px;
+    color: var(--text-muted); cursor: pointer; font-size: .66rem; padding: 3px 7px;
+    transition: color .15s, border-color .15s;
+}
+.ig2-mini:hover { color: #f59e0b; border-color: rgba(245,158,11,.4); }
+.ig2-mini.on { color: #f59e0b; border-color: rgba(245,158,11,.5); }
+.ig2-mini.armed, .ig2-forget:hover { color: #ef4444; border-color: rgba(239,68,68,.45); }
+.ig2-mini[disabled] { opacity: .6; cursor: wait; }
+.ig2-cast-field { display: flex; flex-direction: column; gap: 2px; font-size: .64rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .3px; }
+.ig2-cast-field .ps-modern-input { width: 100%; box-sizing: border-box; font-size: .74rem; padding: 5px 7px; text-transform: none; letter-spacing: normal; resize: vertical; }
+/* Review popup */
+.ig2-review { text-align: left; display: flex; flex-direction: column; gap: 10px; }
+.ig2-review-head { font-size: .8rem; }
+.ig2-review-all { display: flex; gap: 6px; }
+.ig2-review-all .menu_button { width: auto; margin: 0; font-size: .72rem; padding: 4px 10px; }
+.ig2-review-row { border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
+.ig2-review-name b { color: var(--gold); }
+.ig2-review-tags { font-size: .74rem; line-height: 1.45; display: flex; gap: 8px; word-break: break-word; }
+.ig2-review-tags span { flex: none; width: 38px; font-size: .62rem; text-transform: uppercase; color: var(--text-muted); padding-top: 2px; }
+.ig2-review-tags.new { color: #10b981; }
+.ig2-review-pick { display: flex; gap: 14px; font-size: .74rem; }
+.ig2-review-pick label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+.ig2-review-locked { font-size: .72rem; color: var(--text-muted); }

@@ -12,7 +12,7 @@ import { extensionName } from "../core/constants.js";
 import { localProfile } from "../core/state.js";
 import {
     activeStoryPlanRequest, activeBanListChat, activeImageGenRequest,
-    activeNpcScanRequest, activeCharSheetScanRequest, activeNpcPfpRequest, activeNpcUpdateRequest,
+    activeNpcScanRequest, activeNpcPfpRequest, activeNpcUpdateRequest,
     activeMemorySummarizationRequest, activeWorldExtractRequest,
     activeGenerationOrder, isBackgroundGenerationActive,
     activeNpcImages, clearActiveNpcImages,
@@ -120,31 +120,6 @@ export async function handlePromptInjection(data, type) {
         return;
     }
 
-    // --- INJECT CHARACTER SHEET SCAN PROMPT ---
-    if (activeCharSheetScanRequest) {
-        messages.length = 0;
-        messages.push({
-            "role": "system",
-            "content": "You are an expert AI image prompt engineer and character visual analyst. Output ONLY the requested character visual tags without conversational filler or explanations."
-        });
-        messages.push({
-            "role": "user",
-            "content": `Analyze the following character sheet / lore text carefully. Identify ALL characters (including the main character, companions, party members, side characters) described in it.\n\nFor EACH character found, extract their permanent physical appearance traits in Booru tag format (species/race, gender, age bracket, hair color and style, eye color, skin tone, facial features, body type, distinctive physical traits like animal ears/horns/wings). Do NOT include temporary clothing or location.\n\nOutput each character using EXACTLY this format:\n<Character_Visual name="[Full Name]">\n[comma-separated Booru appearance tags]\n</Character_Visual>\n\nCharacter Sheet / Lore:\n${activeCharSheetScanRequest.sheetText}`
-        });
-        if (!disablePrefill) {
-            messages.push({
-                "role": "assistant",
-                "content": "<think>\nAnalyzing character sheet for character appearances...\n"
-            });
-        }
-        console.log(`[${extensionName}] 🎯 Injected Character Sheet Scan array in memory.`);
-        return;
-    }
-
-    // --- INJECT FORCED NPC UPDATE PROMPT ---
-    // The refresh button on an NPC card. Unlike the in-story update, this asks
-    // about ONE named NPC and hands over their whole record, so the model is
-    // comparing against what is actually on file rather than recalling it.
     // --- WORLD STATE SIDE-MODEL EXTRACTION ---
     // The whole prompt was built by the World State module (renderWorldExtractPrompt).
     if (activeWorldExtractRequest) {
@@ -159,6 +134,10 @@ export async function handlePromptInjection(data, type) {
         return;
     }
 
+    // --- INJECT FORCED NPC UPDATE PROMPT ---
+    // The refresh button on an NPC card. Unlike the in-story update, this asks
+    // about ONE named NPC and hands over their whole record, so the model is
+    // comparing against what is actually on file rather than recalling it.
     if (activeNpcUpdateRequest) {
         messages.length = 0;
         const r = activeNpcUpdateRequest;

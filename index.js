@@ -130,7 +130,7 @@ import {
     renderImageGen, igFetchComfyLists, toggleQuickGenButton, igTestConnection,
     igPopulateWorkflows, igNewWorkflowClick, igDeleteWorkflowClick, igOpenWorkflowEditorClick,
     igManualGenerate, generateImagePromptText, addKazumaRetryButtons, kazumaRetrySweep,
-    igGenerateWithComfy, igAutoImageForReply,
+    igGenerateWithComfy, igAutoImageForReply, v2LooksForArrivals,
 } from "./src/features/imagegen/index.js";
 import { buildBaseDict } from "./src/engine/buildBaseDict.js";
 import { handlePromptInjection } from "./src/engine/injection.js";
@@ -447,7 +447,8 @@ jQuery(async () => {
             // Handle swipe rewind & sync
             // World State side-model reads land in the background; redraw the
             // cards when one starts ("Reading…") and when it lands.
-            setWorldStateChangedHook(() => meguminScheduleBlocksRefresh());
+            // …and a character who just arrived gets a look (Image Gen V2).
+            setWorldStateChangedHook(() => { meguminScheduleBlocksRefresh(); v2LooksForArrivals(); });
             // Send guard: SillyTavern waits for this handler before it talks to
             // the API, so a reply sent while Chomusuke has the worker profile
             // switched in (switching in or back, when Send is still live) waits
@@ -493,6 +494,8 @@ jQuery(async () => {
                 // reply's outfits.
                 try {
                     if (stateOnMessageReceived(receivedId, receivedType)) meguminScheduleBlocksRefresh();
+                    // Image Gen V2: a character who just arrived gets a look.
+                    v2LooksForArrivals();
                 } catch (e) {
                     console.error("[Megumin-Suite] World State update failed", e);
                 }

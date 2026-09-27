@@ -31,10 +31,6 @@ export function setActiveImageGenRequest(v) { activeImageGenRequest = v; }
 export let activeNpcScanRequest = null;
 export function setActiveNpcScanRequest(v) { activeNpcScanRequest = v; }
 
-// Character Sheet Visual scan: { sheetText }.
-export let activeCharSheetScanRequest = null;
-export function setActiveCharSheetScanRequest(v) { activeCharSheetScanRequest = v; }
-
 // NPC portrait generation: { npcText, styleStr, perspStr, extraStr }.
 export let activeNpcPfpRequest = null;
 export function setActiveNpcPfpRequest(v) { activeNpcPfpRequest = v; }
