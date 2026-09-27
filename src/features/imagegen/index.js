@@ -22,7 +22,7 @@ import { runWithChomusuke } from "../../engine/tasks.js";
 import { igGenerateWithComfy, setImagePromptResolver } from "./comfy.js";
 import { renderClassicImageGen } from "./classic/ui.js";
 import { classicGenerateImagePromptText, classicInlineNpcTags } from "./classic/prompt.js";
-import { v2GenerateImagePromptText, v2InlineInstruction, v2ResolveForComfy } from "./v2/index.js";
+import { v2GenerateImagePromptText, v2InlineInstruction, v2ResolveForComfy, v2PrepareImagePrompt } from "./v2/index.js";
 import { renderV2ImageGen } from "./v2/ui.js";
 
 export {
@@ -123,6 +123,12 @@ setImagePromptResolver(p => (imageGenEngine() === "v2" ? v2ResolveForComfy(p) : 
 // ── Generation entry points (dispatch by engine) ─────────────────────────
 
 /** The quiet "write me an image prompt" call behind the manual button. */
+/** Anything the prompt writer needs that takes its own Chomusuke call. Run it
+ * BEFORE runWithChomusuke(... generateImagePromptText), never inside. */
+export async function prepareImagePrompt() {
+    if (imageGenEngine() === "v2") await v2PrepareImagePrompt();
+}
+
 export async function generateImagePromptText(opts = {}) {
     return imageGenEngine() === "v2" ? v2GenerateImagePromptText(opts) : classicGenerateImagePromptText(opts);
 }
@@ -147,6 +153,7 @@ export async function igManualGenerate() {
     showKazumaProgress("Analyzing Scene...");
 
     try {
+        await prepareImagePrompt();
         let promptText = await runWithChomusuke("imageGen", () => generateImagePromptText());
 
         // Use capturing group 1 for the quote type, group 2 for the actual prompt text

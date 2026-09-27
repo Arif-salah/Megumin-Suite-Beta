@@ -130,7 +130,7 @@ import {
     renderImageGen, igFetchComfyLists, toggleQuickGenButton, igTestConnection,
     igPopulateWorkflows, igNewWorkflowClick, igDeleteWorkflowClick, igOpenWorkflowEditorClick,
     igManualGenerate, generateImagePromptText, addKazumaRetryButtons, kazumaRetrySweep,
-    igGenerateWithComfy, igAutoImageForReply, v2LooksForArrivals,
+    igGenerateWithComfy, igAutoImageForReply, v2LooksForArrivals, prepareImagePrompt,
 } from "./src/features/imagegen/index.js";
 import { buildBaseDict } from "./src/engine/buildBaseDict.js";
 import { handlePromptInjection } from "./src/engine/injection.js";
@@ -503,7 +503,7 @@ jQuery(async () => {
                 // --- AUTOMATIC IMAGE BY CHOMUSUKE ---
                 // After World State, so its read is queued first and the image
                 // uses the newest outfits. Does nothing unless Chomusuke writes images.
-                igAutoImageForReply(receivedId, receivedType, generateImagePromptText)
+                igAutoImageForReply(receivedId, receivedType, generateImagePromptText, prepareImagePrompt)
                     .catch(e => console.error("[Megumin-Suite] Automatic image failed", e));
 
                 // --- STORY DIRECTOR FEEDBACK & AUTO-EVOLVE ---

@@ -55,8 +55,9 @@ function redraw(index, message) {
  * @param {number} messageId
  * @param {string} type  ST's MESSAGE_RECEIVED type
  * @param {() => Promise<string>|((opts: object) => Promise<string>)} writePrompt  the engine's prompt writer
+ * @param {() => Promise<void>} [prepare]  work needing its own Chomusuke call, run BEFORE the writer's job
  */
-export async function igAutoImageForReply(messageId, type, writePrompt) {
+export async function igAutoImageForReply(messageId, type, writePrompt, prepare = null) {
     const ig = localProfile && localProfile.imageGen;
     if (!ig || !ig.enabled || !imageViaChomusuke() || NOT_A_REPLY.has(type)) return;
     const chat = getContext().chat || [];
@@ -82,6 +83,7 @@ export async function igAutoImageForReply(messageId, type, writePrompt) {
     let prompt = "";
     try {
         const conditional = (ig.triggerMode || "always") === "conditional";
+        if (prepare) await prepare();
         const raw = await runWithChomusuke("imageGen", () => writePrompt({ extraInstruction: conditional ? ONLY_IF_PHOTO : "" }));
         prompt = String(raw || "");
         const tag = prompt.match(/<img[^>]*?prompt=(["']?)([\s\S]*?)(?:\1\s*\/?>|\1\s*>|\1\s+[a-zA-Z]+=| \/>|>|$)/i);

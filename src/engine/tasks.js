@@ -167,10 +167,26 @@ export async function runWithChomusuke(featureKey, task, { force = false } = {})
     // connection profile over each other would restore the main profile while
     // the other is still working. Queued in arrival order, so an image prompt
     // started after a World State read sees the outfits that read produced.
-    const turn = workerQueue.then(() => runOnWorker(featureKey, task, chomusuke, workerProfileId));
+    //
+    // Never call runWithChomusuke from INSIDE a task it is running: the inner
+    // call queues behind the outer one and both wait forever. Do that work
+    // before starting the outer job. The watchdog below names a stuck queue.
+    const waitingSince = Date.now();
+    const ahead = runningWorkerJob;
+    const watchdog = setTimeout(() => {
+        console.warn(`[${extensionName}] Chomusuke "${featureKey}" has waited ${Math.round((Date.now() - waitingSince) / 1000)}s behind "${ahead || "?"}". If this never ends, a Chomusuke call is being made from inside another Chomusuke job.`);
+    }, 90000);
+    const turn = workerQueue.then(async () => {
+        clearTimeout(watchdog);
+        runningWorkerJob = featureKey;
+        try { return await runOnWorker(featureKey, task, chomusuke, workerProfileId); }
+        finally { runningWorkerJob = null; }
+    });
     workerQueue = turn.catch(() => {});
     return turn;
 }
+
+let runningWorkerJob = null;
 
 let workerQueue = Promise.resolve();
 

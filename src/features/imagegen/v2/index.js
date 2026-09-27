@@ -100,8 +100,10 @@ function rules(extraInstruction = "") {
 
 export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) {
     const cfg = v2Settings();
-    // Outfits in the Cast as tags, when that is on and they changed.
-    await refreshOutfitTags();
+    // No Chomusuke calls in here: this runs INSIDE a Chomusuke job (the manual
+    // button, the automatic image), and Chomusuke runs one job at a time, so a
+    // call from here would wait for itself forever. Outfit tags are brought up
+    // to date BEFORE that job starts (v2PrepareImagePrompt).
     const story = recentMessages(6)
         .map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`)
         .join("\n\n");
@@ -150,6 +152,14 @@ let lastResolution = null;
 /** What the last resolve did (for the preview and debugging). */
 export function v2LastResolution() {
     return lastResolution;
+}
+
+/**
+ * Work that needs its own Chomusuke call, done BEFORE the prompt writer's job
+ * starts (never from inside it): bringing changed outfit tags up to date.
+ */
+export async function v2PrepareImagePrompt() {
+    await refreshOutfitTags();
 }
 
 export async function v2ResolveForComfy(prompt) {
