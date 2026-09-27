@@ -75,14 +75,16 @@ const previousBlock = previous =>
  * The manual button's quiet generation.
  * @returns {{ system: string, user: string }}
  */
-export function renderV2ManualPrompt({ castList = "", scene = "", story = "", rules = "", method = "placeholders", previous = "" } = {}) {
+export function renderV2ManualPrompt({ castList = "", scene = "", story = "", rules = "", method = "placeholders", previous = "", extras = "" } = {}) {
     const user = [
         castList,
         scene ? `<Scene>\n${scene}\n</Scene>` : "",
         `<Recent_Story>\n${String(story || "").trim()}\n</Recent_Story>`,
         method === "reference" ? previousBlock(previous) : "",
         rules,
-        P.manualTask
+        // With extra sections the answer has a shape of its own (see renderV2Extras).
+        extras ? P.manualTaskWithExtras : P.manualTask,
+        extras
     ].filter(Boolean).join("\n\n");
     return { system: P.system, user };
 }
@@ -93,4 +95,55 @@ export function renderV2InlineInstruction({ conditionalText = "", imageCount = 1
         .replace("{{conditionalText}}", conditionalText || "")
         .replace("{{imageCount}}", String(imageCount || 1));
     return [head, castList, method === "reference" ? previousBlock(previous) : "", rules, P.inlineTail].filter(Boolean).join("\n");
+}
+
+// ── One call, several answers ────────────────────────────────────────────
+// The image call can also bring the outfit tags that went stale and the looks
+// that are missing, so an image never costs more than one background call.
+// Only what is needed is asked for; with nothing extra, the answer is just the
+// prompt, as before. Sections come back as tags, not JSON: a broken section
+// loses only itself.
+
+/**
+ * @param {{ outfits?: Array<{ name: string, outfit: string }>, looks?: string[], sheets?: string }} needs
+ * @returns {string} "" when nothing extra is needed
+ */
+export function renderV2Extras({ outfits = [], looks = [], sheets = "" } = {}) {
+    if (!outfits.length && !looks.length) return "";
+    const parts = ["## In the same answer"];
+    if (outfits.length) {
+        parts.push(
+            "Turn these outfits into booru clothing tags: one tag per garment or accessory, with its colour or material; keep the state of dress; clothing only, nothing the text does not say.",
+            ...outfits.map(o => `${o.name}: ${o.outfit}`)
+        );
+    }
+    if (looks.length) {
+        if (String(sheets || "").trim()) parts.push(`<Character_Sheets>\n${String(sheets).trim()}\n</Character_Sheets>`);
+        parts.push(
+            `Write the permanent appearance of ${looks.join(", ")} as booru tags, from the story and the sheets: sex and apparent age, hair, eyes, skin, face, build, permanent features. No clothing, expressions, poses or count tags. Skip anyone the text does not describe.`
+        );
+    }
+    parts.push(
+        "",
+        "Answer in this shape and nothing else:",
+        "<Image_Prompt>the image prompt</Image_Prompt>",
+        ...(outfits.length ? ["<Outfit_Tags name=\"Name\">tag, tag, tag</Outfit_Tags>"] : []),
+        ...(looks.length ? ["<Character_Visual name=\"Name\">tag, tag, tag</Character_Visual>"] : [])
+    );
+    return parts.join("\n");
+}
+
+/**
+ * Splits a combined answer. The prompt is <Image_Prompt> when present;
+ * otherwise the whole answer minus any other sections (a model that ignored
+ * the shape still gives a usable prompt).
+ * @returns {{ prompt: string, rest: string }}
+ */
+export function splitCombinedAnswer(raw) {
+    const text = String(raw || "").replace(/<think\b[^>]*>[\s\S]*?(<\/think\s*>|$)/gi, "");
+    const extra = /<(Outfit_Tags|Character_Visual)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|(?=<(?:Outfit_Tags|Character_Visual|Image_Prompt)\b)|$)/gi;
+    const rest = (text.match(extra) || []).join("\n");
+    const m = text.match(/<Image_Prompt\b[^>]*>([\s\S]*?)(?:<\/Image_Prompt\s*>|(?=<(?:Outfit_Tags|Character_Visual)\b)|$)/i);
+    const prompt = (m ? m[1] : text.replace(extra, "")).trim();
+    return { prompt, rest };
 }

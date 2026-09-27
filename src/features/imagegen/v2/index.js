@@ -13,8 +13,8 @@ import { meguminCleanChatHistoryText } from "../../../engine/chatText.js";
 import { getWorldState, worldHasState } from "../../../state/index.js";
 import { buildImageCast } from "./cast.js";
 import { resolveImagePrompt } from "./resolve.js";
-import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction } from "./prompt.js";
-import { refreshOutfitTags } from "./looks.js";
+import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2Extras, splitCombinedAnswer } from "./prompt.js";
+import { refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, sheetSource } from "./looks.js";
 
 export const V2_DEFAULTS = {
     style: "tags", shot: "cinematic", extra: "", method: "placeholders",
@@ -102,8 +102,20 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
     const cfg = v2Settings();
     // No Chomusuke calls in here: this runs INSIDE a Chomusuke job (the manual
     // button, the automatic image), and Chomusuke runs one job at a time, so a
-    // call from here would wait for itself forever. Outfit tags are brought up
-    // to date BEFORE that job starts (v2PrepareImagePrompt).
+    // call from here would wait for itself forever. Instead, what the image
+    // needs besides its prompt (outfit tags that went stale, looks that are
+    // missing) is asked for in this SAME call and saved from its answer.
+    const chatAtStart = getContext()?.chatId;
+    const castNow = currentImageCast();
+    const inShot = m => m.inScene || m.isPc || m.mentioned;
+    const staleOutfits = cfg.outfitTags && cfg.style === "tags" ? castNow.filter(m => m.outfitStale && inShot(m)) : [];
+    const missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(chatAtStart,
+        castNow.filter(m => (m.inScene || m.isPc) && !String(m.look || m.body || m.lookNatural || "").trim()));
+    const extras = renderV2Extras({
+        outfits: staleOutfits.map(m => ({ name: m.name, outfit: m.outfitText })),
+        looks: missingLooks.map(m => m.name),
+        sheets: missingLooks.length ? sheetSource() : ""
+    });
     const story = recentMessages(6)
         .map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`)
         .join("\n\n");
@@ -113,11 +125,21 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
         story,
         method: cfg.method,
         previous: getLastImagePrompt(),
+        extras: sub(extras),
         rules: rules(extraInstruction)
     });
     setActiveImageGenRequest({ v2: { system: sub(built.system), user: built.user } });
     const raw = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
-    return cleanModelPrompt(raw);
+    if (!extras) return cleanModelPrompt(raw);
+    const { prompt, rest } = splitCombinedAnswer(raw);
+    if (rest && getContext()?.chatId === chatAtStart) {
+        if (staleOutfits.length) storeOutfitTags(staleOutfits, rest);
+        if (missingLooks.length) {
+            const added = storeNewLooks(missingLooks.map(m => ({ name: m.name, aliases: m.aliases || [] })), rest);
+            if (added.length) toastr.info(`New look${added.length === 1 ? "" : "s"} for ${added.join(", ")}.`, "Megumin Suite", { timeOut: 3500 });
+        }
+    }
+    return cleanModelPrompt(prompt);
 }
 
 // Models wrap a one-line answer in all sorts of things.
@@ -159,7 +181,9 @@ export function v2LastResolution() {
  * starts (never from inside it): bringing changed outfit tags up to date.
  */
 export async function v2PrepareImagePrompt() {
-    await refreshOutfitTags();
+    // Nothing now: the prompt writer's own call brings stale outfit tags and
+    // missing looks (one background call per image). Kept as the place for any
+    // future work that truly needs a call of its own.
 }
 
 export async function v2ResolveForComfy(prompt) {

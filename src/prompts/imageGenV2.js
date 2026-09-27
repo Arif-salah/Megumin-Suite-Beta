@@ -83,6 +83,7 @@ export const IMAGE_V2_PROMPTS = {
     },
 
     manualTask: "Write the image prompt for the latest moment. Output only the prompt, nothing else.",
+    manualTaskWithExtras: "Write the image prompt for the latest moment.",
 
     inlineHead: "### IMAGE\n{{conditionalText}}Within your response, insert {{imageCount}} image tag(s) like this: <img prompt=\"...\"> at the moment the image shows.",
     inlineTail: "Inside prompt=\"...\", never use double quotes."

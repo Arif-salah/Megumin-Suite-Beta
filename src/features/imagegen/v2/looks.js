@@ -18,6 +18,7 @@ import { presentCast } from "../../../state/modules/world/model.js";
 import { buildCharacterSheets } from "../classic/prompt.js";
 import { getLooks, currentImageCast, v2Settings } from "./index.js";
 import { splitLookTags } from "./lookParts.js";
+import { imageViaChomusuke } from "../auto.js";
 import {
     LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey,
     NATURAL_SYSTEM, renderNaturalPrompt, parseNaturalBlocks, matchScanToTargets,
@@ -48,7 +49,7 @@ function chatSource(count = 30) {
         .map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`).join("\n\n");
 }
 
-function sheetSource() {
+export function sheetSource() {
     return buildCharacterSheets().replace(/^Use these sheets for what each character looks like:\s*/, "").trim();
 }
 
@@ -183,6 +184,13 @@ export async function describeLooks(names = null) {
 
 const attempted = new Set();   // "chatId|name": one automatic try per character per chat
 
+/** Characters with no look yet, not tried in this chat: marked as tried. */
+export function takeLookAttempts(chatId, members) {
+    const out = members.filter(m => !attempted.has(`${chatId}|${m.name.toLowerCase()}`));
+    out.forEach(m => attempted.add(`${chatId}|${m.name.toLowerCase()}`));
+    return out;
+}
+
 /**
  * Someone in the scene has no look (and no NPC Bank tags): read one for them
  * from the recent chat, in the background, and add it. Never changes an
@@ -192,6 +200,11 @@ export function v2LooksForArrivals() {
     const ig = localProfile && localProfile.imageGen;
     if (!ig || !ig.enabled || ig.engine !== "v2" || !worldEnabled() || !worldHasState()) return;
     if (v2Settings().autoLooks === false) return;   // "Automatic look for new characters" is off
+    // When images are written by a background call (Chomusuke's automatic
+    // images, or the manual button only), that call brings missing looks in the
+    // same answer. Only when the story model writes images inline is there no
+    // call to ride on, so only then does a look get a call of its own.
+    if (imageViaChomusuke() || ig.triggerMode === "manual") return;
     const chatId = getContext()?.chatId;
     if (!chatId) return;
     const looks = getLooks();
@@ -216,6 +229,39 @@ export function v2LooksForArrivals() {
 
 let outfitRefresh = null;
 
+/**
+ * Saves the <Outfit_Tags> blocks of an answer for the cast members they were
+ * asked for, made from each one's current outfit. No calls: safe from inside
+ * a Chomusuke job. @returns {number} saved
+ */
+export function storeOutfitTags(stale, raw) {
+    const looks = getLooks();
+    let n = 0;
+    for (const r of parseOutfitBlocks(raw)) {
+        const m = stale.find(x => [x.name, ...(x.aliases || [])].some(a => a.toLowerCase() === r.name.toLowerCase()));
+        if (!m) continue;
+        const k = m.lookKey || findLookKey(looks, m.name, m.aliases || []) || m.name;
+        if (!looks[k]) looks[k] = { tags: "", body: "", natural: "", aliases: [], locked: false, source: "manual" };
+        looks[k].outfitTags = { from: outfitHash(m.outfitText), tags: r.tags, locked: false };
+        n++;
+    }
+    if (n) saveProfileToMemory();
+    return n;
+}
+
+/**
+ * Adds the <Character_Visual> blocks of an answer as NEW looks for the
+ * characters they were asked for. Never changes an existing look. No calls.
+ * @returns {string[]} names added
+ */
+export function storeNewLooks(targets, raw) {
+    const looks = getLooks();
+    const plan = planLookUpdates(looks, matchScanToTargets(parseLookBlocks(raw), targets));
+    for (const item of plan.add) writeLook(looks, item, "chat");
+    if (plan.add.length) saveProfileToMemory();
+    return plan.add.map(x => x.key);
+}
+
 /** Brings every stale outfit of the people in the shot up to date. */
 export function refreshOutfitTags() {
     if (outfitRefresh) return outfitRefresh;
@@ -228,18 +274,7 @@ export function refreshOutfitTags() {
     outfitRefresh = (async () => {
         const raw = await ask(OUTFIT_SYSTEM, renderOutfitTagsPrompt(stale.map(m => ({ name: m.name, outfit: m.outfitText }))));
         if (getContext()?.chatId !== chatAtStart) return 0;
-        const looks = getLooks();
-        let n = 0;
-        for (const r of parseOutfitBlocks(raw)) {
-            const m = stale.find(x => [x.name, ...(x.aliases || [])].some(a => a.toLowerCase() === r.name.toLowerCase()));
-            if (!m) continue;
-            const k = m.lookKey || findLookKey(looks, m.name, m.aliases || []) || m.name;
-            if (!looks[k]) looks[k] = { tags: "", body: "", natural: "", aliases: [], locked: false, source: "manual" };
-            looks[k].outfitTags = { from: outfitHash(m.outfitText), tags: r.tags, locked: false };
-            n++;
-        }
-        if (n) saveProfileToMemory();
-        return n;
+        return storeOutfitTags(stale, raw);
     })().catch(e => { console.error("[Megumin-Suite] Outfit tags failed", e); return 0; })
         .finally(() => { outfitRefresh = null; });
     return outfitRefresh;

@@ -248,3 +248,9 @@ Top to bottom:
   - `<Cast>` also carries position.
   - *Automatic look for new characters* is a setting.
   - With the NPC Bank on, the user picks which wins when both exist: the V2 look or the NPC Bank tags.
+- **One call per image (step 1 of combining calls):**
+  - The V2 prompt writer asks, in the same call, for the outfit tags that went stale and the looks of characters in the shot that have none, as tagged sections (`<Image_Prompt>`, `<Outfit_Tags>`, `<Character_Visual>`), not JSON, so a broken section loses only itself.
+  - With nothing missing, the answer is just the prompt.
+  - The separate automatic look scan now runs only when the story model writes images inline (no background call to ride on).
+  - The Detailed outfit tags deadlock is fixed by construction: nothing nests.
+  - Step 2 (the World State read in the same call on image turns) is still to decide.

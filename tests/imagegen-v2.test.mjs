@@ -305,3 +305,42 @@ test("reference method: previous prompt, cast wins, the reason, and a first-imag
     assert.doesNotMatch(renderV2ManualPrompt({ story: "x", rules: "r", method: "placeholders", previous: "p" }).user, /Previous_Image_Prompt/);
     assert.match(renderV2InlineInstruction({ rules, method: "reference", previous: "p1" }), /<Previous_Image_Prompt>\np1\n/);
 });
+
+// ── One call per image: extra sections only when needed ──────────────────
+import { renderV2Extras, splitCombinedAnswer } from "../src/features/imagegen/v2/prompt.js";
+import { parseOutfitBlocks, parseLookBlocks } from "../src/features/imagegen/v2/looksCore.js";
+
+test("extras: nothing needed → nothing asked, and the answer stays a plain prompt", () => {
+    assert.equal(renderV2Extras({}), "");
+    const m = renderV2ManualPrompt({ story: "x", rules: "r", extras: "" });
+    assert.match(m.user, /Output only the prompt, nothing else\.$/);
+});
+
+test("extras: only the sections that are needed, and the answer shape", () => {
+    const onlyOutfit = renderV2Extras({ outfits: [{ name: "Aqua", outfit: "blue dress" }] });
+    assert.match(onlyOutfit, /Aqua: blue dress/);
+    assert.match(onlyOutfit, /<Image_Prompt>the image prompt<\/Image_Prompt>\n<Outfit_Tags name="Name">/);
+    assert.doesNotMatch(onlyOutfit, /Character_Visual|Character_Sheets/);
+    const onlyLooks = renderV2Extras({ looks: ["Wiz"], sheets: "<character_sheet name=\"Wiz\">x</character_sheet>" });
+    assert.match(onlyLooks, /appearance of Wiz/);
+    assert.match(onlyLooks, /<Character_Sheets>/);
+    assert.doesNotMatch(onlyLooks, /Outfit_Tags/);
+    const m = renderV2ManualPrompt({ story: "x", rules: "r", extras: onlyOutfit });
+    assert.match(m.user, /Write the image prompt for the latest moment\.\n\n## In the same answer/);
+    assert.doesNotMatch(m.user, /Output only the prompt/);
+});
+
+test("combined answer: each section is read on its own; a broken one loses only itself", () => {
+    const raw = `<think>plan</think>
+<Image_Prompt>1girl, @Aqua, smiling, close-up</Image_Prompt>
+<Outfit_Tags name="Aqua">blue dress, detached sleeves</Outfit_Tags>
+<Character_Visual name="Wiz">female, long brown hair`;       // cut off: still usable
+    const { prompt, rest } = splitCombinedAnswer(raw);
+    assert.equal(prompt, "1girl, @Aqua, smiling, close-up");
+    assert.deepEqual(parseOutfitBlocks(rest), [{ name: "Aqua", tags: "blue dress, detached sleeves" }]);
+    assert.deepEqual(parseLookBlocks(rest), [{ name: "Wiz", aliases: [], tags: "female, long brown hair" }]);
+    // A model that skipped the <Image_Prompt> wrapper still gives a prompt.
+    assert.equal(splitCombinedAnswer("1girl, @Aqua\n<Outfit_Tags name=\"Aqua\">x</Outfit_Tags>").prompt, "1girl, @Aqua");
+    // Broken outfit section: the prompt survives.
+    assert.equal(splitCombinedAnswer("<Image_Prompt>1girl, @Aqua</Image_Prompt><Outfit_Tags>oops").prompt, "1girl, @Aqua");
+});
