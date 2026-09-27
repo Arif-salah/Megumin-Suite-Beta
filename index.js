@@ -131,6 +131,7 @@ import {
     igPopulateWorkflows, igNewWorkflowClick, igDeleteWorkflowClick, igOpenWorkflowEditorClick,
     igManualGenerate, generateImagePromptText, addKazumaRetryButtons, kazumaRetrySweep,
     igGenerateWithComfy, igAutoImageForReply, v2LooksForArrivals, prepareImagePrompt,
+    combinedTurnWanted, runCombinedTurn,
 } from "./src/features/imagegen/index.js";
 import { buildBaseDict } from "./src/engine/buildBaseDict.js";
 import { handlePromptInjection } from "./src/engine/injection.js";
@@ -492,8 +493,11 @@ jQuery(async () => {
                 // --- WORLD STATE ---
                 // First, so everything below (image gen included) sees this
                 // reply's outfits.
+                // Chomusuke "Combine calls": on an image turn, one call reads World
+                // State AND writes the image prompt (no separate read below).
+                const combinedTurn = combinedTurnWanted(receivedId, receivedType);
                 try {
-                    if (stateOnMessageReceived(receivedId, receivedType)) meguminScheduleBlocksRefresh();
+                    if (stateOnMessageReceived(receivedId, receivedType, { skipSideRead: combinedTurn })) meguminScheduleBlocksRefresh();
                     // Image Gen V2: a character who just arrived gets a look.
                     v2LooksForArrivals();
                 } catch (e) {
@@ -503,7 +507,9 @@ jQuery(async () => {
                 // --- AUTOMATIC IMAGE BY CHOMUSUKE ---
                 // After World State, so its read is queued first and the image
                 // uses the newest outfits. Does nothing unless Chomusuke writes images.
-                igAutoImageForReply(receivedId, receivedType, generateImagePromptText, prepareImagePrompt)
+                (combinedTurn
+                    ? runCombinedTurn(receivedId, receivedType)
+                    : igAutoImageForReply(receivedId, receivedType, generateImagePromptText, prepareImagePrompt))
                     .catch(e => console.error("[Megumin-Suite] Automatic image failed", e));
 
                 // --- STORY DIRECTOR FEEDBACK & AUTO-EVOLVE ---

@@ -243,12 +243,68 @@ export function renderChomusuke(c) {
             $(this).toggleClass("active", next);
             $(this).find(".ps-switch").css("background", next ? "#10b981" : "");
             saveProfileToMemory();
+            // "Combine calls" depends on these routes: redraw so it is never stale.
+            renderChomusuke(c);
         });
 
         $routingPanel.append($row);
     });
 
     $content.append($routingPanel);
+
+    // ── CARD 3: COMBINE CALLS ──
+    // Several Chomusuke jobs in ONE call. For now: World State + the automatic image.
+    if (!cfg.combine || typeof cfg.combine !== "object") cfg.combine = { worldImage: false, worldFallback: false };
+    const combine = cfg.combine;
+    const worldOn = cfg.features.worldState === true;
+    const imageOn = cfg.features.imageGen !== false;
+    const combineReady = Boolean(cfg.enabled && cfg.profileId && worldOn && imageOn);
+    const $combinePanel = $(`
+        <div class="mtab-panel" style="margin-top: 14px; margin-bottom:0;">
+            <div class="mtab-panel-title blue" style="margin-bottom: 6px;">
+                <i class="fa-solid fa-layer-group"></i> Combine calls
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">
+                Do several Chomusuke jobs in one call instead of one call each.
+                ${combineReady ? "" : "<br><b>Needs:</b> Chomusuke on, with both <b>World State</b> and <b>Image Generation</b> routed above."}
+            </div>
+        </div>
+    `);
+    const toggleRow = (key, title, desc, enabled, indent) => {
+        const on = combine[key] === true;
+        const $row = $(`
+            <div class="mtab-toggle-row ${on ? "active" : ""}" style="cursor: ${enabled ? "pointer" : "not-allowed"}; margin-bottom: 8px; ${enabled ? "" : "opacity: .5;"} ${indent ? "margin-left: 22px;" : ""}">
+                <div class="toggle-info">
+                    <div class="toggle-label">${title}</div>
+                    <div class="toggle-desc">${desc}</div>
+                </div>
+                <div class="ps-switch" style="${on ? "background: #10b981;" : ""}"></div>
+            </div>
+        `);
+        $row.on("click", () => {
+            if (!enabled) return;
+            combine[key] = !(combine[key] === true);
+            if (key === "worldImage" && !combine.worldImage) combine.worldFallback = false;
+            saveProfileToMemory();
+            renderChomusuke(c);
+        });
+        return $row;
+    };
+    $combinePanel.append(toggleRow(
+        "worldImage",
+        `<i class="fa-solid fa-thumbtack" style="color:#f59e0b; margin-right: 6px;"></i> World State and image in one call`,
+        "On replies that get an automatic image, one call writes the World State update and the image prompt (on V2 also the outfit tags and new looks). Other replies keep the plain World State read, so every reply costs one call.",
+        combineReady,
+        false
+    ));
+    $combinePanel.append(toggleRow(
+        "worldFallback",
+        `<i class="fa-solid fa-life-ring" style="color:#10b981; margin-right: 6px;"></i> Fall back to a separate World State read`,
+        "If the combined answer has no usable World State update, read the reply again on its own (one extra call, only then). Off: the card shows it had no update, with Read again.",
+        combineReady && combine.worldImage === true,
+        true
+    ));
+    $content.append($combinePanel);
 
     // ── CALLOUT / TIP ──
     $content.append(`

@@ -71,13 +71,21 @@ export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", 
 const previousBlock = previous =>
     `<Previous_Image_Prompt>\n${String(previous || "").trim() || "(none yet: this is the first image)"}\n</Previous_Image_Prompt>`;
 
+/** <Character_Sheets>: always BEFORE the story, never among the tasks. */
+export function renderSheetsBlock(sheets) {
+    const s = String(sheets || "").trim();
+    return s ? `<Character_Sheets>\n${s}\n</Character_Sheets>` : "";
+}
+
 /**
- * The manual button's quiet generation.
+ * The manual button's quiet generation. Reference material first (cast,
+ * sheets, scene, story), the tasks together at the end.
  * @returns {{ system: string, user: string }}
  */
-export function renderV2ManualPrompt({ castList = "", scene = "", story = "", rules = "", method = "placeholders", previous = "", extras = "" } = {}) {
+export function renderV2ManualPrompt({ castList = "", sheets = "", scene = "", story = "", rules = "", method = "placeholders", previous = "", extras = "" } = {}) {
     const user = [
         castList,
+        renderSheetsBlock(sheets),
         scene ? `<Scene>\n${scene}\n</Scene>` : "",
         `<Recent_Story>\n${String(story || "").trim()}\n</Recent_Story>`,
         method === "reference" ? previousBlock(previous) : "",
@@ -105,45 +113,129 @@ export function renderV2InlineInstruction({ conditionalText = "", imageCount = 1
 // loses only itself.
 
 /**
- * @param {{ outfits?: Array<{ name: string, outfit: string }>, looks?: string[], sheets?: string }} needs
- * @returns {string} "" when nothing extra is needed
+ * The instructions for the extra sections (no heading, no answer shape).
+ * @param {{ outfits?: Array<{ name: string, outfit: string }>, looks?: string[], followUpdate?: boolean }} needs
+ *   followUpdate: in a combined call, also give tags for every outfit the World_Update changes
  */
-export function renderV2Extras({ outfits = [], looks = [], sheets = "" } = {}) {
-    if (!outfits.length && !looks.length) return "";
-    const parts = ["## In the same answer"];
-    if (outfits.length) {
-        parts.push(
-            "Turn these outfits into booru clothing tags: one tag per garment or accessory, with its colour or material; keep the state of dress; clothing only, nothing the text does not say.",
-            ...outfits.map(o => `${o.name}: ${o.outfit}`)
-        );
+export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = false } = {}) {
+    const parts = [];
+    if (outfits.length || followUpdate) {
+        const who = followUpdate
+            ? `for every character whose Outfit your World_Update changes${outfits.length ? ", and for these outfits" : ""}`
+            : "for these outfits";
+        parts.push(`- Outfit tags ${who}: one booru tag per garment or accessory, with its colour or material; keep the state of dress; clothing only, nothing the text does not say.`);
+        parts.push(...outfits.map(o => `  ${o.name}: ${o.outfit}`));
     }
     if (looks.length) {
-        if (String(sheets || "").trim()) parts.push(`<Character_Sheets>\n${String(sheets).trim()}\n</Character_Sheets>`);
-        parts.push(
-            `Write the permanent appearance of ${looks.join(", ")} as booru tags, from the story and the sheets: sex and apparent age, hair, eyes, skin, face, build, permanent features. No clothing, expressions, poses or count tags. Skip anyone the text does not describe.`
-        );
+        parts.push(`- Appearance of ${looks.join(", ")} as booru tags, from the story and <Character_Sheets>: sex and apparent age, hair, eyes, skin, face, build, permanent features. No clothing, expressions, poses or count tags. Skip anyone the text does not describe.`);
     }
-    parts.push(
-        "",
-        "Answer in this shape and nothing else:",
-        "<Image_Prompt>the image prompt</Image_Prompt>",
-        ...(outfits.length ? ["<Outfit_Tags name=\"Name\">tag, tag, tag</Outfit_Tags>"] : []),
-        ...(looks.length ? ["<Character_Visual name=\"Name\">tag, tag, tag</Character_Visual>"] : [])
-    );
     return parts.join("\n");
 }
 
+/** The answer-shape lines for the extra sections that were asked for. */
+export function renderV2ExtraShape({ outfits = [], looks = [], followUpdate = false } = {}) {
+    return [
+        ...(outfits.length || followUpdate ? ["<Outfit_Tags name=\"Name\">tag, tag, tag</Outfit_Tags>"] : []),
+        ...(looks.length ? ["<Character_Visual name=\"Name\">tag, tag, tag</Character_Visual>"] : [])
+    ];
+}
+
+/**
+ * The extras for a normal (image-only) call: tasks and answer shape.
+ * The sheets the looks need go BEFORE the story (renderV2ManualPrompt), not here.
+ * @param {{ outfits?: Array<{ name: string, outfit: string }>, looks?: string[] }} needs
+ * @returns {string} "" when nothing extra is needed
+ */
+export function renderV2Extras({ outfits = [], looks = [] } = {}) {
+    if (!outfits.length && !looks.length) return "";
+    return [
+        "## In the same answer",
+        renderV2ExtraTasks({ outfits, looks }),
+        "",
+        "Answer in this shape and nothing else:",
+        "<Image_Prompt>the image prompt</Image_Prompt>",
+        ...renderV2ExtraShape({ outfits, looks })
+    ].join("\n");
+}
+
+const OTHER_SECTIONS = /<(Outfit_Tags|Character_Visual|World_Update|World_State)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|(?=<(?:Outfit_Tags|Character_Visual|Image_Prompt|World_Update|World_State)\b)|$)/gi;
+
 /**
  * Splits a combined answer. The prompt is <Image_Prompt> when present;
- * otherwise the whole answer minus any other sections (a model that ignored
- * the shape still gives a usable prompt).
+ * otherwise the whole answer minus every other section (a model that ignored
+ * the shape still gives a usable prompt). `rest` holds the extra sections.
  * @returns {{ prompt: string, rest: string }}
  */
 export function splitCombinedAnswer(raw) {
     const text = String(raw || "").replace(/<think\b[^>]*>[\s\S]*?(<\/think\s*>|$)/gi, "");
-    const extra = /<(Outfit_Tags|Character_Visual)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|(?=<(?:Outfit_Tags|Character_Visual|Image_Prompt)\b)|$)/gi;
+    const extra = /<(Outfit_Tags|Character_Visual)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|(?=<(?:Outfit_Tags|Character_Visual|Image_Prompt|World_Update|World_State)\b)|$)/gi;
     const rest = (text.match(extra) || []).join("\n");
-    const m = text.match(/<Image_Prompt\b[^>]*>([\s\S]*?)(?:<\/Image_Prompt\s*>|(?=<(?:Outfit_Tags|Character_Visual)\b)|$)/i);
-    const prompt = (m ? m[1] : text.replace(extra, "")).trim();
+    const m = text.match(/<Image_Prompt\b[^>]*>([\s\S]*?)(?:<\/Image_Prompt\s*>|(?=<(?:Outfit_Tags|Character_Visual|World_Update|World_State)\b)|$)/i);
+    // No wrapper: everything outside the other sections. With a prefill the
+    // answer starts INSIDE the World block (no opening tag), so everything up
+    // to its closing tag goes too.
+    let body = text;
+    const close = body.search(/<\/World_(Update|State)\s*>/i);
+    if (close >= 0 && !/<World_(Update|State)\b/i.test(body.slice(0, close))) body = body.slice(body.indexOf(">", close) + 1);
+    const prompt = (m ? m[1] : body.replace(OTHER_SECTIONS, "")).trim();
     return { prompt, rest };
+}
+
+// ── World State + image in one call (Chomusuke "Combine calls") ──────────
+// On a reply that gets an automatic image, one Chomusuke call does the World
+// State read AND the image prompt (and, on V2, outfit tags and missing looks).
+// Reference material first, the tasks together at the end, then the shape.
+
+export const COMBINED_SYSTEM =
+    "You are a continuity clerk and image prompt writer for an ongoing roleplay. You read the latest exchange, " +
+    "note what it changed in the world, and write an image prompt for the moment it ends on. " +
+    "You never write story, never explain, and never add facts the exchange does not state or clearly show.";
+
+/**
+ * @param {{
+ *   notes: string,            // the continuity notes as a reader sees them (renderClerkNotes)
+ *   castList?: string,        // V2 only
+ *   sheets?: string,          // character and persona sheets (before the story)
+ *   earlier?: string,         // messages before the latest exchange (context)
+ *   exchange: string,         // the latest exchange
+ *   world: { rules: string, template: string, tag: string },   // renderWorldClerkTask
+ *   engine: "v2"|"classic",
+ *   imageRules: string,       // V2: renderV2Rules(...); Classic: its NPC tags + template rules + extra + examples
+ *   onlyIfPhoto?: boolean,
+ *   extras?: { outfits?: Array<{name: string, outfit: string}>, looks?: string[], followUpdate?: boolean },
+ *   previous?: string|null    // V2 "Edit last prompt" method: the previous image prompt
+ * }} a
+ * @returns {{ system: string, user: string, prefill: string }}
+ */
+export function renderCombinedPrompt(a) {
+    const tag = a.world.tag;
+    const v2 = a.engine === "v2";
+    const extras = v2 ? (a.extras || {}) : {};
+    const extraTasks = v2 ? renderV2ExtraTasks(extras) : "";
+    const follow = v2
+        ? `<Cast> shows everyone as they stood BEFORE the latest exchange: where your ${tag} changes someone's clothing or position, the image follows your ${tag} (@Name will carry the new outfit).`
+        : `Where your ${tag} changes someone's clothing, draw them in the new clothing.`;
+    const user = [
+        a.notes,
+        v2 ? a.castList : "",
+        renderSheetsBlock(a.sheets),
+        String(a.earlier || "").trim() ? `<Earlier_Story>\n${String(a.earlier).trim()}\n</Earlier_Story>` : "",
+        `<Latest_Exchange>\n${String(a.exchange || "").trim()}\n</Latest_Exchange>`,
+        v2 && a.previous != null ? previousBlock(a.previous) : "",
+        `# Task 1: ${tag === "World_State" ? "World State" : "World Update"}\n${a.world.rules}`,
+        [
+            "# Task 2: Image prompt",
+            `The image shows the moment the latest exchange ends on. ${follow}`,
+            a.imageRules,
+            a.onlyIfPhoto ? "If nobody in the latest exchange takes, sends or shares a picture, write <Image_Prompt>NONE</Image_Prompt>." : ""
+        ].filter(Boolean).join("\n"),
+        extraTasks ? `# Also in the same answer\n${extraTasks}` : "",
+        [
+            "# Answer in this shape and nothing else",
+            a.world.template,
+            "<Image_Prompt>the image prompt</Image_Prompt>",
+            ...(v2 ? renderV2ExtraShape(extras) : [])
+        ].join("\n")
+    ].filter(s => String(s || "").trim()).join("\n\n");
+    return { system: COMBINED_SYSTEM, user, prefill: `<${tag}>\n` };
 }

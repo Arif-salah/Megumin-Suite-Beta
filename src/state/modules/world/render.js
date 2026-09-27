@@ -297,33 +297,47 @@ export function describeWorldChange(ch, pcLabel = "{{user}}") {
  *   exchange — the latest exchange as "Name: text" paragraphs
  * @returns {{ system: string, user: string, prefill: string, tag: string }}
  */
-export function renderWorldExtractPrompt({ notes, exchange, mode }) {
+/**
+ * Task 1 of any background read of a reply: the World Update (or first World
+ * State) rules, reworded for a reader of the exchange rather than its writer.
+ * Shared word for word by the Chomusuke read and the combined call.
+ * @returns {{ rules: string, template: string, tag: string }}
+ */
+export function renderWorldClerkTask(mode) {
     const ins = renderWorldInstructions(mode);
-    const tag = mode === "bootstrap" ? "World_State" : "World_Update";
     const reword = t => t
         .replace(/before your reply/g, "before the latest exchange")
         .replace(/what your reply changed/g, "what the latest exchange changed")
         .replace(/at the END of your reply/g, "at the END of the latest exchange")
         .replace(/in your prose/g, "in the prose")
         .replace(/your reply/g, "the latest exchange");
+    return { rules: reword(ins.rules), template: ins.template, tag: mode === "bootstrap" ? "World_State" : "World_Update" };
+}
+
+/** The continuity notes as a reader of the exchange sees them (or "nothing yet"). */
+export function renderClerkNotes(notes) {
+    return notes
+        ? notes.replace(/<!--[\s\S]*?-->/, "<!-- Where the story stood before the latest exchange. -->")
+        : "<Current_World_State>\n(Nothing has been noted about this story yet.)\n</Current_World_State>";
+}
+
+export function renderWorldExtractPrompt({ notes, exchange, mode }) {
+    const task = renderWorldClerkTask(mode);
     const system =
         "You are a continuity clerk for an ongoing roleplay. You read the latest exchange and note what it changed: " +
         "the physical scene, who is present and how they look, and the story's slow deep currents. " +
         "You never write story, never explain, and never add facts the exchange does not state or clearly show.";
-    const clerkNotes = notes
-        ? notes.replace(/<!--[\s\S]*?-->/, "<!-- Where the story stood before the latest exchange. -->")
-        : "<Current_World_State>\n(Nothing has been noted about this story yet.)\n</Current_World_State>";
     const user = [
-        clerkNotes,
+        renderClerkNotes(notes),
         "",
         "<Latest_Exchange>",
         String(exchange || "").trim(),
         "</Latest_Exchange>",
         "",
-        reword(ins.rules),
+        task.rules,
         "",
-        `Output ONLY the <${tag}> block, nothing before or after it, in this shape:`,
-        ins.template
+        `Output ONLY the <${task.tag}> block, nothing before or after it, in this shape:`,
+        task.template
     ].join("\n");
-    return { system, user, prefill: `<${tag}>\n`, tag };
+    return { system, user, prefill: `<${task.tag}>\n`, tag: task.tag };
 }

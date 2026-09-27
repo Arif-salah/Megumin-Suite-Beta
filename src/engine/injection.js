@@ -188,6 +188,10 @@ export async function handlePromptInjection(data, type) {
         messages.length = 0;
         messages.push({ "role": "system", "content": activeImageGenRequest.v2.system });
         messages.push({ "role": "user", "content": activeImageGenRequest.v2.user });
+        // The combined World State + image call starts its answer inside the World block.
+        if (!disablePrefill && activeImageGenRequest.v2.prefill) {
+            messages.push({ "role": "assistant", "content": activeImageGenRequest.v2.prefill });
+        }
         console.log(`[${extensionName}] 🎯 Injected Image Gen V2 prompt.`);
         return;
     }

@@ -113,14 +113,15 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
         castNow.filter(m => (m.inScene || m.isPc) && !String(m.look || m.body || m.lookNatural || "").trim()));
     const extras = renderV2Extras({
         outfits: staleOutfits.map(m => ({ name: m.name, outfit: m.outfitText })),
-        looks: missingLooks.map(m => m.name),
-        sheets: missingLooks.length ? sheetSource() : ""
+        looks: missingLooks.map(m => m.name)
     });
     const story = recentMessages(6)
         .map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`)
         .join("\n\n");
     const built = renderV2ManualPrompt({
         castList: sub(renderCastList(currentImageCast(), { shot: cfg.shot, method: cfg.method })),
+        // The sheets the missing looks are read from go BEFORE the story.
+        sheets: missingLooks.length ? sheetSource() : "",
         scene: sceneLine(),
         story,
         method: cfg.method,

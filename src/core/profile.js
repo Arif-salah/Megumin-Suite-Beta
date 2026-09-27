@@ -518,6 +518,10 @@ export function initProfile() {
     if (localProfile.chomusuke?.features && localProfile.chomusuke.features.worldState === undefined) {
         localProfile.chomusuke.features.worldState = false;
     }
+    // "Combine calls": several Chomusuke jobs in one call. Both off by default.
+    if (localProfile.chomusuke && (!localProfile.chomusuke.combine || typeof localProfile.chomusuke.combine !== "object")) {
+        localProfile.chomusuke.combine = { worldImage: false, worldFallback: false };
+    }
     // "Side model" briefly lived in the Blocks tab's Updates list; that choice
     // is now the Chomusuke World State route.
     if (localProfile.worldState?.updateMode === "sidemodel") {

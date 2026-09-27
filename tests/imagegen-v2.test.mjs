@@ -321,13 +321,27 @@ test("extras: only the sections that are needed, and the answer shape", () => {
     assert.match(onlyOutfit, /Aqua: blue dress/);
     assert.match(onlyOutfit, /<Image_Prompt>the image prompt<\/Image_Prompt>\n<Outfit_Tags name="Name">/);
     assert.doesNotMatch(onlyOutfit, /Character_Visual|Character_Sheets/);
-    const onlyLooks = renderV2Extras({ looks: ["Wiz"], sheets: "<character_sheet name=\"Wiz\">x</character_sheet>" });
-    assert.match(onlyLooks, /appearance of Wiz/);
-    assert.match(onlyLooks, /<Character_Sheets>/);
-    assert.doesNotMatch(onlyLooks, /Outfit_Tags/);
+    const onlyLooks = renderV2Extras({ looks: ["Wiz"] });
+    assert.match(onlyLooks, /Appearance of Wiz/);
+    assert.doesNotMatch(onlyLooks, /<\/Character_Sheets>|Outfit_Tags/, "the sheets block never sits among the tasks");
     const m = renderV2ManualPrompt({ story: "x", rules: "r", extras: onlyOutfit });
     assert.match(m.user, /Write the image prompt for the latest moment\.\n\n## In the same answer/);
     assert.doesNotMatch(m.user, /Output only the prompt/);
+});
+
+test("sheets go before the story; all the tasks come after it", () => {
+    const m = renderV2ManualPrompt({
+        castList: "<Cast>\n@Wiz: in the scene\n</Cast>",
+        sheets: "<character_sheet name=\"Wiz\">A shopkeeper.</character_sheet>",
+        story: "Wiz: Hello.",
+        rules: "## How to write the image prompt",
+        extras: renderV2Extras({ looks: ["Wiz"] })
+    }).user;
+    const at = s => m.indexOf(s);
+    assert.ok(at("<Cast>") < at("<Character_Sheets>"));
+    assert.ok(at("<Character_Sheets>") < at("<Recent_Story>"));
+    assert.ok(at("</Recent_Story>") < at("## How to write the image prompt"));
+    assert.ok(at("## How to write the image prompt") < at("## In the same answer"));
 });
 
 test("combined answer: each section is read on its own; a broken one loses only itself", () => {

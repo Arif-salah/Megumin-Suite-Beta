@@ -23,10 +23,10 @@ export function imageViaChomusuke() {
     return Boolean(c && c.enabled && c.profileId && (!c.features || c.features.imageGen !== false));
 }
 
-const NOT_A_REPLY = new Set(["first_message", "command", "impersonate", "quiet"]);
+export const NOT_A_REPLY = new Set(["first_message", "command", "impersonate", "quiet"]);
 
 /** Is an automatic image due for the reply that just arrived? */
-function dueNow(ig, chat) {
+export function dueNow(ig, chat) {
     const mode = ig.triggerMode || "always";
     if (mode === "manual") return false;
     if (mode === "frequency") {
@@ -37,16 +37,39 @@ function dueNow(ig, chat) {
     return true; // always, conditional (Chomusuke decides)
 }
 
-const ONLY_IF_PHOTO = "Only if someone in the latest reply takes, sends or shares a picture should there be an image. If nobody does, output exactly: NONE";
+export const ONLY_IF_PHOTO = "Only if someone in the latest reply takes, sends or shares a picture should there be an image. If nobody does, output exactly: NONE";
 
-const placeholderHtml = id =>
+export const placeholderHtml = id =>
     `<div id="${id}" class="kazuma-img-placeholder" style="color:var(--gold); font-style: italic; margin: 10px 0;">[Generating Image...]</div>`;
 
-function redraw(index, message) {
+export function redraw(index, message) {
     if (typeof updateMessageBlock === "function") {
         updateMessageBlock(index, message);
         meguminScheduleBlocksRefresh();
     }
+}
+
+/** Takes a "[Generating Image...]" placeholder back out of whichever message holds it. */
+export async function removePlaceholder(id) {
+    const now = getContext().chat || [];
+    const at = now.findIndex(m => typeof m?.mes === "string" && m.mes.includes(`id="${id}"`));
+    if (at < 0) return;
+    now[at].mes = now[at].mes.replace(new RegExp(`\\s*<div id="${id}"[^>]*>[\\s\\S]*?<\\/div>\\s*`), "\n\n").trim();
+    await saveChat();
+    redraw(at, now[at]);
+}
+
+/** Puts a placeholder where the image will go (Inline mode). */
+export async function insertPlaceholder(index, message, id, placement) {
+    message.mes = insertAtSlot(message.mes, placeholderHtml(id), placement === "random" ? "random" : "end");
+    await saveChat();
+    redraw(index, message);
+}
+
+/** The prompt out of an answer that may still carry an <img prompt="..."> wrapper. */
+export function unwrapImgTag(prompt) {
+    const tag = String(prompt || "").match(/<img[^>]*?prompt=(["']?)([\s\S]*?)(?:\1\s*\/?>|\1\s*>|\1\s+[a-zA-Z]+=| \/>|>|$)/i);
+    return (tag ? tag[2] : String(prompt || "")).trim();
 }
 
 /**
@@ -97,15 +120,7 @@ export async function igAutoImageForReply(messageId, type, writePrompt, prepare 
 
     // Nothing to draw (NONE, an empty answer, or a failure): take the placeholder out.
     if (!prompt || /^none\.?$/i.test(prompt)) {
-        if (inline) {
-            const now = getContext().chat || [];
-            const at = now.findIndex(m => typeof m?.mes === "string" && m.mes.includes(`id="${id}"`));
-            if (at >= 0) {
-                now[at].mes = now[at].mes.replace(new RegExp(`\\s*<div id="${id}"[^>]*>[\\s\\S]*?<\\/div>\\s*`), "\n\n").trim();
-                await saveChat();
-                redraw(at, now[at]);
-            }
-        }
+        if (inline) await removePlaceholder(id);
         return;
     }
 

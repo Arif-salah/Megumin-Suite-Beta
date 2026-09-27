@@ -134,6 +134,7 @@ export async function generateImagePromptText(opts = {}) {
 }
 
 export { imageViaChomusuke, igAutoImageForReply } from "./auto.js";
+export { combinedTurnWanted, runCombinedTurn } from "./combinedTurn.js";
 export { v2LooksForArrivals } from "./v2/looks.js";
 
 /** The NPC tag section for the Classic inline [[img1]] instruction. */

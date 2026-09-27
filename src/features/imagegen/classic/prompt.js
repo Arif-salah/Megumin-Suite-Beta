@@ -12,6 +12,18 @@ import { meguminCleanChatHistoryText } from "../../../engine/chatText.js";
 import { getRelevantNpcImageTags } from "../../npc/data.js";
 
 export async function classicGenerateImagePromptText({ extraInstruction = "" } = {}) {
+    setActiveImageGenRequest(classicImageParts({ extraInstruction }));
+    let rawOutput = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
+    return rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+}
+
+/**
+ * Classic's prompt pieces: the chat, the chosen template's rules and examples,
+ * direct language, extra instructions, relevant NPC tags, and the character
+ * and persona sheets. Used by the Classic image call and by the combined
+ * World State + image call (Chomusuke "Combine calls").
+ */
+export function classicImageParts({ extraInstruction = "" } = {}) {
     const ig = localProfile.imageGen;
     const chat = getContext().chat;
     const lastMessages = chat.filter(m => !m.is_user && !m.is_system).slice(-5).map(m => {
@@ -44,18 +56,26 @@ export async function classicGenerateImagePromptText({ extraInstruction = "" } =
     let directLangStr = ig.directLanguage ? "**DIRECT LANGUAGE:** Use exact Booru tags only. \"naked\" not \"wearing nothing.\" \"erection\" not \"visible arousal.\"\n\n**NSFW TAG REFERENCE (use when scene is explicit):**\nBody: naked, nude, topless, exposed nipples, small breasts, medium breasts, large breasts, spread legs, ass, erection, veins, veiny penis\nActions: hetero, sex, vaginal, anal, oral, fellatio, after fellatio, paizuri, straddling, riding, missionary, doggystyle, cowgirl position, moaning, open mouth, tongue out, ahegao, clenching teeth\nFluids: cum, cum on body, cum on breasts, cum on face, cum on hair, cum on tongue, cum in mouth, cum inside, ejaculation, facial, saliva, sweat\nState: flushed face, heavy breathing, trembling, crying with eyes open, half-closed eyes, solo focus" : "";
     let npcTagsStr = getRelevantNpcImageTags({ force: true }); // <-- GET THE TAGS (manual: whenever there are any)
 
-    setActiveImageGenRequest({
-        chatText: lastMessages, 
-        templateRules: rules, 
-        templateExamples: examples, 
+    return {
+        chatText: lastMessages,
+        templateRules: rules,
+        templateExamples: examples,
         extraStr: [ig.promptExtra || "", extraInstruction].filter(Boolean).join("\n"),
         directLanguageStr: directLangStr,
         npcTagsStr: npcTagsStr, // <-- ADD TO REQUEST
         characterSheets: buildCharacterSheets()
-    });
+    };
+}
 
-    let rawOutput = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
-    return rawOutput.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+/** Classic's image rules as one block, for Task 2 of the combined call. */
+export function classicImageRulesBlock(parts) {
+    return [
+        parts.npcTagsStr,
+        parts.templateRules,
+        parts.directLanguageStr,
+        parts.extraStr ? `Extra Instructions: ${parts.extraStr}` : "",
+        parts.templateExamples
+    ].filter(s => String(s || "").trim()).join("\n\n");
 }
 
 /**

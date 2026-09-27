@@ -254,3 +254,9 @@ Top to bottom:
   - The separate automatic look scan now runs only when the story model writes images inline (no background call to ride on).
   - The Detailed outfit tags deadlock is fixed by construction: nothing nests.
   - Step 2 (the World State read in the same call on image turns) is still to decide.
+- **Combine calls, step 2 (Chomusuke tab):**
+  - *World State and image in one call* (off by default). When Chomusuke reads World State and makes the automatic images, an image turn costs ONE call. Order: notes, cast, sheets, earlier story, latest exchange, Task 1 (World Update), Task 2 (image prompt), extra tasks, answer shape; prefill `<World_Update>`.
+  - After the answer: the World Update is filed under the reply’s swipe; V2 outfit tags and looks are saved against the new outfits; then the image.
+  - *Fall back to a separate World State read* (off by default; only usable with the first switch) covers a missing update. Otherwise the card shows no update, with Read again.
+  - Works for V2 and Classic. Classic sends its own rules and sheets, with no cast, outfit tags or looks.
+  - `<Character_Sheets>` now always goes before the story, in normal V2 calls too.

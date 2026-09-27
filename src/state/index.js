@@ -368,6 +368,81 @@ export function worldExtractMessage(index, { force = false } = {}) {
     return p;
 }
 
+// ── A reply's read done by another job ───────────────────────────────────
+// The combined World State + image call (Chomusuke "Combine calls") reads the
+// reply itself. These let it do so with the same guarantees as
+// worldExtractMessage: the card shows "Reading…", the notes and exchange are
+// built when the job actually runs, and the answer is filed under the reply's
+// swipe only if the chat and that swipe's text are unchanged.
+
+/** Marks a reply as being read. Returns a token, or null when there is nothing to read. */
+export function worldBeginExternalRead(index) {
+    if (!worldEnabled() || worldUpdateMode() !== "sidemodel" || !adapter.getMeta()) return null;
+    const msg = adapter.getChat()[index];
+    if (!msg || msg.is_user || msg.is_system) return null;
+    const st = stateStore.stamp(msg);
+    if (!st) return null;
+    if (st.dirty) adapter.saveChat();
+    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    const text = swipeText(msg, swipe);
+    if (text == null) return null;
+    const key = st.uid + ":" + swipe;
+    if (pendingExtract.has(key)) return null;
+    pendingExtract.add(key);
+    stateChangedHook();
+    return { index, uid: st.uid, swipe, seq: st.seq, text, hash: hashText(text), key, chatId: getContext()?.chatId };
+}
+
+/** The notes (state BEFORE the reply) and the exchange, built at run time. */
+export function worldReadInputs(token) {
+    const before = stateStore.getStateAt("world", token.seq - 0.5);
+    const mode = isEmptyWorld(before) ? "bootstrap" : "update";
+    const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full" }));
+    return { mode, notes, exchange: exchangeFor(token.index, token.text, mode) };
+}
+
+function findTokenMessage(token) {
+    const chatNow = adapter.getChat();
+    const at = chatNow.findIndex(m => m?.extra?.megumin_uid === token.uid);
+    const textNow = at >= 0 ? swipeText(chatNow[at], token.swipe) : null;
+    const same = getContext()?.chatId === token.chatId && at >= 0 && textNow != null && hashText(textNow) === token.hash;
+    return same ? at : -1;
+}
+
+/**
+ * Files the World block of an answer under the reply's swipe.
+ * @returns {{ ok: boolean, dropped: boolean }} ok: a usable update was filed;
+ *   dropped: the reply changed or is gone (nothing filed, no fallback needed)
+ */
+export function worldFinishExternalRead(token, raw, prefill = "<World_Update>\n") {
+    pendingExtract.delete(token.key);
+    const at = findTokenMessage(token);
+    if (at < 0) {
+        console.debug("[Megumin-Suite] Combined read dropped: the reply changed or is gone.");
+        stateChangedHook();
+        return { ok: false, dropped: true };
+    }
+    let cleaned = String(raw || "").replace(/<think\b[^>]*>[\s\S]*?(<\/think\s*>|$)/gi, "").trim();
+    // With a prefill the answer starts inside the World block.
+    if (cleaned && !/<World_(State|Update)\b/i.test(cleaned)) cleaned = prefill + cleaned;
+    const parsed = cleaned ? worldModule.parse(cleaned) : null;
+    if (!parsed) { stateChangedHook(); return { ok: false, dropped: false }; }
+    stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe: token.swipe, parsed, raw: cleaned });
+    if (parsed.skipped.length) console.debug(`[Megumin-Suite] World State (combined): lines not understood in message ${at}:`, parsed.skipped);
+    stateChangedHook();
+    return { ok: true, dropped: false };
+}
+
+/** No usable update and no fallback: record it as missing (the card offers Read again). */
+export function worldRecordMissing(token) {
+    pendingExtract.delete(token.key);
+    const at = findTokenMessage(token);
+    if (at < 0) return;
+    stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe: token.swipe, parsed: null });
+    toastr.warning("Chomusuke gave no usable World State update for that reply. Use Read again on its card.", "Megumin Suite");
+    stateChangedHook();
+}
+
 // ── ST events ────────────────────────────────────────────────────────────
 // Each returns true when something changed, so the caller can redraw cards.
 //
@@ -392,7 +467,11 @@ function repliesUpdate() {
     return worldEnabled() && worldUpdateMode() !== "manual";
 }
 
-export function stateOnMessageReceived(messageId, type) {
+/**
+ * @param {{ skipSideRead?: boolean }} [opts] skipSideRead: the combined World State +
+ *   image call reads this reply instead of a separate Chomusuke read.
+ */
+export function stateOnMessageReceived(messageId, type, { skipSideRead = false } = {}) {
     if (!repliesUpdate() || !adapter.getMeta()) return false;
     const chat = adapter.getChat();
     const index = typeof messageId === "number" ? messageId : chat.length - 1;
@@ -407,7 +486,7 @@ export function stateOnMessageReceived(messageId, type) {
             stateStore.recordMessage(index, { moduleIds: ["world"] });
             return true;
         }
-        if (!NOT_A_REPLY.has(type)) worldExtractMessage(index, { force: type === "continue" });
+        if (!NOT_A_REPLY.has(type) && !skipSideRead) worldExtractMessage(index, { force: type === "continue" });
         return false;
     }
     const expect = mode === "inline" && !NOT_A_REPLY.has(type);
