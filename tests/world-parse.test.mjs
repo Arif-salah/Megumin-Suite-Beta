@@ -410,3 +410,39 @@ test("replay is deterministic", () => {
 test("PC token is exported for callers", () => {
     assert.equal(typeof PC, "string");
 });
+
+// ── Written twice in one update (reported with a local model) ────────────
+
+test("a field written twice in one update: the first one counts", () => {
+    const text = U([
+        "Matt.Position: Standing inside Kazuma's bedroom, just past the threshold",
+        "Matt.Mood: Expectant, slightly nervous",
+        "Matt.Position: Planted on the rug, chin tilted up",
+        "Time: Night",
+        "Time: Later that night"
+    ].join("\n"));
+    const r = applyWorldChanges(base(), parseWorldBlocks(text), { userNames: ["Kazuma"] });
+    assert.equal(findCast(r.state, "Matt").fields.position, "Standing inside Kazuma's bedroom, just past the threshold");
+    assert.equal(r.state.scene.time, "Night");
+    assert.equal(r.notes.filter(n => /written twice; the first one was used/.test(n)).length, 2);
+});
+
+test("twice under different spellings of the same name still counts as twice", () => {
+    let s = run(S('Loc: Bedroom\n+ Matthew "Matt"\nMatthew.Outfit: tee')).state;
+    s = applyWorldChanges(s, parseWorldBlocks(U("Matt.Position: at the door\nMatthew.Position: on the bed")), {}).state;
+    assert.equal(findCast(s, "Matthew").fields.position, "at the door");
+});
+
+test("Condition is only for the player; an NPC's is ignored with a note", () => {
+    const r = applyWorldChanges(base(), parseWorldBlocks(U("Aqua.Condition: soaked\nKazuma.Condition: tired")), { userNames: ["Kazuma"] });
+    assert.equal(findCast(r.state, "Aqua").fields.condition, undefined);
+    assert.equal(r.state.pc.fields.condition, "tired");
+    assert.ok(r.notes.some(n => /Aqua\.Condition was ignored/.test(n)));
+});
+
+test("the update rules list fields per role and ask for each once", async () => {
+    const { renderWorldInstructions } = await import("../src/state/modules/world/render.js");
+    const rules = renderWorldInstructions("update").rules;
+    assert.match(rules, /Fields for \{\{user\}\}: Outfit, Position, Condition, Carrying\n  Fields for everyone else: Outfit, Position, Mood, Agenda, Secret/);
+    assert.match(rules, /Write each field at most once per character\./);
+});

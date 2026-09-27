@@ -195,6 +195,9 @@ export function parseWorldBlocks(text) {
 
     const result = { kind: "delta", changes: [], skipped: [], noChanges: false };
     for (const b of blocks) {
+        // Where a second block starts: "written twice" is counted per block, so
+        // a <World_Update> can still change what the <World_State> above it set.
+        if (result.changes.length) result.changes.push({ type: "block" });
         if (b.tag === "state") result.kind = "snapshot";
         parseBody(b.body, b.closed, b.tag, result);
     }

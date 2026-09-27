@@ -169,7 +169,28 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
 
     const pcName = () => state.pc.name || "{{user}}";
 
+    // Written twice in one update ("Matt.Position: …" then "Matt.Position: …"):
+    // the FIRST one counts, the rest are noted and ignored. A full snapshot is
+    // one description of the scene, so the same holds there.
+    const written = new Set();
+    const firstTime = key => {
+        if (written.has(key)) return false;
+        written.add(key);
+        return true;
+    };
+
     for (const ch of parsed.changes) {
+        if (ch.type === "block") { written.clear(); continue; }
+        if (ch.type === "scene" && !firstTime(`scene|${ch.key}`)) { notes.push(`${SCENE_LABEL[ch.key] || ch.key} was written twice; the first one was used.`); continue; }
+        if (ch.type === "phase" && !firstTime(`phase|${ch.key}`)) { notes.push(`${PHASE_LABEL[ch.key] || ch.key} was written twice; the first one was used.`); continue; }
+        if (ch.type === "field") {
+            const pc = isPcName(state, ch.who, ctx);
+            // Visible Condition belongs to the player; a Condition for anyone
+            // else is not a field they have.
+            if (!pc && ch.field === "condition") { notes.push(`${ch.who}.Condition was ignored: Condition is only noted for the player.`); continue; }
+            const who = pc ? PC : resolveCastKey(state, ch.who);
+            if (!firstTime(`field|${who}|${ch.field}`)) { notes.push(`${ch.who}.${fieldLabel(ch.field)} was written twice; the first one was used.`); continue; }
+        }
         switch (ch.type) {
             case "scene": {
                 const before = state.scene[ch.key] || "";
