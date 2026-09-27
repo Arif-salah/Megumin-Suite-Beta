@@ -1,6 +1,6 @@
 # 006 — Image Gen: Classic and V2
 
-Status: DRAFT
+Status: DONE (phase 5: shared settings on the V2 page)
 Date: 2026-09-26 · Author: Claude · Reviewer: developer
 
 ## Goal
@@ -260,3 +260,5 @@ Top to bottom:
   - *Fall back to a separate World State read* (off by default; only usable with the first switch) covers a missing update. Otherwise the card shows no update, with Read again.
   - Works for V2 and Classic. Classic sends its own rules and sheets, with no cast, outfit tags or looks.
   - `<Character_Sheets>` now always goes before the story, in normal V2 calls too.
+- **Phase 5 (V2 page):** the V2 page has its own Images & generator section. It holds Classic’s shared panels (master switch, triggers and placement, ComfyUI server and workflow, image parameters, LoRA Lab), moved in: the same controls writing the same settings, so the two pages cannot disagree. Classic’s prompt builder and prompt editor stay on Classic. V2’s own cards redraw alone; the shared panels are drawn once per tab open, so ComfyUI is not re-queried after every look edit.
+- **Open follow-ups (reminders saved):** predefined quality prefix per model family for V2; multi-character bleeding; a review of every background prompt; then Bonds and the other blocks as state-store modules.

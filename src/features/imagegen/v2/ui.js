@@ -5,10 +5,10 @@
 
 import { localProfile } from "../../../core/state.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../../core/profile.js";
-import { substituteParams } from "../../../st.js";
 import { v2Settings, currentImageCast, getLooks } from "./index.js";
 import { scanLooks, describeLooks } from "./looks.js";
 import { findLookKey, outfitHash } from "./looksCore.js";
+import { renderClassicImageGen } from "../classic/ui.js";
 
 const esc = v => String(v == null ? "" : v)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -53,14 +53,26 @@ function busy($btn, job, redraw) {
 
 export function renderV2ImageGen(c) {
     c.empty();
+    const outer = $(`<div class="ig2"></div>`);
+    const cards = $(`<div class="ig2-cards"></div>`);
+    outer.append(cards);
+    c.append(outer);
+    renderV2Cards(cards);
+    // Drawn once per tab open: redrawing them would re-ask ComfyUI for its
+    // model and LoRA lists after every look edit.
+    mountSharedSettings(outer);
+}
+
+// V2's own cards (Prompt, Cast). Every edit redraws only these.
+function renderV2Cards(c) {
+    c.empty();
     const ig = localProfile.imageGen;
     const cfg = v2Settings();
     const cast = currentImageCast();
     const looks = getLooks();
-    const redraw = () => renderV2ImageGen(c);
+    const redraw = () => renderV2Cards(c);
     const detailedOutfits = cfg.outfitTags && cfg.style === "tags";
     const npcBankOn = Boolean(localProfile.npcBank && localProfile.npcBank.enabled);
-    const user = (() => { try { return substituteParams("{{user}}"); } catch (e) { return "{{user}}"; } })();
 
     const card = m => {
         const k = findLookKey(looks, m.name, m.aliases || []);
@@ -168,11 +180,6 @@ export function renderV2ImageGen(c) {
                 <div class="ig2-hint">A look is permanent appearance only; the outfit comes from World State. New characters get a look automatically when they enter the story; established looks only change when you scan and approve it.</div>
             </div>
 
-            <div class="ig2-card">
-                <div class="ig2-title"><i class="fa-solid fa-sliders"></i> Images &amp; generator</div>
-                <div class="ig2-hint">When images are made, where they go, and the ComfyUI setup (workflow, model, LoRAs, sampler, prompt prefix…) are shared with Classic. Until this page has its own, switch to <b>Classic</b> to change them; they apply to V2 too.</div>
-                <div class="ig2-status">Image generation is <b>${ig.enabled ? "on" : "off"}</b>. ${esc(user)} is the player.</div>
-            </div>
         </div>
     `);
 
@@ -263,4 +270,37 @@ export function renderV2ImageGen(c) {
     });
 
     c.append(page);
+}
+
+// ── Images & generator ───────────────────────────────────────────────────
+// When images are made, where they go, the ComfyUI server and workflow, the
+// image parameters and the LoRA Lab are settings BOTH pages share. They are
+// Classic's own panels, moved here: the same controls writing the same
+// settings, so the two pages can never disagree. Classic's prompt builder and
+// its prompt editor stay on Classic (V2 has its own prompt).
+function mountSharedSettings(outer) {
+    // Classic binds its controls while they are in the document, so it is
+    // drawn into an attached (hidden) holder, then its panels are moved.
+    const holder = $(`<div class="ig2-shared-holder" style="display:none;"></div>`);
+    outer.append(holder);
+    renderClassicImageGen(holder);
+
+    const $enable = holder.find("#ig_enable_card");
+    const $guide = holder.find(".mtab-callout").first();
+    const $main = holder.find("#ig_main_content");
+    $main.find("#ig_prompt_builder").remove();
+    $main.find("#ig_prompt_editor").remove();
+
+    // The master switch sits at the very top: nothing below it matters while it is off.
+    outer.prepend($enable.css("margin-bottom", "0"));
+    const $card = $(`
+        <div class="ig2-card ig2-shared">
+            <div class="ig2-title"><i class="fa-solid fa-sliders"></i> Images &amp; generator</div>
+            <div class="ig2-hint">When images are made, where they go, and the ComfyUI setup. Shared with Classic.</div>
+        </div>
+    `);
+    if ($guide.length) $card.append($guide.css("margin-bottom", "0"));
+    $card.append($main);
+    outer.append($card);
+    holder.remove();
 }

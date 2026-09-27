@@ -5056,3 +5056,6 @@
 .ig2-check.is-off { opacity: .5; cursor: not-allowed; }
 .ig2-inline { display: flex; gap: 6px; align-items: flex-start; }
 .ig2-inline textarea { flex: 1; min-width: 0; }
+/* V2 page: master switch, cards, shared panels in one column */
+.ig2-cards > .ig2 { gap: 12px; }
+.ig2-shared #ig_main_content > .mtab-panel:last-child { margin-bottom: 0 !important; }
