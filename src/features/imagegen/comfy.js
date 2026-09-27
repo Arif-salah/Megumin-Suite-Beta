@@ -335,6 +335,21 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
         console.debug(`[Megumin-Suite] Image gen ${what} declined: it was started for chat "${igChatId}" message ${target?.index}, which is no longer reachable in the open chat. Nothing was written, so no unrelated message was edited. Any leftover "[Generating Image...]" placeholder in the original chat is cosmetic and clears on the next edit of that message.`);
     };
 
+    // An inline image that ends before ComfyUI is reached (preview cancelled,
+    // empty prompt, workflow not loaded) would leave "[Generating Image...]" in
+    // the reply for good. Take it back out.
+    const igDropPlaceholder = async () => {
+        if (!target || !target.isInlineAuto || target.mode !== "inline" || !target.placeholderId) return;
+        if (!igResolveTarget() || !target.message.mes.includes(`id="${target.placeholderId}"`)) return;
+        target.message.mes = target.message.mes
+            .replace(new RegExp(`\\s*<div id="${target.placeholderId}"[^>]*>[\\s\\S]*?<\\/div>\\s*`), "\n\n").trim();
+        await saveChat();
+        if (typeof updateMessageBlock === "function") {
+            updateMessageBlock(target.index, target.message);
+            meguminScheduleBlocksRefresh();
+        }
+    };
+
     // --- INJECT LORA TRIGGER WORDS ---
     let loraTriggers = [];
     if (s.selectedLora && s.selectedLora.trim() !== "" && s.loraTrigger1) loraTriggers.push(s.loraTrigger1.trim());
@@ -380,11 +395,16 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
 
         if (!confirmed) {
             toastr.info("Generation cancelled.");
+            await igDropPlaceholder();
             return;
         }
 
         finalPrompt = liveText.trim();
-        if (!finalPrompt) return toastr.warning("Prompt cannot be empty.");
+        if (!finalPrompt) {
+            toastr.warning("Prompt cannot be empty.");
+            await igDropPlaceholder();
+            return;
+        }
 
         showKazumaProgress("Preparing to Render..."); // Bring progress bar back
     }
@@ -393,7 +413,12 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
     try {
         const res = await fetch('/api/sd/comfy/workflow', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ file_name: s.currentWorkflowName }) });
         if (!res.ok) throw new Error("Load failed"); workflowRaw = await res.json();
-    } catch (e) { return toastr.error(`Could not load ${s.currentWorkflowName}`); }
+    } catch (e) {
+        $("#kazuma_progress_overlay").hide();
+        toastr.error(`Could not load ${s.currentWorkflowName}`);
+        await igDropPlaceholder();
+        return;
+    }
 
     let workflow = (typeof workflowRaw === 'string') ? JSON.parse(workflowRaw) : workflowRaw;
     let finalSeed = parseInt(s.customSeed); if (finalSeed === -1 || isNaN(finalSeed)) finalSeed = Math.floor(Math.random() * 1000000000);
