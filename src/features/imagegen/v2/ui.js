@@ -9,6 +9,7 @@ import { v2Settings, currentImageCast, getLooks } from "./index.js";
 import { scanLooks, describeLooks } from "./looks.js";
 import { findLookKey, outfitHash } from "./looksCore.js";
 import { renderClassicImageGen } from "../classic/ui.js";
+import { prefixForStyle } from "../qualityPrefix.js";
 
 const esc = v => String(v == null ? "" : v)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -184,7 +185,14 @@ function renderV2Cards(c) {
     `);
 
     const setCfg = patch => { ig.v2 = { ...cfg, ...(ig.v2 || {}), ...patch }; };
-    page.find("#ig2_style").on("change", function () { setCfg({ style: $(this).val() }); saveProfileToMemory(); redraw(); });
+    page.find("#ig2_style").on("change", function () {
+        const style = $(this).val();
+        setCfg({ style });
+        ig.promptPrefix = prefixForStyle(style, ig.promptPrefix);
+        $("#ig_prefix").val(ig.promptPrefix);
+        saveProfileToMemory();
+        redraw();
+    });
     page.find("#ig2_shot").on("change", function () { setCfg({ shot: $(this).val() }); saveProfileToMemory(); redraw(); });
     page.find("#ig2_method").on("change", function () { setCfg({ method: $(this).val() }); saveProfileToMemory(); redraw(); });
     page.find("#ig2_outfit_tags").on("change", function () { setCfg({ outfitTags: this.checked }); saveProfileToMemory(); redraw(); });

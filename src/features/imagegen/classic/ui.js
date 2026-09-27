@@ -10,6 +10,7 @@ import { syncPromptsGlobally } from "../../../core/sync.js";
 import { DEFAULT_PROMPTS } from "../../../prompts/index.js";
 import { renderPromptEditor } from "../../../ui/promptEditor.js";
 import { RESOLUTIONS } from "../../../../data/image_data.js";
+import { prefixForStyle, styleOfTemplate } from "../qualityPrefix.js";
 import { igFetchComfyLists, toggleQuickGenButton, igTestConnection, igPopulateWorkflows, igNewWorkflowClick, igDeleteWorkflowClick, igOpenWorkflowEditorClick } from "../comfy.js";
 
 export function renderClassicImageGen(c) {
@@ -309,7 +310,12 @@ export function renderClassicImageGen(c) {
             $("#ig_header_badge").css({ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', 'border-color': 'var(--border-color)' }).html(`<i class="fa-solid fa-circle-xmark" style="font-size:0.6rem;"></i> Disabled`);
         }
     });
-    $("#ig_template").on("change", (e) => { s.promptTemplate = $(e.target).val(); saveProfileToMemory(); });
+    $("#ig_template").on("change", (e) => {
+        s.promptTemplate = $(e.target).val();
+        s.promptPrefix = prefixForStyle(styleOfTemplate(s.promptTemplate), s.promptPrefix);
+        $("#ig_prefix").val(s.promptPrefix);
+        saveProfileToMemory();
+    });
     $("#ig_extra").on("input", (e) => { s.promptExtra = $(e.target).val(); saveProfileDebounced(); });
     $("#ig_image_count").on("change", (e) => { s.imageCount = parseInt($(e.target).val()); saveProfileToMemory(); });
     
