@@ -15,6 +15,10 @@ const esc = v => String(v == null ? "" : v)
 
 const SHOW_AT_MOST = 12;
 
+// Strips the reader opened, by journal entry id, so a card redraw (a swipe, a
+// background update) does not fold one shut while it is being read.
+const openStrips = new Set();
+
 function changeRow(a) {
     const [who, field] = a.label.includes(" · ") ? a.label.split(" · ") : ["", a.label];
     const before = a.before && a.after ? `<span class="meg-wsdiff-before">${esc(a.before)}</span><i class="fa-solid fa-arrow-right meg-wsdiff-arrow"></i>` : "";
@@ -58,7 +62,7 @@ export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
     } else if (!applied.length) {
         title = `<i class="fa-solid fa-equals"></i> ${noChanges ? "No changes in this reply" : "Nothing in this reply changed the scene"}`;
     } else {
-        title = `<i class="fa-solid fa-code-compare"></i> Changed in this reply <span class="meg-wsdiff-count">${applied.length}</span>`;
+        title = `<i class="fa-solid fa-code-compare"></i> Changed in this reply <span class="meg-wsdiff-count">${applied.length}</span> <i class="fa-solid fa-chevron-down meg-wsdiff-caret"></i>`;
         body = applied.slice(0, SHOW_AT_MOST).map(changeRow).join("");
         if (applied.length > SHOW_AT_MOST) {
             body += `<div class="meg-wsdiff-more">+${applied.length - SHOW_AT_MOST} more (see the editor's History)</div>`;
@@ -76,10 +80,16 @@ export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
     // Side model: read a reply that was never read, or read one again (after an
     // edit, or when the first answer was poor).
     const canRead = sideModel && !pending && hooks.onReread && (unread || missing || info.entry?.source === "sidemodel");
-    const strip = document.createElement("div");
-    strip.className = `meg-wsdiff${disabled ? " is-off" : ""}${pending || unread || missing || (!applied.length && !disabled) ? " is-quiet" : ""}`;
+    // Folded by default when there is something to unfold (the changes, or
+    // lines not understood); a quiet one-liner otherwise.
+    const foldable = Boolean(body || warn);
+    const headTag = foldable ? "summary" : "div";
+    const entryId = info.entry && info.entry.id;
+    const strip = document.createElement(foldable ? "details" : "div");
+    strip.className = `meg-wsdiff${disabled ? " is-off" : ""}${pending || unread || missing || (!applied.length && !disabled) ? " is-quiet" : ""}${foldable ? " is-foldable" : ""}`;
+    if (foldable && entryId && openStrips.has(entryId)) strip.open = true;
     strip.innerHTML = `
-        <div class="meg-wsdiff-head">
+        <${headTag} class="meg-wsdiff-head">
             <span class="meg-wsdiff-title">${title}</span>
             <span class="meg-wsdiff-actions">
                 ${canToggle ? `<button type="button" class="meg-wsdiff-btn meg-wsdiff-toggle" title="${disabled ? "Count this reply's changes again" : "Stop counting this reply's changes; the scene goes back to how it was before it"}">
@@ -87,20 +97,27 @@ export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
                 ${canRead ? `<button type="button" class="meg-wsdiff-btn meg-wsdiff-read" title="Have Chomusuke read this reply for World State changes"><i class="fa-solid fa-book-open-reader"></i> ${unread ? "Read now" : "Read again"}</button>` : ""}
                 ${hooks.onEdit ? `<button type="button" class="meg-wsdiff-btn meg-wsdiff-edit" title="Open the World State editor"><i class="fa-solid fa-pen"></i> Edit</button>` : ""}
             </span>
-        </div>
-        ${body}
-        ${warn}
+        </${headTag}>
+        ${foldable ? `<div class="meg-wsdiff-body">${body}${warn}</div>` : ""}
     `;
+    if (foldable && entryId) {
+        strip.addEventListener("toggle", () => {
+            if (strip.open) openStrips.add(entryId); else openStrips.delete(entryId);
+        });
+    }
 
     strip.querySelector(".meg-wsdiff-toggle")?.addEventListener("click", e => {
+        e.preventDefault(); // in the summary: act, do not fold
         e.stopPropagation();
         if (worldSetEntryDisabled(info.entry.id, !disabled) && hooks.onChanged) hooks.onChanged();
     });
     strip.querySelector(".meg-wsdiff-read")?.addEventListener("click", e => {
+        e.preventDefault(); // in the summary: act, do not fold
         e.stopPropagation();
         hooks.onReread();
     });
     strip.querySelector(".meg-wsdiff-edit")?.addEventListener("click", e => {
+        e.preventDefault(); // in the summary: act, do not fold
         e.stopPropagation();
         hooks.onEdit();
     });

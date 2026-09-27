@@ -3973,6 +3973,12 @@
 .meg-wsdiff.is-quiet { border-left-color: rgba(255,255,255,.15); opacity: .8; }
 .meg-wsdiff.is-off { border-left-color: #64748b; opacity: .75; }
 .meg-wsdiff-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .72rem; }
+/* Folded "Changed in this reply": the header is the summary. */
+.meg-wsdiff.is-foldable > summary { list-style: none; cursor: pointer; }
+.meg-wsdiff.is-foldable > summary::-webkit-details-marker { display: none; }
+.meg-wsdiff-caret { font-size: .6rem; color: var(--text-muted); transition: transform .15s; }
+.meg-wsdiff[open] .meg-wsdiff-caret { transform: rotate(180deg); }
+.meg-wsdiff-body { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .meg-wsdiff-title { color: var(--text-muted); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
 .meg-wsdiff-count {
     background: rgba(245,158,11,.18); color: #f59e0b;
