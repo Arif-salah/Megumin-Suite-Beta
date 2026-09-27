@@ -14,8 +14,14 @@ import { getWorldState, worldHasState } from "../../../state/index.js";
 import { buildImageCast } from "./cast.js";
 import { resolveImagePrompt } from "./resolve.js";
 import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction } from "./prompt.js";
+import { refreshOutfitTags } from "./looks.js";
 
-export const V2_DEFAULTS = { style: "tags", shot: "cinematic", extra: "", method: "placeholders" };
+export const V2_DEFAULTS = {
+    style: "tags", shot: "cinematic", extra: "", method: "placeholders",
+    autoLooks: true,          // a character entering the scene gets a look read from the chat
+    lookPriority: "v2",       // "v2" | "npc": which wins when the NPC Bank also has Image Tags
+    outfitTags: false         // Tags style: turn World State outfits into detailed tags (once per outfit)
+};
 
 // ── The previous image prompt (Reference method) ─────────────────────────
 // Kept per chat, in the chat file: the last prompt sent to ComfyUI.
@@ -72,7 +78,9 @@ export function currentImageCast() {
         world: worldHasState() ? getWorldState() : null,
         npcs: (localProfile && localProfile.npcBank && localProfile.npcBank.npcs) || [],
         userName: sub("{{user}}"),
-        recentText: recent
+        recentText: recent,
+        npcFirst: v2Settings().lookPriority === "npc" && Boolean(localProfile && localProfile.npcBank && localProfile.npcBank.enabled),
+        outfitTags: v2Settings().outfitTags && v2Settings().style === "tags"
     });
 }
 
@@ -92,6 +100,8 @@ function rules(extraInstruction = "") {
 
 export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) {
     const cfg = v2Settings();
+    // Outfits in the Cast as tags, when that is on and they changed.
+    await refreshOutfitTags();
     const story = recentMessages(6)
         .map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`)
         .join("\n\n");
@@ -142,7 +152,10 @@ export function v2LastResolution() {
     return lastResolution;
 }
 
-export function v2ResolveForComfy(prompt) {
+export async function v2ResolveForComfy(prompt) {
+    // Every image path ends here (manual, automatic, inline, retry): bring any
+    // changed outfit tags up to date first. No-op when detailed tags are off.
+    await refreshOutfitTags();
     const r = resolveImagePrompt(prompt, { cast: currentImageCast(), style: v2Settings().style });
     lastResolution = { input: String(prompt || ""), ...r };
     // Reference method edits this next time. Kept on both methods, so switching

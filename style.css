@@ -5049,3 +5049,10 @@
 .ig2-review-pick { display: flex; gap: 14px; font-size: .74rem; }
 .ig2-review-pick label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
 .ig2-review-locked { font-size: .72rem; color: var(--text-muted); }
+/* V2 settings checkboxes and inline field+button (phase 4) */
+.ig2-check { display: flex; gap: 8px; align-items: flex-start; font-size: .72rem; color: var(--text-muted); cursor: pointer; line-height: 1.4; }
+.ig2-check input { margin-top: 2px; flex: none; }
+.ig2-check b { color: var(--text-main); font-weight: 600; }
+.ig2-check.is-off { opacity: .5; cursor: not-allowed; }
+.ig2-inline { display: flex; gap: 6px; align-items: flex-start; }
+.ig2-inline textarea { flex: 1; min-width: 0; }

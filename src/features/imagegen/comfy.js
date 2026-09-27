@@ -292,7 +292,8 @@ export function setImagePromptResolver(fn) {
 
 export async function igGenerateWithComfy(positivePrompt, target = null) {
     const s = localProfile.imageGen;
-    let finalPrompt = promptResolver(positivePrompt);
+    // Awaited: V2 may first bring outfit tags up to date.
+    let finalPrompt = await promptResolver(positivePrompt);
 
     // This one writes into a CHAT MESSAGE and calls saveChat(), not into a profile, so
     // _loadedProfileKey is the wrong thing to check: what matters is whether the message

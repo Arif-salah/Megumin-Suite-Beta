@@ -171,3 +171,54 @@ export function planLookUpdates(looks, scanned) {
     }
     return plan;
 }
+
+// ── Detailed outfit tags (optional) ──────────────────────────────────────
+// World State keeps outfits as short phrases. For tag-style image models they
+// can be turned into precise booru tags ONCE per outfit, and reused for every
+// image until World State says the outfit changed.
+
+/** A short, stable fingerprint of an outfit text (what the tags were made from). */
+export function outfitHash(text) {
+    const t = String(text || "").toLowerCase().replace(/\s+/g, " ").trim();
+    let h = 5381;
+    for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36) + ":" + t.length;
+}
+
+/**
+ * The tags to use for an outfit right now, or null when they must be (re)made.
+ * @param {{ from?: string, tags?: string, locked?: boolean }|undefined} cached
+ * @param {string} outfitText  the World State outfit
+ */
+export function freshOutfitTags(cached, outfitText) {
+    if (!cached || !String(cached.tags || "").trim()) return null;
+    if (cached.locked) return cached.tags;
+    return cached.from === outfitHash(outfitText) ? cached.tags : null;
+}
+
+export const OUTFIT_SYSTEM = "You turn clothing descriptions into booru tags for an image model.";
+
+/** @param {Array<{ name: string, outfit: string }>} items */
+export function renderOutfitTagsPrompt(items) {
+    return [
+        "Turn each outfit into booru clothing tags.",
+        "- One tag per garment or accessory, with its colour or material when the text gives one: \"grey hoodie, black joggers, white socks\".",
+        "- Keep the state of dress when the text says it (open jacket, sleeves rolled up, barefoot, towel).",
+        "- Only clothing and accessories: no hair, body, expression, pose, count tags or quality tags. Add nothing the text does not say.",
+        "",
+        ...items.map(i => `${i.name}: ${i.outfit}`),
+        "",
+        "Output one block per character and nothing else:",
+        "<Outfit_Tags name=\"Name\">tag, tag, tag</Outfit_Tags>"
+    ].join("\n");
+}
+
+/** @returns {Array<{ name: string, tags: string }>} */
+export function parseOutfitBlocks(text) {
+    return blocks(text, "Outfit_Tags")
+        .map(b => ({
+            name: splitName(b.rawName).name,
+            tags: dedupeTags(stripCountTags(splitTags(b.body.replace(/\s*\n\s*/g, ", ").replace(/^["'\s]+|["'\s]+$/g, "")).join(", ")))
+        }))
+        .filter(x => x.name && x.tags);
+}

@@ -8,7 +8,7 @@ import { saveProfileToMemory, saveProfileDebounced } from "../../../core/profile
 import { substituteParams } from "../../../st.js";
 import { v2Settings, currentImageCast, getLooks } from "./index.js";
 import { scanLooks, describeLooks } from "./looks.js";
-import { findLookKey } from "./looksCore.js";
+import { findLookKey, outfitHash } from "./looksCore.js";
 
 const esc = v => String(v == null ? "" : v)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -58,6 +58,8 @@ export function renderV2ImageGen(c) {
     const cast = currentImageCast();
     const looks = getLooks();
     const redraw = () => renderV2ImageGen(c);
+    const detailedOutfits = cfg.outfitTags && cfg.style === "tags";
+    const npcBankOn = Boolean(localProfile.npcBank && localProfile.npcBank.enabled);
     const user = (() => { try { return substituteParams("{{user}}"); } catch (e) { return "{{user}}"; } })();
 
     const card = m => {
@@ -90,7 +92,16 @@ export function renderV2ImageGen(c) {
                 <label class="ig2-cast-field"><span>Description</span>
                     <textarea class="ps-modern-input ig2-natural" rows="2" placeholder="a slender young woman with long blue hair and blue eyes">${esc(stored ? stored.natural : "")}</textarea>
                 </label>` : ""}
-                <div class="ig2-cast-line"><span>Outfit</span>${m.outfit ? esc(m.outfit) : `<i class="ig2-missing">none in World State (the model will describe it)</i>`}</div>
+                ${detailedOutfits && m.outfitText ? `
+                <div class="ig2-cast-line"><span>Outfit</span>${esc(m.outfitText)}</div>
+                <label class="ig2-cast-field"><span>Outfit tags ${m.outfitStale ? "· remade before the next image" : ""}</span>
+                    <div class="ig2-inline">
+                        <textarea class="ps-modern-input ig2-outfit-tags" rows="1" placeholder="made from the outfit above before the next image">${esc(m.outfitStale ? "" : m.outfit)}</textarea>
+                        <button type="button" class="ig2-mini ig2-outfit-lock ${stored && stored.outfitTags && stored.outfitTags.locked ? "on" : ""}" title="${stored && stored.outfitTags && stored.outfitTags.locked ? "Locked: kept even when World State changes the outfit" : "Lock these outfit tags"}"><i class="fa-solid ${stored && stored.outfitTags && stored.outfitTags.locked ? "fa-lock" : "fa-lock-open"}"></i></button>
+                    </div>
+                </label>` : `
+                <div class="ig2-cast-line"><span>Outfit</span>${m.outfit ? esc(m.outfit) : `<i class="ig2-missing">none in World State (the model will describe it)</i>`}</div>`}
+                ${m.position ? `<div class="ig2-cast-line"><span>Where</span>${esc(m.position)}</div>` : ""}
             </div>`;
     };
 
@@ -122,6 +133,10 @@ export function renderV2ImageGen(c) {
                         <small>${METHOD_HELP[cfg.method === "reference" ? "reference" : "placeholders"]}</small>
                     </label>
                 </div>
+                <label class="ig2-check ${cfg.style !== "tags" ? "is-off" : ""}" title="${cfg.style !== "tags" ? "Tags style only: Natural language uses the World State outfit as written" : ""}">
+                    <input type="checkbox" id="ig2_outfit_tags" ${cfg.outfitTags ? "checked" : ""} ${cfg.style !== "tags" ? "disabled" : ""}/>
+                    <span><b>Detailed outfit tags</b> · turn each World State outfit into precise booru tags, once per outfit change</span>
+                </label>
                 <label class="ig2-field"><span>Extra instructions</span>
                     <input type="text" id="ig2_extra" class="ps-modern-input" value="${esc(cfg.extra)}" placeholder="e.g. soft film grain, moody lighting" />
                 </label>
@@ -129,6 +144,17 @@ export function renderV2ImageGen(c) {
 
             <div class="ig2-card">
                 <div class="ig2-title"><i class="fa-solid fa-users"></i> Cast <span class="ig2-chip">${cast.length}</span></div>
+                <label class="ig2-check">
+                    <input type="checkbox" id="ig2_auto_looks" ${cfg.autoLooks !== false ? "checked" : ""}/>
+                    <span><b>Automatic look for new characters</b> · read from the chat when someone enters the scene without one</span>
+                </label>
+                ${npcBankOn ? `
+                <label class="ig2-field"><span>If the NPC Bank also has image tags</span>
+                    <select id="ig2_look_priority" class="ps-modern-input">
+                        <option value="v2" ${cfg.lookPriority !== "npc" ? "selected" : ""}>Use the V2 look</option>
+                        <option value="npc" ${cfg.lookPriority === "npc" ? "selected" : ""}>Use the NPC Bank tags</option>
+                    </select>
+                </label>` : ""}
                 <div class="ig2-actions">
                     <button type="button" class="menu_button ig2-scan-sheet" title="Read every character on the card, and your persona"><i class="fa-solid fa-id-card"></i> Scan character sheet</button>
                     <button type="button" class="menu_button ig2-scan-chat" title="Read looks from the recent chat for characters who have none"><i class="fa-solid fa-comments"></i> Scan chat</button>
@@ -154,6 +180,9 @@ export function renderV2ImageGen(c) {
     page.find("#ig2_style").on("change", function () { setCfg({ style: $(this).val() }); saveProfileToMemory(); redraw(); });
     page.find("#ig2_shot").on("change", function () { setCfg({ shot: $(this).val() }); saveProfileToMemory(); redraw(); });
     page.find("#ig2_method").on("change", function () { setCfg({ method: $(this).val() }); saveProfileToMemory(); redraw(); });
+    page.find("#ig2_outfit_tags").on("change", function () { setCfg({ outfitTags: this.checked }); saveProfileToMemory(); redraw(); });
+    page.find("#ig2_auto_looks").on("change", function () { setCfg({ autoLooks: this.checked }); saveProfileToMemory(); });
+    page.find("#ig2_look_priority").on("change", function () { setCfg({ lookPriority: $(this).val() }); saveProfileToMemory(); redraw(); });
     page.find("#ig2_extra").on("input", function () { setCfg({ extra: String($(this).val() || "") }); saveProfileDebounced(); });
 
     busy(page.find(".ig2-scan-sheet"), () => scanLooks({ from: "sheet" }), redraw);
@@ -185,6 +214,21 @@ export function renderV2ImageGen(c) {
             look.tags = String($row.find(".ig2-tags").val() || "").trim();
             look.body = String($row.find(".ig2-body").val() || "").trim();
             look.source = "manual";
+            saveProfileToMemory(); redraw();
+        });
+        // Outfit tags edited by hand count as made from the current outfit.
+        $row.find(".ig2-outfit-tags").on("change", function () {
+            const { look } = lookFor(member);
+            const tags = String($(this).val() || "").trim();
+            const locked = Boolean(look.outfitTags && look.outfitTags.locked);
+            look.outfitTags = tags ? { from: outfitHash(member.outfitText), tags, locked } : null;
+            saveProfileToMemory(); redraw();
+        });
+        $row.find(".ig2-outfit-lock").on("click", () => {
+            const { look } = lookFor(member);
+            const cur = look.outfitTags || { from: outfitHash(member.outfitText), tags: "", locked: false };
+            if (!String(cur.tags || "").trim()) { toastr.info("There are no outfit tags to lock yet.", "Megumin Suite"); return; }
+            look.outfitTags = { ...cur, locked: !cur.locked };
             saveProfileToMemory(); redraw();
         });
         $row.find(".ig2-natural").on("change", function () {

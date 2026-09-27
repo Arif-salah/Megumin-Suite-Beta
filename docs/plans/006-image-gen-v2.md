@@ -242,3 +242,9 @@ Top to bottom:
   - (1) `<Cast>` gives the prompt writer each character’s sex, look, body and outfit as reference only, so it picks the right count tags and framing.
   - (2) Looks are split into *always* (sex, hair, eyes, face, skin, distinctive features) and *body* (build, proportions). Body tags go in only when the prompt frames the body (full body, wide shot, cowboy shot, from behind…); medium shots and close-ups leave them out. Existing looks and new scans are split by keyword (`v2/lookParts.js`), and cast cards show two fields.
   - (3) Experimental method “Edit last prompt”: the model edits the previous image prompt (kept per chat in `chat_metadata.megumin_image_v2`), with `<Cast>` as the source of truth and the reason given (closeness keeps images consistent).
+- **Phase 4 (outfits):**
+  - World State asks for the complete visible outfit, top to bottom, with colours and materials, never a summary.
+  - Optional *Detailed outfit tags* (Tags style): World State outfits are turned into booru tags lazily, right before an image, only when the outfit changed since its tags were made. They are cached per character in the look (`outfitTags: { from: hash, tags, locked }`), and are editable and lockable. The ComfyUI resolver is awaited so every path (manual, auto, inline, retry) gets them.
+  - `<Cast>` also carries position.
+  - *Automatic look for new characters* is a setting.
+  - With the NPC Bank on, the user picks which wins when both exist: the V2 look or the NPC Bank tags.

@@ -89,3 +89,69 @@ test("scan results land on the character asked for, even under a nickname", () =
     assert.deepEqual(matchScanToTargets(scanned, []), scanned, "no targets: keep everything");
     assert.deepEqual(matchScanToTargets(scanned, [{ name: "Aqua" }]), []);
 });
+
+// ── Phase 4: outfits, position, NPC priority ─────────────────────────────
+import { outfitHash, freshOutfitTags, renderOutfitTagsPrompt, parseOutfitBlocks, OUTFIT_SYSTEM } from "../src/features/imagegen/v2/looksCore.js";
+import { buildImageCast } from "../src/features/imagegen/v2/cast.js";
+import { renderCastList } from "../src/features/imagegen/v2/prompt.js";
+import { parseWorldBlocks } from "../src/state/modules/world/parse.js";
+import { emptyWorld, applyWorldChanges } from "../src/state/modules/world/model.js";
+
+test("outfit tags are fresh only for the outfit they were made from (or when locked)", () => {
+    const made = { from: outfitHash("Grey hoodie,  black joggers"), tags: "grey hoodie, black joggers" };
+    assert.equal(freshOutfitTags(made, "grey hoodie, black joggers"), "grey hoodie, black joggers", "case and spacing do not matter");
+    assert.equal(freshOutfitTags(made, "white towel"), null, "a new outfit needs new tags");
+    assert.equal(freshOutfitTags({ ...made, locked: true }, "white towel"), "grey hoodie, black joggers");
+    assert.equal(freshOutfitTags(undefined, "x"), null);
+    assert.equal(freshOutfitTags({ from: outfitHash("x"), tags: "" }, "x"), null);
+});
+
+test("outfit prompt and parsing", () => {
+    const p = renderOutfitTagsPrompt([{ name: "Matthew", outfit: "cropped black tee, pleated skirt" }]);
+    assert.match(p, /Matthew: cropped black tee, pleated skirt/);
+    assert.match(p, /<Outfit_Tags name="Name">tag, tag, tag<\/Outfit_Tags>$/);
+    assert.doesNotMatch(p + OUTFIT_SYSTEM, /\b(extension|plugin|app|ledger|interface)\b/i);
+    assert.deepEqual(parseOutfitBlocks('<Outfit_Tags name="Matthew \\"Matt\\"">black crop top, black pleated skirt, black crop top, 1boy</Outfit_Tags>'),
+        [{ name: "Matthew", tags: "black crop top, black pleated skirt" }]);
+});
+
+function scene() {
+    const t = `<World_State>\nKazuma.Outfit: grey hoodie\nKazuma.Position: on the bed\n+ Aqua\nAqua.Outfit: blue dress\nAqua.Position: by the door\n</World_State>`;
+    return applyWorldChanges(emptyWorld(), parseWorldBlocks(t), { userNames: ["Kazuma"] }).state;
+}
+
+test("position goes into the Cast for the player and whoever is in the scene", () => {
+    const list = renderCastList(buildImageCast({ world: scene(), userName: "Kazuma" }));
+    assert.match(list, /@Kazuma: the player\n  wearing: grey hoodie\n  position: on the bed/);
+    assert.match(list, /@Aqua: in the scene\n  wearing: blue dress\n  position: by the door/);
+});
+
+test("cast uses fresh outfit tags, and flags stale ones for remaking", () => {
+    const looks = {
+        Aqua: { tags: "female, blue hair", outfitTags: { from: outfitHash("blue dress"), tags: "blue dress, detached sleeves" } },
+        Kazuma: { tags: "male", outfitTags: { from: outfitHash("black coat"), tags: "black coat" } }
+    };
+    const cast = buildImageCast({ world: scene(), userName: "Kazuma", looks, outfitTags: true });
+    const by = n => cast.find(c => c.name === n);
+    assert.equal(by("Aqua").outfit, "blue dress, detached sleeves");
+    assert.equal(by("Aqua").outfitStale, false);
+    assert.equal(by("Kazuma").outfit, "grey hoodie", "stale tags: the World State text until remade");
+    assert.equal(by("Kazuma").outfitStale, true);
+    assert.equal(by("Kazuma").outfitText, "grey hoodie");
+    // Off: the World State text, nothing flagged.
+    const off = buildImageCast({ world: scene(), userName: "Kazuma", looks });
+    assert.equal(off.find(c => c.name === "Aqua").outfit, "blue dress");
+    assert.equal(off.find(c => c.name === "Aqua").outfitStale, false);
+});
+
+test("NPC Bank priority: the stored look wins by default; npcFirst makes the NPC tags win", () => {
+    const looks = { Aqua: { tags: "female, blue hair, wide hips" } };
+    const npcs = [{ name: "Aqua", imageTags: "female, pink hair, long legs" }];
+    const v2 = buildImageCast({ world: scene(), userName: "Kazuma", looks, npcs }).find(c => c.name === "Aqua");
+    assert.equal(v2.look, "female, blue hair");
+    assert.equal(v2.lookSource, "manual");
+    const npc = buildImageCast({ world: scene(), userName: "Kazuma", looks, npcs, npcFirst: true }).find(c => c.name === "Aqua");
+    assert.equal(npc.look, "female, pink hair");
+    assert.equal(npc.body, "long legs");
+    assert.equal(npc.lookSource, "npc");
+});

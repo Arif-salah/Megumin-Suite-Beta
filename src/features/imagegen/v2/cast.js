@@ -10,6 +10,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { splitLookTags, sexOf } from "./lookParts.js";
+import { freshOutfitTags } from "./looksCore.js";
 
 const key = s => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s'-]/gu, "").replace(/\s+/g, " ").trim();
 
@@ -26,13 +27,15 @@ function lookParts(entry) {
  *   world?: object|null,           // World State (state store shape) or null
  *   npcs?: Array<{ name: string, imageTags?: string }>,
  *   userName?: string,             // persona name
- *   recentText?: string            // for "mentioned" (absent but just named)
+ *   recentText?: string,           // for "mentioned" (absent but just named)
+ *   npcFirst?: boolean,            // NPC Bank Image Tags win over a stored look
+ *   outfitTags?: boolean           // use detailed outfit tags when they are fresh
  * }} src
  * @returns {Array<{ name: string, aliases: string[], look: string, body: string, sex: string, lookNatural: string,
  *                   outfit: string, isPc: boolean, inScene: boolean, mentioned: boolean, lookSource: string }>}
  *   look = the always part; body = build and proportions (full-body shots only)
  */
-export function buildImageCast({ looks = {}, world = null, npcs = [], userName = "", recentText = "" } = {}) {
+export function buildImageCast({ looks = {}, world = null, npcs = [], userName = "", recentText = "", npcFirst = false, outfitTags = false } = {}) {
     const members = [];
     const find = name => {
         const k = key(name);
@@ -41,7 +44,8 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
     };
     const add = m => { members.push(m); return m; };
     const blank = (name, extra = {}) => ({
-        name, aliases: [], look: "", body: "", sex: "", lookNatural: "", outfit: "",
+        name, aliases: [], look: "", body: "", sex: "", lookNatural: "", outfit: "", position: "",
+        lookKey: "", outfitText: "", outfitStale: false, outfitCache: null,
         isPc: false, inScene: false, mentioned: false, lookSource: "", ...extra
     });
 
@@ -52,6 +56,7 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
             isPc: true,
             inScene: true,
             outfit: (world && world.pc && world.pc.fields && world.pc.fields.outfit) || "",
+            position: (world && world.pc && world.pc.fields && world.pc.fields.position) || "",
             aliases: userName && key(userName) !== key(pcName) ? [userName] : []
         }));
     }
@@ -62,7 +67,8 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
         add(blank(c.name, {
             aliases: [...(c.aliases || [])],
             inScene: Boolean(c.present),
-            outfit: (c.fields && c.fields.outfit) || ""
+            outfit: (c.fields && c.fields.outfit) || "",
+            position: (c.present && c.fields && c.fields.position) || ""
         }));
     }
 
@@ -73,6 +79,8 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
         if (!lookName) continue;
         let m = find(lookName) || (entry.aliases || []).map(find).find(Boolean) || null;
         if (!m) m = add(blank(lookName));
+        m.lookKey = name;
+        m.outfitCache = entry.outfitTags || null;
         const parts = lookParts(entry);
         if (parts.always || parts.body || String(entry.natural || "").trim()) {
             m.look = parts.always;
@@ -91,7 +99,8 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
         const tags = String(n.imageTags || "").trim();
         if (!tags) continue;
         const m = find(n.name);
-        if (m && !m.look && !m.body && !m.lookNatural) {
+        // Normally a stored look wins; with npcFirst the NPC Bank's tags do.
+        if (m && (npcFirst || (!m.look && !m.body && !m.lookNatural))) {
             const parts = splitLookTags(tags);
             m.look = parts.always;
             m.body = parts.body;
@@ -99,7 +108,16 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
         }
     }
 
-    for (const m of members) m.sex = sexOf(`${m.look}, ${m.body}`);
+    for (const m of members) {
+        m.sex = sexOf(`${m.look}, ${m.body}`);
+        // Detailed outfit tags, when made from THIS outfit (or locked).
+        // Otherwise the World State text is used and the tags get remade.
+        if (outfitTags && String(m.outfit || "").trim()) {
+            const tags = freshOutfitTags(m.outfitCache, m.outfit);
+            m.outfitText = m.outfit;
+            if (tags) m.outfit = tags; else m.outfitStale = true;
+        }
+    }
 
     // 5. Absent characters named in the recent text may be about to appear.
     const text = " " + key(recentText) + " ";

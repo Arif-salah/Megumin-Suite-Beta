@@ -16,11 +16,12 @@ import { meguminCleanChatHistoryText } from "../../../engine/chatText.js";
 import { worldEnabled, worldHasState, getWorldState } from "../../../state/index.js";
 import { presentCast } from "../../../state/modules/world/model.js";
 import { buildCharacterSheets } from "../classic/prompt.js";
-import { getLooks } from "./index.js";
+import { getLooks, currentImageCast, v2Settings } from "./index.js";
 import { splitLookTags } from "./lookParts.js";
 import {
     LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey,
-    NATURAL_SYSTEM, renderNaturalPrompt, parseNaturalBlocks, matchScanToTargets
+    NATURAL_SYSTEM, renderNaturalPrompt, parseNaturalBlocks, matchScanToTargets,
+    OUTFIT_SYSTEM, renderOutfitTagsPrompt, parseOutfitBlocks, outfitHash
 } from "./looksCore.js";
 
 const esc = v => String(v == null ? "" : v)
@@ -190,6 +191,7 @@ const attempted = new Set();   // "chatId|name": one automatic try per character
 export function v2LooksForArrivals() {
     const ig = localProfile && localProfile.imageGen;
     if (!ig || !ig.enabled || ig.engine !== "v2" || !worldEnabled() || !worldHasState()) return;
+    if (v2Settings().autoLooks === false) return;   // "Automatic look for new characters" is off
     const chatId = getContext()?.chatId;
     if (!chatId) return;
     const looks = getLooks();
@@ -205,4 +207,40 @@ export function v2LooksForArrivals() {
     scanLooks({ from: "chat", targets: missing, interactive: false })
         .then(r => { if (r && r.added.length) toastr.info(`New look${r.added.length === 1 ? "" : "s"} for ${r.added.join(", ")}.`, "Megumin Suite", { timeOut: 3500 }); })
         .catch(e => console.error("[Megumin-Suite] Automatic look scan failed", e));
+}
+
+// ── Detailed outfit tags ─────────────────────────────────────────────────
+// Made lazily, right before an image, only for outfits that changed since
+// their tags were made (and are not locked): an outfit that changes three
+// times between images costs one call, not three.
+
+let outfitRefresh = null;
+
+/** Brings every stale outfit of the people in the shot up to date. */
+export function refreshOutfitTags() {
+    if (outfitRefresh) return outfitRefresh;
+    const cfg = v2Settings();
+    if (!cfg.outfitTags || cfg.style !== "tags") return Promise.resolve(0);
+    const stale = currentImageCast().filter(m => m.outfitStale && (m.inScene || m.isPc || m.mentioned));
+    if (!stale.length) return Promise.resolve(0);
+
+    const chatAtStart = getContext()?.chatId;
+    outfitRefresh = (async () => {
+        const raw = await ask(OUTFIT_SYSTEM, renderOutfitTagsPrompt(stale.map(m => ({ name: m.name, outfit: m.outfitText }))));
+        if (getContext()?.chatId !== chatAtStart) return 0;
+        const looks = getLooks();
+        let n = 0;
+        for (const r of parseOutfitBlocks(raw)) {
+            const m = stale.find(x => [x.name, ...(x.aliases || [])].some(a => a.toLowerCase() === r.name.toLowerCase()));
+            if (!m) continue;
+            const k = m.lookKey || findLookKey(looks, m.name, m.aliases || []) || m.name;
+            if (!looks[k]) looks[k] = { tags: "", body: "", natural: "", aliases: [], locked: false, source: "manual" };
+            looks[k].outfitTags = { from: outfitHash(m.outfitText), tags: r.tags, locked: false };
+            n++;
+        }
+        if (n) saveProfileToMemory();
+        return n;
+    })().catch(e => { console.error("[Megumin-Suite] Outfit tags failed", e); return 0; })
+        .finally(() => { outfitRefresh = null; });
+    return outfitRefresh;
 }

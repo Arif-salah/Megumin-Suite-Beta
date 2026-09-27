@@ -26,6 +26,7 @@ export const V2_METHODS = ["placeholders", "reference"];
  * @property {string}   [look]       appearance that shows in any shot
  * @property {string}   [body]       build and proportions (full-body shots only)
  * @property {string}   [outfit]     current outfit; empty = the model describes the clothing
+ * @property {string}   [position]   where they are and their posture (World State), for framing
  */
 
 /**
@@ -51,6 +52,7 @@ export function renderCastList(cast, { shot = "cinematic", method = "placeholder
         if (String(c.body || "").trim()) lines.push(`  body (only when the shot shows it): ${c.body}`);
         if (String(c.outfit || "").trim()) lines.push(`  wearing: ${c.outfit}`);
         else lines.push("  wearing: not noted (describe what they wear)");
+        if (String(c.position || "").trim()) lines.push(`  position: ${c.position}`);
         blocks.push(lines.join("\n"));
     }
     return blocks.length ? `<Cast>\n${blocks.join("\n")}\n</Cast>` : "";
