@@ -201,7 +201,7 @@ export function initProfile() {
             // "classic" (the tab as before task 001) or "v2" (plan 006). New installs
             // start on V2; a profile saved before the switch existed stays Classic.
             engine: "v2",
-            v2: { style: "tags", shot: "cinematic", extra: "" },
+            v2: { style: "tags", shot: "cinematic", extra: "", method: "placeholders" },
             promptTemplate: "illus_cinematic",
             includeExamples: true,
             directLanguage: false,
@@ -351,8 +351,9 @@ export function initProfile() {
     if (localProfile.imageGen.engine === undefined) localProfile.imageGen.engine = "classic";
     if (localProfile.imageGen.autoPlacement === undefined) localProfile.imageGen.autoPlacement = "end";
     if (!localProfile.imageGen.v2 || typeof localProfile.imageGen.v2 !== "object") {
-        localProfile.imageGen.v2 = { style: "tags", shot: "cinematic", extra: "" };
+        localProfile.imageGen.v2 = { style: "tags", shot: "cinematic", extra: "", method: "placeholders" };
     }
+    if (localProfile.imageGen.v2.method === undefined) localProfile.imageGen.v2.method = "placeholders";
     if (localProfile.imageGen.directLanguage === undefined) localProfile.imageGen.directLanguage = false;
     if (localProfile.imageGen.imageCount === undefined) localProfile.imageGen.imageCount = 1;
     if (localProfile.imageGen.promptPrefix === undefined) localProfile.imageGen.promptPrefix = "";

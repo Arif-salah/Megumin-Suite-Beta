@@ -9,7 +9,16 @@
 // Pure: the caller hands in the stored looks, the World State and the NPC Bank.
 // ────────────────────────────────────────────────────────────────────────────
 
+import { splitLookTags, sexOf } from "./lookParts.js";
+
 const key = s => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s'-]/gu, "").replace(/\s+/g, " ").trim();
+
+// A stored look in two parts. Looks saved before the split (one tag list) are
+// split on the fly; nothing is written back until the user edits them.
+function lookParts(entry) {
+    if (typeof entry.body === "string") return { always: String(entry.tags || "").trim(), body: entry.body.trim() };
+    return splitLookTags(entry.tags || "");
+}
 
 /**
  * @param {{
@@ -19,8 +28,9 @@ const key = s => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s'-]/gu, ""
  *   userName?: string,             // persona name
  *   recentText?: string            // for "mentioned" (absent but just named)
  * }} src
- * @returns {Array<{ name: string, aliases: string[], look: string, lookNatural: string, outfit: string,
- *                   isPc: boolean, inScene: boolean, mentioned: boolean, lookSource: string }>}
+ * @returns {Array<{ name: string, aliases: string[], look: string, body: string, sex: string, lookNatural: string,
+ *                   outfit: string, isPc: boolean, inScene: boolean, mentioned: boolean, lookSource: string }>}
+ *   look = the always part; body = build and proportions (full-body shots only)
  */
 export function buildImageCast({ looks = {}, world = null, npcs = [], userName = "", recentText = "" } = {}) {
     const members = [];
@@ -31,7 +41,7 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
     };
     const add = m => { members.push(m); return m; };
     const blank = (name, extra = {}) => ({
-        name, aliases: [], look: "", lookNatural: "", outfit: "",
+        name, aliases: [], look: "", body: "", sex: "", lookNatural: "", outfit: "",
         isPc: false, inScene: false, mentioned: false, lookSource: "", ...extra
     });
 
@@ -63,9 +73,10 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
         if (!lookName) continue;
         let m = find(lookName) || (entry.aliases || []).map(find).find(Boolean) || null;
         if (!m) m = add(blank(lookName));
-        const tags = String(entry.tags || "").trim();
-        if (tags || String(entry.natural || "").trim()) {
-            m.look = tags;
+        const parts = lookParts(entry);
+        if (parts.always || parts.body || String(entry.natural || "").trim()) {
+            m.look = parts.always;
+            m.body = parts.body;
             m.lookNatural = String(entry.natural || "").trim();
             m.lookSource = entry.source || "manual";
         }
@@ -80,8 +91,15 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
         const tags = String(n.imageTags || "").trim();
         if (!tags) continue;
         const m = find(n.name);
-        if (m && !m.look && !m.lookNatural) { m.look = tags; m.lookSource = "npc"; }
+        if (m && !m.look && !m.body && !m.lookNatural) {
+            const parts = splitLookTags(tags);
+            m.look = parts.always;
+            m.body = parts.body;
+            m.lookSource = "npc";
+        }
     }
+
+    for (const m of members) m.sex = sexOf(`${m.look}, ${m.body}`);
 
     // 5. Absent characters named in the recent text may be about to appear.
     const text = " " + key(recentText) + " ";

@@ -25,7 +25,9 @@ export const IMAGE_V2_PROMPTS = {
             "1girl, 1boy, @Mira, laughing, holding a mug, @Theo, leaning on the counter, smiling, looking at another, facing another, tavern, night, warm lamplight, medium shot, from side",
             "",
             "Rules:",
-            "- [who is in the shot] is the count: 1girl, 1boy, 2girls, 2boys, 1girl 1boy, no humans…",
+            "- [who is in the shot] is the count: 1girl, 1boy, 2girls, 2boys, 1girl 1boy, no humans… <Cast> says who is male and who is female.",
+            "- <Cast> shows each character's look and clothing so you can pick the count and the framing. It is reference only: copy none of it; @Name carries it.",
+            "- Always end with the framing (close-up, portrait, upper body, cowboy shot, full body, wide shot…): it decides how much of each character is shown.",
             "- @Name stands for that character's whole appearance and clothing. Write each @Name once and never again.",
             "- One character: add solo after the count.",
             "- Two characters: put the one the moment is about first. Right after each @Name, put what only that character is doing (their pose, their expression, what they hold), so each tag stays with the right person. After both, put what they do together and how they are placed: holding hands, hug, facing another, side-by-side, sitting on lap, looking at another…",
@@ -48,14 +50,36 @@ export const IMAGE_V2_PROMPTS = {
             "- Never describe a @Name character's hair, eyes, face, body or clothing. The one exception: when <Cast> says a character's clothing is not noted, describe what they wear.",
             "- Two characters: say where each one is (left or right, in front or behind) and give each their own action and expression in their own clause.",
             "- Three or more people: focus on the two the moment is about; mention the rest briefly as background, without @Name.",
-            "- Only characters who are in this shot; two at most works best. Use the names from <Cast>."
+            "- Only characters who are in this shot; two at most works best. Use the names from <Cast>.",
+            "- <Cast> shows each character's look and clothing so you know who they are. It is reference only: describe none of it; @Name carries it.",
+            "- Always say how the shot is framed (close-up, from the waist up, full body, wide shot): it decides how much of each character is shown."
         ].join("\n")
     },
 
     shot: {
         cinematic: "Shot: a film still of the moment. Pick a wide, medium or close shot to suit it.",
-        pov: "Shot: through {{user}}'s eyes. Include pov. {{user}} is never written as @Name and never seen, except their hands when they touch something.",
+        pov: "Shot: through {{user}}'s eyes. Include pov. {{user}} is never in the shot, except their hands when they touch something.",
         portrait: "Shot: one character, head-and-shoulders or chest-up, focused on face and expression, with a simple background from the place."
+    },
+
+    // Reference method (experimental): the model edits the previous image prompt
+    // instead of writing placeholders, with the cast as the source of truth.
+    reference: {
+        head: [
+            "## How to write the image prompt",
+            "<Previous_Image_Prompt> is the last image made in this story. Write the new image prompt by editing it:",
+            "- Keep everything that still holds, word for word: each character's appearance and clothing tags, their order, and the style of the prompt.",
+            "- Change only what the new moment changes: who is in the shot, their poses and actions, expressions, the place, the light and the framing.",
+            "- Each character's appearance and clothing must match <Cast> exactly. If the previous prompt disagrees with <Cast>, <Cast> is right.",
+            "- A character's body tags go in only when the shot shows their body (full body, wide shot, cowboy shot); leave them out of close-ups and portraits.",
+            "- Why: the closer the new prompt stays to the previous one, the more consistent the images and the characters stay from one image to the next. Make small edits; do not write a new prompt from scratch.",
+            "- With no previous prompt, write a new one, using each character's tags from <Cast> word for word for their appearance and clothing."
+        ].join("\n"),
+        tags: [
+            "- ONE line of comma-separated booru tags. Start with the count (1girl, 1boy, 2boys, 1girl 1boy…; <Cast> says who is male and who is female), then each character's appearance and clothing tags followed by what only they are doing, then what they do together, the place, the light, and the framing last.",
+            "- No quality tags (masterpiece, best quality…)."
+        ].join("\n"),
+        natural: "- 2 to 4 plain sentences: each character's appearance and clothing as in <Cast>, what they are doing, the place, the light, and how the shot is framed."
     },
 
     manualTask: "Write the image prompt for the latest moment. Output only the prompt, nothing else.",

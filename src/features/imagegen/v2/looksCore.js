@@ -161,9 +161,11 @@ export function planLookUpdates(looks, scanned) {
     for (const s of scanned || []) {
         const k = findLookKey(looks, s.name, s.aliases);
         const cur = k ? looks[k] : null;
-        const item = { key: k || s.name, name: s.name, aliases: s.aliases || [], tags: s.tags, old: cur ? String(cur.tags || "") : "" };
-        if (!cur || !String(cur.tags || "").trim()) plan.add.push(item);
-        else if (sameTags(cur.tags, s.tags)) plan.same.push(item);
+        // A stored look is its always part plus its body part.
+        const old = cur ? [cur.tags, cur.body].map(t => String(t || "").trim()).filter(Boolean).join(", ") : "";
+        const item = { key: k || s.name, name: s.name, aliases: s.aliases || [], tags: s.tags, old };
+        if (!old) plan.add.push(item);
+        else if (sameTags(old, s.tags)) plan.same.push(item);
         else if (cur.locked) plan.locked.push(item);
         else plan.change.push(item);
     }

@@ -12,14 +12,21 @@
 //   @Aqua.look / @Aqua.outfit, if a model writes them anyway, are read as plain
 //   @Aqua (the suffix is swallowed so it never reaches ComfyUI).
 //
+// Body tags (a member's `body`) go in only when the prompt frames the body
+// (full body, wide shot, cowboy shot…): in a close-up they would pull the image
+// toward a full figure.
+//
 // Pure: no SillyTavern, no DOM. The caller builds the cast.
+
+import { framingShowsBody } from "./lookParts.js";
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
  * @typedef {Object} CastMember
  * @property {string}   name
  * @property {string[]} [aliases]   nicknames that also resolve (@Matt → Matthew)
- * @property {string}   [look]      appearance tags ("long blue hair, blue eyes, slender")
+ * @property {string}   [look]      appearance tags that show in any shot ("long blue hair, blue eyes")
+ * @property {string}   [body]      build and proportions, full-body shots only ("wide hips, long legs")
  * @property {string}   [lookNatural] appearance as a phrase, for Natural style
  * @property {string}   [outfit]    current outfit (World State text, or outfit tags)
  */
@@ -111,6 +118,7 @@ function skipParens(text, at) {
 export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
     const text = String(prompt || "");
     const index = nameIndex(cast);
+    const showBody = framingShowsBody(text);
     const lower = text.toLowerCase();
     const filled = [];
     const unknown = [];
@@ -187,7 +195,7 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
             const renderPart = missing.length === 2 ? "all" : missing[0];
             missing.forEach(x => done.add(x));
             seen.set(member.name, done);
-            out += renderMember(member, renderPart, style, noLook);
+            out += renderMember(member, renderPart, style, noLook, showBody);
             filled.push({ name: member.name, part: renderPart });
         }
         i = end;
@@ -209,10 +217,10 @@ function coveredAlready(seen, name, part) {
     return want.every(x => done.has(x));
 }
 
-function renderMember(m, part, style, noLook) {
-    const lookTags = stripCountTags(m.look || "");
+function renderMember(m, part, style, noLook, showBody = false) {
+    const lookTags = stripCountTags([m.look, showBody ? m.body : ""].filter(s => String(s || "").trim()).join(", "));
     const outfit = String(m.outfit || "").trim();
-    if (!lookTags && !m.lookNatural && part !== "outfit" && !noLook.includes(m.name)) noLook.push(m.name);
+    if (!lookTags && !m.body && !m.lookNatural && part !== "outfit" && !noLook.includes(m.name)) noLook.push(m.name);
 
     if (style === "natural") {
         // "Aqua (a slender young woman…, wearing a blue dress) leans on the bar":

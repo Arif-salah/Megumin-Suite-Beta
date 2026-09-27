@@ -6,7 +6,7 @@
 // instruction, and the @Name resolver every image goes through before ComfyUI.
 // ────────────────────────────────────────────────────────────────────────────
 
-import { getContext, generateQuietPrompt, substituteParams } from "../../../st.js";
+import { getContext, generateQuietPrompt, substituteParams, saveMetadataDebounced } from "../../../st.js";
 import { localProfile } from "../../../core/state.js";
 import { setActiveImageGenRequest } from "../../../core/activeRequests.js";
 import { meguminCleanChatHistoryText } from "../../../engine/chatText.js";
@@ -15,7 +15,23 @@ import { buildImageCast } from "./cast.js";
 import { resolveImagePrompt } from "./resolve.js";
 import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction } from "./prompt.js";
 
-export const V2_DEFAULTS = { style: "tags", shot: "cinematic", extra: "" };
+export const V2_DEFAULTS = { style: "tags", shot: "cinematic", extra: "", method: "placeholders" };
+
+// ── The previous image prompt (Reference method) ─────────────────────────
+// Kept per chat, in the chat file: the last prompt sent to ComfyUI.
+const LAST_PROMPT_KEY = "megumin_image_v2";
+
+export function getLastImagePrompt() {
+    const meta = getContext()?.chatMetadata;
+    return (meta && meta[LAST_PROMPT_KEY] && meta[LAST_PROMPT_KEY].lastPrompt) || "";
+}
+
+function setLastImagePrompt(prompt) {
+    const ctx = getContext();
+    if (!ctx || !ctx.chatId || !ctx.chatMetadata || !String(prompt || "").trim()) return;
+    ctx.chatMetadata[LAST_PROMPT_KEY] = { ...(ctx.chatMetadata[LAST_PROMPT_KEY] || {}), lastPrompt: String(prompt).trim(), at: Date.now() };
+    saveMetadataDebounced();
+}
 
 export function v2Settings() {
     return { ...V2_DEFAULTS, ...((localProfile && localProfile.imageGen && localProfile.imageGen.v2) || {}) };
@@ -69,7 +85,7 @@ function sceneLine() {
 function rules(extraInstruction = "") {
     const cfg = v2Settings();
     const extra = [cfg.extra, extraInstruction].filter(s => String(s || "").trim()).join(" ");
-    return sub(renderV2Rules({ style: cfg.style, shot: cfg.shot, extra }));
+    return sub(renderV2Rules({ style: cfg.style, shot: cfg.shot, extra, method: cfg.method }));
 }
 
 // ── The manual button ────────────────────────────────────────────────────
@@ -80,9 +96,11 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
         .map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`)
         .join("\n\n");
     const built = renderV2ManualPrompt({
-        castList: sub(renderCastList(currentImageCast(), { shot: cfg.shot })),
+        castList: sub(renderCastList(currentImageCast(), { shot: cfg.shot, method: cfg.method })),
         scene: sceneLine(),
         story,
+        method: cfg.method,
+        previous: getLastImagePrompt(),
         rules: rules(extraInstruction)
     });
     setActiveImageGenRequest({ v2: { system: sub(built.system), user: built.user } });
@@ -108,8 +126,10 @@ export function v2InlineInstruction({ conditionalText = "", imageCount = 1 } = {
     return sub(renderV2InlineInstruction({
         conditionalText,
         imageCount,
-        castList: renderCastList(currentImageCast(), { shot: cfg.shot }),
-        rules: rules()
+        castList: renderCastList(currentImageCast(), { shot: cfg.shot, method: cfg.method }),
+        rules: rules(),
+        method: cfg.method,
+        previous: getLastImagePrompt()
     }));
 }
 
@@ -125,6 +145,9 @@ export function v2LastResolution() {
 export function v2ResolveForComfy(prompt) {
     const r = resolveImagePrompt(prompt, { cast: currentImageCast(), style: v2Settings().style });
     lastResolution = { input: String(prompt || ""), ...r };
+    // Reference method edits this next time. Kept on both methods, so switching
+    // to Reference starts from the last real image.
+    setLastImagePrompt(r.prompt);
     if (r.filled.length || r.unknown.length) {
         console.debug("[Megumin-Suite] Image V2 resolved:", { filled: r.filled, unknown: r.unknown, noLook: r.noLook });
     }

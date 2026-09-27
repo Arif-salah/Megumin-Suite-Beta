@@ -23,6 +23,10 @@ const SHOT_HELP = {
     portrait: "One character, head and shoulders."
 };
 const SOURCE_LABEL = { npc: "NPC Bank", sheet: "sheet scan", chat: "chat scan", manual: "manual" };
+const METHOD_HELP = {
+    placeholders: "The model writes @Name; each look and outfit go in word for word.",
+    reference: "Experimental: the model edits the previous image prompt, keeping it as close as it can."
+};
 
 // The stored look for a cast member, created on first edit.
 function lookFor(member) {
@@ -30,7 +34,8 @@ function lookFor(member) {
     let k = findLookKey(looks, member.name, member.aliases || []);
     if (!k) {
         k = member.name;
-        looks[k] = { tags: member.lookSource === "npc" ? member.look : "", natural: "", aliases: [], locked: false, source: "manual" };
+        const fromNpc = member.lookSource === "npc";
+        looks[k] = { tags: fromNpc ? member.look : "", body: fromNpc ? member.body : "", natural: "", aliases: [], locked: false, source: "manual" };
     }
     return { key: k, look: looks[k] };
 }
@@ -59,8 +64,8 @@ export function renderV2ImageGen(c) {
         const k = findLookKey(looks, m.name, m.aliases || []);
         const stored = k ? looks[k] : null;
         const where = m.isPc ? "player" : m.inScene ? "in scene" : m.mentioned ? "mentioned" : "away";
-        const tags = stored && String(stored.tags || "").trim() ? stored.tags : (m.lookSource === "npc" ? m.look : "");
-        const source = stored && String(stored.tags || "").trim() ? stored.source : m.lookSource;
+        // The cast already holds the look split in two (stored, or NPC Bank tags).
+        const source = m.lookSource;
         return `
             <div class="ig2-cast-row ${m.inScene || m.isPc ? "" : "is-away"}" data-name="${esc(m.name)}">
                 <div class="ig2-cast-head">
@@ -75,8 +80,11 @@ export function renderV2ImageGen(c) {
                 <label class="ig2-cast-field"><span>Nicknames</span>
                     <input type="text" class="ps-modern-input ig2-aliases" value="${esc([...new Set([...(stored ? stored.aliases || [] : []), ...(m.aliases || [])])].join(", "))}" placeholder="Matt, Matty" />
                 </label>
-                <label class="ig2-cast-field"><span>Look</span>
-                    <textarea class="ps-modern-input ig2-tags" rows="2" placeholder="Permanent appearance only: female, long blue hair, blue eyes, slender…">${esc(tags)}</textarea>
+                <label class="ig2-cast-field"><span>Look · every shot</span>
+                    <textarea class="ps-modern-input ig2-tags" rows="2" placeholder="female, long blue hair, blue eyes, pale skin, cat ears…">${esc(m.look)}</textarea>
+                </label>
+                <label class="ig2-cast-field"><span>Body · full-body shots only</span>
+                    <textarea class="ps-modern-input ig2-body" rows="1" placeholder="slender, long legs, wide hips…">${esc(m.body)}</textarea>
                 </label>
                 ${cfg.style === "natural" ? `
                 <label class="ig2-cast-field"><span>Description</span>
@@ -105,6 +113,13 @@ export function renderV2ImageGen(c) {
                             <option value="portrait" ${cfg.shot === "portrait" ? "selected" : ""}>Portrait</option>
                         </select>
                         <small>${SHOT_HELP[cfg.shot] || ""}</small>
+                    </label>
+                    <label class="ig2-field"><span>Method</span>
+                        <select id="ig2_method" class="ps-modern-input">
+                            <option value="placeholders" ${cfg.method !== "reference" ? "selected" : ""}>@Name placeholders</option>
+                            <option value="reference" ${cfg.method === "reference" ? "selected" : ""}>Edit last prompt (test)</option>
+                        </select>
+                        <small>${METHOD_HELP[cfg.method === "reference" ? "reference" : "placeholders"]}</small>
                     </label>
                 </div>
                 <label class="ig2-field"><span>Extra instructions</span>
@@ -138,11 +153,12 @@ export function renderV2ImageGen(c) {
     const setCfg = patch => { ig.v2 = { ...cfg, ...(ig.v2 || {}), ...patch }; };
     page.find("#ig2_style").on("change", function () { setCfg({ style: $(this).val() }); saveProfileToMemory(); redraw(); });
     page.find("#ig2_shot").on("change", function () { setCfg({ shot: $(this).val() }); saveProfileToMemory(); redraw(); });
+    page.find("#ig2_method").on("change", function () { setCfg({ method: $(this).val() }); saveProfileToMemory(); redraw(); });
     page.find("#ig2_extra").on("input", function () { setCfg({ extra: String($(this).val() || "") }); saveProfileDebounced(); });
 
     busy(page.find(".ig2-scan-sheet"), () => scanLooks({ from: "sheet" }), redraw);
     busy(page.find(".ig2-scan-chat"), () => {
-        const need = cast.filter(m => !String(m.look || m.lookNatural || "").trim()).map(m => ({ name: m.name, aliases: m.aliases || [] }));
+        const need = cast.filter(m => !String(m.look || m.body || m.lookNatural || "").trim()).map(m => ({ name: m.name, aliases: m.aliases || [] }));
         if (!need.length) { toastr.info("Everyone in the cast already has a look. Use a character's own scan button to re-read it.", "Megumin Suite"); return; }
         return scanLooks({ from: "chat", targets: need });
     }, redraw);
@@ -162,9 +178,12 @@ export function renderV2ImageGen(c) {
         const $row = $(this);
         const member = cast.find(m => m.name === $row.data("name"));
         if (!member) return;
-        $row.find(".ig2-tags").on("change", function () {
+        // Both halves are saved together, so a look split on the fly becomes a
+        // stored split the first time it is edited.
+        $row.find(".ig2-tags, .ig2-body").on("change", function () {
             const { look } = lookFor(member);
-            look.tags = String($(this).val() || "").trim();
+            look.tags = String($row.find(".ig2-tags").val() || "").trim();
+            look.body = String($row.find(".ig2-body").val() || "").trim();
             look.source = "manual";
             saveProfileToMemory(); redraw();
         });

@@ -17,6 +17,7 @@ import { worldEnabled, worldHasState, getWorldState } from "../../../state/index
 import { presentCast } from "../../../state/modules/world/model.js";
 import { buildCharacterSheets } from "../classic/prompt.js";
 import { getLooks } from "./index.js";
+import { splitLookTags } from "./lookParts.js";
 import {
     LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey,
     NATURAL_SYSTEM, renderNaturalPrompt, parseNaturalBlocks, matchScanToTargets
@@ -57,9 +58,12 @@ function writeLook(looks, item, source) {
     for (const a of item.aliases || []) {
         if (a && a.toLowerCase() !== k.toLowerCase() && !aliases.some(x => x.toLowerCase() === a.toLowerCase())) aliases.push(a);
     }
+    // Saved in two parts: what shows in any shot, and the body (full-body shots only).
+    const parts = splitLookTags(item.tags);
     // New tags make an old natural description stale; it is remade on request.
-    const natural = cur.tags && cur.tags !== item.tags ? "" : (cur.natural || "");
-    looks[k] = { ...cur, tags: item.tags, natural, aliases, locked: Boolean(cur.locked), source, updatedAt: Date.now() };
+    const changed = (cur.tags || "") !== parts.always || (cur.body || "") !== parts.body;
+    const natural = cur.tags && changed ? "" : (cur.natural || "");
+    looks[k] = { ...cur, tags: parts.always, body: parts.body, natural, aliases, locked: Boolean(cur.locked), source, updatedAt: Date.now() };
 }
 
 // ── The review popup (established looks) ────────────────────────────────

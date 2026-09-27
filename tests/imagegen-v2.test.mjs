@@ -143,17 +143,31 @@ test("cast without World State still works from looks alone", () => {
 const OFF_FRAME = /\b(extension|plugin|app|system|ledger|database|tracker|interface|filled in|substitut\w*|replac\w*)\b/i;
 
 test("cast list: player, in scene, mentioned; POV leaves the player out", () => {
-    const cast = buildImageCast({ world: world(), userName: "Kazuma", looks: { Sara: { tags: "red hair" } }, recentText: "Sara waved" });
+    const cast = buildImageCast({
+        world: world(), userName: "Kazuma",
+        looks: { Sara: { tags: "female, red hair, long legs" }, Matthew: { tags: "male, purple eyes, wide hips" } },
+        recentText: "Sara waved"
+    });
     const list = renderCastList(cast);
     assert.equal(list, [
         "<Cast>",
         "@Kazuma: the player",
-        "@Matthew (also @Matt): in the scene",
+        "  wearing: green cape",
+        "@Matthew (also @Matt): male, in the scene",
+        "  appearance: male, purple eyes",
+        "  body (only when the shot shows it): wide hips",
+        "  wearing: cropped black tee",
         "@Aqua: in the scene",
-        "@Sara: not in the scene (clothing not noted: describe what they wear)",
+        "  wearing: blue dress",
+        "@Sara: female, not in the scene",
+        "  appearance: female, red hair",
+        "  body (only when the shot shows it): long legs",
+        "  wearing: not noted (describe what they wear)",
         "</Cast>"
     ].join("\n"));
     assert.doesNotMatch(renderCastList(cast, { shot: "pov" }), /Kazuma/);
+    // Reference method: plain names, no @.
+    assert.match(renderCastList(cast, { method: "reference" }), /^<Cast>\nKazuma: the player\n[\s\S]*Matthew \(also Matt\): male, in the scene/);
 });
 
 test("the model describes clothing only for characters with no outfit on file", () => {
@@ -161,8 +175,8 @@ test("the model describes clothing only for characters with no outfit on file", 
         { name: "Aqua", inScene: true, outfit: "blue dress" },
         { name: "Wiz", inScene: true, outfit: "" }
     ]);
-    assert.match(list, /@Aqua: in the scene\n/);
-    assert.match(list, /@Wiz: in the scene \(clothing not noted: describe what they wear\)/);
+    assert.match(list, /@Aqua: in the scene\n  wearing: blue dress\n/);
+    assert.match(list, /@Wiz: in the scene\n  wearing: not noted \(describe what they wear\)/);
     for (const style of ["tags", "natural"]) {
         const r = renderV2Rules({ style });
         assert.doesNotMatch(r, /\.look|\.outfit/, "no other placeholder is offered");
@@ -248,4 +262,46 @@ test("possessives: '@Name's' is recognised", () => {
 test("repeats: the second @Name adds nothing in Tags, the plain name in Natural", () => {
     assert.equal(resolveImagePrompt("1boy, @Matt, @Matthew, sitting", { cast: [MATTHEW] }).prompt.split("purple eyes").length, 2);
     assert.match(resolveImagePrompt("@Matt sits. Then @Matt stands.", { cast: [MATTHEW], style: "natural" }).prompt, /\. Then Matthew stands\.$/);
+});
+
+// ── Always / body, and the Reference method ──────────────────────────────
+import { splitLookTags, framingShowsBody, sexOf } from "../src/features/imagegen/v2/lookParts.js";
+
+test("look split: head and distinctive features always; build and proportions as body", () => {
+    const m = splitLookTags("male, young adult, black hair, short hair, purple eyes, pale skin, feminine male, short male, petite, narrow waist, wide hips, thick thighs, flat stomach");
+    assert.equal(m.always, "male, young adult, black hair, short hair, purple eyes, pale skin, feminine male");
+    assert.equal(m.body, "short male, petite, narrow waist, wide hips, thick thighs, flat stomach");
+    const f = splitLookTags("female, large breasts, big butt, long legs, cat ears, cat tail, thin eyebrows, (wide hips:1.2)");
+    assert.equal(f.always, "female, cat ears, cat tail, thin eyebrows");
+    assert.equal(f.body, "large breasts, big butt, long legs, (wide hips:1.2)");
+});
+
+test("sex from a look; framing decides whether the body shows", () => {
+    assert.equal(sexOf("feminine male, purple eyes"), "male");
+    assert.equal(sexOf("female, blue hair"), "female");
+    assert.equal(sexOf("blue hair"), "");
+    assert.equal(framingShowsBody("1girl, @Aqua, close-up, face focus"), false);
+    assert.equal(framingShowsBody("1girl, @Aqua, upper body"), false);
+    for (const f of ["full body", "full-body", "wide shot", "cowboy shot", "from behind"]) assert.equal(framingShowsBody(`x, ${f}`), true, f);
+});
+
+test("resolver: body tags only in full-body framing", () => {
+    const cast = [{ name: "Aqua", look: "female, blue hair", body: "big butt, long legs", outfit: "blue dress" }];
+    assert.equal(resolveImagePrompt("1girl, @Aqua, smiling, close-up", { cast }).prompt, "1girl, female, blue hair, blue dress, smiling, close-up");
+    assert.equal(resolveImagePrompt("1girl, @Aqua, walking, full body", { cast }).prompt, "1girl, female, blue hair, big butt, long legs, blue dress, walking, full body");
+});
+
+test("reference method: previous prompt, cast wins, the reason, and a first-image fallback", () => {
+    const rules = renderV2Rules({ method: "reference", style: "tags" });
+    assert.match(rules, /Write the new image prompt by editing it/);
+    assert.match(rules, /If the previous prompt disagrees with <Cast>, <Cast> is right/);
+    assert.match(rules, /Why: the closer the new prompt stays to the previous one, the more consistent the images and the characters stay/);
+    assert.match(rules, /body tags go in only when the shot shows their body/);
+    assert.doesNotMatch(rules, /@Name/);
+    const withPrev = renderV2ManualPrompt({ castList: "<Cast>\nAqua: in the scene\n</Cast>", story: "x", rules, method: "reference", previous: "1girl, blue hair, smiling" });
+    assert.match(withPrev.user, /<Previous_Image_Prompt>\n1girl, blue hair, smiling\n<\/Previous_Image_Prompt>/);
+    const first = renderV2ManualPrompt({ story: "x", rules, method: "reference", previous: "" });
+    assert.match(first.user, /\(none yet: this is the first image\)/);
+    assert.doesNotMatch(renderV2ManualPrompt({ story: "x", rules: "r", method: "placeholders", previous: "p" }).user, /Previous_Image_Prompt/);
+    assert.match(renderV2InlineInstruction({ rules, method: "reference", previous: "p1" }), /<Previous_Image_Prompt>\np1\n/);
 });
