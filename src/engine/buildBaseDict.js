@@ -27,7 +27,8 @@ import { memGetRelevantVaultEntries } from "../features/memory/index.js";
 import { meguminRollD20s } from "../utils/dice.js";
 import { meguminOverridableSlots, meguminSlotIsLive, meguminModuleTrigger } from "../../data/slots.js";
 import { resolveSlot } from "../core/sharedFragments.js";
-import { worldPromptBlock } from "../state/index.js";
+import { worldPromptBlock, statsPromptParts } from "../state/index.js";
+import { meguminCleanChatHistoryText } from "./chatText.js";
 
 export function buildBaseDict(isTokenCount = false) {
     const dict = {};
@@ -488,9 +489,15 @@ export function buildBaseDict(isTokenCount = false) {
     // Injected into [[infoblockcurrent]] above [[blocks]] once the story has a
     // state on file. The state store owns it; see src/state/index.js.
     // [[infoblockcorrent]] is an old misspelling some presets still carry.
+    //
+    // Plan 008: the same spot is "Current Info" — World State plus the Bonds the
+    // story needs right now, the player's sheet, and the last Inner Chatter and
+    // Story Tracker — so the model reads the true values here instead of its own
+    // old blocks in the chat. Each part only when its block is on.
     const worldNotes = localProfile.blocks && localProfile.blocks.includes("info") ? worldPromptBlock() : "";
-    dict["[[infoblockcurrent]]"] = worldNotes;
-    dict["[[infoblockcorrent]]"] = worldNotes;
+    const currentInfo = buildCurrentInfo(worldNotes);
+    dict["[[infoblockcurrent]]"] = currentInfo;
+    dict["[[infoblockcorrent]]"] = currentInfo;
 
     // --- PER-BLOCK HEADERS ---
     // The envelope carries its own header, once, above everything. These lines
@@ -737,4 +744,38 @@ export function buildBaseDict(isTokenCount = false) {
     dict["[[blocks]]"] = buildBlocksEnvelope(dict);
 
     return dict;
+}
+
+// The last few messages, blocks removed: whose bonds the story needs is read from these.
+function recentStoryText(count = 3) {
+    const chat = (getContext() && getContext().chat) || [];
+    const out = [];
+    for (let i = chat.length - 1; i >= 0 && out.length < count; i--) {
+        const m = chat[i];
+        if (!m || m.is_system) continue;
+        out.push(meguminCleanChatHistoryText(String(m.mes || "")));
+    }
+    return out.join("\n");
+}
+
+// [[infoblockcurrent]]: one <Current_Info> section, or "" when nothing is on file.
+function buildCurrentInfo(worldNotes) {
+    let parts = { bonds: "", sheet: "", chatter: "", tracker: "" };
+    try { parts = statsPromptParts({ recentText: recentStoryText() }); } catch (e) {
+        console.warn("[Megumin Suite] Current Info: could not read the kept blocks.", e);
+    }
+    const sections = [];
+    if (worldNotes) sections.push(worldNotes);
+    if (parts.bonds) sections.push(`<Bonds_Now>\n${parts.bonds}\n</Bonds_Now>`);
+    if (parts.sheet) sections.push(`<Character_Sheet_Now>\n${parts.sheet}\n</Character_Sheet_Now>`);
+    if (parts.chatter) sections.push(`<Last_Inner_Chatter>\n${parts.chatter}\n</Last_Inner_Chatter>`);
+    if (parts.tracker) sections.push(`<Last_Story_Tracker>\n${parts.tracker}\n</Last_Story_Tracker>`);
+    if (!sections.length) return "";
+    return [
+        "<Current_Info>",
+        "<!-- Where the story stands right now, before your reply: the world, how the characters feel about {{user}}, {{user}}'s sheet, and the last private thoughts and story notes. Keep your reply consistent with it and carry these values forward. Never copy this section into your reply. -->",
+        "",
+        sections.join("\n\n"),
+        "</Current_Info>"
+    ].join("\n");
 }

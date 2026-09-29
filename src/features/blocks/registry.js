@@ -354,8 +354,12 @@ export function meguminStatRules(fields, subject, opts = {}) {
     const meters = fields.filter(f => f.type === "meter");
     const seeds = tracked.map(f => `${f.label} ${f.start !== undefined ? f.start : 0}`).join(", ");
 
+    // Plan 008: the values on file reach the model in <Current_Info>, not
+    // through its own old blocks (which are hidden from it), so that is where
+    // it is told to start from.
+    const notes = opts.notesTag || `${subject}_Now`;
     const lines = [
-        `- Carry every number forward from the previous ${subject} block. Never reset one, and never invent a value that already exists.`,
+        `- Start every number from <${notes}> in <Current_Info>. Never reset one, and never invent a value that is already there.`,
         `- A number moves only when something in THIS scene moved it. Write the change and the reason in brackets, e.g. (-6 he apologised and she heard pity). When nothing moved it, write (=).`
     ];
     // The cap is for meters only. A counted field like Gold legitimately jumps by
@@ -364,7 +368,7 @@ export function meguminStatRules(fields, subject, opts = {}) {
     if (meters.length) {
         lines.push(`- ${meters.map(f => f.label).join(", ")} move at most 10 in one reply unless the scene plainly earns more.`);
     }
-    lines.push(`- Starting values when there is no previous one${opts.perSubject ? " for that person" : ""}: ${seeds}.`);
+    lines.push(`- Starting values when <${notes}> has none${opts.perSubject ? " for that person" : ""}: ${seeds}.`);
     return lines.join("\n");
 }
 
@@ -375,7 +379,7 @@ export function meguminBuildBondsTemplate() {
     const line = fields.map(meguminStatFieldSpec).join(" | ");
     return [
         "[One line per named NPC present in the scene, plus any NPC whose numbers changed this scene. Nobody else.",
-        meguminStatRules(fields, "Bonds", { perSubject: true }),
+        meguminStatRules(fields, "Bonds", { perSubject: true, notesTag: "Bonds_Now" }),
         "- These are feelings, not bodies. Do not describe clothing, posture or location here.]",
         "",
         `[NPC Name]: ${line}`
@@ -390,7 +394,7 @@ export function meguminBuildSheetTemplate() {
     const own = fields.filter(f => f.ownLine).map(meguminStatFieldSpec);
     return [
         "[{{user}}'s sheet.",
-        meguminStatRules(fields, "Character Sheet"),
+        meguminStatRules(fields, "Character Sheet", { notesTag: "Character_Sheet_Now" }),
         "- Inventory and skills change only when the story changes them. Do not restock or re-equip on your own.]",
         "",
         inline,

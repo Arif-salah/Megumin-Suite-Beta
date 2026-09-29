@@ -13,6 +13,9 @@ import { setActiveWorldExtractRequest } from "../core/activeRequests.js";
 import { localProfile } from "../core/state.js";
 import { createStateStore } from "./store.js";
 import { worldModule } from "./modules/world/index.js";
+import { bondsModule, sheetModule, chatterModule, trackerModule } from "./modules/stats/index.js";
+import { pickBondsFor } from "./modules/stats/model.js";
+import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast } from "./modules/world/model.js";
 import {
     renderWorldForPrompt, renderWorldInstructions, renderWorldCard, findReturning, isEmptyWorld, describeWorldChange,
@@ -76,7 +79,7 @@ const adapter = {
 
 export const stateStore = createStateStore({
     adapter,
-    modules: { world: worldModule },
+    modules: { world: worldModule, bonds: bondsModule, sheet: sheetModule, chatter: chatterModule, tracker: trackerModule },
     journalDepth: () => worldSettings().journalDepth
 });
 
@@ -462,6 +465,78 @@ function inPlay() {
 
 const NOT_A_REPLY = new Set(["first_message", "command", "impersonate", "quiet"]);
 
+// ── Bonds, Sheet, Inner Chatter, Story Tracker (plan 008) ────────────────
+// Kept from the blocks in each reply, so the story model can be handed the
+// true values ("Current Info") instead of reading its own old blocks.
+
+export const STAT_MODULES = ["bonds", "sheet", "chatter", "tracker"];
+
+/** The block is switched on (the Story Tracker follows the Story Plan). */
+export function statBlockOn(id) {
+    if (!localProfile) return false;
+    if (id === "tracker") return Boolean(localProfile.storyPlan && localProfile.storyPlan.enabled);
+    const order = (localProfile.blockStack && localProfile.blockStack.order) || [];
+    return order.includes(id);
+}
+
+function statsInPlay() {
+    return Boolean(adapter.getMeta()) && STAT_MODULES.some(statBlockOn);
+}
+
+// All four are recorded while any one is on: reading costs nothing, and a block
+// switched on later then finds its history already kept.
+function statsRecord(index) {
+    const msg = adapter.getChat()[index];
+    if (!msg || msg.is_user || msg.is_system) return;
+    stateStore.recordMessage(index, { moduleIds: STAT_MODULES });
+}
+
+function statsOnReceived(messageId) {
+    if (!statsInPlay()) return;
+    const chat = adapter.getChat();
+    const index = typeof messageId === "number" ? messageId : chat.length - 1;
+    stateStore.reconcile();
+    statsRecord(index);
+}
+
+function statsOnChatLoaded() {
+    if (!statsInPlay()) return;
+    const imported = [];
+    for (const id of STAT_MODULES) {
+        stateStore.reparseStale(id);
+        if (!stateStore.root()?.imported?.[id]) {
+            const n = stateStore.importFromChat(id);
+            if (n > 0) imported.push(`${id} (${n})`);
+        }
+    }
+    if (imported.length) console.log(`[Megumin-Suite] Picked up from this chat's existing messages: ${imported.join(", ")}.`);
+}
+
+/**
+ * What Current Info carries besides World State, for the blocks that are on:
+ * bonds for the characters the story needs now, the player's sheet, and the
+ * last Inner Chatter and Story Tracker. Empty strings when there is nothing.
+ * @param {{ recentText?: string }} opts  the last few messages, blocks removed
+ */
+export function statsPromptParts({ recentText = "" } = {}) {
+    const out = { bonds: "", sheet: "", chatter: "", tracker: "" };
+    if (!adapter.getMeta()) return out;
+    if (statBlockOn("bonds") && stateStore.hasState("bonds")) {
+        const state = stateStore.getState("bonds");
+        const present = worldHasState()
+            ? presentCast(getWorldState()).flatMap(c => [c.name, ...(c.aliases || [])])
+            : [];
+        const entries = stateStore.activeEntries("bonds").filter(e => !e.missing);
+        const last = entries[entries.length - 1];
+        const latestNames = (last && last.parsed && last.parsed.people || []).map(p => p.name);
+        out.bonds = renderBondsNotes(state, pickBondsFor(state, { present, recentText, latestNames }));
+    }
+    if (statBlockOn("sheet") && stateStore.hasState("sheet")) out.sheet = renderSheetNotes(stateStore.getState("sheet"));
+    if (statBlockOn("chatter") && stateStore.hasState("chatter")) out.chatter = stateStore.getState("chatter").text || "";
+    if (statBlockOn("tracker") && stateStore.hasState("tracker")) out.tracker = stateStore.getState("tracker").text || "";
+    return out;
+}
+
 // Manual mode: the state is read, never written by replies.
 function repliesUpdate() {
     return worldEnabled() && worldUpdateMode() !== "manual";
@@ -472,6 +547,7 @@ function repliesUpdate() {
  *   image call reads this reply instead of a separate Chomusuke read.
  */
 export function stateOnMessageReceived(messageId, type, { skipSideRead = false } = {}) {
+    statsOnReceived(messageId);
     if (!repliesUpdate() || !adapter.getMeta()) return false;
     const chat = adapter.getChat();
     const index = typeof messageId === "number" ? messageId : chat.length - 1;
@@ -502,9 +578,10 @@ export function stateOnMessageReceived(messageId, type, { skipSideRead = false }
 // A swipe being generated is left to MESSAGE_RECEIVED — see store.onSwiped for
 // why its text must not be read here.
 export function stateOnSwiped(messageId) {
-    if (!inPlay()) return false;
     const chat = adapter.getChat();
     const index = typeof messageId === "number" ? messageId : chat.length - 1;
+    if (statsInPlay()) stateStore.onSwiped(index, { moduleIds: STAT_MODULES });
+    if (!inPlay()) return false;
     if (!repliesUpdate()) {
         stateStore.reconcile();
         return true;
@@ -521,6 +598,7 @@ export function stateOnSwipeDeleted(data) {
 }
 
 export function stateOnEdited(messageId) {
+    if (statsInPlay()) statsRecord(messageId);
     if (!repliesUpdate() || !adapter.getMeta()) return false;
     const msg = adapter.getChat()[messageId];
     if (!msg || msg.is_user) return false;
@@ -550,6 +628,7 @@ export function stateOnDeleted() {
 
 /** Chat opened or reloaded: stamp, square with deletions made meanwhile, one-time import. */
 export function stateOnChatLoaded() {
+    statsOnChatLoaded();
     if (!inPlay()) return false;
     if (worldEnabled()) stateStore.stampAll();
     stateStore.reconcile();

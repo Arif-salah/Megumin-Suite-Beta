@@ -23,6 +23,8 @@ import { memEnsureSemanticQueryFresh } from "../features/memory/vectordb.js";
 import { npcBuildDossierPrompt } from "../features/npc/fields.js";
 import { escapeRegex } from "../utils/regex.js";
 import { buildBaseDict } from "./buildBaseDict.js";
+import { hideBlocksInMessages } from "./hideBlocks.js";
+import { meguminAllBlockTags } from "../features/blocks/registry.js";
 import { meguminAllSlotTriggers } from "../../data/slots.js";
 
 // Throttles the prompt-preview popup so token counting and rapid ST background
@@ -352,6 +354,15 @@ export async function handlePromptInjection(data, type) {
     // the block, and the envelope's slot line refers back to them.
     ["[[infoblock]]", "[[infoblock2]]", "[[npc_inner_chatter]]", "[[npc_inner_chatter2]]",
         "[[storytracker]]", "[[storytracker2]]", "[[npc_dossier2]]"].forEach(t => { dict[t] = ""; });
+
+    // Hide blocks from the AI (plan 008): the model reads the kept values once,
+    // in <Current_Info>, instead of every old block in the chat history. Done
+    // before the placeholders are filled, so the [[blocks]] template the preset
+    // carries is never touched — only the replies already in the chat.
+    if (localProfile.hideBlocksFromAI !== false) {
+        const hidden = hideBlocksInMessages(messages, meguminAllBlockTags());
+        if (hidden) console.debug(`[${extensionName}] Hid the blocks in ${hidden} earlier repl${hidden === 1 ? "y" : "ies"} from the model.`);
+    }
 
     let replacementsMade = 0;
     for (const msg of messages) {

@@ -262,7 +262,9 @@ export function initProfile() {
         },
         // Settings only. The World State itself lives in the chat file
         // (chat_metadata.megumin_state), never here.
-        worldState: { ...WORLD_SETTINGS_DEFAULTS }
+        worldState: { ...WORLD_SETTINGS_DEFAULTS },
+        // Plan 008: the story model reads Current Info, not its own old blocks.
+        hideBlocksFromAI: true
     };
 
 
