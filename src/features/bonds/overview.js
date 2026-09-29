@@ -8,6 +8,7 @@
 import { Popup, POPUP_TYPE, getContext } from "../../st.js";
 import { bondsOverview } from "../../state/index.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
+import { openStatsEditor } from "./editor.js";
 
 const esc = v => String(v == null ? "" : v)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -55,6 +56,7 @@ export async function openBondsOverview() {
             <div class="meg-bonds-pop-head">
                 <h3><i class="fa-solid fa-heart" style="color:#f43f5e;"></i> Bonds <span class="meg-bonds-pop-hint">${people.length} character${people.length === 1 ? "" : "s"}</span></h3>
                 ${people.length > 6 ? `<input type="search" class="ps-modern-input meg-bonds-search" placeholder="Search a name…"/>` : ""}
+                <button type="button" class="meg-bonds-all meg-bonds-edit" title="Edit values, add or forget characters, and see the history"><i class="fa-solid fa-pen"></i> Edit</button>
             </div>
             <div class="meg-bonds-pop-hint">Everyone's bonds kept for this chat. Marked ones are handed to the story right now; the rest come back when they return.</div>
             ${people.length
@@ -62,6 +64,7 @@ export async function openBondsOverview() {
                 : `<div class="meg-bonds-empty">No bonds on file for this chat yet.</div>`}
         </div>
     `);
+    $root.find(".meg-bonds-edit").on("click", () => { openStatsEditor({ view: "bonds" }); });
     $root.find(".meg-bonds-search").on("input", function () {
         const q = String($(this).val() || "").toLowerCase().trim();
         $root.find(".meg-bonds-person").each(function () {
@@ -71,16 +74,33 @@ export async function openBondsOverview() {
     await new Popup($root, POPUP_TYPE.TEXT, "", { wide: true, large: true, allowVerticalScrolling: true, okButton: "Close" }).show();
 }
 
-/** Puts the "All characters" button at the top of one message's Bonds pane. */
+function toolButton(html, title, onClick) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "meg-bonds-all";
+    b.title = title;
+    b.innerHTML = html;
+    b.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); onClick(); });
+    return b;
+}
+
+/** "All characters" and "Edit" at the top of one message's Bonds pane. */
 export function bondsDecoratePane(paneEl) {
     if (!paneEl || paneEl.querySelector(".meg-bonds-tools")) return;
     const tools = document.createElement("div");
     tools.className = "meg-bonds-tools";
-    tools.innerHTML = `<button type="button" class="meg-bonds-all" title="Every character's bonds kept for this chat"><i class="fa-solid fa-users"></i> All characters</button>`;
-    tools.querySelector("button").addEventListener("click", e => {
-        e.preventDefault();
-        e.stopPropagation();
-        openBondsOverview();
-    });
+    tools.append(
+        toolButton(`<i class="fa-solid fa-users"></i> All characters`, "Every character's bonds kept for this chat", () => openBondsOverview()),
+        toolButton(`<i class="fa-solid fa-pen"></i> Edit`, "Edit bonds, add or forget characters, and see the history", () => openStatsEditor({ view: "bonds" }))
+    );
+    paneEl.prepend(tools);
+}
+
+/** "Edit sheet" at the top of one message's Character Sheet pane. */
+export function sheetDecoratePane(paneEl) {
+    if (!paneEl || paneEl.querySelector(".meg-bonds-tools")) return;
+    const tools = document.createElement("div");
+    tools.className = "meg-bonds-tools";
+    tools.append(toolButton(`<i class="fa-solid fa-pen"></i> Edit sheet`, "Edit the sheet's values and see the history", () => openStatsEditor({ view: "sheet" })));
     paneEl.prepend(tools);
 }

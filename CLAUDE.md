@@ -91,7 +91,10 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
   **assistant** messages before placeholders are filled (the preset's block
   template stays). Chat Completion only. Custom blocks: stripped, never fed.
 - Bonds card: "All characters" button → popup of every kept character
-  (`features/bonds/overview.js`), "In the story now" first.
+  (`features/bonds/overview.js`), "In the story now" first. "Edit" (Bonds card,
+  overview) and "Edit sheet" (Sheet card) open `features/bonds/editor.js`:
+  Bonds | Sheet | History tabs, same rules as the World State editor (edits are
+  user entries; clear a box = remove the value; Forget = `parsed.forget`).
 - Storage: `chat_metadata.megumin_state`.
 
 ### Image Gen (`src/features/imagegen/`)
@@ -144,7 +147,7 @@ Sheet, Chatter, Tracker in the store; Current Info; old blocks hidden from the
 AI)** are DONE and tested by the developer. Also done: picking a tag style fills
 the prefix with quality tags (`imagegen/qualityPrefix.js`); a cancelled image
 removes its placeholder, a cancelled regenerate puts the old image back.
-175 tests pass.
+176 tests pass.
 `docs/image-prompts.md` lists every image prompt (generated from the code).
 
 ## Open follow-ups (raise these when relevant)
@@ -152,7 +155,6 @@ removes its placeholder, a cancelled regenerate puts the old image back.
 - If V2 images still bleed between characters: shorter looks in the prompt (drop
   small face details), then BREAK, then a regional-prompting workflow.
 - Review every background prompt (Chomusuke reads, look scan, outfit tags, combined).
-- Possible next for 008: a Bonds/Sheet editor (like World State's State + History).
 - Release post must include: the bonds are injected neatly, so the model isn't
   reading a chat with 100 bond blocks saying 20, 35, 65, 42 affection — it just
   gets the true value.

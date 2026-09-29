@@ -22,8 +22,14 @@ function fieldText(f) {
 }
 
 // One field's new value on top of the old one. Returns the change for the card, or null.
+// { remove: true } (an editor field cleared) takes the field off.
 function applyField(target, f) {
     const before = target[f.key];
+    if (f.remove) {
+        if (!before) return null;
+        delete target[f.key];
+        return { label: before.label, before: before.text, after: "" };
+    }
     let next;
     if (f.value !== undefined) {
         next = { label: f.label, value: f.value, ...(f.max !== undefined ? { max: f.max } : before && before.max !== undefined ? { max: before.max } : {}) };
@@ -53,7 +59,15 @@ export function findPersonKey(people, name) {
 export function applyBonds(prev, parsed, ctx = {}) {
     const state = structuredClone(prev || emptyBonds());
     const applied = [];
-    if (!parsed || !Array.isArray(parsed.people)) return { state, applied, notes: [] };
+    if (!parsed) return { state, applied, notes: [] };
+    // The editor's "Forget": the character's bonds go entirely.
+    for (const name of parsed.forget || []) {
+        const k = findPersonKey(state.people, name);
+        if (!k) continue;
+        applied.push({ label: state.people[k].name, before: "on file", after: "forgotten" });
+        delete state.people[k];
+    }
+    if (!Array.isArray(parsed.people)) return { state, applied, notes: [] };
     for (const p of parsed.people) {
         const key = findPersonKey(state.people, p.name) || statKey(p.name);
         const rec = state.people[key] || (state.people[key] = { name: p.name, fields: {} });

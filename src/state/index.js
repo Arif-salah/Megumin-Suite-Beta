@@ -15,7 +15,7 @@ import { createStateStore } from "./store.js";
 import { worldModule } from "./modules/world/index.js";
 import { bondsModule, sheetModule, chatterModule, trackerModule } from "./modules/stats/index.js";
 import { pickBondsFor } from "./modules/stats/model.js";
-import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
+import { renderBondsNotes, renderSheetNotes, describeStatsEntry } from "./modules/stats/render.js";
 import { presentCast } from "./modules/world/model.js";
 import {
     renderWorldForPrompt, renderWorldInstructions, renderWorldCard, findReturning, isEmptyWorld, describeWorldChange,
@@ -536,6 +536,35 @@ export function bondsOverview({ recentText = "" } = {}) {
     return Object.entries(state.people || {})
         .map(([k, p]) => ({ name: p.name, fields: Object.values(p.fields || {}), inPlay: now.has(k), seq: p.seq || 0 }))
         .sort((a, b) => (b.inPlay - a.inPlay) || (b.seq - a.seq) || a.name.localeCompare(b.name));
+}
+
+// ── Bonds / Sheet editor (plan 008) ──────────────────────────────────────
+
+/** The state now ("bonds" | "sheet"), or its empty shape. */
+export function statsState(moduleId) {
+    if (!adapter.getMeta()) return null;
+    return stateStore.getState(moduleId);
+}
+
+/** An edit from the editor: kept as the user's own change, never undone by swipes. */
+export function statsEdit(moduleId, parsed) {
+    if (!adapter.getMeta() || !STAT_MODULES.includes(moduleId) || !parsed) return null;
+    return stateStore.addUserEntry(moduleId, parsed);
+}
+
+/** History rows for Bonds and Sheet together, newest first, each change as a line. */
+export function statsHistory(moduleIds = ["bonds", "sheet"]) {
+    return moduleIds
+        .flatMap(id => stateStore.listEntries(id).map(row => ({ ...row, module: id, lines: describeStatsEntry(id, row.entry.parsed) })))
+        .sort((x, y) => (y.entry.seq - x.entry.seq) || (y.entry.n - x.entry.n));
+}
+
+export function statsSetEntryDisabled(entryId, disabled) {
+    return stateStore.setDisabled(entryId, disabled);
+}
+
+export function statsRemoveUserEntry(entryId) {
+    return stateStore.removeUserEntry(entryId);
 }
 
 /**

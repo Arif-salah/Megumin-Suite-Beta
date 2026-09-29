@@ -5090,3 +5090,5 @@
 .meg-bonds-bar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #f43f5e, #fb7185); }
 .meg-bonds-val { font-variant-numeric: tabular-nums; color: var(--text-main, #e2e8f0); }
 .meg-bonds-empty { font-size: .8rem; color: var(--text-muted, #94a3b8); font-style: italic; padding: 12px 0; }
+.meg-bonds-tools { gap: 6px; }
+.meg-sted .meg-wsed-title .meg-sted-search { margin-left: auto; max-width: 220px; }
