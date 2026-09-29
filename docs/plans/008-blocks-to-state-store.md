@@ -62,7 +62,7 @@ clean section, "Current Info", with the true values.
 
 ## Progress
 
-- [ ] Phase 1: pure modules
+- [x] Phase 1: pure modules
 - [ ] Phase 2: bridge + Current Info
 - [ ] Phase 3: prompt wording
 - [ ] Phase 4: hide blocks
