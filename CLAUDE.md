@@ -113,17 +113,19 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
 - ComfyUI polling: guard against overlapping async polls (busy/done flags), else
   duplicate images.
 
-## Status (2026-09-27)
+## Status (2026-09-29)
 
-Plans **005 (state store + World State)** and **006 (Image Gen V2)** are DONE and
-tested by the developer. 155 tests pass.
+Plans **005 (state store + World State)**, **006 (Image Gen V2)** and **007 (image
+prompt rewrite: one line per character, `<Last_Message>`)** are DONE and tested by
+the developer. Also done: picking a tag style fills the prefix with quality tags
+(`imagegen/qualityPrefix.js`); a cancelled image removes its placeholder, a
+cancelled regenerate puts the old image back. 162 tests pass.
+`docs/image-prompts.md` lists every image prompt (generated from the code).
 
 ## Open follow-ups (raise these when relevant)
 
-- Quality prefix presets that V2 injects automatically (Illustrious / Pony / SDXL /
-  none; natural: none / short), added in `comfy.js` after `@Name` resolution.
-- Multi-character bleeding in V2 image prompts (rules still leak traits between
-  characters).
+- If V2 images still bleed between characters: shorter looks in the prompt (drop
+  small face details), then BREAK, then a regional-prompting workflow.
 - Review every background prompt (Chomusuke reads, look scan, outfit tags, combined).
 - Convert **Bonds** and the other in-chat blocks into state-store modules.
 - Release post must include: the bonds are injected neatly, so the model isn't
