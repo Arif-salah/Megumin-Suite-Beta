@@ -5059,3 +5059,34 @@
 /* V2 page: master switch, cards, shared panels in one column */
 .ig2-cards > .ig2 { gap: 12px; }
 .ig2-shared #ig_main_content > .mtab-panel:last-child { margin-bottom: 0 !important; }
+
+/* ── Bonds overview (plan 008) ──────────────────────────────────────────────
+   The "All characters" button on the Bonds tab, and the popup listing every
+   character's bonds the extension keeps for this chat. */
+.meg-bonds-tools { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.meg-bonds-all {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: .72rem; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+    background: rgba(244,63,94,.12); color: #fda4af; border: 1px solid rgba(244,63,94,.3);
+}
+.meg-bonds-all:hover { background: rgba(244,63,94,.22); }
+.meg-bonds-pop { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.meg-bonds-pop-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.meg-bonds-pop-head h3 { margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+.meg-bonds-pop-head input { flex: 1; min-width: 160px; }
+.meg-bonds-pop-hint { font-size: .72rem; color: var(--text-muted, #94a3b8); }
+.meg-bonds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.meg-bonds-person {
+    background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.08); border-radius: 10px;
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.meg-bonds-person.in-play { border-color: rgba(244,63,94,.45); box-shadow: 0 0 0 1px rgba(244,63,94,.15) inset; }
+.meg-bonds-name { font-weight: 700; font-size: .9rem; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.meg-bonds-now { font-size: .62rem; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: rgba(244,63,94,.18); color: #fda4af; white-space: nowrap; }
+.meg-bonds-field { display: grid; grid-template-columns: 78px 1fr auto; align-items: center; gap: 8px; font-size: .74rem; }
+.meg-bonds-field.is-text { grid-template-columns: 78px 1fr; }
+.meg-bonds-label { color: var(--text-muted, #94a3b8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meg-bonds-bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+.meg-bonds-bar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #f43f5e, #fb7185); }
+.meg-bonds-val { font-variant-numeric: tabular-nums; color: var(--text-main, #e2e8f0); }
+.meg-bonds-empty { font-size: .8rem; color: var(--text-muted, #94a3b8); font-style: italic; padding: 12px 0; }

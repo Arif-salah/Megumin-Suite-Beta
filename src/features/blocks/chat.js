@@ -15,6 +15,7 @@ import { meguminRenderRegistry, meguminBlocksTakenByPanel, meguminStatFieldMap }
 // nothing under features/npc/ imports the block card.
 import { npcDecorateUpdatePane } from "../npc/updateCard.js";
 import { worldCardTextAt, worldExtractMessage } from "../../state/index.js";
+import { bondsDecoratePane } from "../bonds/overview.js";
 import { worldDecoratePane } from "../worldstate/card.js";
 import { openWorldEditor } from "../worldstate/editor.js";
 
@@ -145,6 +146,9 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
             const pane = bodyEl.querySelector('.meg-block-body[data-block-id="npcUpdate"]');
             if (pane) npcDecorateUpdatePane(pane, msgIndex);
             // Same for World State: what this reply changed, on top of the board.
+            // Bonds: a button to every character's bonds on file.
+            const bondsPane = bodyEl.querySelector('.meg-block-body[data-block-id="bonds"]');
+            if (bondsPane) bondsDecoratePane(bondsPane);
             const wsPane = bodyEl.querySelector('.meg-block-body[data-block-id="world"]');
             if (wsPane) worldDecoratePane(wsPane, msgIndex, {
                 onEdit: () => openWorldEditor(),

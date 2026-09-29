@@ -65,7 +65,7 @@ export function renderBlocksTab(c) {
     // ── HIDE BLOCKS FROM THE AI (plan 008) ──
     const hide = $(`
         <label class="blk-ws-chip blk-hide-ai" title="The story model reads the current values (Bonds, Sheet, World State, the last Inner Chatter and Story Tracker) once, in Current Info, instead of every old block in the chat. Turn off to let it read the old blocks again.">
-            <input type="checkbox" id="blk_hide_ai" ${localProfile.hideBlocksFromAI !== false ? "checked" : ""}/> Hide old blocks from the AI (it reads Current Info instead)
+            <input type="checkbox" id="blk_hide_ai" ${localProfile.hideBlocksFromAI !== false ? "checked" : ""}/> Hide old blocks from the AI (it reads Current Info instead) <span class="ecard-badge rec"><i class="fa-solid fa-star"></i> Recommended</span>
         </label>
     `);
     hide.find("#blk_hide_ai").on("change", function () {

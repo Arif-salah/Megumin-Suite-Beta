@@ -512,6 +512,32 @@ function statsOnChatLoaded() {
     if (imported.length) console.log(`[Megumin-Suite] Picked up from this chat's existing messages: ${imported.join(", ")}.`);
 }
 
+// Whose bonds the story is handed right now (record keys).
+function bondsInPlay(state, recentText) {
+    const present = worldHasState()
+        ? presentCast(getWorldState()).flatMap(c => [c.name, ...(c.aliases || [])])
+        : [];
+    const entries = stateStore.activeEntries("bonds").filter(e => !e.missing);
+    const last = entries[entries.length - 1];
+    const latestNames = (last && last.parsed && last.parsed.people || []).map(p => p.name);
+    return pickBondsFor(state, { present, recentText, latestNames });
+}
+
+/**
+ * Every character's bonds on file, for the overview popup: the ones the story
+ * is handed right now first, then the most recently seen.
+ * @param {{ recentText?: string }} opts
+ * @returns {Array<{ name: string, fields: object[], inPlay: boolean }>}
+ */
+export function bondsOverview({ recentText = "" } = {}) {
+    if (!adapter.getMeta() || !stateStore.hasState("bonds")) return [];
+    const state = stateStore.getState("bonds");
+    const now = new Set(bondsInPlay(state, recentText));
+    return Object.entries(state.people || {})
+        .map(([k, p]) => ({ name: p.name, fields: Object.values(p.fields || {}), inPlay: now.has(k), seq: p.seq || 0 }))
+        .sort((a, b) => (b.inPlay - a.inPlay) || (b.seq - a.seq) || a.name.localeCompare(b.name));
+}
+
 /**
  * What Current Info carries besides World State, for the blocks that are on:
  * bonds for the characters the story needs now, the player's sheet, and the
@@ -523,13 +549,7 @@ export function statsPromptParts({ recentText = "" } = {}) {
     if (!adapter.getMeta()) return out;
     if (statBlockOn("bonds") && stateStore.hasState("bonds")) {
         const state = stateStore.getState("bonds");
-        const present = worldHasState()
-            ? presentCast(getWorldState()).flatMap(c => [c.name, ...(c.aliases || [])])
-            : [];
-        const entries = stateStore.activeEntries("bonds").filter(e => !e.missing);
-        const last = entries[entries.length - 1];
-        const latestNames = (last && last.parsed && last.parsed.people || []).map(p => p.name);
-        out.bonds = renderBondsNotes(state, pickBondsFor(state, { present, recentText, latestNames }));
+        out.bonds = renderBondsNotes(state, bondsInPlay(state, recentText));
     }
     if (statBlockOn("sheet") && stateStore.hasState("sheet")) out.sheet = renderSheetNotes(stateStore.getState("sheet"));
     if (statBlockOn("chatter") && stateStore.hasState("chatter")) out.chatter = stateStore.getState("chatter").text || "";
