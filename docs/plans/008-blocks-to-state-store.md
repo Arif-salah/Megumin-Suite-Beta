@@ -66,4 +66,5 @@ clean section, "Current Info", with the true values.
 - [x] Phase 2: bridge + Current Info
 - [x] Phase 3: prompt wording
 - [x] Phase 4: hide blocks
-- [ ] Phase 5: test + docs
+- [x] Phase 5: test + docs (tested by the developer 2026-09-29)
+- [x] Extra: "All characters" button on the Bonds card; hide-blocks marked Recommended

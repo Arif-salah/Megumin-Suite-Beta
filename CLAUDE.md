@@ -46,7 +46,7 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
 7. When a model writes the same field twice in one update block, **the first wins**.
    `Condition` belongs to the player only.
 
-## Architecture: what 005 / 006 built
+## Architecture: what 005–008 built
 
 ### State store (`src/state/`)
 - `store.js` — `createStateStore({adapter, modules, journalDepth, rootKey})`. A
@@ -61,6 +61,13 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
   first-wins, PC-only Condition, timers by subject), `render.js` (prompt notes,
   update/bootstrap instructions, card, Chomusuke read task), `index.js`
   (`worldModule`, `version: 2`).
+- `modules/stats/` (plan 008) — Bonds, Character Sheet, Inner Chatter, Story
+  Tracker. `parse.js` ("Label: value | …" cells, labels read as written so
+  user-added fields work; meters `45/100 (+5 reason)`, bare `+5` moves the old
+  value), `model.js` (bonds per character, never dropped; first-wins; name match
+  exact then unique first name; `pickBondsFor`: scene cast + names in the last 3
+  messages + the latest Bonds block), `render.js`, `index.js` (`bondsModule`,
+  `sheetModule`, `chatterModule`/`trackerModule` = last copy only).
 - `index.js` — the SillyTavern bridge: settings, `worldUpdateMode()`
   (`inline` = story model writes `<World_Update>`; `sidemodel` = Chomusuke reads
   the reply, when the Chomusuke tab's World State route is on; `manual`), prompt
@@ -69,6 +76,22 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
 - UI: `src/features/worldstate/card.js` ("Changed in this reply" strip, folded by
   default; Revert/Restore/Read again/Edit), `editor.js` (State + History popup),
   settings in `src/features/blocks/ui.js`.
+- Stats in the bridge: `STAT_MODULES`, `statBlockOn(id)` (block in
+  `blockStack.order`; tracker follows `storyPlan.enabled`). All four are recorded
+  while any is on; old chats are imported once on load (text only).
+  `statsPromptParts` + `bondsOverview`.
+- **Current Info** (`buildCurrentInfo` in `engine/buildBaseDict.js`) fills
+  `[[infoblockcurrent]]`: `<Current_Info>` = World State notes + `<Bonds_Now>` +
+  `<Character_Sheet_Now>` + `<Last_Inner_Chatter>` + `<Last_Story_Tracker>`, each
+  only when its block is on. Bonds/Sheet rules say "start from <Bonds_Now> in
+  <Current_Info>" (`meguminStatRules`).
+- **Hide old blocks from the AI** (`engine/hideBlocks.js`, setting
+  `hideBlocksFromAI`, default on, Blocks tab, marked Recommended): strips the
+  envelope, every block tag, lead Dice and old `<details>` cards from
+  **assistant** messages before placeholders are filled (the preset's block
+  template stays). Chat Completion only. Custom blocks: stripped, never fed.
+- Bonds card: "All characters" button → popup of every kept character
+  (`features/bonds/overview.js`), "In the story now" first.
 - Storage: `chat_metadata.megumin_state`.
 
 ### Image Gen (`src/features/imagegen/`)
@@ -115,11 +138,13 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
 
 ## Status (2026-09-29)
 
-Plans **005 (state store + World State)**, **006 (Image Gen V2)** and **007 (image
-prompt rewrite: one line per character, `<Last_Message>`)** are DONE and tested by
-the developer. Also done: picking a tag style fills the prefix with quality tags
-(`imagegen/qualityPrefix.js`); a cancelled image removes its placeholder, a
-cancelled regenerate puts the old image back. 162 tests pass.
+Plans **005 (state store + World State)**, **006 (Image Gen V2)**, **007 (image
+prompt rewrite: one line per character, `<Last_Message>`)** and **008 (Bonds,
+Sheet, Chatter, Tracker in the store; Current Info; old blocks hidden from the
+AI)** are DONE and tested by the developer. Also done: picking a tag style fills
+the prefix with quality tags (`imagegen/qualityPrefix.js`); a cancelled image
+removes its placeholder, a cancelled regenerate puts the old image back.
+175 tests pass.
 `docs/image-prompts.md` lists every image prompt (generated from the code).
 
 ## Open follow-ups (raise these when relevant)
@@ -127,7 +152,7 @@ cancelled regenerate puts the old image back. 162 tests pass.
 - If V2 images still bleed between characters: shorter looks in the prompt (drop
   small face details), then BREAK, then a regional-prompting workflow.
 - Review every background prompt (Chomusuke reads, look scan, outfit tags, combined).
-- Convert **Bonds** and the other in-chat blocks into state-store modules.
+- Possible next for 008: a Bonds/Sheet editor (like World State's State + History).
 - Release post must include: the bonds are injected neatly, so the model isn't
   reading a chat with 100 bond blocks saying 20, 35, 65, 42 affection — it just
   gets the true value.
