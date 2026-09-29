@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { createStateStore } from "../src/state/store.js";
 import { parseBonds, parseSheet, parseLatest, parseStatValue } from "../src/state/modules/stats/parse.js";
 import { applyBonds, applySheet, pickBondsFor, emptyBonds } from "../src/state/modules/stats/model.js";
-import { renderBondsNotes, renderSheetNotes, describeStatsEntry } from "../src/state/modules/stats/render.js";
+import { renderBondsNotes, renderSheetNotes } from "../src/state/modules/stats/render.js";
 import { bondsModule, sheetModule, chatterModule, trackerModule } from "../src/state/modules/stats/index.js";
 
 const BONDS_TEMPLATE = `[One line per named NPC present in the scene, plus any NPC whose numbers changed this scene. Nobody else.
@@ -142,7 +142,7 @@ test("store: an old chat is read on import, so old characters keep their bonds",
 
 // ── Editor edits ─────────────────────────────────────────────────────────
 
-test("editor: set a value, clear a field, forget a character; history lines read plainly", () => {
+test("editor: set a value, clear a field, forget a character", () => {
     let s = applyBonds(emptyBonds(), parseBonds(reply("Anno: Mood: smug | Affection: 40/100\nMatt: Affection: 30/100")), { seq: 1 }).state;
     const edit = { kind: "delta", people: [{ name: "Anno", fields: [
         { key: "affection", label: "Affection", ...parseStatValue("55") },
@@ -153,7 +153,4 @@ test("editor: set a value, clear a field, forget a character; history lines read
     assert.equal(s.people.anno.fields.affection.text, "55/100", "a bare number keeps the meter's max");
     assert.equal(s.people.anno.fields.mood, undefined);
     assert.equal(s.people.matt, undefined);
-    assert.deepEqual(describeStatsEntry("bonds", edit), ["Forgot Matt", "Anno: Affection 55 · Mood cleared"]);
-    assert.deepEqual(describeStatsEntry("bonds", parseBonds(reply("Anno: Affection: 45/100 (+5 gift)"))), ["Anno: Affection 45/100 (+5 gift)"]);
-    assert.deepEqual(describeStatsEntry("sheet", parseSheet("<Character_Sheet>\nGold: -30 bought a map\n</Character_Sheet>")), ["Gold -30 bought a map"]);
 });

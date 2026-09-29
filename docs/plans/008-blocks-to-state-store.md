@@ -68,4 +68,4 @@ clean section, "Current Info", with the true values.
 - [x] Phase 4: hide blocks
 - [x] Phase 5: test + docs (tested by the developer 2026-09-29)
 - [x] Extra: "All characters" button on the Bonds card; hide-blocks marked Recommended
-- [x] Extra: Bonds / Sheet editor (Bonds | Sheet | History), opened from the cards
+- [x] Extra: Bonds / Sheet editor (Bonds | Sheet), opened from the cards

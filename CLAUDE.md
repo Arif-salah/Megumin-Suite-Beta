@@ -93,8 +93,9 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
 - Bonds card: "All characters" button → popup of every kept character
   (`features/bonds/overview.js`), "In the story now" first. "Edit" (Bonds card,
   overview) and "Edit sheet" (Sheet card) open `features/bonds/editor.js`:
-  Bonds | Sheet | History tabs, same rules as the World State editor (edits are
-  user entries; clear a box = remove the value; Forget = `parsed.forget`).
+  Bonds | Sheet tabs, no History (the developer's call: to change a value, edit
+  it again). Edits are user entries; clear a box = remove the value; Forget =
+  `parsed.forget`.
 - Storage: `chat_metadata.megumin_state`.
 
 ### Image Gen (`src/features/imagegen/`)

@@ -4,18 +4,13 @@
 //   Bonds   — every character's bonds, each value editable; add a character,
 //             forget one.
 //   Sheet   — the player's sheet, each value editable.
-//   History — every Bonds and Sheet entry (replies, imports, your edits),
-//             newest first; a reply's changes can be turned off, an edit deleted.
 //
-// Same rules as the World State editor: an edit is kept as the user's own change,
-// so swipes, rewinds and deletes never undo it; deleting it from History takes
-// it back.
+// An edit is kept as the user's own change, so swipes, rewinds and deletes
+// never undo it. To change it again, just edit it again.
 // ────────────────────────────────────────────────────────────────────────────
 
 import { Popup, POPUP_TYPE, getContext, substituteParams } from "../../st.js";
-import {
-    statsState, statsEdit, statsHistory, statsSetEntryDisabled, statsRemoveUserEntry, statBlockOn
-} from "../../state/index.js";
+import { statsState, statsEdit, statBlockOn } from "../../state/index.js";
 import { parseStatValue, statKey } from "../../state/modules/stats/parse.js";
 import { meguminStatFields } from "../blocks/registry.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
@@ -90,43 +85,6 @@ function renderSheetView() {
         </div>`;
 }
 
-// ── History view ─────────────────────────────────────────────────────────
-
-function renderHistoryView(showAllSwipes) {
-    const rows = statsHistory().filter(r => showAllSwipes || r.active || r.entry.disabled || r.entry.source === "user" || r.entry.orphan);
-    const rowHtml = r => {
-        const e = r.entry;
-        let where;
-        if (e.source === "user") where = `<i class="fa-solid fa-user-pen"></i> Your edit`;
-        else if (e.orphan) where = `<i class="fa-solid fa-ghost"></i> Deleted message (changes kept)`;
-        else if (r.index == null) where = `<i class="fa-regular fa-message"></i> Message not found`;
-        else where = `<i class="fa-regular fa-message"></i> Message #${r.index}${r.shownSwipe !== e.swipe || e.swipe > 0 ? ` · swipe ${e.swipe + 1}` : ""}`;
-        const badges = [`<span class="meg-wsed-badge">${r.module === "bonds" ? "bonds" : "sheet"}</span>`];
-        if (e.source === "import") badges.push(`<span class="meg-wsed-badge">imported</span>`);
-        if (e.disabled) badges.push(`<span class="meg-wsed-badge off">off</span>`);
-        else if (!r.active) badges.push(`<span class="meg-wsed-badge dim">not showing</span>`);
-        const lines = r.lines.length
-            ? r.lines.slice(0, 5).map(l => `<div class="meg-wsed-line">${esc(l)}</div>`).join("") +
-              (r.lines.length > 5 ? `<details class="meg-wsed-more"><summary>${r.lines.length - 5} more</summary>${r.lines.slice(5).map(l => `<div class="meg-wsed-line">${esc(l)}</div>`).join("")}</details>` : "")
-            : `<div class="meg-wsed-line dim">No changes.</div>`;
-        const action = e.source === "user"
-            ? `<button type="button" class="meg-wsed-mini meg-sted-hdel" data-id="${esc(e.id)}" title="Delete this edit"><i class="fa-solid fa-trash"></i> Delete</button>`
-            : `<button type="button" class="meg-wsed-mini meg-sted-htoggle" data-id="${esc(e.id)}" data-off="${e.disabled ? 1 : 0}">${e.disabled ? `<i class="fa-solid fa-rotate-right"></i> Turn on` : `<i class="fa-solid fa-rotate-left"></i> Turn off`}</button>`;
-        return `
-            <div class="meg-wsed-hrow ${r.active ? "" : "is-dim"}">
-                <div class="meg-wsed-hhead"><span class="meg-wsed-where">${where}</span>${badges.join("")}<span class="meg-wsed-spacer"></span>${action}</div>
-                ${lines}
-            </div>`;
-    };
-    return `
-        <div class="meg-wsed-section">
-            <div class="meg-wsed-title"><i class="fa-solid fa-clock-rotate-left"></i> History
-                <label class="meg-wsed-check"><input type="checkbox" class="meg-sted-allswipes" ${showAllSwipes ? "checked" : ""}/> show other swipes</label>
-            </div>
-            ${rows.map(rowHtml).join("") || `<div class="meg-wsed-empty">Nothing recorded yet.</div>`}
-        </div>`;
-}
-
 // ── Popup ────────────────────────────────────────────────────────────────
 
 /** One edited value as a field change; "" clears it. A meter keeps its max. */
@@ -141,14 +99,13 @@ function fieldChange(d, raw) {
     return { key: d.key, label: d.label, ...v };
 }
 
-/** @param {{ view?: "bonds"|"sheet"|"history" }} [opts] */
+/** @param {{ view?: "bonds"|"sheet" }} [opts] */
 export async function openStatsEditor({ view = "bonds" } = {}) {
     if (!getContext()?.chatId) {
         toastr.info("Open a chat first: bonds and the sheet belong to a chat.", "Megumin Suite");
         return;
     }
-    let current = view;
-    let showAllSwipes = false;
+    let current = view === "sheet" ? "sheet" : "bonds";
     let search = "";
     const $root = $(`<div class="meg-wsed meg-sted"></div>`);
 
@@ -165,11 +122,11 @@ export async function openStatsEditor({ view = "bonds" } = {}) {
         $root.html(`
             <div class="meg-wsed-top">
                 <div class="meg-wsed-tabs">
-                    ${tab("bonds", "fa-heart", "Bonds")}${tab("sheet", "fa-shield-halved", "Sheet")}${tab("history", "fa-clock-rotate-left", "History")}
+                    ${tab("bonds", "fa-heart", "Bonds")}${tab("sheet", "fa-shield-halved", "Sheet")}
                 </div>
-                <div class="meg-wsed-hint">Your edits are kept as your own changes: swipes, rewinds and deletes never undo them. Delete one from History to take it back. Clear a box to remove that value.</div>
+                <div class="meg-wsed-hint">Your edits are kept: swipes, rewinds and deletes never undo them. Clear a box to remove that value.</div>
             </div>
-            ${current === "bonds" ? renderBondsView() : current === "sheet" ? renderSheetView() : renderHistoryView(showAllSwipes)}
+            ${current === "bonds" ? renderBondsView() : renderSheetView()}
         `);
         bind();
         if (search) $root.find(".meg-sted-search").val(search).trigger("input");
@@ -224,18 +181,6 @@ export async function openStatsEditor({ view = "bonds" } = {}) {
             });
         });
 
-        // History
-        $root.find(".meg-sted-allswipes").on("change", function () { showAllSwipes = this.checked; draw(); });
-        $root.find(".meg-sted-htoggle").on("click", function () {
-            statsSetEntryDisabled(this.dataset.id, this.dataset.off !== "1");
-            meguminScheduleBlocksRefresh();
-            draw();
-        });
-        $root.find(".meg-sted-hdel").on("click", function () {
-            statsRemoveUserEntry(this.dataset.id);
-            meguminScheduleBlocksRefresh();
-            draw();
-        });
     }
 
     draw();

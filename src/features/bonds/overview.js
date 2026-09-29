@@ -56,7 +56,7 @@ export async function openBondsOverview() {
             <div class="meg-bonds-pop-head">
                 <h3><i class="fa-solid fa-heart" style="color:#f43f5e;"></i> Bonds <span class="meg-bonds-pop-hint">${people.length} character${people.length === 1 ? "" : "s"}</span></h3>
                 ${people.length > 6 ? `<input type="search" class="ps-modern-input meg-bonds-search" placeholder="Search a name…"/>` : ""}
-                <button type="button" class="meg-bonds-all meg-bonds-edit" title="Edit values, add or forget characters, and see the history"><i class="fa-solid fa-pen"></i> Edit</button>
+                <button type="button" class="meg-bonds-all meg-bonds-edit" title="Edit values, add or forget characters"><i class="fa-solid fa-pen"></i> Edit</button>
             </div>
             <div class="meg-bonds-pop-hint">Everyone's bonds kept for this chat. Marked ones are handed to the story right now; the rest come back when they return.</div>
             ${people.length
@@ -91,7 +91,7 @@ export function bondsDecoratePane(paneEl) {
     tools.className = "meg-bonds-tools";
     tools.append(
         toolButton(`<i class="fa-solid fa-users"></i> All characters`, "Every character's bonds kept for this chat", () => openBondsOverview()),
-        toolButton(`<i class="fa-solid fa-pen"></i> Edit`, "Edit bonds, add or forget characters, and see the history", () => openStatsEditor({ view: "bonds" }))
+        toolButton(`<i class="fa-solid fa-pen"></i> Edit`, "Edit bonds, add or forget characters", () => openStatsEditor({ view: "bonds" }))
     );
     paneEl.prepend(tools);
 }
@@ -101,6 +101,6 @@ export function sheetDecoratePane(paneEl) {
     if (!paneEl || paneEl.querySelector(".meg-bonds-tools")) return;
     const tools = document.createElement("div");
     tools.className = "meg-bonds-tools";
-    tools.append(toolButton(`<i class="fa-solid fa-pen"></i> Edit sheet`, "Edit the sheet's values and see the history", () => openStatsEditor({ view: "sheet" })));
+    tools.append(toolButton(`<i class="fa-solid fa-pen"></i> Edit sheet`, "Edit the sheet's values", () => openStatsEditor({ view: "sheet" })));
     paneEl.prepend(tools);
 }

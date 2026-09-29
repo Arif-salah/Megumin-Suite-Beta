@@ -15,7 +15,7 @@ import { createStateStore } from "./store.js";
 import { worldModule } from "./modules/world/index.js";
 import { bondsModule, sheetModule, chatterModule, trackerModule } from "./modules/stats/index.js";
 import { pickBondsFor } from "./modules/stats/model.js";
-import { renderBondsNotes, renderSheetNotes, describeStatsEntry } from "./modules/stats/render.js";
+import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast } from "./modules/world/model.js";
 import {
     renderWorldForPrompt, renderWorldInstructions, renderWorldCard, findReturning, isEmptyWorld, describeWorldChange,
@@ -552,20 +552,6 @@ export function statsEdit(moduleId, parsed) {
     return stateStore.addUserEntry(moduleId, parsed);
 }
 
-/** History rows for Bonds and Sheet together, newest first, each change as a line. */
-export function statsHistory(moduleIds = ["bonds", "sheet"]) {
-    return moduleIds
-        .flatMap(id => stateStore.listEntries(id).map(row => ({ ...row, module: id, lines: describeStatsEntry(id, row.entry.parsed) })))
-        .sort((x, y) => (y.entry.seq - x.entry.seq) || (y.entry.n - x.entry.n));
-}
-
-export function statsSetEntryDisabled(entryId, disabled) {
-    return stateStore.setDisabled(entryId, disabled);
-}
-
-export function statsRemoveUserEntry(entryId) {
-    return stateStore.removeUserEntry(entryId);
-}
 
 /**
  * What Current Info carries besides World State, for the blocks that are on:
