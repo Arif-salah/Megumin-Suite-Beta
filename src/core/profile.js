@@ -257,8 +257,12 @@ export function initProfile() {
                 imageGen: true,
                 styleGen: true,
                 // Off by default: when on, every reply costs one extra worker call.
-                worldState: false
-            }
+                worldState: false,
+                // Plan 009: Chomusuke writes the chosen blocks instead of the story model.
+                blocks: false
+            },
+            // Which blocks go to Chomusuke when the Blocks route is on.
+            blockRoutes: { bonds: true, sheet: true, chatter: true, cyoa: true }
         },
         // Settings only. The World State itself lives in the chat file
         // (chat_metadata.megumin_state), never here.

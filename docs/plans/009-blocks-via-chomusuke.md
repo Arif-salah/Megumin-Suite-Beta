@@ -63,7 +63,7 @@ takes World State off its hands; it can take the blocks too.
 ## Progress
 
 - [x] Phase 1: pure
-- [ ] Phase 2: routing + separate read
+- [x] Phase 2: routing + separate read
 - [ ] Phase 3: cards
 - [ ] Phase 4: combine
 - [ ] Phase 5: test + docs

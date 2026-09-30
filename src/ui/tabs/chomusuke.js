@@ -211,6 +211,14 @@ export function renderChomusuke(c) {
             defaultOff: true
         },
         {
+            key: "blocks",
+            title: "Blocks",
+            icon: "fa-cubes",
+            color: "#f43f5e",
+            desc: "On: Chomusuke writes the blocks you pick below after each reply, and the story model no longer writes them (more of its reply goes to the story). One worker call per reply.",
+            defaultOff: true
+        },
+        {
             key: "styleGen",
             title: "Writing Style Generator",
             icon: "fa-wand-magic-sparkles",
@@ -248,6 +256,35 @@ export function renderChomusuke(c) {
         });
 
         $routingPanel.append($row);
+
+        // Plan 009: which blocks the Blocks route takes, one switch each.
+        if (feat.key === "blocks" && isFeatOn) {
+            if (!cfg.blockRoutes || typeof cfg.blockRoutes !== "object") cfg.blockRoutes = { bonds: true, sheet: true, chatter: true, cyoa: true };
+            const subs = [
+                { id: "bonds", label: "Bonds", icon: "fa-heart" },
+                { id: "sheet", label: "Character Sheet", icon: "fa-shield-halved" },
+                { id: "chatter", label: "NPC Inner Chatter", icon: "fa-comments" },
+                { id: "cyoa", label: "CYOA choices", icon: "fa-list-check" }
+            ];
+            const stack = (localProfile.blockStack && localProfile.blockStack.order) || [];
+            const $subs = $(`<div class="chomu-block-routes"></div>`);
+            subs.forEach(s => {
+                const on = cfg.blockRoutes[s.id] !== false;
+                const inStack = stack.includes(s.id);
+                const $s = $(`
+                    <label class="chomu-block-route ${inStack ? "" : "is-off"}" title="${inStack ? "" : "This block is not in your block stack (Blocks tab), so there is nothing to write."}">
+                        <input type="checkbox" ${on ? "checked" : ""}/>
+                        <i class="fa-solid ${s.icon}"></i> ${s.label}${inStack ? "" : " <small>(not in your blocks)</small>"}
+                    </label>
+                `);
+                $s.find("input").on("change", function () {
+                    cfg.blockRoutes[s.id] = this.checked;
+                    saveProfileToMemory();
+                });
+                $subs.append($s);
+            });
+            $routingPanel.append($subs);
+        }
     });
 
     $content.append($routingPanel);

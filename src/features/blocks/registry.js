@@ -12,7 +12,7 @@
 
 import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
-import { worldBlockRequest } from "../../state/index.js";
+import { worldBlockRequest, blockViaChomusuke } from "../../state/index.js";
 
 // -------------------------------------------------------------
 // BLOCK REGISTRY — one definition per block the <Blocks> envelope can carry
@@ -201,6 +201,23 @@ export function meguminActiveBlocks() {
 // The instruction is a literal skeleton rather than a description of one. Models
 // follow a structure they can see far more reliably than a structure they have to
 // infer from prose, and the templates were already fill-in-the-blank.
+// A block's template as the model is asked for it (the story model in the
+// envelope, or Chomusuke when it writes the block). Any per-block header line
+// comes off first: the envelope carries one of its own, above everything.
+// Three ways a body arrives: a dict tag the rest of the pipeline already
+// produced (so engine overrides and custom prompts still apply), a template
+// generated from a field list, or a custom block's own text.
+export function meguminBlockTemplateBody(b, dict) {
+    let raw;
+    if (typeof b.build === "function") raw = b.build();
+    else if (b.source) raw = (dict && dict[b.source]) || "";
+    else raw = b.content || "";
+    return normalizeBlockBody(
+        String(raw).replace(/^#{1,3}\s*At the end of your response[^\n]*\n?/i, ""),
+        b.tag
+    );
+}
+
 export function buildBlocksEnvelope(dict) {
     const active = meguminActiveBlocks();
     if (!active.length) return "";
@@ -234,19 +251,10 @@ export function buildBlocksEnvelope(dict) {
             return;
         }
 
-        // Any per-block header line comes off first: the envelope carries one of
-        // its own, above everything.
-        // Three ways a body arrives: a dict tag the rest of the pipeline already
-        // produced (so engine overrides and custom prompts still apply), a
-        // template generated from a field list, or a custom block's own text.
-        let raw;
-        if (typeof b.build === "function") raw = b.build();
-        else if (b.source) raw = dict[b.source] || "";
-        else raw = b.content || "";
-        const body = normalizeBlockBody(
-            String(raw).replace(/^#{1,3}\s*At the end of your response[^\n]*\n?/i, ""),
-            b.tag
-        );
+        // Plan 009: Chomusuke writes this one after the reply.
+        if (blockViaChomusuke(b.id)) return;
+
+        const body = meguminBlockTemplateBody(b, dict);
         if (!body) return;
 
         parts.push(`<${b.tag}>\n${body}\n</${b.tag}>`);

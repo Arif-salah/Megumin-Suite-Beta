@@ -102,6 +102,7 @@ import {
     pruneFutureData,
 } from "./src/core/profile.js";
 import { meguminSyncLegacyBlockIds } from "./src/features/blocks/registry.js";
+import { blocksReadForReply, NOT_A_REPLY as BLOCKS_NOT_A_REPLY } from "./src/features/blocks/worker.js";
 import { buildConfigBlock } from "./src/features/storyconfig/config.js";
 import { renderStoryConfig } from "./src/features/storyconfig/ui.js";
 import { SD_GENRES, renderStoryPlanner, generateStoryPlanLogic } from "./src/features/storyplan/ui.js";
@@ -502,6 +503,17 @@ jQuery(async () => {
                     v2LooksForArrivals();
                 } catch (e) {
                     console.error("[Megumin-Suite] World State update failed", e);
+                }
+
+                // --- BLOCKS BY CHOMUSUKE (plan 009) ---
+                // Bonds, Sheet, Inner Chatter, CYOA the story model was not asked
+                // for: Chomusuke reads the reply and writes them. Queued after the
+                // World State read. Does nothing unless the Blocks route is on.
+                if (!BLOCKS_NOT_A_REPLY.has(receivedType)) {
+                    const chatNow = getContext().chat || [];
+                    const blocksIndex = typeof receivedId === "number" ? receivedId : chatNow.length - 1;
+                    blocksReadForReply(blocksIndex, { force: receivedType === "continue" })
+                        .catch(e => console.error("[Megumin-Suite] Blocks read failed", e));
                 }
 
                 // --- AUTOMATIC IMAGE BY CHOMUSUKE ---

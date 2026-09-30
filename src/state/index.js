@@ -13,7 +13,8 @@ import { setActiveWorldExtractRequest } from "../core/activeRequests.js";
 import { localProfile } from "../core/state.js";
 import { createStateStore } from "./store.js";
 import { worldModule } from "./modules/world/index.js";
-import { bondsModule, sheetModule, chatterModule, trackerModule } from "./modules/stats/index.js";
+import { bondsModule, sheetModule, chatterModule, trackerModule, cyoaModule } from "./modules/stats/index.js";
+import { renderWorkerNotes, cleanWorkerAnswer, blockTextIn } from "./modules/stats/worker.js";
 import { pickBondsFor } from "./modules/stats/model.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast } from "./modules/world/model.js";
@@ -79,7 +80,7 @@ const adapter = {
 
 export const stateStore = createStateStore({
     adapter,
-    modules: { world: worldModule, bonds: bondsModule, sheet: sheetModule, chatter: chatterModule, tracker: trackerModule },
+    modules: { world: worldModule, bonds: bondsModule, sheet: sheetModule, chatter: chatterModule, tracker: trackerModule, cyoa: cyoaModule },
     journalDepth: () => worldSettings().journalDepth
 });
 
@@ -469,7 +470,25 @@ const NOT_A_REPLY = new Set(["first_message", "command", "impersonate", "quiet"]
 // Kept from the blocks in each reply, so the story model can be handed the
 // true values ("Current Info") instead of reading its own old blocks.
 
-export const STAT_MODULES = ["bonds", "sheet", "chatter", "tracker"];
+export const STAT_MODULES = ["bonds", "sheet", "chatter", "tracker", "cyoa"];
+const STAT_MODULE_DEFS = { bonds: bondsModule, sheet: sheetModule, chatter: chatterModule, tracker: trackerModule, cyoa: cyoaModule };
+
+// ── Blocks written by Chomusuke (plan 009) ──
+// The blocks Chomusuke can take off the story model, and their tags.
+export const BLOCK_ROUTE_TAGS = { bonds: "Bonds", sheet: "Character_Sheet", chatter: "NPC_Inner_Chatter", cyoa: "CYOA" };
+
+/** Chomusuke writes this block (Chomusuke on, Blocks route on, this block's switch on, block in the stack). */
+export function blockViaChomusuke(id) {
+    const c = localProfile && localProfile.chomusuke;
+    if (!c || !c.enabled || !c.profileId || !c.features || c.features.blocks !== true) return false;
+    if (!(id in BLOCK_ROUTE_TAGS)) return false;
+    if (c.blockRoutes && c.blockRoutes[id] === false) return false;
+    return statBlockOn(id);
+}
+
+export function routedBlockIds() {
+    return Object.keys(BLOCK_ROUTE_TAGS).filter(blockViaChomusuke);
+}
 
 /** The block is switched on (the Story Tracker follows the Story Plan). */
 export function statBlockOn(id) {
@@ -485,10 +504,14 @@ function statsInPlay() {
 
 // All four are recorded while any one is on: reading costs nothing, and a block
 // switched on later then finds its history already kept.
+// A block Chomusuke writes is recorded from the reply only when the reply wrote
+// it anyway; otherwise recording "nothing" would wipe what Chomusuke wrote.
 function statsRecord(index) {
     const msg = adapter.getChat()[index];
     if (!msg || msg.is_user || msg.is_system) return;
-    stateStore.recordMessage(index, { moduleIds: STAT_MODULES });
+    const text = String(msg.mes || "");
+    const ids = STAT_MODULES.filter(id => !blockViaChomusuke(id) || STAT_MODULE_DEFS[id].parse(text));
+    if (ids.length) stateStore.recordMessage(index, { moduleIds: ids });
 }
 
 function statsOnReceived(messageId) {
@@ -536,6 +559,113 @@ export function bondsOverview({ recentText = "" } = {}) {
     return Object.entries(state.people || {})
         .map(([k, p]) => ({ name: p.name, fields: Object.values(p.fields || {}), inPlay: now.has(k), seq: p.seq || 0 }))
         .sort((a, b) => (b.inPlay - a.inPlay) || (b.seq - a.seq) || a.name.localeCompare(b.name));
+}
+
+// ── The blocks read (plan 009) ───────────────────────────────────────────
+// Same shape as the World State side read: begin (claims the reply's swipe),
+// inputs (built when the worker is free), finish (files the answer, or drops it
+// when the reply changed or is gone).
+
+const pendingBlocks = new Set();
+
+/** Claims one reply for a blocks read. Null when there is nothing to read. */
+export function blocksBeginRead(index, { force = false } = {}) {
+    const ids = routedBlockIds();
+    if (!ids.length || !adapter.getMeta()) return null;
+    const msg = adapter.getChat()[index];
+    if (!msg || msg.is_user || msg.is_system) return null;
+    const st = stateStore.stamp(msg);
+    if (!st) return null;
+    if (st.dirty) adapter.saveChat();
+    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    const text = swipeText(msg, swipe);
+    if (text == null) return null;
+    // A reply that wrote every routed block itself needs no read.
+    const needed = ids.filter(id => !STAT_MODULE_DEFS[id].parse(text));
+    if (!needed.length) return null;
+    const key = st.uid + ":" + swipe;
+    if (pendingBlocks.has(key)) return null;
+    if (!force && needed.every(id => stateStore.getEntryFor(id, st.uid, swipe))) return null;
+    pendingBlocks.add(key);
+    stateChangedHook();
+    return { index, uid: st.uid, swipe, seq: st.seq, text, hash: hashText(text), key, chatId: getContext()?.chatId, ids: needed };
+}
+
+/** Is this reply's blocks read running now (for its card)? */
+export function blocksReadPending(msgIndex) {
+    const msg = adapter.getChat()[msgIndex];
+    const uid = msg?.extra?.megumin_uid;
+    if (!uid) return false;
+    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    return pendingBlocks.has(uid + ":" + swipe);
+}
+
+/**
+ * The notes as they stood before this reply, for the worker.
+ * @param {object} token
+ * @param {string} exchangeText  the latest exchange, for whose bonds are needed
+ */
+export function blocksReadNotes(token, exchangeText = "") {
+    const bonds = token.ids.includes("bonds") ? stateStore.getStateAt("bonds", token.seq - 0.5) : null;
+    const sheet = token.ids.includes("sheet") ? stateStore.getStateAt("sheet", token.seq - 0.5) : null;
+    let bondsText = "";
+    if (bonds && Object.keys(bonds.people || {}).length) {
+        const present = worldHasState() ? presentCast(getWorldState()).flatMap(c => [c.name, ...(c.aliases || [])]) : [];
+        bondsText = renderBondsNotes(bonds, pickBondsFor(bonds, { present, recentText: exchangeText }));
+    }
+    const sheetText = sheet ? renderSheetNotes(sheet) : "";
+    return sub(renderWorkerNotes({ bonds: bondsText, sheet: sheetText }));
+}
+
+/**
+ * Files the worker's answer: each routed block under the reply's swipe, or a
+ * "missing" note when the answer had none for it.
+ * @returns {{ ok: boolean, dropped: boolean, found: string[] }}
+ */
+export function blocksFinishRead(token, raw) {
+    pendingBlocks.delete(token.key);
+    const at = findTokenMessage(token);
+    if (at < 0) {
+        console.debug("[Megumin-Suite] Blocks read dropped: the reply changed or is gone.");
+        stateChangedHook();
+        return { ok: false, dropped: true, found: [] };
+    }
+    const cleaned = cleanWorkerAnswer(raw);
+    const found = [];
+    for (const id of token.ids) {
+        const block = blockTextIn(cleaned, BLOCK_ROUTE_TAGS[id]);
+        const parsed = block ? STAT_MODULE_DEFS[id].parse(block) : null;
+        if (parsed) found.push(id);
+        stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: [id], swipe: token.swipe, parsed: parsed || null, raw: block });
+    }
+    stateChangedHook();
+    return { ok: found.length > 0, dropped: false, found };
+}
+
+/** Gives up a claimed read without filing anything. */
+export function blocksAbandonRead(token) {
+    if (token) pendingBlocks.delete(token.key);
+    stateChangedHook();
+}
+
+/**
+ * The blocks Chomusuke wrote for one message, as text for its card
+ * (tag → "<Tag>…</Tag>"). Only the routed blocks the reply did not write itself.
+ */
+export function blocksCardTextAt(msgIndex) {
+    const out = {};
+    if (!adapter.getMeta()) return out;
+    const msg = adapter.getChat()[msgIndex];
+    const uid = msg?.extra?.megumin_uid;
+    if (!uid) return out;
+    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    const text = String(msg.mes || "");
+    for (const [id, tag] of Object.entries(BLOCK_ROUTE_TAGS)) {
+        if (STAT_MODULE_DEFS[id].parse(text)) continue;
+        const e = stateStore.getEntryFor(id, uid, swipe);
+        if (e && e.source === "sidemodel" && !e.missing && typeof e.raw === "string" && e.raw.trim()) out[tag] = e.raw;
+    }
+    return out;
 }
 
 // ── Bonds / Sheet editor (plan 008) ──────────────────────────────────────

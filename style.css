@@ -5092,3 +5092,10 @@
 .meg-bonds-empty { font-size: .8rem; color: var(--text-muted, #94a3b8); font-style: italic; padding: 12px 0; }
 .meg-bonds-tools { gap: 6px; }
 .meg-sted .meg-wsed-title .meg-sted-search { margin-left: auto; max-width: 220px; }
+
+/* ── Chomusuke tab: the blocks the Blocks route takes (plan 009) ── */
+.chomu-block-routes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 12px; margin: -2px 0 10px 28px; padding: 8px 12px; border-left: 2px solid rgba(244,63,94,.35); }
+.chomu-block-route { display: flex; align-items: center; gap: 7px; font-size: .78rem; cursor: pointer; }
+.chomu-block-route i { color: #f43f5e; width: 14px; text-align: center; }
+.chomu-block-route.is-off { opacity: .55; }
+.chomu-block-route small { color: var(--text-muted); }
