@@ -10,6 +10,12 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { IMAGE_V2_PROMPTS as P } from "../../../prompts/imageGenV2.js";
+import { renderBlocksTasks } from "../../../state/modules/stats/worker.js";
+
+// Every section a combined answer can carry besides the image prompt (plan 009
+// adds the blocks Chomusuke writes), so none of them leaks into the prompt.
+const SECTION_TAGS = ["Outfit_Tags", "Character_Visual", "World_Update", "World_State", "Bonds", "Character_Sheet", "NPC_Inner_Chatter", "CYOA"];
+const ANY_SECTION = SECTION_TAGS.join("|");
 
 export const V2_STYLES = ["tags", "natural"];
 export const V2_SHOTS = ["cinematic", "pov", "portrait"];
@@ -160,7 +166,7 @@ export function renderV2Extras({ outfits = [], looks = [] } = {}) {
     ].join("\n");
 }
 
-const OTHER_SECTIONS = /<(Outfit_Tags|Character_Visual|World_Update|World_State)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|(?=<(?:Outfit_Tags|Character_Visual|Image_Prompt|World_Update|World_State)\b)|$)/gi;
+const OTHER_SECTIONS = new RegExp(`<(${ANY_SECTION})\\b[^>]*>[\\s\\S]*?(?:<\\/\\1\\s*>|(?=<(?:${ANY_SECTION}|Image_Prompt)\\b)|$)`, "gi");
 
 /**
  * Splits a combined answer. The prompt is <Image_Prompt> when present;
@@ -170,9 +176,9 @@ const OTHER_SECTIONS = /<(Outfit_Tags|Character_Visual|World_Update|World_State)
  */
 export function splitCombinedAnswer(raw) {
     const text = String(raw || "").replace(/<think\b[^>]*>[\s\S]*?(<\/think\s*>|$)/gi, "");
-    const extra = /<(Outfit_Tags|Character_Visual)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|(?=<(?:Outfit_Tags|Character_Visual|Image_Prompt|World_Update|World_State)\b)|$)/gi;
+    const extra = new RegExp(`<(Outfit_Tags|Character_Visual)\\b[^>]*>[\\s\\S]*?(?:<\\/\\1\\s*>|(?=<(?:${ANY_SECTION}|Image_Prompt)\\b)|$)`, "gi");
     const rest = (text.match(extra) || []).join("\n");
-    const m = text.match(/<Image_Prompt\b[^>]*>([\s\S]*?)(?:<\/Image_Prompt\s*>|(?=<(?:Outfit_Tags|Character_Visual|World_Update|World_State)\b)|$)/i);
+    const m = text.match(new RegExp(`<Image_Prompt\\b[^>]*>([\\s\\S]*?)(?:<\\/Image_Prompt\\s*>|(?=<(?:${ANY_SECTION})\\b)|$)`, "i"));
     // No wrapper: everything outside the other sections. With a prefill the
     // answer starts INSIDE the World block (no opening tag), so everything up
     // to its closing tag goes too.
@@ -194,50 +200,84 @@ export const COMBINED_SYSTEM =
     "You never write story, never explain, and never add facts the exchange does not state or clearly show.";
 
 /**
+ * One call for everything a reply needs from Chomusuke. Each part is optional:
+ *   world  — the World State task (renderWorldClerkTask), or null
+ *   image  — false for no image task (default: an image task)
+ *   blocks — { notes, tasks: [{ tag, body }] } for the blocks Chomusuke writes (plan 009)
  * @param {{
- *   notes: string,            // the continuity notes as a reader sees them (renderClerkNotes)
+ *   notes?: string,           // the continuity notes as a reader sees them (renderClerkNotes)
  *   castList?: string,        // V2 only
  *   sheets?: string,          // character and persona sheets (before the story)
  *   earlier?: string,         // messages before the latest exchange (context)
  *   exchange: string,         // the latest exchange
- *   world: { rules: string, template: string, tag: string },   // renderWorldClerkTask
- *   engine: "v2"|"classic",
- *   imageRules: string,       // V2: renderV2Rules(...); Classic: its NPC tags + template rules + extra + examples
+ *   world?: { rules: string, template: string, tag: string } | null,
+ *   engine?: "v2"|"classic",
+ *   image?: boolean,
+ *   imageRules?: string,      // V2: renderV2Rules(...); Classic: its NPC tags + template rules + extra + examples
  *   onlyIfPhoto?: boolean,
  *   extras?: { outfits?: Array<{name: string, outfit: string}>, looks?: string[], followUpdate?: boolean },
- *   previous?: string|null    // V2 "Edit last prompt" method: the previous image prompt
+ *   previous?: string|null,   // V2 "Edit last prompt" method: the previous image prompt
+ *   blocks?: { notes?: string, tasks: Array<{ tag: string, body: string }> } | null
  * }} a
  * @returns {{ system: string, user: string, prefill: string }}
  */
 export function renderCombinedPrompt(a) {
-    const tag = a.world.tag;
-    const v2 = a.engine === "v2";
+    const world = a.world || null;
+    const tag = world ? world.tag : "World_Update";
+    const image = a.image !== false;
+    const v2 = image && a.engine === "v2";
     const extras = v2 ? (a.extras || {}) : {};
-    const extraTasks = v2 ? renderV2ExtraTasks(extras) : "";
-    const follow = v2
-        ? `<Cast> shows everyone as they stood BEFORE the latest exchange: where your ${tag} changes someone's clothing or position, the image follows your ${tag} (@Name will carry the new outfit).`
-        : `Where your ${tag} changes someone's clothing, draw them in the new clothing.`;
+    const extraTasks = v2 ? renderV2ExtraTasks(world ? extras : { ...extras, followUpdate: false }) : "";
+    const blocks = a.blocks && (a.blocks.tasks || []).length ? renderBlocksTasks(a.blocks.tasks) : null;
+
+    let n = 0;
+    const tasks = [];
+    if (world) tasks.push(`# Task ${++n}: ${tag === "World_State" ? "World State" : "World Update"}\n${world.rules}`);
+    if (image) {
+        const follow = !world ? ""
+            : v2
+                ? ` <Cast> shows everyone as they stood BEFORE the latest exchange: where your ${tag} changes someone's clothing or position, the image follows your ${tag} (@Name will carry the new outfit).`
+                : ` Where your ${tag} changes someone's clothing, draw them in the new clothing.`;
+        tasks.push([
+            `# Task ${++n}: Image prompt`,
+            `The image shows the moment the latest exchange ends on; draw nothing that has already ended (someone who put an item away no longer holds it).${follow}`,
+            a.imageRules,
+            a.onlyIfPhoto ? "If nobody in the latest exchange takes, sends or shares a picture, write <Image_Prompt>NONE</Image_Prompt>." : ""
+        ].filter(Boolean).join("\n"));
+    }
+    if (blocks && blocks.tasks) tasks.push(`# Task ${++n}: Story notes\n${blocks.tasks}`);
+
     const user = [
-        a.notes,
+        world ? a.notes : "",
+        a.blocks ? a.blocks.notes : "",
         v2 ? a.castList : "",
         renderSheetsBlock(a.sheets),
         String(a.earlier || "").trim() ? `<Earlier_Story>\n${String(a.earlier).trim()}\n</Earlier_Story>` : "",
         `<Latest_Exchange>\n${String(a.exchange || "").trim()}\n</Latest_Exchange>`,
         v2 && a.previous != null ? previousBlock(a.previous) : "",
-        `# Task 1: ${tag === "World_State" ? "World State" : "World Update"}\n${a.world.rules}`,
-        [
-            "# Task 2: Image prompt",
-            `The image shows the moment the latest exchange ends on; draw nothing that has already ended (someone who put an item away no longer holds it). ${follow}`,
-            a.imageRules,
-            a.onlyIfPhoto ? "If nobody in the latest exchange takes, sends or shares a picture, write <Image_Prompt>NONE</Image_Prompt>." : ""
-        ].filter(Boolean).join("\n"),
+        ...tasks,
         extraTasks ? `# Also in the same answer\n${extraTasks}` : "",
         [
             "# Answer in this shape and nothing else",
-            a.world.template,
-            "<Image_Prompt>the image prompt</Image_Prompt>",
-            ...(v2 ? renderV2ExtraShape(extras) : [])
-        ].join("\n")
+            world ? world.template : "",
+            image ? "<Image_Prompt>the image prompt</Image_Prompt>" : "",
+            ...(v2 ? renderV2ExtraShape(world ? extras : { ...extras, followUpdate: false }) : []),
+            ...(blocks ? blocks.shape : [])
+        ].filter(Boolean).join("\n")
     ].filter(s => String(s || "").trim()).join("\n\n");
-    return { system: COMBINED_SYSTEM, user, prefill: `<${tag}>\n` };
+    return { system: combinedSystem({ world: Boolean(world), image, blocks: Boolean(blocks) }), user, prefill: world ? `<${tag}>\n` : "" };
+}
+
+// The system line for whatever the call does. World State + image keeps the
+// original wording.
+function combinedSystem({ world, image, blocks }) {
+    if (world && image && !blocks) return COMBINED_SYSTEM;
+    const jobs = [];
+    if (world) jobs.push("note what it changed in the world");
+    if (blocks) jobs.push("keep the story's running notes (how the characters feel about {{user}}, {{user}}'s condition and belongings, their private thoughts, the choices open next)");
+    if (image) jobs.push("write an image prompt for the moment it ends on");
+    const last = jobs.pop();
+    const list = jobs.length ? `${jobs.join(", ")} and ${last}` : last;
+    return `You follow an ongoing roleplay. You read the latest exchange and ${list}. ` +
+        "You never continue the story, never explain, and never add facts the exchange does not state or clearly show.";
 }

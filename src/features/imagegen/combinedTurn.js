@@ -1,17 +1,18 @@
 // ────────────────────────────────────────────────────────────────────────────
-// World State + image in one call (Chomusuke tab → Combine calls).
-//
-// On a reply that gets an automatic image, when Chomusuke both reads World
-// State and makes the images, ONE Chomusuke call does the World State read
-// and writes the image prompt (on V2 also the outfit tags that go stale and
-// the looks that are missing). Turns without an image keep the plain World
-// State read, so every reply costs exactly one call.
+// Everything a reply needs from Chomusuke in ONE call (Chomusuke tab →
+// Combine calls). Plan 009 widened it from "World State + image" to any of:
+//   • the World State read (World State route on),
+//   • the blocks Chomusuke writes (Blocks route on: Bonds, Sheet, Chatter, CYOA),
+//   • the automatic image, on replies that get one (Image Generation route on).
+// When a reply needs two or more of them, one call does them all; a reply that
+// needs only one keeps its own call. So every reply costs at most one call.
 //
 // After the answer, in order:
 //   1. the World Update is filed under the reply's swipe (or, when missing,
 //      a separate read runs if the fallback is on, else "no update" is noted);
-//   2. V2: outfit tags and new looks are saved against the NEW outfits;
-//   3. the image prompt goes to ComfyUI (V2 fills in @Name from the updated
+//   2. the blocks are filed the same way;
+//   3. V2: outfit tags and new looks are saved against the NEW outfits;
+//   4. the image prompt goes to ComfyUI (V2 fills in @Name from the updated
 //      World State; Classic sends it as written).
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -22,8 +23,12 @@ import { runWithChomusuke } from "../../engine/tasks.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
 import {
     worldEnabled, worldUpdateMode, worldBeginExternalRead, worldReadInputs,
-    worldFinishExternalRead, worldRecordMissing, worldExtractMessage
+    worldFinishExternalRead, worldRecordMissing, worldExtractMessage,
+    routedBlockIds, blocksBeginRead, blocksReadNotes, blocksFinishRead
 } from "../../state/index.js";
+import { blocksTasksFor, blocksReadForReply, exchangeText } from "../blocks/worker.js";
+import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
+import { statsModuleParses } from "../../state/index.js";
 import { renderWorldClerkTask, renderClerkNotes } from "../../state/modules/world/render.js";
 import { worldModule } from "../../state/modules/world/index.js";
 import { igGenerateWithComfy } from "./comfy.js";
@@ -36,25 +41,35 @@ import { imageGenEngine } from "./index.js";
 
 const sub = t => { try { return substituteParams(t); } catch (e) { return t; } };
 
-/** The Chomusuke "Combine calls" settings. */
+/**
+ * The Chomusuke "Combine calls" settings. One switch (plan 009); a profile from
+ * before it carries its old "World State and image" switch over.
+ */
 export function combineSettings() {
     const c = (localProfile && localProfile.chomusuke && localProfile.chomusuke.combine) || {};
-    return { worldImage: c.worldImage === true, worldFallback: c.worldFallback === true };
+    const all = c.all !== undefined ? c.all === true : c.worldImage === true;
+    return { all, worldFallback: c.worldFallback === true };
 }
 
-/** Should this reply's World State read and image be one call? */
+/**
+ * What this reply needs from Chomusuke, when it is worth one combined call:
+ * { world, image, blocks } with two or more of them true. Null otherwise (the
+ * reply's jobs, if any, run on their own).
+ */
 export function combinedTurnWanted(messageId, type) {
-    if (!combineSettings().worldImage) return false;
-    const ig = localProfile && localProfile.imageGen;
-    if (!ig || !ig.enabled || !imageViaChomusuke() || NOT_A_REPLY.has(type)) return false;
-    if (!worldEnabled() || worldUpdateMode() !== "sidemodel") return false;
+    if (!combineSettings().all || NOT_A_REPLY.has(type)) return null;
     const chat = getContext().chat || [];
     const index = typeof messageId === "number" ? messageId : chat.length - 1;
     const msg = chat[index];
-    if (!msg || msg.is_user || msg.is_system) return false;
+    if (!msg || msg.is_user || msg.is_system) return null;
+    const text = String(msg.mes || "");
+    const ig = localProfile && localProfile.imageGen;
     // A reply that wrote its own World block is filed from it: no read to combine.
-    if (worldModule.parse(String(msg.mes || ""))) return false;
-    return dueNow(ig, chat);
+    const world = worldEnabled() && worldUpdateMode() === "sidemodel" && !worldModule.parse(text);
+    const image = Boolean(ig && ig.enabled && imageViaChomusuke() && dueNow(ig, chat));
+    const blocks = routedBlockIds().some(id => !statsModuleParses(id, text));
+    const plan = { world, image, blocks };
+    return (world + image + blocks) >= 2 ? plan : null;
 }
 
 // The messages before the latest exchange (the exchange = the user turn(s)
@@ -68,18 +83,22 @@ function earlierStory(index, count = 4) {
 }
 
 /**
- * Runs the combined call for one reply. Resolves when the image has been sent
- * to ComfyUI (or skipped). Never throws.
+ * Runs the combined call for one reply. Resolves when everything is filed and
+ * the image (if any) has been sent to ComfyUI. Never throws.
+ * @param {{ world: boolean, image: boolean, blocks: boolean }} plan  from combinedTurnWanted
  */
-export async function runCombinedTurn(messageId, type) {
+export async function runCombinedTurn(messageId, type, plan) {
     const ig = localProfile.imageGen;
     const chat = getContext().chat || [];
     const index = typeof messageId === "number" ? messageId : chat.length - 1;
     const message = chat[index];
-    const token = worldBeginExternalRead(index);
-    if (!token) return false;   // nothing to read (already being read, still generating…)
+    const token = plan.world ? worldBeginExternalRead(index) : null;
+    const bToken = plan.blocks ? blocksBeginRead(index, { force: type === "continue" }) : null;
+    const wantImage = plan.image;
+    if (!token && !bToken && !wantImage) return false;
+    if (bToken) meguminScheduleBlocksRefresh();
 
-    const inline = (ig.injectMode || "new_msg") === "inline";
+    const inline = wantImage && (ig.injectMode || "new_msg") === "inline";
     const id = `kazuma-img-${Date.now()}-auto`;
     if (inline) await insertPlaceholder(index, message, id, ig.autoPlacement);
 
@@ -90,22 +109,27 @@ export async function runCombinedTurn(messageId, type) {
     let missingLooks = [];
     let raw = "";
     try {
-        raw = await runWithChomusuke("imageGen", async () => {
+        raw = await runWithChomusuke(wantImage ? "imageGen" : (token ? "worldState" : "blocks"), async () => {
             // Built when this job has the worker, so it sees whatever landed before it.
-            const { mode, notes, exchange } = worldReadInputs(token);
+            const w = token ? worldReadInputs(token) : null;
+            const exchange = w ? w.exchange : exchangeText(index, String((bToken && bToken.text) || message.mes || ""));
             const common = {
-                notes: renderClerkNotes(notes),
+                notes: w ? renderClerkNotes(w.notes) : "",
                 earlier: earlierStory(index),
                 exchange,
-                world: renderWorldClerkTask(mode),
-                onlyIfPhoto: (ig.triggerMode || "always") === "conditional"
+                world: w ? renderWorldClerkTask(w.mode) : null,
+                image: wantImage,
+                onlyIfPhoto: (ig.triggerMode || "always") === "conditional",
+                blocks: bToken ? { notes: blocksReadNotes(bToken, exchange), tasks: blocksTasksFor(bToken.ids) } : null
             };
-            if (engine === "v2") {
+            if (!wantImage) {
+                built = renderCombinedPrompt(common);
+            } else if (engine === "v2") {
                 const cast = currentImageCast();
                 const inShot = m => m.inScene || m.isPc || m.mentioned;
                 const detailed = cfg.outfitTags && cfg.style === "tags";
                 staleBefore = detailed ? cast.filter(m => m.outfitStale && inShot(m)) : [];
-                missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(token.chatId,
+                missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(getContext()?.chatId,
                     cast.filter(m => (m.inScene || m.isPc) && !String(m.look || m.body || m.lookNatural || "").trim()));
                 built = renderCombinedPrompt({
                     ...common,
@@ -137,23 +161,42 @@ export async function runCombinedTurn(messageId, type) {
             }
         });
     } catch (e) {
-        console.error("[Megumin-Suite] Combined World State + image call failed", e);
+        console.error("[Megumin-Suite] Combined Chomusuke call failed", e);
     }
     raw = String(raw || "");
+    // With a World prefill the answer starts inside the World block.
+    const full = built && built.prefill && !/<World_(State|Update)\b/i.test(raw) ? built.prefill + raw : raw;
 
     // 1. World State.
-    const world = worldFinishExternalRead(token, raw, built ? built.prefill : "<World_Update>\n");
-    if (!world.ok && !world.dropped) {
-        if (combineSettings().worldFallback) worldExtractMessage(index, { force: true });
-        else worldRecordMissing(token);
+    let dropped = false;
+    if (token) {
+        const world = worldFinishExternalRead(token, raw, built ? built.prefill : "<World_Update>\n");
+        if (!world.ok && !world.dropped) {
+            if (combineSettings().worldFallback) worldExtractMessage(index, { force: true });
+            else worldRecordMissing(token);
+        }
+        dropped = world.dropped;
     }
-    if (world.dropped || getContext()?.chatId !== token.chatId) {
+
+    // 2. The blocks.
+    if (bToken) {
+        const res = blocksFinishRead(bToken, full);
+        if (!res.ok && !res.dropped) {
+            if (combineSettings().worldFallback) blocksReadForReply(index, { force: true });
+            else toastr.warning("Chomusuke wrote no usable blocks for that reply. Use Read again on its card.", "Megumin Suite");
+        }
+        dropped = dropped || res.dropped;
+        meguminScheduleBlocksRefresh();
+    }
+
+    if (!wantImage) return true;
+    if (dropped || getContext()?.chatId !== (token ? token.chatId : bToken ? bToken.chatId : getContext()?.chatId)) {
         if (inline) await removePlaceholder(id);
         return false;
     }
 
-    // 2. V2: outfit tags and new looks, against the outfits AFTER the update.
-    const { prompt: rawPrompt, rest } = splitCombinedAnswer(raw);
+    // 3. V2: outfit tags and new looks, against the outfits AFTER the update.
+    const { prompt: rawPrompt, rest } = splitCombinedAnswer(full);
     if (engine === "v2" && rest) {
         const inShot = m => m.inScene || m.isPc || m.mentioned;
         const staleNow = currentImageCast().filter(m => m.outfitStale && inShot(m));
@@ -164,7 +207,7 @@ export async function runCombinedTurn(messageId, type) {
         }
     }
 
-    // 3. The image.
+    // 4. The image.
     const prompt = unwrapImgTag(engine === "v2" ? cleanModelPrompt(rawPrompt) : rawPrompt);
     if (!prompt || /^none\.?$/i.test(prompt)) {
         if (inline) await removePlaceholder(id);

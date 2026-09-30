@@ -290,12 +290,16 @@ export function renderChomusuke(c) {
     $content.append($routingPanel);
 
     // ── CARD 3: COMBINE CALLS ──
-    // Several Chomusuke jobs in ONE call. For now: World State + the automatic image.
-    if (!cfg.combine || typeof cfg.combine !== "object") cfg.combine = { worldImage: false, worldFallback: false };
+    // Everything a reply needs from Chomusuke in ONE call (plan 009): World
+    // State, the blocks, and the image when one is due.
+    if (!cfg.combine || typeof cfg.combine !== "object") cfg.combine = { all: false, worldFallback: false };
     const combine = cfg.combine;
+    // One switch now; the old "World State and image" switch carries over.
+    if (combine.all === undefined) combine.all = combine.worldImage === true;
     const worldOn = cfg.features.worldState === true;
     const imageOn = cfg.features.imageGen !== false;
-    const combineReady = Boolean(cfg.enabled && cfg.profileId && worldOn && imageOn);
+    const blocksOn = cfg.features.blocks === true;
+    const combineReady = Boolean(cfg.enabled && cfg.profileId && (worldOn + imageOn + blocksOn) >= 2);
     const $combinePanel = $(`
         <div class="mtab-panel" style="margin-top: 14px; margin-bottom:0;">
             <div class="mtab-panel-title blue" style="margin-bottom: 6px;">
@@ -303,7 +307,7 @@ export function renderChomusuke(c) {
             </div>
             <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">
                 Do several Chomusuke jobs in one call instead of one call each.
-                ${combineReady ? "" : "<br><b>Needs:</b> Chomusuke on, with both <b>World State</b> and <b>Image Generation</b> routed above."}
+                ${combineReady ? "" : "<br><b>Needs:</b> Chomusuke on, with at least two of <b>World State</b>, <b>Blocks</b> and <b>Image Generation</b> routed above."}
             </div>
         </div>
     `);
@@ -321,24 +325,24 @@ export function renderChomusuke(c) {
         $row.on("click", () => {
             if (!enabled) return;
             combine[key] = !(combine[key] === true);
-            if (key === "worldImage" && !combine.worldImage) combine.worldFallback = false;
+            if (key === "all" && !combine.all) combine.worldFallback = false;
             saveProfileToMemory();
             renderChomusuke(c);
         });
         return $row;
     };
     $combinePanel.append(toggleRow(
-        "worldImage",
-        `<i class="fa-solid fa-thumbtack" style="color:#f59e0b; margin-right: 6px;"></i> World State and image in one call`,
-        "On replies that get an automatic image, one call writes the World State update and the image prompt (on V2 also the outfit tags and new looks). Other replies keep the plain World State read, so every reply costs one call.",
+        "all",
+        `<i class="fa-solid fa-layer-group" style="color:#f59e0b; margin-right: 6px;"></i> Everything in one call`,
+        "After each reply, one call does everything routed to Chomusuke: the World State update, the blocks, and the image prompt when an image is due (on V2 also the outfit tags and new looks). A reply that needs only one of them keeps its own call, so every reply costs at most one call.",
         combineReady,
         false
     ));
     $combinePanel.append(toggleRow(
         "worldFallback",
-        `<i class="fa-solid fa-life-ring" style="color:#10b981; margin-right: 6px;"></i> Fall back to a separate World State read`,
-        "If the combined answer has no usable World State update, read the reply again on its own (one extra call, only then). Off: the card shows it had no update, with Read again.",
-        combineReady && combine.worldImage === true,
+        `<i class="fa-solid fa-life-ring" style="color:#10b981; margin-right: 6px;"></i> Fall back to separate reads`,
+        "If the combined answer has no usable World State update or blocks, read the reply again for just that part (one extra call, only then). Off: the card shows it, with Read again.",
+        combineReady && combine.all === true,
         true
     ));
     $content.append($combinePanel);

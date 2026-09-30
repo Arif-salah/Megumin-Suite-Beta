@@ -64,6 +64,6 @@ takes World State off its hands; it can take the blocks too.
 
 - [x] Phase 1: pure
 - [x] Phase 2: routing + separate read
-- [ ] Phase 3: cards
-- [ ] Phase 4: combine
+- [x] Phase 3: cards
+- [x] Phase 4: combine
 - [ ] Phase 5: test + docs

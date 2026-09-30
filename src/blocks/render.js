@@ -645,6 +645,16 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
         });
     }
 
+    // Blocks written for this message outside its text (plan 009: Chomusuke
+    // wrote them), handed in by tag. One the text already carries wins.
+    const storeBlocks = opts.storeBlocks || {};
+    Object.entries(storeBlocks).forEach(([tag, body]) => {
+        const def = (registry || []).find(r => r.tag === tag);
+        if (!def || !String(body || "").trim()) return;
+        if (blocks.some(b => b.def === def)) return;
+        blocks.push({ def, at: mes.length, raw: "", name: "", body: String(body), truncated: false });
+    });
+
     if (!blocks.length) {
         clearBlocksFromMessage(root);
         return false;
@@ -663,7 +673,7 @@ export function applyBlocksToMessage(root, mes, registry, opts = {}) {
     // The World State board is drawn from the state store, not from the text, so
     // reverting a reply or editing the state changes the board without changing
     // a character of the message. Its text is part of the stamp for that reason.
-    const stamp = `${mes.length}:${norm(mes).length}:${blocks.length}:${(opts.omit || []).join(",")}:${opts.msgIndex !== undefined ? opts.msgIndex : ""}:${textHash(opts.worldStateText)}`;
+    const stamp = `${mes.length}:${norm(mes).length}:${blocks.length}:${(opts.omit || []).join(",")}:${opts.msgIndex !== undefined ? opts.msgIndex : ""}:${textHash(opts.worldStateText)}:${textHash(JSON.stringify(storeBlocks))}`;
     if (root.getAttribute(STAMP_ATTR) === stamp && root.querySelector(`.${CARD_CLASS}`)) return true;
 
     // Start from whatever SillyTavern rendered, every time. Re-hiding on top of a

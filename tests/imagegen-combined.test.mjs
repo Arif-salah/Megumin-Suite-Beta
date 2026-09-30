@@ -87,3 +87,40 @@ test("reading a combined answer that starts inside the prefilled World block", (
     assert.equal(parseWorldBlocks("<Image_Prompt>x</Image_Prompt>"), null);
     assert.equal(splitCombinedAnswer("<Image_Prompt>1girl, @Aqua</Image_Prompt>").prompt, "1girl, @Aqua");
 });
+
+// ── Plan 009: the blocks in the same call ────────────────────────────────
+
+const BLOCKS = {
+    notes: "<Current_Info>\n<Bonds_Now>\nAqua: Affection: 40/100\n</Bonds_Now>\n</Current_Info>",
+    tasks: [{ tag: "Bonds", body: "[NPC Name]: Affection: [0-100]/100" }, { tag: "CYOA", body: "1. [Short suggestion]" }]
+};
+
+test("World State + blocks, no image: two tasks, no image in the shape, world prefill kept", () => {
+    const { system, user, prefill } = renderCombinedPrompt(base({ image: false, blocks: BLOCKS }));
+    const order = ["<Current_World_State>", "<Bonds_Now>", "<Latest_Exchange>", "# Task 1: World Update", "# Task 2: Story notes", "# Answer in this shape and nothing else"];
+    const at = order.map(s => user.indexOf(s));
+    assert.ok(at.every(i => i >= 0), JSON.stringify(at));
+    assert.deepEqual([...at].sort((a, b) => a - b), at);
+    assert.doesNotMatch(user, /Image_Prompt|Image prompt/);
+    assert.match(user, /<\/World_Update>\n<Bonds>…<\/Bonds>\n<CYOA>…<\/CYOA>$/);
+    assert.equal(prefill, "<World_Update>\n");
+    assert.notEqual(system, COMBINED_SYSTEM);
+    assert.match(system, /note what it changed in the world and keep the story's running notes/);
+    assert.doesNotMatch(system + user.replace(/<[^>]+>/g, ""), OFF_FRAME);
+});
+
+test("blocks + image, no World State: no world notes or task, no prefill", () => {
+    const { user, prefill } = renderCombinedPrompt(base({ world: null, engine: "classic", imageRules: "Build the prompt…", blocks: BLOCKS }));
+    assert.doesNotMatch(user, /Current_World_State|World_Update|World Update/);
+    assert.match(user, /# Task 1: Image prompt\nThe image shows the moment the latest exchange ends on; draw nothing that has already ended \(someone who put an item away no longer holds it\)\.\nBuild the prompt…/);
+    assert.match(user, /# Task 2: Story notes/);
+    assert.match(user, /<Image_Prompt>the image prompt<\/Image_Prompt>\n<Bonds>…<\/Bonds>\n<CYOA>…<\/CYOA>$/);
+    assert.equal(prefill, "");
+});
+
+test("the image prompt never picks up a block, with or without its wrapper", () => {
+    const raw = "</World_Update>\n<Image_Prompt>1girl, @Aqua, smiling</Image_Prompt>\n<Bonds>\nAqua: Affection: 45/100\n</Bonds>\n<CYOA>\n1. Wave\n</CYOA>";
+    assert.equal(splitCombinedAnswer(raw).prompt, "1girl, @Aqua, smiling");
+    assert.equal(splitCombinedAnswer("1girl, @Aqua, smiling\n<Bonds>\nAqua: Affection: 45/100\n</Bonds>").prompt, "1girl, @Aqua, smiling");
+    assert.equal(splitCombinedAnswer(raw).rest, "", "blocks are not image extras");
+});

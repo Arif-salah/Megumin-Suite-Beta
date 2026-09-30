@@ -526,7 +526,7 @@ export function initProfile() {
     }
     // "Combine calls": several Chomusuke jobs in one call. Both off by default.
     if (localProfile.chomusuke && (!localProfile.chomusuke.combine || typeof localProfile.chomusuke.combine !== "object")) {
-        localProfile.chomusuke.combine = { worldImage: false, worldFallback: false };
+        localProfile.chomusuke.combine = { all: false, worldFallback: false };
     }
     // "Side model" briefly lived in the Blocks tab's Updates list; that choice
     // is now the Chomusuke World State route.

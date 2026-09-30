@@ -486,6 +486,12 @@ export function blockViaChomusuke(id) {
     return statBlockOn(id);
 }
 
+/** Does this text carry the module's block (the reply wrote it itself)? */
+export function statsModuleParses(id, text) {
+    const m = STAT_MODULE_DEFS[id];
+    return Boolean(m && m.parse(String(text || "")));
+}
+
 export function routedBlockIds() {
     return Object.keys(BLOCK_ROUTE_TAGS).filter(blockViaChomusuke);
 }
@@ -649,21 +655,29 @@ export function blocksAbandonRead(token) {
 }
 
 /**
- * The blocks Chomusuke wrote for one message, as text for its card
- * (tag → "<Tag>…</Tag>"). Only the routed blocks the reply did not write itself.
+ * The blocks Chomusuke wrote (or is writing) for one message, for its card:
+ * tag → { id, status: "ok" | "pending" | "missing", body }. Only blocks the reply
+ * did not write itself, and only where Chomusuke was asked (an old message from
+ * before the route gets nothing).
  */
 export function blocksCardTextAt(msgIndex) {
     const out = {};
     if (!adapter.getMeta()) return out;
     const msg = adapter.getChat()[msgIndex];
     const uid = msg?.extra?.megumin_uid;
-    if (!uid) return out;
+    if (!uid || msg.is_user || msg.is_system) return out;
     const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
     const text = String(msg.mes || "");
+    const pending = pendingBlocks.has(uid + ":" + swipe);
     for (const [id, tag] of Object.entries(BLOCK_ROUTE_TAGS)) {
         if (STAT_MODULE_DEFS[id].parse(text)) continue;
         const e = stateStore.getEntryFor(id, uid, swipe);
-        if (e && e.source === "sidemodel" && !e.missing && typeof e.raw === "string" && e.raw.trim()) out[tag] = e.raw;
+        const body = e && typeof e.raw === "string"
+            ? e.raw.replace(new RegExp(`^\\s*<${tag}\\b[^>]*>\\s*`, "i"), "").replace(new RegExp(`\\s*<\\/${tag}\\s*>\\s*$`, "i"), "").trim()
+            : "";
+        if (pending && blockViaChomusuke(id)) out[tag] = { id, status: "pending", body };
+        else if (e && e.source === "sidemodel" && !e.missing && body) out[tag] = { id, status: "ok", body };
+        else if (e && e.source === "sidemodel" && e.missing) out[tag] = { id, status: "missing", body: "" };
     }
     return out;
 }

@@ -498,7 +498,7 @@ jQuery(async () => {
                 // State AND writes the image prompt (no separate read below).
                 const combinedTurn = combinedTurnWanted(receivedId, receivedType);
                 try {
-                    if (stateOnMessageReceived(receivedId, receivedType, { skipSideRead: combinedTurn })) meguminScheduleBlocksRefresh();
+                    if (stateOnMessageReceived(receivedId, receivedType, { skipSideRead: Boolean(combinedTurn && combinedTurn.world) })) meguminScheduleBlocksRefresh();
                     // Image Gen V2: a character who just arrived gets a look.
                     v2LooksForArrivals();
                 } catch (e) {
@@ -509,7 +509,8 @@ jQuery(async () => {
                 // Bonds, Sheet, Inner Chatter, CYOA the story model was not asked
                 // for: Chomusuke reads the reply and writes them. Queued after the
                 // World State read. Does nothing unless the Blocks route is on.
-                if (!BLOCKS_NOT_A_REPLY.has(receivedType)) {
+                // (A combined call below does it instead when Combine calls is on.)
+                if (!BLOCKS_NOT_A_REPLY.has(receivedType) && !(combinedTurn && combinedTurn.blocks)) {
                     const chatNow = getContext().chat || [];
                     const blocksIndex = typeof receivedId === "number" ? receivedId : chatNow.length - 1;
                     blocksReadForReply(blocksIndex, { force: receivedType === "continue" })
@@ -520,9 +521,15 @@ jQuery(async () => {
                 // After World State, so its read is queued first and the image
                 // uses the newest outfits. Does nothing unless Chomusuke writes images.
                 (combinedTurn
-                    ? runCombinedTurn(receivedId, receivedType)
+                    ? runCombinedTurn(receivedId, receivedType, combinedTurn)
                     : igAutoImageForReply(receivedId, receivedType, generateImagePromptText, prepareImagePrompt))
                     .catch(e => console.error("[Megumin-Suite] Automatic image failed", e));
+                // A combined call without an image still leaves the reply's own
+                // automatic image (if Chomusuke does not write it) to its usual path.
+                if (combinedTurn && !combinedTurn.image) {
+                    igAutoImageForReply(receivedId, receivedType, generateImagePromptText, prepareImagePrompt)
+                        .catch(e => console.error("[Megumin-Suite] Automatic image failed", e));
+                }
 
                 // --- STORY DIRECTOR FEEDBACK & AUTO-EVOLVE ---
                 const sp = localProfile?.storyPlan;
