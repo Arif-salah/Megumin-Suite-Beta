@@ -57,11 +57,13 @@ function cleanLine(raw) {
 }
 
 // Lines of a block body, with the template's bracketed instruction paragraph left out.
-function bodyLines(body) {
+function bodyLines(body, { keepMarkers = false } = {}) {
     const lines = [];
     let inTemplate = false;
     for (const raw of String(body || "").split("\n")) {
-        const t = cleanLine(raw);
+        const t = keepMarkers
+            ? String(raw || "").replace(/<!--[\s\S]*?(-->|$)/g, "").trim()
+            : cleanLine(raw);
         if (!t) continue;
         if (inTemplate) { if (/\]$/.test(t)) inTemplate = false; continue; }
         if (/^\[/.test(t) && !/\]/.test(t)) { inTemplate = true; continue; }
@@ -191,6 +193,8 @@ export function parseSheet(text) {
 export function parseLatest(text, tag) {
     const bodies = extractTagBodies(text, tag);
     if (!bodies.length) return null;
-    const body = bodyLines(bodies[bodies.length - 1]).join("\n").trim();
+    // Free text keeps its lines as written (list numbers, bullets); only the
+    // template's bracketed instructions and HTML comments come out.
+    const body = bodyLines(bodies[bodies.length - 1], { keepMarkers: true }).join("\n").trim();
     return body ? { kind: "snapshot", text: body } : null;
 }
