@@ -563,6 +563,7 @@ export function renderStoryConfig(c) {
                     style.rule = cleanAIOutput(rule).trim();
                     if (localProfile.activeStyleId === style.id) localProfile.aiRule = style.rule;
                     saveProfileToMemory(); renderStyleLibrary(c); toastr.success("Rule Regenerated!");
+                    return rule;
                 });
             });
             gridCust.append(card);
@@ -593,6 +594,7 @@ export function renderStoryConfig(c) {
                 const newStyle = { id: newId, name: tpl.name, tags: [...tpl.tags], notes: tpl.notes, rule: cleanAIOutput(rule).trim() };
                 localProfile.customStyles.push(newStyle); localProfile.activeStyleId = newId; localProfile.aiRule = newStyle.rule;
                 saveProfileToMemory(); renderStyleLibrary(c); toastr.success(`${tpl.name} Added!`);
+                return rule;
             });
         });
         gridGen.append(card);
@@ -778,6 +780,8 @@ export function renderStyleEditor(c, editId, presetData = null) {
                 currentStyle.generatedOptions = aiTagsTemp.map(tag => `${tag} ✨`);
                 renderInsights(); toastr.success(`Generated ${aiTagsTemp.length} insights!`);
             }
+            // The answer itself, so Chomusuke's runner does not report "no output".
+            return aiRawOutput;
         }); $(this).prop("disabled", false).html(`<i class="fa-solid fa-lightbulb"></i> Generate Insights`);
     });
 
@@ -789,6 +793,7 @@ export function renderStyleEditor(c, editId, presetData = null) {
             let rule = await runMeguminTask(orderText);
             currentStyle.rule = cleanAIOutput(rule).trim();
             $("#ps_style_rule_text").val(currentStyle.rule); toastr.success("Live AI Rule Generated!");
+            return rule;
         }); $(this).prop("disabled", false).html(`<i class="fa-solid fa-bolt"></i> Generate Writing Rule`);
     });
 }
