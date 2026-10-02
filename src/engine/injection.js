@@ -18,6 +18,7 @@ import {
     activeNpcImages, clearActiveNpcImages,
 } from "../core/activeRequests.js";
 import { DEFAULT_PROMPTS } from "../prompts/index.js";
+import { meguminEnginePrompts } from "../prompts/meguminEngine.js";
 import { sdGenreLabel } from "../features/storyplan/ui.js";
 import { memEnsureSemanticQueryFresh } from "../features/memory/vectordb.js";
 import { npcBuildDossierPrompt } from "../features/npc/fields.js";
@@ -317,13 +318,25 @@ export async function handlePromptInjection(data, type) {
         return;
     }
 
+    // --- MEGUMIN ENGINE TASK (Writing Style generator) ---
+    // The whole prompt is the Megumin Engine one, built here, whatever preset the
+    // connection has loaded: through Chomusuke the worker's own preset would
+    // answer otherwise, and the order would never be read.
     if (activeGenerationOrder) {
-        for (let i = messages.length - 1; i >= 0; i--) {
-            if (messages[i].content && typeof messages[i].content === 'string') {
-                if (messages[i].content.includes("___PS_DUMMY___")) { messages.splice(i, 1); continue; }
-                if (messages[i].content.includes("[[order]]")) messages[i].content = messages[i].content.replace(/\[\[order\]\]/g, activeGenerationOrder);
-            }
-        }
+        messages.length = 0;
+        const E = meguminEnginePrompts;
+        const card = ["{{description}}", "{{personality}}", "{{scenario}}"]
+            .map(m => { try { return typeof substituteParams === "function" ? substituteParams(m) : ""; } catch (e) { return ""; } })
+            .map(s => String(s || "").trim())
+            .filter(s => s && !/^\{\{\w+\}\}$/.test(s))
+            .join("\n\n");
+        messages.push({ "role": "system", "content": E.main });
+        messages.push({ "role": "user", "content": `${E.characterOpen}${card}\n${E.characterClose}` });
+        messages.push({ "role": "user", "content": activeGenerationOrder });
+        messages.push({ "role": "system", "content": E.thinking });
+        if (!disablePrefill) messages.push({ "role": "assistant", "content": E.prefill });
+        console.log(`[${extensionName}] 🎯 Injected Megumin Engine prompt (Writing Style).`);
+        return;
     }
 
     if (!localProfile) return;
