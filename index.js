@@ -12,6 +12,7 @@ import {
     getRequestHeaders,
     appendMediaToMessage,
     updateMessageBlock,
+    isGenerating,
 } from "../../../../script.js";
 import { saveBase64AsFile, cancelDebounce } from "../../../utils.js";
 import { humanizedDateTime } from "../../../RossAscends-mods.js";
@@ -644,6 +645,41 @@ jQuery(async () => {
 
                 const lastMsg = chat[chat.length - 1];
                 if (lastMsg.is_user || lastMsg.is_system) return;
+
+                // AUTO-PROMPT MODE: the reply was never told to carry an <img> tag
+                // (buildBaseDict blanks [[img1]]/[[img2]] for this mode), so instead
+                // of scanning for tags we run the manual "Visualize Last Scene" flow
+                // on its own: a separate quiet request builds the image prompt from
+                // the scene, and the finished image lands as a new system message.
+                if (s.injectMode === "auto_prompt") {
+                    console.log(`[${extensionName}] 🎨 Auto image prompt trigger (separate request).`);
+                    const igTriggerIdentity = meguminActiveDataIdentity();
+                    setTimeout(async () => {
+                        // The identity check stops the prompt being born inside a
+                        // chat the user has already left during the wait.
+                        if (meguminActiveDataIdentity() !== igTriggerIdentity) {
+                            console.debug(`[Megumin-Suite] Auto image generation skipped: it was queued for "${igTriggerIdentity}" but "${meguminActiveDataIdentity()}" is active now.`);
+                            return;
+                        }
+                        // ST runs the roleplay and this quiet image-prompt request
+                        // through ONE shared generation slot and streaming buffer.
+                        // Starting ours while the next turn is already generating
+                        // lets the prompt text leak into the chat as the character's
+                        // reply, so skip instead — the reply that follows this one
+                        // will be timestamped by auto-clicking the button again.
+                        if (typeof isGenerating === "function" && isGenerating()) {
+                            console.debug(`[Megumin-Suite] Auto image generation skipped: a turn is already generating.`);
+                            return;
+                        }
+                        try {
+                            await igManualGenerate();
+                        } catch (e) {
+                            console.error("[Megumin Suite] Auto image generation failed", e);
+                            $("#kazuma_progress_overlay").hide();
+                        }
+                    }, 1500);
+                    return;
+                }
 
                 // Look for the <img prompt="..."> tags in the AI's response (supports multiple)
                 const imgRegexGlobal = /<img[^>]*?prompt=(["']?)([\s\S]*?)(?:\1\s*\/?>|\1\s*>|\1\s+[a-zA-Z]+=| \/>|>|$)/ig;
