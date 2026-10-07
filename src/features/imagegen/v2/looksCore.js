@@ -27,8 +27,11 @@ export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [
         `</${sourceLabel}>`,
         "",
         `Write the permanent appearance of ${who}`,
-        "Use booru tags: sex and apparent age (male, female, young adult, mature female…), hair (colour, length, style), eyes, skin, face, body type and build, and permanent features (scars, tattoos, horns, animal ears, tails, wings).",
-        "Never include: clothing or accessories they can take off, expressions, poses, actions, the place, count tags (1girl, 1boy, solo) or quality tags.",
+        "Write 8 to 12 booru tags per character, only the ones you would recognise them by: sex and apparent age (male, female, young adult, mature female…), hair (colour, length, style), eye colour, skin, body type, and permanent features (scars, tattoos, horns, animal ears, tails, wings).",
+        "- One tag per thing, the strongest one: \"long hair\", never \"long hair, medium hair\".",
+        "- Never two tags that fight: \"petite\" with \"tall\", or \"slender\" with \"curvy\". Pick the one that fits best.",
+        "- Leave out small face details the image model draws on its own (nose, lips, eyelashes, face shape, smooth skin), unless one is what makes them recognisable.",
+        "- Never include: clothing or accessories they can take off, expressions, poses, actions, the place, count tags (1girl, 1boy, solo) or quality tags.",
         "Only what the text states or clearly shows; do not invent features.",
         "If a character has a nickname, write the name as: Name \"Nickname\".",
         "",
@@ -202,7 +205,8 @@ export const OUTFIT_SYSTEM = "You turn clothing descriptions into booru tags for
 export function renderOutfitTagsPrompt(items) {
     return [
         "Turn each outfit into booru clothing tags.",
-        "- One tag per garment or accessory, with its colour or material when the text gives one: \"grey hoodie, black joggers, white socks\".",
+        "- Main garments only, 3 to 6 tags: each one with its colour or material when the text gives one (\"grey hoodie, black joggers, white socks\"), plus one standout accessory if there is one.",
+        "- Plain over detailed: \"white bra\", not \"lace-trimmed bra, front bow, white trim, drawstring\". Name a print only when it is simple (\"cat print\"), and never give one garment two tags that fight.",
         "- Keep the state of dress when the text says it (open jacket, sleeves rolled up, barefoot, towel).",
         "- Only clothing and accessories: no hair, body, expression, pose, count tags or quality tags. Add nothing the text does not say.",
         "",

@@ -180,7 +180,7 @@ test("the model describes clothing only for characters with no outfit on file", 
     for (const style of ["tags", "natural"]) {
         const r = renderV2Rules({ style });
         assert.doesNotMatch(r, /\.look|\.outfit/, "no other placeholder is offered");
-        assert.match(r, /The one exception: when <Cast> says their clothing is not noted/);
+        assert.match(r, /The one exception: when <Cast> explicitly says "wearing: not noted"/);
     }
 });
 
@@ -213,9 +213,9 @@ test("the prompt examples resolve cleanly when those characters exist", () => {
     const example = rules.slice(rules.indexOf("1girl, 1boy, indoors")).split("\nShot:")[0];
     assert.equal(resolveImagePrompt(example, { cast: [mira, theo] }).prompt, [
         "1girl, 1boy, indoors, tavern, night, medium shot,",
-        "On the left is Mira, red hair, green eyes, wearing a white blouse. She sits at the bar laughing, one hand around a mug.",
+        "On the left is Mira, red hair, green eyes, wearing a white blouse. She sits at the bar, laughing, holding a mug.",
         "On the right is Theo, black hair, wearing a grey coat. He leans on the counter, smiling at her.",
-        "wooden bar, shelves of bottles, rain on the windows, warm lamplight"
+        "wooden bar, shelves of bottles, rainy window, warm lamplight"
     ].join("\n"));
     const nat = renderV2Rules({ style: "natural" });
     const natExample = nat.slice(nat.indexOf("A medium shot inside")).split("\nShot:")[0];

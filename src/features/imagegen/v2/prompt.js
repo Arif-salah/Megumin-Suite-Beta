@@ -131,11 +131,11 @@ export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = fa
         const who = followUpdate
             ? `for every character whose Outfit your World_Update changes${outfits.length ? ", and for these outfits" : ""}`
             : "for these outfits";
-        parts.push(`- Outfit tags ${who}: one booru tag per garment or accessory, with its colour or material; keep the state of dress; clothing only, nothing the text does not say.`);
+        parts.push(`- Outfit tags ${who}: main garments only, 3 to 6 booru tags, each with its colour or material, plus one standout accessory; plain over detailed; keep the state of dress; clothing only, nothing the text does not say.`);
         parts.push(...outfits.map(o => `  ${o.name}: ${o.outfit}`));
     }
     if (looks.length) {
-        parts.push(`- Appearance of ${looks.join(", ")} as booru tags, from the story and <Character_Sheets>: sex and apparent age, hair, eyes, skin, face, build, permanent features. No clothing, expressions, poses or count tags. Skip anyone the text does not describe.`);
+        parts.push(`- Appearance of ${looks.join(", ")} as 8 to 12 booru tags each, from the story and <Character_Sheets>: sex and apparent age, hair, eye colour, skin, build, permanent features. One tag per thing, never two that fight (petite with tall), no small face details (nose, lips, eyelashes). No clothing, expressions, poses or count tags. Skip anyone the text does not describe.`);
     }
     return parts.join("\n");
 }

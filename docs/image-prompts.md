@@ -1,6 +1,6 @@
 # Image prompts: every text the image features send to a model
 
-Generated from the code on 2026-09-27, so every text below is exactly what is sent today.
+Generated from the code on 2026-09-27 (V2 action, look and outfit rules updated 2026-10-07), so every text below is exactly what is sent today.
 
 **How to use this file:** edit the text inside the ```text blocks directly, or write notes under a block (start them with `NOTE:`). Keep the `{{placeholders}}` unless you mean to drop them: the code fills them in. When you're done, send the file back and I'll move the changes into the code.
 
@@ -367,19 +367,22 @@ Write it top to bottom in this order:
 
 1. **Count, camera, place, time, framing**, as tags on the first line: the count (1girl, 1boy, 1girl 1boy, 2girls, no humans…; <Cast> says who is male and who is female; one person: add solo), indoors or outdoors, the place, the time, and exactly ONE framing (close-up, portrait, upper body, cowboy shot, medium shot, full body, wide shot). The framing decides how much of each character is shown.
 2. **One line per character**: where they are in the frame (on the left, on the right, in the center, in the foreground, in the background), then "is @Name." @Name carries that character's whole look and clothing, so each description stays in its own sentence.
-3. **Right after, what only they are doing**, starting with He, She or They: pose, action, expression, what they hold. The one the moment is about comes first. Two characters at most; anyone else goes in as background tags (people in background, crowd).
-4. **Last line: background, objects and lighting**, as tags.
+3. **Right after, what only they are doing**, starting with He, She or They, in a few plain words: their pose, their main action, their expression, and the one thing they hold, if any. The one the moment is about comes first. Two characters at most; anyone else goes in as background tags (people in background, crowd).
+4. **Last line: the background, a few objects and ONE main light**, as tags.
 
 Rules:
-- <Cast> is reference only. Never write hair, eyes, face, body or clothing for a @Name character. The one exception: when <Cast> says their clothing is not noted, add "wearing …" right after their @Name.
+- <Cast> is reference only. Never write hair, eyes, face, body or clothing for a @Name character. The one exception: when <Cast> explicitly says "wearing: not noted", add "wearing …" right after their @Name.
 - Write each @Name once. Use no names anywhere else: "holding her hand", not "holding Theo's hand"; "bedroom", not "Mira's bedroom".
+- Draw the moment, not the story. Show feelings as what the face and body do: "nervous, looking away", not "hesitant because she is shy".
+- Use simple words an image model knows: "smug smile", "arms crossed", "holding a cake". Don't copy the story's wording.
+- Leave out anything too small to see in the picture: nail polish, a label, a ring, a print on a can. If it would be a speck, it doesn't belong.
 - No quality tags (masterpiece, best quality…).
 
 Example (made-up characters; use the names from <Cast>):
 1girl, 1boy, indoors, tavern, night, medium shot,
-On the left is @Mira. She sits at the bar laughing, one hand around a mug.
+On the left is @Mira. She sits at the bar, laughing, holding a mug.
 On the right is @Theo. He leans on the counter, smiling at her.
-wooden bar, shelves of bottles, rain on the windows, warm lamplight
+wooden bar, shelves of bottles, rainy window, warm lamplight
 ```
 
 ### B3. Style: Natural language
@@ -393,18 +396,21 @@ Write it top to bottom in plain sentences, in this order:
 
 1. **The shot**, in one short sentence: the framing (close-up, from the waist up, medium shot, full body, wide shot), the place and the time. The framing decides how much of each character is shown.
 2. **One sentence per character**: where they are in the frame (on the left, on the right, in the center, in the foreground, in the background), then "is @Name." @Name carries that character's whole look and clothing, so each description stays in its own sentence.
-3. **Right after, what only they are doing**, starting with He, She or They: pose, action, expression, what they hold. The one the moment is about comes first. Two characters at most; mention anyone else briefly as background.
-4. **Last: the background, objects and light**, in one or two sentences.
+3. **Right after, what only they are doing**, starting with He, She or They, in a few plain words: their pose, their main action, their expression, and the one thing they hold, if any. The one the moment is about comes first. Two characters at most; mention anyone else briefly as background.
+4. **Last: the background, a few objects and ONE main light**, in one or two sentences.
 
 Rules:
-- <Cast> is reference only. Never describe a @Name character's hair, eyes, face, body or clothing. The one exception: when <Cast> says their clothing is not noted, describe what they wear right after their @Name.
+- <Cast> is reference only. Never describe a @Name character's hair, eyes, face, body or clothing. The one exception: when <Cast> explicitly says "wearing: not noted", describe what they wear right after their @Name.
 - Write each @Name once. Use no names anywhere else: "holding her hand", not "holding Theo's hand"; "a bedroom", not "Mira's bedroom".
+- Draw the moment, not the story. Show feelings as what the face and body do: "nervous, looking away", not "hesitant because she is shy".
+- Use simple words an image model knows: "a smug smile", "arms crossed", "holding a cake". Don't copy the story's wording.
+- Leave out anything too small to see in the picture: nail polish, a label, a ring, a print on a can. If it would be a speck, it doesn't belong.
 
 Example (made-up characters; use the names from <Cast>):
 A medium shot inside a tavern at night.
-On the left is @Mira. She sits at the bar laughing, one hand around a mug.
+On the left is @Mira. She sits at the bar, laughing, holding a mug.
 On the right is @Theo. He leans on the counter, smiling at her.
-Shelves of bottles line the wall behind them, rain streaks the windows, and warm lamplight fills the room.
+Shelves of bottles line the wall behind them, rain runs down the window, and warm lamplight fills the room.
 ```
 
 ### B4. Shot lines (one is added after the style guide)
@@ -562,19 +568,22 @@ Write it top to bottom in this order:
 
 1. **Count, camera, place, time, framing**, as tags on the first line: the count (1girl, 1boy, 1girl 1boy, 2girls, no humans…; <Cast> says who is male and who is female; one person: add solo), indoors or outdoors, the place, the time, and exactly ONE framing (close-up, portrait, upper body, cowboy shot, medium shot, full body, wide shot). The framing decides how much of each character is shown.
 2. **One line per character**: where they are in the frame (on the left, on the right, in the center, in the foreground, in the background), then "is @Name." @Name carries that character's whole look and clothing, so each description stays in its own sentence.
-3. **Right after, what only they are doing**, starting with He, She or They: pose, action, expression, what they hold. The one the moment is about comes first. Two characters at most; anyone else goes in as background tags (people in background, crowd).
-4. **Last line: background, objects and lighting**, as tags.
+3. **Right after, what only they are doing**, starting with He, She or They, in a few plain words: their pose, their main action, their expression, and the one thing they hold, if any. The one the moment is about comes first. Two characters at most; anyone else goes in as background tags (people in background, crowd).
+4. **Last line: the background, a few objects and ONE main light**, as tags.
 
 Rules:
-- <Cast> is reference only. Never write hair, eyes, face, body or clothing for a @Name character. The one exception: when <Cast> says their clothing is not noted, add "wearing …" right after their @Name.
+- <Cast> is reference only. Never write hair, eyes, face, body or clothing for a @Name character. The one exception: when <Cast> explicitly says "wearing: not noted", add "wearing …" right after their @Name.
 - Write each @Name once. Use no names anywhere else: "holding her hand", not "holding Theo's hand"; "bedroom", not "Mira's bedroom".
+- Draw the moment, not the story. Show feelings as what the face and body do: "nervous, looking away", not "hesitant because she is shy".
+- Use simple words an image model knows: "smug smile", "arms crossed", "holding a cake". Don't copy the story's wording.
+- Leave out anything too small to see in the picture: nail polish, a label, a ring, a print on a can. If it would be a speck, it doesn't belong.
 - No quality tags (masterpiece, best quality…).
 
 Example (made-up characters; use the names from <Cast>):
 1girl, 1boy, indoors, tavern, night, medium shot,
-On the left is @Mira. She sits at the bar laughing, one hand around a mug.
+On the left is @Mira. She sits at the bar, laughing, holding a mug.
 On the right is @Theo. He leans on the counter, smiling at her.
-wooden bar, shelves of bottles, rain on the windows, warm lamplight
+wooden bar, shelves of bottles, rainy window, warm lamplight
 
 Shot: a film still of the moment. Pick a wide, medium or close shot to suit it.
 
@@ -603,8 +612,11 @@ _Code: `looksCore.js → renderLookScanPrompt`_
 </Character_Sheet>
 
 Write the permanent appearance of these characters: Mira, Theo. Skip anyone the text does not describe.
-Use booru tags: sex and apparent age (male, female, young adult, mature female…), hair (colour, length, style), eyes, skin, face, body type and build, and permanent features (scars, tattoos, horns, animal ears, tails, wings).
-Never include: clothing or accessories they can take off, expressions, poses, actions, the place, count tags (1girl, 1boy, solo) or quality tags.
+Write 8 to 12 booru tags per character, only the ones you would recognise them by: sex and apparent age (male, female, young adult, mature female…), hair (colour, length, style), eye colour, skin, body type, and permanent features (scars, tattoos, horns, animal ears, tails, wings).
+- One tag per thing, the strongest one: "long hair", never "long hair, medium hair".
+- Never two tags that fight: "petite" with "tall", or "slender" with "curvy". Pick the one that fits best.
+- Leave out small face details the image model draws on its own (nose, lips, eyelashes, face shape, smooth skin), unless one is what makes them recognisable.
+- Never include: clothing or accessories they can take off, expressions, poses, actions, the place, count tags (1girl, 1boy, solo) or quality tags.
 Only what the text states or clearly shows; do not invent features.
 If a character has a nickname, write the name as: Name "Nickname".
 
@@ -649,7 +661,8 @@ _Code: `looksCore.js → renderOutfitTagsPrompt`_
 
 ```text
 Turn each outfit into booru clothing tags.
-- One tag per garment or accessory, with its colour or material when the text gives one: "grey hoodie, black joggers, white socks".
+- Main garments only, 3 to 6 tags: each one with its colour or material when the text gives one ("grey hoodie, black joggers, white socks"), plus one standout accessory if there is one.
+- Plain over detailed: "white bra", not "lace-trimmed bra, front bow, white trim, drawstring". Name a print only when it is simple ("cat print"), and never give one garment two tags that fight.
 - Keep the state of dress when the text says it (open jacket, sleeves rolled up, barefoot, towel).
 - Only clothing and accessories: no hair, body, expression, pose, count tags or quality tags. Add nothing the text does not say.
 
