@@ -96,6 +96,15 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
   Bonds | Sheet tabs, no History (the developer's call: to change a value, edit
   it again). Edits are user entries; clear a box = remove the value; Forget =
   `parsed.forget`.
+- **Blocks via Chomusuke** (plan 009): Chomusuke tab Blocks route
+  (`chomusuke.features.blocks`, off by default) + per-block switches
+  `chomusuke.blockRoutes = { bonds, sheet, chatter, cyoa }`.
+  `blockViaChomusuke(id)` in `state/index.js`. A routed block is skipped in the
+  envelope; Chomusuke writes it after the reply (prompt + answer split in
+  `modules/stats/worker.js`, pure), recorded with `source: "sidemodel"` on the
+  reply's uid/swipe. CYOA has its own `cyoaModule` (latest only, not in Current
+  Info). Cards draw routed blocks from the store, with "Read again". Story
+  Tracker and Dice stay with the story model.
 - Storage: `chat_metadata.megumin_state`.
 
 ### Image Gen (`src/features/imagegen/`)
@@ -115,8 +124,9 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
   Method "Edit last prompt" is experimental.
 - `auto.js` + `slot.js` — automatic images written by Chomusuke instead of the
   story model; placed at end or a random paragraph (never inside think/blocks).
-- `combinedTurn.js` — **World State + image in one Chomusuke call** (off by default,
-  with a separate-read fallback toggle), for V2 and Classic. Answers come back as
+- `combinedTurn.js` — **one Chomusuke call per reply** for everything routed to it:
+  World State + routed blocks (009) + image when due ("Combine calls", one switch,
+  off by default, with a separate-read fallback toggle), for V2 and Classic. Answers come back as
   tagged sections (`<Image_Prompt>`, `<Outfit_Tags>`, `<Character_Visual>`, world
   block), not JSON. `<Character_Sheets>` always go before the story; all tasks
   together at the end.
@@ -140,15 +150,16 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
 - ComfyUI polling: guard against overlapping async polls (busy/done flags), else
   duplicate images.
 
-## Status (2026-09-29)
+## Status (2026-10-07)
 
 Plans **005 (state store + World State)**, **006 (Image Gen V2)**, **007 (image
 prompt rewrite: one line per character, `<Last_Message>`)** and **008 (Bonds,
 Sheet, Chatter, Tracker in the store; Current Info; old blocks hidden from the
-AI)** are DONE and tested by the developer. Also done: picking a tag style fills
+AI)** and **009 (Bonds, Sheet, Chatter, CYOA written by Chomusuke; one combined
+call per reply)** are DONE and tested by the developer. Also done: picking a tag style fills
 the prefix with quality tags (`imagegen/qualityPrefix.js`); a cancelled image
 removes its placeholder, a cancelled regenerate puts the old image back.
-176 tests pass.
+183 tests pass.
 `docs/image-prompts.md` lists every image prompt (generated from the code).
 
 ## Open follow-ups (raise these when relevant)
