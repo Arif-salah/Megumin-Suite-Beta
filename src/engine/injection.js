@@ -27,6 +27,7 @@ import { buildBaseDict } from "./buildBaseDict.js";
 import { hideBlocksInMessages } from "./hideBlocks.js";
 import { meguminAllBlockTags } from "../features/blocks/registry.js";
 import { meguminAllSlotTriggers } from "../../data/slots.js";
+import { suiteEnabled } from "../core/power.js";
 
 // Throttles the prompt-preview popup so token counting and rapid ST background
 // triggers can't stack popups. Read and written only by the injection handler.
@@ -340,6 +341,9 @@ export async function handlePromptInjection(data, type) {
     }
 
     if (!localProfile) return;
+    // Master switch off: the roleplay prompt goes out exactly as SillyTavern
+    // built it, [[placeholders]] and old blocks included.
+    if (!suiteEnabled()) return;
 
     // Semantic memory retrieval is a network call fired on a debounce, so without
     // waiting here the prompt can be assembled from the previous turn's matches.

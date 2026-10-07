@@ -41,6 +41,12 @@
                 transform 0.2s ease;
 }
 
+/* Master switch off: the launcher dims so the state shows without opening the window. */
+#prompt-slot-fixed-btn.ps-suite-off {
+    filter: grayscale(1);
+    opacity: 0.55;
+}
+
 #prompt-slot-fixed-btn:hover {
     background: #27272a;
     transform: translateY(-2px);

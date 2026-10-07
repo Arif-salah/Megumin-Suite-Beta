@@ -136,6 +136,7 @@ import {
 } from "./src/features/imagegen/index.js";
 import { buildBaseDict } from "./src/engine/buildBaseDict.js";
 import { handlePromptInjection } from "./src/engine/injection.js";
+import { suiteEnabled, setSuiteEnabled, syncPowerUI } from "./src/core/power.js";
 import { updateLiveTokenCount } from "./src/core/tokens.js";
 import { initDraggableButton, updateCharacterDisplay, discoverDefaultImages } from "./src/ui/launcher.js";
 import { tabsUI, switchTab, updateGlobalSyncButton, toggleTabGlobalSync } from "./src/ui/tabs.js";
@@ -219,6 +220,12 @@ $("body").on("input", "#ps_main_current_rule", function () {
 // -------------------------------------------------------------
 
 
+// Master switch (top bar). The Global Settings row wires its own click.
+$("body").off("click", "#ps_btn_power").on("click", "#ps_btn_power", function (e) {
+    e.preventDefault();
+    setSuiteEnabled(!suiteEnabled());
+});
+
 // -------------------------------------------------------------
 // DEV MODE: VISUAL ENGINE BUILDER
 // -------------------------------------------------------------
@@ -249,6 +256,7 @@ jQuery(async () => {
         const h = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(h);
         initDraggableButton();
+        syncPowerUI();
         $("body").append('<div id="ps-global-tooltip"></div>');
         // Profile level badge styles
         $("head").append(`<style>
@@ -436,9 +444,11 @@ jQuery(async () => {
                 updateMemoryVisuals();
             });
             // Background Vectorization triggers for Semantic Mode
-            eventSource.on(event_types.USER_MESSAGE_RENDERED, memUpdateSemanticQueryDebounced);
-            eventSource.on(event_types.MESSAGE_EDITED, memUpdateSemanticQueryDebounced);
-            eventSource.on(event_types.CHAT_CHANGED, memUpdateSemanticQueryDebounced);
+            // (not while the suite is switched off: each one is a network call)
+            const memQueryIfOn = (...args) => { if (suiteEnabled()) memUpdateSemanticQueryDebounced(...args); };
+            eventSource.on(event_types.USER_MESSAGE_RENDERED, memQueryIfOn);
+            eventSource.on(event_types.MESSAGE_EDITED, memQueryIfOn);
+            eventSource.on(event_types.CHAT_CHANGED, memQueryIfOn);
             // Trigger visual update when user clicks "Show more messages"
             eventSource.on(event_types.MORE_MESSAGES_LOADED, updateMemoryVisuals);
             // Prune future data and roll back ledger on message deletion
@@ -490,6 +500,8 @@ jQuery(async () => {
             // IMAGE GEN AUTO-GEN & SWIPE TRIGGERS
             eventSource.on(event_types.MESSAGE_RECEIVED, async (receivedId, receivedType) => {
                 updateMemoryVisuals();
+                // Master switch off: nothing below runs (no reads, images, director, memory, NPC bank).
+                if (!suiteEnabled()) return;
 
                 // --- WORLD STATE ---
                 // First, so everything below (image gen included) sees this
@@ -802,6 +814,7 @@ jQuery(async () => {
                 }
             });
             const meguminSwipeHandler = async (data) => {
+                if (!suiteEnabled()) return; // switched off: SillyTavern handles the overswipe itself
                 const s = localProfile?.imageGen;
                 if (!s || !s.enabled) return;
 

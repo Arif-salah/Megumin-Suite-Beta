@@ -28,6 +28,7 @@ import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { downloadJsonFile } from "../../utils/download.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
+import { suiteEnabled } from "../../core/power.js";
 import { memGetCachedKeywords, memExtractKeywords, memStringHash } from "./keywords.js";
 import {
     memGetCollectionId, memInsertToVectorDB, memDeleteFromVectorDB,
@@ -1541,6 +1542,7 @@ function memRealIndexMap(chat, context) {
 
 // Rule A: The Prompt Interceptor (STRICT)
 window.megumin_memory_intercept = function (chat, _contextSize, _abort, type) {
+    if (!suiteEnabled()) return;
     const mem = localProfile?.memoryCore;
     if (!mem?.enabled) return;
 

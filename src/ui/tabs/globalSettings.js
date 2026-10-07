@@ -8,6 +8,7 @@ import { localProfile } from "../../core/state.js";
 import { initProfile, saveProfileToMemory } from "../../core/profile.js";
 import { flushProfileSettingsToLoadedKey, _saveProfileDebouncedInner } from "../../core/profile.js";
 import { cancelDebounce } from "../../st.js";
+import { suiteEnabled, setSuiteEnabled } from "../../core/power.js";
 
 // The version on the about card. One place, so it cannot fall out of step with
 // itself the way "v9" did once V10 shipped.
@@ -68,6 +69,16 @@ export function renderGlobalSettings(c) {
 
     // ── BEHAVIOUR ───────────────────────────────────────────────────────────
     $content.append(`<div class="wstyle-section-head blue"><i class="fa-solid fa-sliders"></i> Behaviour</div>`);
+    const suiteOn = suiteEnabled();
+    $content.append(`
+        <div class="mtab-toggle-row ${suiteOn ? 'active' : ''}" id="gs_toggle_suite" style="cursor: pointer; ${suiteOn ? 'border-color: #10b981;' : ''}">
+            <div class="toggle-info">
+                <div class="toggle-label"><i class="fa-solid fa-power-off" style="color: #10b981;"></i> Megumin Suite On</div>
+                <div class="toggle-desc">The master switch, also on the top bar. <b>Off:</b> prompts go out exactly as SillyTavern builds them and nothing runs in the background after a reply. Cards and images already in the chat still show, and the buttons in this window still work.</div>
+            </div>
+            <div class="ps-switch" style="${suiteOn ? 'background: #10b981;' : ''}"></div>
+        </div>
+    `);
     $content.append(`
         <div class="mtab-toggle-row ${gs.promptPreview ? 'active' : ''}" id="gs_toggle_prompt_preview" style="cursor: pointer;">
             <div class="toggle-info">
@@ -164,6 +175,7 @@ export function renderGlobalSettings(c) {
             $(this).find(".ps-switch").css("background", gs[key] ? colour : "");
         });
     };
+    $content.find("#gs_toggle_suite").on("click", () => setSuiteEnabled(!suiteEnabled()));
     wireToggle("#gs_toggle_prompt_preview", "promptPreview", "var(--gold)");
     wireToggle("#gs_toggle_utility_prefill", "enableUtilityPrefill", "#10b981");
 
