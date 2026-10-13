@@ -36,7 +36,8 @@ import { imageViaChomusuke, dueNow, NOT_A_REPLY, insertPlaceholder, removePlaceh
 import { classicImageParts, classicImageRulesBlock } from "./classic/prompt.js";
 import { v2Settings, currentImageCast, cleanModelPrompt, getLastImagePrompt } from "./v2/index.js";
 import { renderCastList, renderV2Rules, renderCombinedPrompt, splitCombinedAnswer } from "./v2/prompt.js";
-import { storeOutfitTags, storeNewLooks, takeLookAttempts, sheetSource } from "./v2/looks.js";
+import { storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, sheetSource } from "./v2/looks.js";
+import { inImage, needsLook } from "./v2/cast.js";
 import { imageGenEngine } from "./index.js";
 
 const sub = t => { try { return substituteParams(t); } catch (e) { return t; } };
@@ -126,11 +127,9 @@ export async function runCombinedTurn(messageId, type, plan) {
                 built = renderCombinedPrompt(common);
             } else if (engine === "v2") {
                 const cast = currentImageCast();
-                const inShot = m => m.inScene || m.isPc || m.mentioned;
                 const detailed = cfg.outfitTags && cfg.style === "tags";
-                staleBefore = detailed ? cast.filter(m => m.outfitStale && inShot(m)) : [];
-                missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(getContext()?.chatId,
-                    cast.filter(m => (m.inScene || m.isPc) && !String(m.look || m.body || m.lookNatural || "").trim()));
+                staleBefore = detailed ? cast.filter(m => m.outfitStale && inImage(m, cfg.shot)) : [];
+                missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(getContext()?.chatId, cast.filter(m => needsLook(m, cfg.shot)));
                 built = renderCombinedPrompt({
                     ...common,
                     engine: "v2",
@@ -164,6 +163,7 @@ export async function runCombinedTurn(messageId, type, plan) {
         console.error("[Megumin-Suite] Combined Chomusuke call failed", e);
     }
     raw = String(raw || "");
+    if (!raw.trim() && missingLooks.length) releaseLookAttempts(getContext()?.chatId, missingLooks);
     // With a World prefill the answer starts inside the World block.
     const full = built && built.prefill && !/<World_(State|Update)\b/i.test(raw) ? built.prefill + raw : raw;
 
@@ -198,8 +198,7 @@ export async function runCombinedTurn(messageId, type, plan) {
     // 3. V2: outfit tags and new looks, against the outfits AFTER the update.
     const { prompt: rawPrompt, rest } = splitCombinedAnswer(full);
     if (engine === "v2" && rest) {
-        const inShot = m => m.inScene || m.isPc || m.mentioned;
-        const staleNow = currentImageCast().filter(m => m.outfitStale && inShot(m));
+        const staleNow = currentImageCast().filter(m => m.outfitStale && inImage(m, cfg.shot));
         if (staleNow.length) storeOutfitTags(staleNow, rest);
         if (missingLooks.length) {
             const added = storeNewLooks(missingLooks.map(m => ({ name: m.name, aliases: m.aliases || [] })), rest);

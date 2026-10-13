@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveImagePrompt, stripCountTags, dedupeTags, splitTags, isLineLayout, wearingPhrase } from "../src/features/imagegen/v2/resolve.js";
-import { buildImageCast } from "../src/features/imagegen/v2/cast.js";
+import { buildImageCast, inImage, needsLook } from "../src/features/imagegen/v2/cast.js";
 import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction } from "../src/features/imagegen/v2/prompt.js";
 import { parseWorldBlocks } from "../src/state/modules/world/parse.js";
 import { emptyWorld, applyWorldChanges } from "../src/state/modules/world/model.js";
@@ -398,4 +398,43 @@ test("combined answer: each section is read on its own; a broken one loses only 
     assert.equal(splitCombinedAnswer("1girl, @Aqua\n<Outfit_Tags name=\"Aqua\">x</Outfit_Tags>").prompt, "1girl, @Aqua");
     // Broken outfit section: the prompt survives.
     assert.equal(splitCombinedAnswer("<Image_Prompt>1girl, @Aqua</Image_Prompt><Outfit_Tags>oops").prompt, "1girl, @Aqua");
+});
+
+test("cast: a look saved under a first name finds the full name World State uses", () => {
+    const world = { pc: { name: "Kazuma", fields: {} }, cast: { "anno ryo": { name: "Anno Ryo", present: true, aliases: [], fields: { outfit: "white bra" } } } };
+    const cast = buildImageCast({ looks: { Anno: { tags: "female, black hair" } }, world, userName: "Kazuma" });
+    const anno = cast.find(m => m.name === "Anno Ryo");
+    assert.equal(anno.look, "female, black hair");
+    assert.equal(anno.lookKey, "Anno");
+    assert.ok(anno.aliases.includes("Anno"), "@Anno still finds her");
+    assert.equal(cast.filter(m => /anno/i.test(m.name)).length, 1, "no second, absent Anno");
+});
+
+test("cast: an exact look wins, and a first name shared by two members matches neither", () => {
+    const world = { cast: {
+        a: { name: "Anno Ryo", present: true, aliases: [], fields: {} },
+        b: { name: "Anno Smith", present: true, aliases: [], fields: {} }
+    } };
+    const cast = buildImageCast({ looks: { Anno: { tags: "black hair" }, "Anno Smith": { tags: "red hair" } }, world });
+    assert.equal(cast.find(m => m.name === "Anno Smith").look, "red hair");
+    // Anno Smith has her own look, so "Anno" fits only Anno Ryo.
+    assert.equal(cast.find(m => m.name === "Anno Ryo").look, "black hair");
+
+    const two = buildImageCast({ looks: { Anno: { tags: "black hair" } }, world });
+    assert.equal(two.find(m => m.name === "Anno Ryo").look, "");
+    assert.ok(two.some(m => m.name === "Anno" && !m.inScene), "unsure: kept as its own character");
+});
+
+test("inImage / needsLook: a POV shot never asks for the player's look or outfit", () => {
+    const pc = { isPc: true, inScene: true, look: "" };
+    const npc = { inScene: true, look: "" };
+    const away = { mentioned: true, look: "" };
+    assert.equal(inImage(pc, "pov"), false);
+    assert.equal(inImage(pc, "cinematic"), true);
+    assert.equal(inImage(away, "pov"), true);
+    assert.equal(needsLook(pc, "pov"), false);
+    assert.equal(needsLook(pc, "cinematic"), true);
+    assert.equal(needsLook(npc, "pov"), true);
+    assert.equal(needsLook(away, "pov"), false, "only someone in the scene gets a look read");
+    assert.equal(needsLook({ inScene: true, look: "x" }), false);
 });

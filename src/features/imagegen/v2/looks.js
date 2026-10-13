@@ -14,10 +14,10 @@ import { setActiveImageGenRequest } from "../../../core/activeRequests.js";
 import { runWithChomusuke } from "../../../engine/tasks.js";
 import { meguminCleanChatHistoryText } from "../../../engine/chatText.js";
 import { worldEnabled, worldHasState, getWorldState } from "../../../state/index.js";
-import { presentCast } from "../../../state/modules/world/model.js";
 import { buildCharacterSheets } from "../classic/prompt.js";
 import { getLooks, currentImageCast, v2Settings } from "./index.js";
 import { splitLookTags } from "./lookParts.js";
+import { inImage, needsLook } from "./cast.js";
 import { imageViaChomusuke } from "../auto.js";
 import {
     LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey,
@@ -191,6 +191,11 @@ export function takeLookAttempts(chatId, members) {
     return out;
 }
 
+/** The call failed or came back empty: these get asked for again next image. */
+export function releaseLookAttempts(chatId, members) {
+    (members || []).forEach(m => attempted.delete(`${chatId}|${m.name.toLowerCase()}`));
+}
+
 /**
  * Someone in the scene has no look (and no NPC Bank tags): read one for them
  * from the recent chat, in the background, and add it. Never changes an
@@ -207,14 +212,11 @@ export function v2LooksForArrivals() {
     if (imageViaChomusuke() || ig.triggerMode === "manual") return;
     const chatId = getContext()?.chatId;
     if (!chatId) return;
-    const looks = getLooks();
-    const npcs = (localProfile.npcBank && localProfile.npcBank.npcs) || [];
-    const missing = presentCast(getWorldState()).filter(c => {
-        if (attempted.has(`${chatId}|${c.name.toLowerCase()}`)) return false;
-        const k = findLookKey(looks, c.name, c.aliases || []);
-        if (k && String(looks[k].tags || "").trim()) return false;
-        return !npcs.some(n => n && n.name && n.name.toLowerCase() === c.name.toLowerCase() && String(n.imageTags || "").trim());
-    }).map(c => ({ name: c.name, aliases: c.aliases || [] }));
+    // The image cast already knows who has a look (stored, NPC Bank, or one
+    // saved under a first name), so it decides who is missing one.
+    const missing = currentImageCast()
+        .filter(m => !m.isPc && needsLook(m) && !attempted.has(`${chatId}|${m.name.toLowerCase()}`))
+        .map(m => ({ name: m.name, aliases: m.aliases || [] }));
     if (!missing.length) return;
     missing.forEach(t => attempted.add(`${chatId}|${t.name.toLowerCase()}`));
     scanLooks({ from: "chat", targets: missing, interactive: false })
@@ -267,7 +269,7 @@ export function refreshOutfitTags() {
     if (outfitRefresh) return outfitRefresh;
     const cfg = v2Settings();
     if (!cfg.outfitTags || cfg.style !== "tags") return Promise.resolve(0);
-    const stale = currentImageCast().filter(m => m.outfitStale && (m.inScene || m.isPc || m.mentioned));
+    const stale = currentImageCast().filter(m => m.outfitStale && inImage(m, cfg.shot));
     if (!stale.length) return Promise.resolve(0);
 
     const chatAtStart = getContext()?.chatId;

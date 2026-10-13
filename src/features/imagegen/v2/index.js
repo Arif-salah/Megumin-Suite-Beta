@@ -11,10 +11,10 @@ import { localProfile } from "../../../core/state.js";
 import { setActiveImageGenRequest } from "../../../core/activeRequests.js";
 import { meguminCleanChatHistoryText } from "../../../engine/chatText.js";
 import { getWorldState, worldHasState } from "../../../state/index.js";
-import { buildImageCast } from "./cast.js";
+import { buildImageCast, inImage, needsLook } from "./cast.js";
 import { resolveImagePrompt } from "./resolve.js";
 import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2Extras, splitCombinedAnswer } from "./prompt.js";
-import { refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, sheetSource } from "./looks.js";
+import { refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, sheetSource } from "./looks.js";
 
 export const V2_DEFAULTS = {
     style: "tags", shot: "cinematic", extra: "", method: "placeholders",
@@ -107,10 +107,8 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
     // missing) is asked for in this SAME call and saved from its answer.
     const chatAtStart = getContext()?.chatId;
     const castNow = currentImageCast();
-    const inShot = m => m.inScene || m.isPc || m.mentioned;
-    const staleOutfits = cfg.outfitTags && cfg.style === "tags" ? castNow.filter(m => m.outfitStale && inShot(m)) : [];
-    const missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(chatAtStart,
-        castNow.filter(m => (m.inScene || m.isPc) && !String(m.look || m.body || m.lookNatural || "").trim()));
+    const staleOutfits = cfg.outfitTags && cfg.style === "tags" ? castNow.filter(m => m.outfitStale && inImage(m, cfg.shot)) : [];
+    const missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(chatAtStart, castNow.filter(m => needsLook(m, cfg.shot)));
     const extras = renderV2Extras({
         outfits: staleOutfits.map(m => ({ name: m.name, outfit: m.outfitText })),
         looks: missingLooks.map(m => m.name)
@@ -132,7 +130,14 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
         rules: rules(extraInstruction)
     });
     setActiveImageGenRequest({ v2: { system: sub(built.system), user: built.user } });
-    const raw = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
+    let raw;
+    try {
+        raw = await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
+    } catch (e) {
+        releaseLookAttempts(chatAtStart, missingLooks);   // no answer: ask again next image
+        throw e;
+    }
+    if (!String(raw || "").trim()) releaseLookAttempts(chatAtStart, missingLooks);
     if (!extras) return cleanModelPrompt(raw);
     const { prompt, rest } = splitCombinedAnswer(raw);
     if (rest && getContext()?.chatId === chatAtStart) {

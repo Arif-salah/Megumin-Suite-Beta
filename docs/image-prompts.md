@@ -664,7 +664,7 @@ _Code: `looksCore.js → renderOutfitTagsPrompt`_
 ```text
 Turn each outfit into booru clothing tags.
 - Main garments only, 3 to 6 tags: one tag per garment, with its colour or material when the text gives one ("grey hoodie, black joggers, white socks"), plus one standout accessory if there is one. "oversized pink sweater" is one tag, never "pink sweater, cable knit sweater, oversized sweater".
-- Plain over detailed: "white bra", not "lace-trimmed bra, front bow, white trim, drawstring". Name a print only when it is simple ("cat print"), and never give one garment two tags that fight.
+- Plain over detailed: "white bra", not "lace-trimmed bra, front bow, white trim, drawstring". Name a print only when it is simple, and put it in the garment's own tag: "white cat print bra", not "white bra, cat print bra".
 - Keep the state of dress when the text says it (open jacket, sleeves rolled up, barefoot, towel).
 - Only clothing and accessories: no hair, body, expression, pose, count tags or quality tags. Add nothing the text does not say.
 

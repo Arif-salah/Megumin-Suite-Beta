@@ -131,7 +131,7 @@ export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = fa
         const who = followUpdate
             ? `for every character whose Outfit your World_Update changes${outfits.length ? ", and for these outfits" : ""}`
             : "for these outfits";
-        parts.push(`- Outfit tags ${who}: main garments only, 3 to 6 booru tags, one tag per garment with its colour or material ("oversized pink sweater", not three tags), plus one standout accessory; plain over detailed; keep the state of dress; clothing only, nothing the text does not say.`);
+        parts.push(`- Outfit tags ${who}: main garments only, 3 to 6 booru tags, one tag per garment with its colour, material and print ("oversized pink sweater", "white cat print bra"; never two tags for one garment), plus one standout accessory; plain over detailed; keep the state of dress; clothing only, nothing the text does not say.`);
         parts.push(...outfits.map(o => `  ${o.name}: ${o.outfit}`));
     }
     if (looks.length) {

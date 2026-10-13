@@ -21,6 +21,17 @@ function lookParts(entry) {
     return splitLookTags(entry.tags || "");
 }
 
+/** Who an image can show: the scene and anyone just named, plus the player unless the shot is through their eyes. */
+export function inImage(m, shot) {
+    return m.isPc ? shot !== "pov" : Boolean(m.inScene || m.mentioned);
+}
+
+/** Someone the image may show who has no look yet (a look is read for them in the same call). */
+export function needsLook(m, shot) {
+    const shown = m.isPc ? shot !== "pov" : m.inScene;
+    return Boolean(shown) && !String(m.look || m.body || m.lookNatural || "").trim();
+}
+
 /**
  * @param {{
  *   looks?: Record<string, { tags?: string, natural?: string, aliases?: string[] }>,
@@ -73,12 +84,32 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
     }
 
     // 3. Stored looks: attach to a known member, or add them as absent.
+    //    Exact names and nicknames first; then a look saved under a first name
+    //    finds the full name World State uses ("Anno" ↔ "Anno Ryo"), when only
+    //    one member without a look fits.
+    const firstWord = s => key(s).split(" ")[0];
+    const byFirstName = name => {
+        const f = firstWord(name);
+        if (f.length < 3) return null;
+        const hits = members.filter(m => !m.lookKey && [m.name, ...m.aliases].some(n => firstWord(n) === f));
+        return hits.length === 1 ? hits[0] : null;
+    };
+    const pending = [];
     for (const [name, entry] of Object.entries(looks || {})) {
         if (!entry) continue;
         const lookName = name === "{{user}}" ? pcName : name;
         if (!lookName) continue;
-        let m = find(lookName) || (entry.aliases || []).map(find).find(Boolean) || null;
-        if (!m) m = add(blank(lookName));
+        const m = find(lookName) || (entry.aliases || []).map(find).find(Boolean) || null;
+        if (m) attachLook(m, name, entry); else pending.push([name, entry, lookName]);
+    }
+    for (const [name, entry, lookName] of pending) {
+        let m = byFirstName(lookName);
+        if (m) m.aliases.push(lookName);   // so @Anno and the look's own name still find them
+        else m = add(blank(lookName));
+        attachLook(m, name, entry);
+    }
+
+    function attachLook(m, name, entry) {
         m.lookKey = name;
         m.outfitCache = entry.outfitTags || null;
         const parts = lookParts(entry);
