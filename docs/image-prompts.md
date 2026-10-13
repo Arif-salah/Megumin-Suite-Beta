@@ -1,6 +1,6 @@
 # Image prompts: every text the image features send to a model
 
-Generated from the code on 2026-09-27 (V2 action, look and outfit rules updated 2026-10-07), so every text below is exactly what is sent today.
+Generated from the code on 2026-09-27 (V2 action, look and outfit rules updated 2026-10-07 and 2026-10-13), so every text below is exactly what is sent today.
 
 **How to use this file:** edit the text inside the ```text blocks directly, or write notes under a block (start them with `NOTE:`). Keep the `{{placeholders}}` unless you mean to drop them: the code fills them in. When you're done, send the file back and I'll move the changes into the code.
 
@@ -612,8 +612,10 @@ _Code: `looksCore.js → renderLookScanPrompt`_
 </Character_Sheet>
 
 Write the permanent appearance of these characters: Mira, Theo. Skip anyone the text does not describe.
-Write 8 to 12 booru tags per character, only the ones you would recognise them by: sex and apparent age (male, female, young adult, mature female…), hair (colour, length, style), eye colour, skin, body type, and permanent features (scars, tattoos, horns, animal ears, tails, wings).
+Write 8 to 12 booru tags per character, only the ones you would recognise them by. Always start with their sex (male or female) and apparent age (young adult, mature female…), then hair (colour, length, style), eye colour, skin, body type, and permanent features (scars, tattoos, horns, animal ears, tails, wings).
+- A man who looks feminine: add "otoko no ko, flat chest". A woman who looks masculine: add "tomboy". Without them the image model draws the wrong sex.
 - One tag per thing, the strongest one: "long hair", never "long hair, medium hair".
+- Only real booru tags, and say where a mark is: "mole under eye", not "moles"; "sidelocks", not "side hair".
 - Never two tags that fight: "petite" with "tall", or "slender" with "curvy". Pick the one that fits best.
 - Leave out small face details the image model draws on its own (nose, lips, eyelashes, face shape, smooth skin), unless one is what makes them recognisable.
 - Never include: clothing or accessories they can take off, expressions, poses, actions, the place, count tags (1girl, 1boy, solo) or quality tags.
@@ -661,7 +663,7 @@ _Code: `looksCore.js → renderOutfitTagsPrompt`_
 
 ```text
 Turn each outfit into booru clothing tags.
-- Main garments only, 3 to 6 tags: each one with its colour or material when the text gives one ("grey hoodie, black joggers, white socks"), plus one standout accessory if there is one.
+- Main garments only, 3 to 6 tags: one tag per garment, with its colour or material when the text gives one ("grey hoodie, black joggers, white socks"), plus one standout accessory if there is one. "oversized pink sweater" is one tag, never "pink sweater, cable knit sweater, oversized sweater".
 - Plain over detailed: "white bra", not "lace-trimmed bra, front bow, white trim, drawstring". Name a print only when it is simple ("cat print"), and never give one garment two tags that fight.
 - Keep the state of dress when the text says it (open jacket, sleeves rolled up, barefoot, towel).
 - Only clothing and accessories: no hair, body, expression, pose, count tags or quality tags. Add nothing the text does not say.
