@@ -64,12 +64,20 @@ export function renderV2ImageGen(c) {
     mountSharedSettings(outer);
 }
 
+// The "Away" fold stays open across redraws once the reader opens it.
+let awayOpen = false;
+
 // V2's own cards (Prompt, Cast). Every edit redraws only these.
 function renderV2Cards(c) {
     c.empty();
     const ig = localProfile.imageGen;
     const cfg = v2Settings();
     const cast = currentImageCast();
+    // Who can be in an image right now (the same people <Cast> gives the model),
+    // and everyone else, kept on file and folded away.
+    const inStory = m => m.isPc || m.inScene || m.mentioned;
+    const castNow = cast.filter(inStory);
+    const castAway = cast.filter(m => !inStory(m));
     const looks = getLooks();
     const redraw = () => renderV2Cards(c);
     const detailedOutfits = cfg.outfitTags && cfg.style === "tags";
@@ -177,12 +185,20 @@ function renderV2Cards(c) {
                     <input type="text" class="ps-modern-input ig2-add-name" placeholder="Add a character by name" />
                     <button type="button" class="menu_button ig2-add-btn"><i class="fa-solid fa-plus"></i> Add</button>
                 </div>
-                ${cast.map(card).join("") || `<div class="ig2-hint">No one yet. Scan the character sheet, or add a character.</div>`}
+                ${castNow.map(card).join("") || (castAway.length ? "" : `<div class="ig2-hint">No one yet. Scan the character sheet, or add a character.</div>`)}
+                ${castAway.length ? `
+                <details class="ig2-away" ${awayOpen ? "open" : ""}>
+                    <summary><i class="fa-solid fa-user-clock"></i> Away or not in the story yet <span class="ig2-chip">${castAway.length}</span></summary>
+                    <div class="ig2-away-note"><i class="fa-solid fa-circle-info"></i> <span><b>Don't worry about this list.</b> Only the characters who are in the scene or were just mentioned go into an image. Everyone here is only kept on file, so if they come back they look the same as before. Some may never show up in this story again, and that's fine. Delete any you don't want with the trash button.</span></div>
+                    ${castAway.map(card).join("")}
+                </details>` : ""}
                 <div class="ig2-hint">A look is permanent appearance only; the outfit comes from World State. New characters get a look automatically when they enter the story; established looks only change when you scan and approve it.</div>
             </div>
 
         </div>
     `);
+
+    page.find(".ig2-away").on("toggle", function () { awayOpen = this.open; });
 
     const setCfg = patch => { ig.v2 = { ...cfg, ...(ig.v2 || {}), ...patch }; };
     page.find("#ig2_style").on("change", function () {

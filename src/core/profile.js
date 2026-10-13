@@ -653,12 +653,12 @@ export function initProfile() {
         if (localProfile.imageGen) {
             localProfile.imageGen.characterTags = chat_metadata["megumin_character_tags"].characterTags || {};
         }
-    } else if (chat_metadata && localProfile.imageGen && Object.keys(localProfile.imageGen.characterTags || {}).length > 0) {
-        // Migration: If characterTags are stuck in settings.json, move them to the chat file!
-        chat_metadata["megumin_character_tags"] = {
-            characterTags: localProfile.imageGen.characterTags || {}
-        };
-        saveMetadata();
+    } else if (localProfile.imageGen) {
+        // No looks in this chat yet: it starts with none. Looks were never kept in
+        // settings.json except by a one-day Beta build whose global sync copied one
+        // chat's looks into every profile; seeding from there put an old story's
+        // characters into every new chat (dropLookResidue clears them).
+        localProfile.imageGen.characterTags = {};
     }
 
     // The three blocks above are still a migration SOURCE: a chat opened for the first

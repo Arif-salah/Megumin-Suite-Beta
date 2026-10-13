@@ -68,6 +68,25 @@ export function migrateRenamedTabs() {
 //
 // The value is deliberately NOT carried over. Someone who had switched the old one on
 // was disabling prefills, which is what the new default already does.
+// Looks (Image Gen character tags) live in each chat's file. One Beta build kept them in
+// settings.json for a day, and global sync copied that one chat's looks into every
+// profile; the copies are stale, never read any more, and only add weight.
+export function dropLookResidue() {
+    const profiles = extension_settings[extensionName] && extension_settings[extensionName].profiles;
+    if (!profiles) return;
+    let dropped = 0;
+    for (const p of Object.values(profiles)) {
+        if (p && p.imageGen && Object.prototype.hasOwnProperty.call(p.imageGen, "characterTags")) {
+            delete p.imageGen.characterTags;
+            dropped++;
+        }
+    }
+    if (dropped) {
+        console.log(`[${extensionName}] Removed stale image looks from ${dropped} profile(s) in settings.`);
+        saveSettingsDebounced();
+    }
+}
+
 export function migrateUtilityPrefillFlag() {
     const gs = extension_settings[extensionName] && extension_settings[extensionName].globalSettings;
     if (!gs || !Object.prototype.hasOwnProperty.call(gs, "disableUtilityPrefill")) return;
