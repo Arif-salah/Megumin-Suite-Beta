@@ -68,11 +68,26 @@ export function renderCastList(cast, { shot = "cinematic", method = "placeholder
     return blocks.length ? `<Cast>\n${blocks.join("\n")}\n</Cast>` : "";
 }
 
+export const V2_FOCUS = ["2", "3", "4", "all"];
+
+// How many characters get a line of their own (the V2 tab's "Characters in
+// focus"). The guide is written for three; the other choices swap that sentence.
+function focusRule(guide, focus) {
+    const n = { 2: "Two", 3: "Three", 4: "Four" }[focus];
+    if (n) return guide.replace(/Three characters at most;/g, `${n} characters at most;`);
+    if (focus !== "all") return guide;
+    return guide
+        .replace("Three characters at most; anyone else goes in as background tags (people in background, crowd).",
+            "Every named character in the moment gets a line of their own; unnamed people go in as background tags (people in background, crowd).")
+        .replace("Three characters at most; mention anyone else briefly as background.",
+            "Every named character in the moment gets a sentence of their own; mention unnamed people briefly as background.");
+}
+
 /** The style guide (structure + example + rules), the shot line, extra instructions. */
-export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", method = "placeholders" } = {}) {
-    const guide = method === "reference"
+export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", method = "placeholders", focus = "3" } = {}) {
+    const guide = focusRule(method === "reference"
         ? [P.reference.head, P.reference[style] || P.reference.tags].join("\n")
-        : (P.style[style] || P.style.tags);
+        : (P.style[style] || P.style.tags), String(focus));
     const parts = [guide, P.shot[shot] || P.shot.cinematic];
     if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
     // A blank line, so the shot line never reads as part of the example above it.

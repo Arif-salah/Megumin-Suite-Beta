@@ -136,7 +136,7 @@ export async function runCombinedTurn(messageId, type, plan) {
                     engine: "v2",
                     castList: renderCastList(cast, { shot: cfg.shot, method: cfg.method, lookPending: missingLooks.map(m => m.name) }),
                     sheets: missingLooks.length ? await sheetSourceFor(missingLooks) : "",
-                    imageRules: renderV2Rules({ style: cfg.style, shot: cfg.shot, extra: cfg.extra, method: cfg.method }),
+                    imageRules: renderV2Rules({ style: cfg.style, shot: cfg.shot, extra: cfg.extra, method: cfg.method, focus: cfg.focus }),
                     previous: cfg.method === "reference" ? getLastImagePrompt() : null,
                     extras: {
                         outfits: staleBefore.map(m => ({ name: m.name, outfit: m.outfitText })),

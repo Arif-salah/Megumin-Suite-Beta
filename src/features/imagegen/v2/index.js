@@ -20,7 +20,8 @@ export const V2_DEFAULTS = {
     style: "tags", shot: "cinematic", extra: "", method: "placeholders",
     autoLooks: true,          // a character entering the scene gets a look read from the chat
     lookPriority: "v2",       // "v2" | "npc": which wins when the NPC Bank also has Image Tags
-    outfitTags: false         // Tags style: turn World State outfits into detailed tags (once per outfit)
+    outfitTags: false,        // Tags style: turn World State outfits into detailed tags (once per outfit)
+    focus: "3"                // characters with a line of their own: "2" | "3" | "4" | "all"
 };
 
 // ── The previous image prompt (Reference method) ─────────────────────────
@@ -93,7 +94,7 @@ function sceneLine() {
 function rules(extraInstruction = "") {
     const cfg = v2Settings();
     const extra = [cfg.extra, extraInstruction].filter(s => String(s || "").trim()).join(" ");
-    return sub(renderV2Rules({ style: cfg.style, shot: cfg.shot, extra, method: cfg.method }));
+    return sub(renderV2Rules({ style: cfg.style, shot: cfg.shot, extra, method: cfg.method, focus: cfg.focus }));
 }
 
 // ── The manual button ────────────────────────────────────────────────────

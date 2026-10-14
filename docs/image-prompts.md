@@ -367,7 +367,7 @@ Write it top to bottom in this order:
 
 1. **Count, camera, place, time, framing**, as tags on the first line: the count (1girl, 1boy, 1girl 1boy, 2girls, no humans…; <Cast> says who is male and who is female; one person: add solo), indoors or outdoors, the place, the time, and exactly ONE framing (close-up, portrait, upper body, cowboy shot, medium shot, full body, wide shot). The framing decides how much of each character is shown.
 2. **One line per character**: where they are in the frame (on the left, on the right, in the center, in the foreground, in the background), then "is @Name." @Name carries that character's whole look and clothing, so each description stays in its own sentence.
-3. **Right after, what only they are doing**, starting with He, She or They, in a few plain words: their pose, their main action, their expression, and the one thing they hold, if any. The one the moment is about comes first. Two characters at most; anyone else goes in as background tags (people in background, crowd).
+3. **Right after, what only they are doing**, starting with He, She or They, in a few plain words: their pose, their main action, their expression, and the one thing they hold, if any. The one the moment is about comes first. Three characters at most; anyone else goes in as background tags (people in background, crowd).
 4. **Last line: the background, a few objects and ONE main light**, as tags.
 
 Rules:
@@ -396,7 +396,7 @@ Write it top to bottom in plain sentences, in this order:
 
 1. **The shot**, in one short sentence: the framing (close-up, from the waist up, medium shot, full body, wide shot), the place and the time. The framing decides how much of each character is shown.
 2. **One sentence per character**: where they are in the frame (on the left, on the right, in the center, in the foreground, in the background), then "is @Name." @Name carries that character's whole look and clothing, so each description stays in its own sentence.
-3. **Right after, what only they are doing**, starting with He, She or They, in a few plain words: their pose, their main action, their expression, and the one thing they hold, if any. The one the moment is about comes first. Two characters at most; mention anyone else briefly as background.
+3. **Right after, what only they are doing**, starting with He, She or They, in a few plain words: their pose, their main action, their expression, and the one thing they hold, if any. The one the moment is about comes first. Three characters at most; mention anyone else briefly as background.
 4. **Last: the background, a few objects and ONE main light**, in one or two sentences.
 
 Rules:
@@ -568,7 +568,7 @@ Write it top to bottom in this order:
 
 1. **Count, camera, place, time, framing**, as tags on the first line: the count (1girl, 1boy, 1girl 1boy, 2girls, no humans…; <Cast> says who is male and who is female; one person: add solo), indoors or outdoors, the place, the time, and exactly ONE framing (close-up, portrait, upper body, cowboy shot, medium shot, full body, wide shot). The framing decides how much of each character is shown.
 2. **One line per character**: where they are in the frame (on the left, on the right, in the center, in the foreground, in the background), then "is @Name." @Name carries that character's whole look and clothing, so each description stays in its own sentence.
-3. **Right after, what only they are doing**, starting with He, She or They, in a few plain words: their pose, their main action, their expression, and the one thing they hold, if any. The one the moment is about comes first. Two characters at most; anyone else goes in as background tags (people in background, crowd).
+3. **Right after, what only they are doing**, starting with He, She or They, in a few plain words: their pose, their main action, their expression, and the one thing they hold, if any. The one the moment is about comes first. Three characters at most; anyone else goes in as background tags (people in background, crowd).
 4. **Last line: the background, a few objects and ONE main light**, as tags.
 
 Rules:

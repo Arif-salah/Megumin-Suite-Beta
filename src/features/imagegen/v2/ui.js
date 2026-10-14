@@ -146,6 +146,15 @@ function renderV2Cards(c) {
                         </select>
                         <small>${SHOT_HELP[cfg.shot] || ""}</small>
                     </label>
+                    <label class="ig2-field"><span>Characters in focus</span>
+                        <select id="ig2_focus" class="ps-modern-input">
+                            <option value="2" ${String(cfg.focus) === "2" ? "selected" : ""}>2</option>
+                            <option value="3" ${String(cfg.focus || "3") === "3" ? "selected" : ""}>3</option>
+                            <option value="4" ${String(cfg.focus) === "4" ? "selected" : ""}>4</option>
+                            <option value="all" ${cfg.focus === "all" ? "selected" : ""}>All</option>
+                        </select>
+                        <small>How many characters get their own line and look in one image; the rest go in as background. Fewer is cleaner on local models: past 2 or 3, looks start to blend.</small>
+                    </label>
                     <label class="ig2-field"><span>Method</span>
                         <select id="ig2_method" class="ps-modern-input">
                             <option value="placeholders" ${cfg.method !== "reference" ? "selected" : ""}>@Name placeholders</option>
@@ -210,6 +219,7 @@ function renderV2Cards(c) {
         redraw();
     });
     page.find("#ig2_shot").on("change", function () { setCfg({ shot: $(this).val() }); saveProfileToMemory(); redraw(); });
+    page.find("#ig2_focus").on("change", function () { setCfg({ focus: $(this).val() }); saveProfileToMemory(); });
     page.find("#ig2_method").on("change", function () { setCfg({ method: $(this).val() }); saveProfileToMemory(); redraw(); });
     page.find("#ig2_outfit_tags").on("change", function () { setCfg({ outfitTags: this.checked }); saveProfileToMemory(); redraw(); });
     page.find("#ig2_auto_looks").on("change", function () { setCfg({ autoLooks: this.checked }); saveProfileToMemory(); });

@@ -453,3 +453,14 @@ test("cast list: no look, no place in <Cast>, unless its look is being written i
     assert.doesNotMatch(pending, /Landlord/);
     assert.equal(renderCastList([{ name: "Wiz", inScene: true, look: "" }]), "", "nobody with a look: no <Cast> at all");
 });
+
+test("rules: characters in focus (3 by default; 2, 4 or all)", () => {
+    for (const style of ["tags", "natural"]) {
+        assert.match(renderV2Rules({ style }), /Three characters at most;/);
+        assert.match(renderV2Rules({ style, focus: "2" }), /Two characters at most;/);
+        assert.match(renderV2Rules({ style, focus: 4 }), /Four characters at most;/);
+        const all = renderV2Rules({ style, focus: "all" });
+        assert.doesNotMatch(all, /at most;/);
+        assert.match(all, /Every named character in the moment gets a (line|sentence) of their own/);
+    }
+});
