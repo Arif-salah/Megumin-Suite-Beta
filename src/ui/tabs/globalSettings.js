@@ -98,6 +98,17 @@ export function renderGlobalSettings(c) {
         </div>
     `);
 
+    if (gs.loreInTasks === undefined) gs.loreInTasks = true;
+    $content.append(`
+        <div class="mtab-toggle-row ${gs.loreInTasks ? 'active' : ''}" id="gs_toggle_lore_tasks" style="cursor: pointer; ${gs.loreInTasks ? 'border-color: #a855f7;' : ''}">
+            <div class="toggle-info">
+                <div class="toggle-label"><i class="fa-solid fa-book-atlas" style="color: #a855f7;"></i> Lorebooks in Background Jobs</div>
+                <div class="toggle-desc">Background jobs build their own prompt, so your lorebook entries don't reach them on their own. <b>On:</b> image looks, NPC portraits and NPC refreshes get the entries that name that character; the Story Director and NPC scans get the entries your story has active right now. Your story replies use the lorebook as usual either way.</div>
+            </div>
+            <div class="ps-switch" style="${gs.loreInTasks ? 'background: #a855f7;' : ''}"></div>
+        </div>
+    `);
+
     // ── DATA ────────────────────────────────────────────────────────────────
     $content.append(`<div class="wstyle-section-head gold" style="margin-top:8px;"><i class="fa-solid fa-floppy-disk"></i> Data</div>`);
     $content.append(`
@@ -178,6 +189,7 @@ export function renderGlobalSettings(c) {
     $content.find("#gs_toggle_suite").on("click", () => setSuiteEnabled(!suiteEnabled()));
     wireToggle("#gs_toggle_prompt_preview", "promptPreview", "var(--gold)");
     wireToggle("#gs_toggle_utility_prefill", "enableUtilityPrefill", "#10b981");
+    wireToggle("#gs_toggle_lore_tasks", "loreInTasks", "#a855f7");
 
     $content.find("#gs_save_mode").on("change", function () {
         // getCharacterKey() reads saveMode, so changing it moves where a save lands. Get any

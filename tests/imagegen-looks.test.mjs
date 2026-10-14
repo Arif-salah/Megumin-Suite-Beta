@@ -156,3 +156,11 @@ test("NPC Bank priority: the stored look wins by default; npcFirst makes the NPC
     assert.equal(npc.body, "long legs");
     assert.equal(npc.lookSource, "npc");
 });
+
+test("look scan: lorebook entries go first, and a scan can run on lore alone", () => {
+    const p = renderLookScanPrompt({ source: "Anno: hi", sourceLabel: "Recent_Story", names: ["Anno"], lore: "Anno has jet-black hair." });
+    assert.ok(p.startsWith("<Lore>\nAnno has jet-black hair.\n</Lore>\n\n<Recent_Story>\nAnno: hi\n</Recent_Story>"));
+    const only = renderLookScanPrompt({ source: "", names: ["Anno"], lore: "Anno has jet-black hair." });
+    assert.doesNotMatch(only, /<Source>/);
+    assert.equal(renderLookScanPrompt({ source: "x" }).startsWith("<Source>"), true, "no lore: unchanged");
+});

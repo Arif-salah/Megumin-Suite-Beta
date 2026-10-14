@@ -18,6 +18,7 @@ import { buildCharacterSheets } from "../classic/prompt.js";
 import { getLooks, currentImageCast, v2Settings } from "./index.js";
 import { splitLookTags } from "./lookParts.js";
 import { inImage, needsLook } from "./cast.js";
+import { loreForNames, loreBlock } from "../../../core/lore.js";
 import { imageViaChomusuke } from "../auto.js";
 import {
     LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey,
@@ -51,6 +52,12 @@ function chatSource(count = 30) {
 
 export function sheetSource() {
     return buildCharacterSheets().replace(/^Use these sheets for what each character looks like:\s*/, "").trim();
+}
+
+/** The sheets plus the lorebook entries about these characters, for a look read in an image call. */
+export async function sheetSourceFor(members) {
+    const lore = loreBlock(await loreForNames((members || []).flatMap(m => [m.name, ...(m.aliases || [])])), "lore");
+    return [sheetSource(), lore].filter(Boolean).join("\n\n");
 }
 
 function writeLook(looks, item, source) {
@@ -111,12 +118,16 @@ async function reviewChanges(plan) {
 export async function scanLooks({ from, targets = [], interactive = true }) {
     const names = targets.map(t => t.name);
     const source = from === "sheet" ? sheetSource() : chatSource();
-    if (!source) {
+    // What the lorebook says about them (everyone in the image cast when no one is named).
+    const lore = await loreForNames(targets.length
+        ? targets.flatMap(t => [t.name, ...(t.aliases || [])])
+        : currentImageCast().flatMap(m => [m.name, ...(m.aliases || [])]));
+    if (!source && !lore) {
         if (interactive) toastr.info(from === "sheet" ? "No character or persona description to read." : "The chat is empty.", "Megumin Suite");
         return null;
     }
     const chatAtStart = getContext()?.chatId;
-    const user = renderLookScanPrompt({ source, sourceLabel: from === "sheet" ? "Character_Sheets" : "Recent_Story", names });
+    const user = renderLookScanPrompt({ source, sourceLabel: from === "sheet" ? "Character_Sheets" : "Recent_Story", names, lore });
     const raw = await ask(LOOK_SCAN_SYSTEM, user);
     if (getContext()?.chatId !== chatAtStart) return null; // the user moved on: this belongs to another chat
 

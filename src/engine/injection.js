@@ -28,6 +28,7 @@ import { hideBlocksInMessages } from "./hideBlocks.js";
 import { meguminAllBlockTags } from "../features/blocks/registry.js";
 import { meguminAllSlotTriggers } from "../../data/slots.js";
 import { suiteEnabled } from "../core/power.js";
+import { loreForChat, loreForNames, loreBlock } from "../core/lore.js";
 
 // Throttles the prompt-preview popup so token counting and rapid ST background
 // triggers can't stack popups. Read and written only by the injection handler.
@@ -49,6 +50,9 @@ export async function handlePromptInjection(data, type) {
         // SillyTavern macro substitutions to get Lore and Persona
         const charLore = typeof substituteParams === 'function' ? substituteParams('{{description}}') : "No character description found.";
         const userPersona = typeof substituteParams === 'function' ? substituteParams('{{persona}}') : "No user persona found.";
+        // The lorebook entries the story itself has active: the world the plan is made in.
+        const worldLore = loreBlock(await loreForChat());
+        const charLoreAll = worldLore ? `${charLore}\n\n${worldLore}` : charLore;
 
         const sp = localProfile.storyPlan;
         const spCustom = sp.customPromptsEnabled ? sp.customPrompts : null;
@@ -72,7 +76,7 @@ export async function handlePromptInjection(data, type) {
 
         messages.push({
             "role": "system",
-            "content": sys.replace('{{charLore}}', charLore).replace('{{userPersona}}', userPersona).replace('{{chatHistory}}', activeStoryPlanRequest)
+            "content": sys.replace('{{charLore}}', () => charLoreAll).replace('{{userPersona}}', userPersona).replace('{{chatHistory}}', activeStoryPlanRequest)
         });
         messages.push({
             "role": "user",
@@ -101,6 +105,8 @@ export async function handlePromptInjection(data, type) {
         // in the shape the parser and the card expect rather than in whatever the
         // rules text happened to describe before the fields were data.
         const formatTemplate = npcBuildDossierPrompt(nbPrompts.dossierRules || DEFAULT_PROMPTS.npcBank.dossierRules);
+        // What the lorebook says about the people and places in the story.
+        const scanLore = loreBlock(await loreForChat());
 
         messages.push({
             "role": "system",
@@ -108,7 +114,7 @@ export async function handlePromptInjection(data, type) {
         });
         messages.push({
             "role": "user",
-            "content": `Analyze the following story history. Identify any SIGNIFICANT NPCs (characters with names and dialogue/impact) that are NOT in this list of already known NPCs: [${activeNpcScanRequest.existingNames || "None"}].\n\nFor every new significant NPC you find, generate a dossier using EXACTLY this format:\n\n${formatTemplate}\n\nStory History:\n<chat>\n${activeNpcScanRequest.chatText}\n</chat>`
+            "content": `Analyze the following story history. Identify any SIGNIFICANT NPCs (characters with names and dialogue/impact) that are NOT in this list of already known NPCs: [${activeNpcScanRequest.existingNames || "None"}].\n\nFor every new significant NPC you find, generate a dossier using EXACTLY this format:\n\n${formatTemplate}\n\n${scanLore ? `Use this lore for what it says about them:\n${scanLore}\n\n` : ""}Story History:\n<chat>\n${activeNpcScanRequest.chatText}\n</chat>`
         });
         messages.push({
             "role": "system",
@@ -144,6 +150,7 @@ export async function handlePromptInjection(data, type) {
     // comparing against what is actually on file rather than recalling it.
     if (activeNpcUpdateRequest) {
         messages.length = 0;
+        const npcLore = loreBlock(await loreForNames([activeNpcUpdateRequest.npcName]));
         const r = activeNpcUpdateRequest;
 
         messages.push({
@@ -152,7 +159,7 @@ export async function handlePromptInjection(data, type) {
         });
         messages.push({
             "role": "user",
-            "content": `Here is the record currently on file for ${r.npcName}:\n\n<npc_record>\n${r.npcText}\n</npc_record>\n\nHere is the story so far:\n\n<chat>\n${r.chatText}\n</chat>\n\n${r.rules}\n\nOutput ONLY the <NPC_Update> block for ${r.npcName}. If nothing on file has changed, output exactly: NO CHANGE`
+            "content": `Here is the record currently on file for ${r.npcName}:\n\n<npc_record>\n${r.npcText}\n</npc_record>\n\n${npcLore ? `What the lore says about ${r.npcName}:\n${npcLore}\n\n` : ""}Here is the story so far:\n\n<chat>\n${r.chatText}\n</chat>\n\n${r.rules}\n\nOutput ONLY the <NPC_Update> block for ${r.npcName}. If nothing on file has changed, output exactly: NO CHANGE`
         });
         messages.push({
             "role": "system",
@@ -257,6 +264,9 @@ export async function handlePromptInjection(data, type) {
     // --- INJECT NPC PORTRAIT PROMPT ---
     if (activeNpcPfpRequest) {
         messages.length = 0;
+        // Their appearance may only be written in the lorebook.
+        const pfpLore = loreBlock(await loreForNames([activeNpcPfpRequest.npcName]));
+        const pfpText = pfpLore ? `${activeNpcPfpRequest.npcText}\n\n${pfpLore}` : activeNpcPfpRequest.npcText;
         const nbPrompts = (localProfile.npcBank && localProfile.npcBank.customPromptsEnabled && localProfile.npcBank.customPrompts) ? localProfile.npcBank.customPrompts : DEFAULT_PROMPTS.npcBank;
 
         messages.push({
@@ -266,7 +276,7 @@ export async function handlePromptInjection(data, type) {
         messages.push({
             "role": "user",
             "content": nbPrompts.userPrompt
-                .replace('{{npcText}}', activeNpcPfpRequest.npcText)
+                .replace('{{npcText}}', () => pfpText)
                 .replace('{{styleStr}}', activeNpcPfpRequest.styleStr)
                 .replace('{{perspStr}}', activeNpcPfpRequest.perspStr)
                 .replace('{{extraStr}}', activeNpcPfpRequest.extraStr)

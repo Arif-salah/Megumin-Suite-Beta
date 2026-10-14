@@ -37,6 +37,7 @@ import {
 import { saveBase64AsFile, debounce, cancelDebounce, waitUntilCondition } from "../../../../utils.js";
 export { humanizedDateTime } from "../../../../RossAscends-mods.js";
 export { Popup, POPUP_TYPE } from "../../../../popup.js";
+export { checkWorldInfo, getSortedEntries } from "../../../../world-info.js";
 
 export {
     saveSettingsDebounced,

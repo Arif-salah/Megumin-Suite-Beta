@@ -14,18 +14,18 @@ export const LOOK_SCAN_SYSTEM =
     "You read story text and write each character's permanent physical appearance as booru tags for an image model.";
 
 /**
- * @param {{ source: string, sourceLabel?: string, names?: string[] }} args
+ * @param {{ source: string, sourceLabel?: string, names?: string[], lore?: string }} args
  *   names — only these characters; empty = everyone described in the source
+ *   lore  — lorebook entries about them, read before the source
  */
-export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [] }) {
+export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [], lore = "" }) {
     const who = names.length
         ? `these characters: ${names.join(", ")}. Skip anyone the text does not describe.`
         : "every character the text describes.";
+    const loreText = String(lore || "").trim();
     return [
-        `<${sourceLabel}>`,
-        String(source || "").trim(),
-        `</${sourceLabel}>`,
-        "",
+        ...(loreText ? ["<Lore>", loreText, "</Lore>", ""] : []),
+        ...(String(source || "").trim() ? [`<${sourceLabel}>`, String(source).trim(), `</${sourceLabel}>`, ""] : []),
         `Write the permanent appearance of ${who}`,
         "Write 8 to 12 booru tags per character, only the ones you would recognise them by. Always start with their sex (male or female) and apparent age (young adult, mature female…), then hair (colour, length, style), eye colour, skin, body type, and permanent features (scars, tattoos, horns, animal ears, tails, wings).",
         "- A man who looks feminine: add \"otoko no ko, flat chest\". A woman who looks masculine: add \"tomboy\". Without them the image model draws the wrong sex.",

@@ -14,7 +14,7 @@ import { getWorldState, worldHasState } from "../../../state/index.js";
 import { buildImageCast, inImage, needsLook } from "./cast.js";
 import { resolveImagePrompt } from "./resolve.js";
 import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2Extras, splitCombinedAnswer } from "./prompt.js";
-import { refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSource } from "./looks.js";
+import { refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSourceFor } from "./looks.js";
 
 export const V2_DEFAULTS = {
     style: "tags", shot: "cinematic", extra: "", method: "placeholders",
@@ -121,7 +121,7 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
     const built = renderV2ManualPrompt({
         castList: sub(renderCastList(castNow, { shot: cfg.shot, method: cfg.method, lookPending: missingLooks.map(m => m.name) })),
         // The sheets the missing looks are read from go BEFORE the story.
-        sheets: missingLooks.length ? sheetSource() : "",
+        sheets: missingLooks.length ? await sheetSourceFor(missingLooks) : "",
         scene: sceneLine(),
         earlier: story.join("\n\n"),
         last,

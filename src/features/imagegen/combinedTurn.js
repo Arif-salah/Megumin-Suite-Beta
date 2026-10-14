@@ -36,7 +36,7 @@ import { imageViaChomusuke, dueNow, NOT_A_REPLY, insertPlaceholder, removePlaceh
 import { classicImageParts, classicImageRulesBlock } from "./classic/prompt.js";
 import { v2Settings, currentImageCast, cleanModelPrompt, getLastImagePrompt } from "./v2/index.js";
 import { renderCastList, renderV2Rules, renderCombinedPrompt, splitCombinedAnswer } from "./v2/prompt.js";
-import { storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSource } from "./v2/looks.js";
+import { storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSourceFor } from "./v2/looks.js";
 import { inImage, needsLook } from "./v2/cast.js";
 import { imageGenEngine } from "./index.js";
 
@@ -135,7 +135,7 @@ export async function runCombinedTurn(messageId, type, plan) {
                     ...common,
                     engine: "v2",
                     castList: renderCastList(cast, { shot: cfg.shot, method: cfg.method, lookPending: missingLooks.map(m => m.name) }),
-                    sheets: missingLooks.length ? sheetSource() : "",
+                    sheets: missingLooks.length ? await sheetSourceFor(missingLooks) : "",
                     imageRules: renderV2Rules({ style: cfg.style, shot: cfg.shot, extra: cfg.extra, method: cfg.method }),
                     previous: cfg.method === "reference" ? getLastImagePrompt() : null,
                     extras: {

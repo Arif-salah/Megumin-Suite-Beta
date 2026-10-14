@@ -44,7 +44,7 @@ export async function npcGeneratePfp(npcName) {
     showKazumaProgress("AI is writing portrait prompt...");
 
     // Step 1: Ask the AI to generate an image prompt from the NPC dossier
-    setActiveNpcPfpRequest({ npcText, styleStr, perspStr, extraStr: s.promptExtra || "None" });
+    setActiveNpcPfpRequest({ npcName, npcText, styleStr, perspStr, extraStr: s.promptExtra || "None" });
 
     let promptText;
     try {
