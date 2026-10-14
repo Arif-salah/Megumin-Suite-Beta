@@ -162,6 +162,15 @@ export async function igManualGenerate() {
         const match = promptText.match(imgRegex);
         if (match) promptText = match[2];
 
+        // An empty answer would reach ComfyUI as the prefix alone. SillyTavern
+        // hands back "" when it cannot read the reply (e.g. a provider that
+        // wraps non-streamed answers in its own envelope).
+        if (!String(promptText || "").trim()) {
+            $("#kazuma_progress_overlay").hide();
+            toastr.error("The model's answer came back empty, so no image was made. If the model did reply (check the Network tab), your API sends answers in a shape SillyTavern can't read when streaming is off; try another provider for image prompts.", "Megumin Suite", { timeOut: 12000 });
+            return;
+        }
+
         toastr.info("Sending to ComfyUI...", "Megumin Suite");
         igGenerateWithComfy(promptText, null);
 
