@@ -164,3 +164,9 @@ test("look scan: lorebook entries go first, and a scan can run on lore alone", (
     assert.doesNotMatch(only, /<Source>/);
     assert.equal(renderLookScanPrompt({ source: "x" }).startsWith("<Source>"), true, "no lore: unchanged");
 });
+
+test("look prompts ask for an age tag, never a number", () => {
+    const p = renderLookScanPrompt({ source: "x" });
+    assert.match(p, /Age is one of these tags, never a number or a decade: young adult, adult, mature female, mature male, old woman, old man\./);
+    assert.match(p, /"late 20s" is "young adult"; "30s" is "adult"\./);
+});

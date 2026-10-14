@@ -154,7 +154,7 @@ export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = fa
         parts.push(...outfits.map(o => `  ${o.name}: ${o.outfit}`));
     }
     if (looks.length) {
-        parts.push(`- Appearance of ${looks.join(", ")} as 8 to 12 booru tags each, from the story and <Character_Sheets>: always start with sex (male or female) and apparent age, then hair, eye colour, skin, build, permanent features. A feminine-looking man gets "otoko no ko, flat chest"; a masculine-looking woman gets "tomboy". One tag per thing, never two that fight (petite with tall), only real booru tags ("mole under eye", not "moles"), no small face details (nose, lips, eyelashes). No clothing, expressions, poses or count tags. Skip anyone the text does not describe.`);
+        parts.push(`- Appearance of ${looks.join(", ")} as 8 to 12 booru tags each, from the story and <Character_Sheets>: always start with sex (male or female) and an age tag (young adult, adult, mature female, mature male, old woman, old man; never a number like "30s"), then hair, eye colour, skin, build, permanent features. A feminine-looking man gets "otoko no ko, flat chest"; a masculine-looking woman gets "tomboy". One tag per thing, never two that fight (petite with tall), only real booru tags ("mole under eye", not "moles"), no small face details (nose, lips, eyelashes). No clothing, expressions, poses or count tags. Skip anyone the text does not describe.`);
     }
     return parts.join("\n");
 }

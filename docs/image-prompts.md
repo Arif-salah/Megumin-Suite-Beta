@@ -614,6 +614,7 @@ _Code: `looksCore.js → renderLookScanPrompt`_
 Write the permanent appearance of these characters: Mira, Theo. Skip anyone the text does not describe.
 Write 8 to 12 booru tags per character, only the ones you would recognise them by. Always start with their sex (male or female) and apparent age (young adult, mature female…), then hair (colour, length, style), eye colour, skin, body type, and permanent features (scars, tattoos, horns, animal ears, tails, wings).
 - A man who looks feminine: add "otoko no ko, flat chest". A woman who looks masculine: add "tomboy". Without them the image model draws the wrong sex.
+- Age is one of these tags, never a number or a decade: young adult, adult, mature female, mature male, old woman, old man. "late 20s" is "young adult"; "30s" is "adult".
 - One tag per thing, the strongest one: "long hair", never "long hair, medium hair".
 - Only real booru tags, and say where a mark is: "mole under eye", not "moles"; "sidelocks", not "side hair".
 - Never two tags that fight: "petite" with "tall", or "slender" with "curvy". Pick the one that fits best.
