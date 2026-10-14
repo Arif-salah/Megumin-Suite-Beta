@@ -145,20 +145,19 @@ const OFF_FRAME = /\b(extension|plugin|app|system|ledger|database|tracker|interf
 test("cast list: player, in scene, mentioned; POV leaves the player out", () => {
     const cast = buildImageCast({
         world: world(), userName: "Kazuma",
-        looks: { Sara: { tags: "female, red hair, long legs" }, Matthew: { tags: "male, purple eyes, wide hips" } },
+        looks: { Kazuma: { tags: "brown hair" }, Sara: { tags: "female, red hair, long legs" }, Matthew: { tags: "male, purple eyes, wide hips" } },
         recentText: "Sara waved"
     });
     const list = renderCastList(cast);
     assert.equal(list, [
         "<Cast>",
         "@Kazuma: the player",
+        "  appearance: brown hair",
         "  wearing: green cape",
         "@Matthew (also @Matt): male, in the scene",
         "  appearance: male, purple eyes",
         "  body (only when the shot shows it): wide hips",
         "  wearing: cropped black tee",
-        "@Aqua: in the scene",
-        "  wearing: blue dress",
         "@Sara: female, not in the scene",
         "  appearance: female, red hair",
         "  body (only when the shot shows it): long legs",
@@ -167,16 +166,17 @@ test("cast list: player, in scene, mentioned; POV leaves the player out", () => 
     ].join("\n"));
     assert.doesNotMatch(renderCastList(cast, { shot: "pov" }), /Kazuma/);
     // Reference method: plain names, no @.
+    assert.doesNotMatch(renderCastList(cast), /Aqua/, "no look: left out");
     assert.match(renderCastList(cast, { method: "reference" }), /^<Cast>\nKazuma: the player\n[\s\S]*Matthew \(also Matt\): male, in the scene/);
 });
 
 test("the model describes clothing only for characters with no outfit on file", () => {
     const list = renderCastList([
-        { name: "Aqua", inScene: true, outfit: "blue dress" },
-        { name: "Wiz", inScene: true, outfit: "" }
+        { name: "Aqua", inScene: true, outfit: "blue dress", look: "blue hair" },
+        { name: "Wiz", inScene: true, outfit: "", look: "brown hair" }
     ]);
-    assert.match(list, /@Aqua: in the scene\n  wearing: blue dress\n/);
-    assert.match(list, /@Wiz: in the scene\n  wearing: not noted \(describe what they wear\)/);
+    assert.match(list, /@Aqua: in the scene\n  appearance: blue hair\n  wearing: blue dress\n/);
+    assert.match(list, /@Wiz: in the scene\n  appearance: brown hair\n  wearing: not noted \(describe what they wear\)/);
     for (const style of ["tags", "natural"]) {
         const r = renderV2Rules({ style });
         assert.doesNotMatch(r, /\.look|\.outfit/, "no other placeholder is offered");
@@ -437,4 +437,19 @@ test("inImage / needsLook: a POV shot never asks for the player's look or outfit
     assert.equal(needsLook(npc, "pov"), true);
     assert.equal(needsLook(away, "pov"), false, "only someone in the scene gets a look read");
     assert.equal(needsLook({ inScene: true, look: "x" }), false);
+});
+
+test("cast list: no look, no place in <Cast>, unless its look is being written in the same answer", () => {
+    const cast = [
+        { name: "Anno Ryo", inScene: true, outfit: "white bra", look: "" },
+        { name: "Landlord", mentioned: true, look: "" },
+        { name: "Matt", inScene: true, look: "male, curly hair" }
+    ];
+    const list = renderCastList(cast);
+    assert.doesNotMatch(list, /Anno Ryo|Landlord/);
+    assert.match(list, /@Matt: in the scene/);
+    const pending = renderCastList(cast, { lookPending: ["Anno Ryo"] });
+    assert.match(pending, /@Anno Ryo: in the scene\n  wearing: white bra/);
+    assert.doesNotMatch(pending, /Landlord/);
+    assert.equal(renderCastList([{ name: "Wiz", inScene: true, look: "" }]), "", "nobody with a look: no <Cast> at all");
 });

@@ -38,14 +38,18 @@ export const V2_METHODS = ["placeholders", "reference"];
 /**
  * <Cast>: the player, who is in the scene, and absent characters just
  * mentioned — each with their sex, look, body and clothing, so the model can
- * pick the count and the framing.
+ * pick the count and the framing. Only characters with a look: without one,
+ * @Name would turn into a bare name. lookPending = names whose look is being
+ * written in this same answer (saved before the image is made), so they stay.
  */
-export function renderCastList(cast, { shot = "cinematic", method = "placeholders" } = {}) {
+export function renderCastList(cast, { shot = "cinematic", method = "placeholders", lookPending = [] } = {}) {
     const ref = method === "reference";
+    const pending = new Set(lookPending.map(n => String(n).toLowerCase()));
     const blocks = [];
     for (const c of cast || []) {
         if (!c || !c.name) continue;
         if (!c.isPc && !c.inScene && !c.mentioned) continue;
+        if (!String(c.look || c.body || c.lookNatural || "").trim() && !pending.has(c.name.toLowerCase())) continue;
         // POV: the player is the camera, so they are not offered as a subject.
         if (c.isPc && shot === "pov") continue;
         const aka = (c.aliases || []).filter(Boolean);

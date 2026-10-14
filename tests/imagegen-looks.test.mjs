@@ -121,9 +121,10 @@ function scene() {
 }
 
 test("position goes into the Cast for the player and whoever is in the scene", () => {
-    const list = renderCastList(buildImageCast({ world: scene(), userName: "Kazuma" }));
-    assert.match(list, /@Kazuma: the player\n  wearing: grey hoodie\n  position: on the bed/);
-    assert.match(list, /@Aqua: in the scene\n  wearing: blue dress\n  position: by the door/);
+    const looks = { Kazuma: { tags: "brown hair" }, Aqua: { tags: "blue hair" } };
+    const list = renderCastList(buildImageCast({ world: scene(), userName: "Kazuma", looks }));
+    assert.match(list, /@Kazuma: the player\n  appearance: brown hair\n  wearing: grey hoodie\n  position: on the bed/);
+    assert.match(list, /@Aqua: in the scene\n  appearance: blue hair\n  wearing: blue dress\n  position: by the door/);
 });
 
 test("cast uses fresh outfit tags, and flags stale ones for remaking", () => {

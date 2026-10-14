@@ -14,7 +14,7 @@ import { getWorldState, worldHasState } from "../../../state/index.js";
 import { buildImageCast, inImage, needsLook } from "./cast.js";
 import { resolveImagePrompt } from "./resolve.js";
 import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2Extras, splitCombinedAnswer } from "./prompt.js";
-import { refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, sheetSource } from "./looks.js";
+import { refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSource } from "./looks.js";
 
 export const V2_DEFAULTS = {
     style: "tags", shot: "cinematic", extra: "", method: "placeholders",
@@ -109,6 +109,7 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
     const castNow = currentImageCast();
     const staleOutfits = cfg.outfitTags && cfg.style === "tags" ? castNow.filter(m => m.outfitStale && inImage(m, cfg.shot)) : [];
     const missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(chatAtStart, castNow.filter(m => needsLook(m, cfg.shot)));
+    warnLooklessInScene(chatAtStart, castNow, cfg.shot, missingLooks);
     const extras = renderV2Extras({
         outfits: staleOutfits.map(m => ({ name: m.name, outfit: m.outfitText })),
         looks: missingLooks.map(m => m.name)
@@ -118,7 +119,7 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
     const story = recentMessages(6).map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`);
     const last = story.pop() || "";
     const built = renderV2ManualPrompt({
-        castList: sub(renderCastList(currentImageCast(), { shot: cfg.shot, method: cfg.method })),
+        castList: sub(renderCastList(castNow, { shot: cfg.shot, method: cfg.method, lookPending: missingLooks.map(m => m.name) })),
         // The sheets the missing looks are read from go BEFORE the story.
         sheets: missingLooks.length ? sheetSource() : "",
         scene: sceneLine(),
@@ -140,11 +141,12 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
     if (!String(raw || "").trim()) releaseLookAttempts(chatAtStart, missingLooks);
     if (!extras) return cleanModelPrompt(raw);
     const { prompt, rest } = splitCombinedAnswer(raw);
-    if (rest && getContext()?.chatId === chatAtStart) {
-        if (staleOutfits.length) storeOutfitTags(staleOutfits, rest);
+    if (String(raw || "").trim() && getContext()?.chatId === chatAtStart) {
+        if (rest && staleOutfits.length) storeOutfitTags(staleOutfits, rest);
         if (missingLooks.length) {
-            const added = storeNewLooks(missingLooks.map(m => ({ name: m.name, aliases: m.aliases || [] })), rest);
+            const added = rest ? storeNewLooks(missingLooks.map(m => ({ name: m.name, aliases: m.aliases || [] })), rest) : [];
             if (added.length) toastr.info(`New look${added.length === 1 ? "" : "s"} for ${added.join(", ")}.`, "Megumin Suite", { timeOut: 3500 });
+            warnLooksNotMade(missingLooks, added);
         }
     }
     return cleanModelPrompt(prompt);

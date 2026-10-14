@@ -36,7 +36,7 @@ import { imageViaChomusuke, dueNow, NOT_A_REPLY, insertPlaceholder, removePlaceh
 import { classicImageParts, classicImageRulesBlock } from "./classic/prompt.js";
 import { v2Settings, currentImageCast, cleanModelPrompt, getLastImagePrompt } from "./v2/index.js";
 import { renderCastList, renderV2Rules, renderCombinedPrompt, splitCombinedAnswer } from "./v2/prompt.js";
-import { storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, sheetSource } from "./v2/looks.js";
+import { storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSource } from "./v2/looks.js";
 import { inImage, needsLook } from "./v2/cast.js";
 import { imageGenEngine } from "./index.js";
 
@@ -130,10 +130,11 @@ export async function runCombinedTurn(messageId, type, plan) {
                 const detailed = cfg.outfitTags && cfg.style === "tags";
                 staleBefore = detailed ? cast.filter(m => m.outfitStale && inImage(m, cfg.shot)) : [];
                 missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(getContext()?.chatId, cast.filter(m => needsLook(m, cfg.shot)));
+                warnLooklessInScene(getContext()?.chatId, cast, cfg.shot, missingLooks);
                 built = renderCombinedPrompt({
                     ...common,
                     engine: "v2",
-                    castList: renderCastList(cast, { shot: cfg.shot, method: cfg.method }),
+                    castList: renderCastList(cast, { shot: cfg.shot, method: cfg.method, lookPending: missingLooks.map(m => m.name) }),
                     sheets: missingLooks.length ? sheetSource() : "",
                     imageRules: renderV2Rules({ style: cfg.style, shot: cfg.shot, extra: cfg.extra, method: cfg.method }),
                     previous: cfg.method === "reference" ? getLastImagePrompt() : null,
@@ -200,10 +201,11 @@ export async function runCombinedTurn(messageId, type, plan) {
     if (engine === "v2" && rest) {
         const staleNow = currentImageCast().filter(m => m.outfitStale && inImage(m, cfg.shot));
         if (staleNow.length) storeOutfitTags(staleNow, rest);
-        if (missingLooks.length) {
-            const added = storeNewLooks(missingLooks.map(m => ({ name: m.name, aliases: m.aliases || [] })), rest);
-            if (added.length) toastr.info(`New look${added.length === 1 ? "" : "s"} for ${added.join(", ")}.`, "Megumin Suite", { timeOut: 3500 });
-        }
+    }
+    if (engine === "v2" && missingLooks.length && raw.trim()) {
+        const added = rest ? storeNewLooks(missingLooks.map(m => ({ name: m.name, aliases: m.aliases || [] })), rest) : [];
+        if (added.length) toastr.info(`New look${added.length === 1 ? "" : "s"} for ${added.join(", ")}.`, "Megumin Suite", { timeOut: 3500 });
+        warnLooksNotMade(missingLooks, added);
     }
 
     // 4. The image.

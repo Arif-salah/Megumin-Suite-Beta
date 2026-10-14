@@ -191,6 +191,31 @@ export function takeLookAttempts(chatId, members) {
     return out;
 }
 
+// Once per character per chat: someone the image could show has no look, so
+// they are left out of <Cast> (and so out of the picture).
+const warned = new Set();
+
+/** Warns about anyone the image could show who has no look and is not being asked for one. */
+export function warnLooklessInScene(chatId, cast, shot, asked = []) {
+    const askedNames = new Set(asked.map(m => m.name.toLowerCase()));
+    const names = (cast || [])
+        .filter(m => needsLook(m, shot) && !askedNames.has(m.name.toLowerCase()) && !warned.has(`${chatId}|${m.name.toLowerCase()}`))
+        .map(m => m.name);
+    if (!names.length) return;
+    names.forEach(n => warned.add(`${chatId}|${n.toLowerCase()}`));
+    toastr.warning(`${names.join(", ")} ${names.length === 1 ? "has" : "have"} no look yet, so ${names.length === 1 ? "they are" : "they are all"} left out of images. Add a look or scan one in Image Gen › V2.`,
+        "Megumin Suite", { timeOut: 9000 });
+}
+
+/** Warns about looks that were asked for and did not come back. */
+export function warnLooksNotMade(asked, added) {
+    const got = new Set((added || []).map(n => n.toLowerCase()));
+    const missed = (asked || []).map(m => m.name).filter(n => !got.has(n.toLowerCase()));
+    if (!missed.length) return;
+    toastr.warning(`Couldn't make a look for ${missed.join(", ")} from the story. ${missed.length === 1 ? "They are" : "They are all"} left out of images until you add a look or scan one in Image Gen › V2.`,
+        "Megumin Suite", { timeOut: 9000 });
+}
+
 /** The call failed or came back empty: these get asked for again next image. */
 export function releaseLookAttempts(chatId, members) {
     (members || []).forEach(m => attempted.delete(`${chatId}|${m.name.toLowerCase()}`));
@@ -204,23 +229,29 @@ export function releaseLookAttempts(chatId, members) {
 export function v2LooksForArrivals() {
     const ig = localProfile && localProfile.imageGen;
     if (!ig || !ig.enabled || ig.engine !== "v2" || !worldEnabled() || !worldHasState()) return;
-    if (v2Settings().autoLooks === false) return;   // "Automatic look for new characters" is off
     // When images are written by a background call (Chomusuke's automatic
     // images, or the manual button only), that call brings missing looks in the
-    // same answer. Only when the story model writes images inline is there no
-    // call to ride on, so only then does a look get a call of its own.
+    // same answer, and warns. Only when the story model writes images inline is
+    // there no call to ride on, so only then does a look get a call of its own.
     if (imageViaChomusuke() || ig.triggerMode === "manual") return;
     const chatId = getContext()?.chatId;
     if (!chatId) return;
+    const cfg = v2Settings();
     // The image cast already knows who has a look (stored, NPC Bank, or one
     // saved under a first name), so it decides who is missing one.
-    const missing = currentImageCast()
+    const cast = currentImageCast();
+    const missing = cfg.autoLooks === false ? [] : cast    // off: "Automatic look for new characters"
         .filter(m => !m.isPc && needsLook(m) && !attempted.has(`${chatId}|${m.name.toLowerCase()}`))
         .map(m => ({ name: m.name, aliases: m.aliases || [] }));
+    warnLooklessInScene(chatId, cast, cfg.shot, missing);
     if (!missing.length) return;
     missing.forEach(t => attempted.add(`${chatId}|${t.name.toLowerCase()}`));
     scanLooks({ from: "chat", targets: missing, interactive: false })
-        .then(r => { if (r && r.added.length) toastr.info(`New look${r.added.length === 1 ? "" : "s"} for ${r.added.join(", ")}.`, "Megumin Suite", { timeOut: 3500 }); })
+        .then(r => {
+            if (!r || getContext()?.chatId !== chatId) return;
+            if (r.added.length) toastr.info(`New look${r.added.length === 1 ? "" : "s"} for ${r.added.join(", ")}.`, "Megumin Suite", { timeOut: 3500 });
+            warnLooksNotMade(missing, r.added);
+        })
         .catch(e => console.error("[Megumin-Suite] Automatic look scan failed", e));
 }
 
