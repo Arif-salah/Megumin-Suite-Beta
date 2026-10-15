@@ -22,7 +22,9 @@ import { pickBondsFor } from "./modules/stats/model.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast } from "./modules/world/model.js";
 import { notebookModule } from "./modules/notebook/index.js";
-import { notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules } from "./modules/notebook/render.js";
+import {
+    notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler
+} from "./modules/notebook/render.js";
 import { liveTruths } from "./modules/notebook/model.js";
 import { parseNotebook } from "./modules/notebook/parse.js";
 import {
@@ -601,6 +603,16 @@ export function notebookCardTextAt(msgIndex) {
     if (info.pending) return "*Reading this reply for the notebook…*";
     if (info.missing) return "*Nothing usable came back for this reply. Use Read again.*";
     return info.applied.length || info.notes.length || info.disabled ? "*Notebook*" : "";
+}
+
+/** Turns a stored turn number into what the reader sees: "#15", "your edit", "a deleted message". */
+export function notebookTurnLabel() {
+    const seqToIndex = new Map();
+    adapter.getChat().forEach((m, i) => {
+        if (m && !m.is_user && typeof m.extra?.megumin_seq === "number") seqToIndex.set(m.extra.megumin_seq, i);
+    });
+    const userSeqs = new Set((stateStore.listEntries("notebook") || []).filter(x => x.entry.source === "user").map(x => x.entry.seq));
+    return notebookTurnLabeler({ seqToIndex, userSeqs });
 }
 
 /** Revert (or restore) what one reply did to the notebook. */

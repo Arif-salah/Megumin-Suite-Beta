@@ -106,14 +106,27 @@ export function describeNotebookChange(ch) {
     }
 }
 
+/**
+ * Where a turn number points, in the reader's terms: the chat's message number
+ * ("#15", as SillyTavern shows it), "your edit" for a change made in the tab,
+ * or "a deleted message". The store's numbers are never shown.
+ * @param {{ seqToIndex?: Map<number, number>, userSeqs?: Set<number> }} maps
+ * @returns {(seq: number) => string}
+ */
+export function notebookTurnLabeler({ seqToIndex = new Map(), userSeqs = new Set() } = {}) {
+    return seq => seqToIndex.has(seq) ? `#${seqToIndex.get(seq)}`
+        : userSeqs.has(seq) ? "your edit"
+            : "a deleted message";
+}
+
 /** One truth as markdown, for the tab and the card (behind the spoiler warning). */
-export function renderTruthCard(t) {
+export function renderTruthCard(t, { label = seq => `turn ${seq}` } = {}) {
     const out = [`**${t.id}** ${t.truth}`];
     if (t.hiddenFrom.length) out.push(`*Hidden from:* ${t.hiddenFrom.join(", ")}`);
     if (t.when) out.push(`*Comes out when:* ${t.when}`);
     if (t.changes) out.push(`*What it changes:* ${t.changes}`);
     if (t.clueIdeas) out.push(`*Clue ideas:* ${t.clueIdeas}`);
-    for (const c of t.clues) out.push(`* turn ${c.seq}: ${c.text}${c.found === false ? " *(not found in the reply)*" : ""}`);
-    if (t.revealedHow) out.push(`*Came out:* turn ${t.revealedSeq}`);
+    for (const c of t.clues) out.push(`* ${label(c.seq)}: ${c.text}${c.found === false ? " *(not found in the reply)*" : ""}`);
+    if (t.revealedHow) out.push(`*Came out:* ${label(t.revealedSeq)}`);
     return out.join("\n");
 }

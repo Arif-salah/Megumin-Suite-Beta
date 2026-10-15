@@ -7,7 +7,7 @@ import { parseNotebook, truthId, splitNames, clueInProse, storyProse } from "../
 import { emptyNotebook, applyNotebook, liveTruths, pastTruths, findHiddenName, LIVE_CAP } from "../src/state/modules/notebook/model.js";
 import {
     notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules,
-    describeNotebookChange, renderTruthCard
+    describeNotebookChange, renderTruthCard, notebookTurnLabeler
 } from "../src/state/modules/notebook/render.js";
 import { notebookModule } from "../src/state/modules/notebook/index.js";
 import { createStateStore } from "../src/state/store.js";
@@ -198,6 +198,13 @@ test("prompts: setup, notebook, rules; phases; card text", () => {
     for (const t of [renderNotebookSetup(), rules, nb]) assert.doesNotMatch(t, /\b(extension|plugin|app|ledger|tracker|system)\b/i);
     assert.equal(describeNotebookChange({ op: "clue", id: "T1", text: "x", found: false }), "T1 clue: x (not found in the reply)");
     assert.match(renderTruthCard(s.truths.T2), /\*Came out:\* turn 4/);
+
+    // What the reader sees: the chat's message number, never the store's.
+    const label = notebookTurnLabeler({ seqToIndex: new Map([[4, 15]]), userSeqs: new Set([7]) });
+    assert.equal(label(4), "#15");
+    assert.equal(label(7), "your edit");
+    assert.equal(label(9), "a deleted message");
+    assert.match(renderTruthCard(s.truths.T2, { label }), /\*Came out:\* #15/);
 });
 
 // ── The store: a swiped reply takes its notebook with it ────────────────

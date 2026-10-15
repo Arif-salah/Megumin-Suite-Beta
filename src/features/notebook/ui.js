@@ -16,7 +16,7 @@ import { saveProfileToMemory } from "../../core/profile.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import {
     notebookEnabled, notebookForcedByEngine, notebookPaused, setNotebookPaused, notebookCurrentPhase, notebookState,
-    notebookEdit
+    notebookEdit, notebookTurnLabel
 } from "../../state/index.js";
 import { liveTruths, pastTruths, LIVE_CAP } from "../../state/modules/notebook/model.js";
 import { splitNames } from "../../state/modules/notebook/parse.js";
@@ -41,11 +41,16 @@ const FIELDS = [
     { key: "clueIdeas", label: "Clue ideas", rows: 2 }
 ];
 
+// Where each turn number points, as the reader sees it ("#15", "your edit"). Set per draw.
+let at = seq => `#${seq}`;
+// "in #15", or "by your edit" for a change made here.
+const where = seq => { const l = at(seq); return l === "your edit" ? "by your edit" : `in ${l}`; };
+
 function clueList(t, { removable = false } = {}) {
     if (!t.clues.length) return `<div class="meg-nb-none">No clues planted yet.</div>`;
     return `<ul class="meg-nb-clues">${t.clues.map((c, i) => `
         <li>
-            <span class="meg-nb-turn">turn ${esc(c.seq)}</span>
+            <span class="meg-nb-turn">${esc(at(c.seq))}</span>
             <span>${esc(c.text)}${c.found === false ? ` <span class="meg-nb-flag" title="The clue's words were not found in the story of its reply"><i class="fa-solid fa-triangle-exclamation"></i> not found in the reply</span>` : ""}</span>
             ${removable ? `<button type="button" class="meg-nb-mini meg-nb-clue-del" data-i="${i}" title="Remove this clue"><i class="fa-solid fa-xmark"></i></button>` : ""}
         </li>`).join("")}</ul>`;
@@ -63,7 +68,7 @@ function liveCard(t, isOpen) {
         <div class="meg-nb-truth" data-id="${esc(t.id)}">
             <div class="meg-nb-truth-head">
                 <b>${esc(t.id)}</b>
-                <span class="meg-nb-turn">written turn ${esc(t.createdSeq)}</span>
+                <span class="meg-nb-turn">written ${esc(where(t.createdSeq))}</span>
                 <span class="meg-nb-turn">${t.clues.length} clue${t.clues.length === 1 ? "" : "s"}</span>
             </div>
             <div class="meg-nb-spoiler${isOpen ? "" : " is-hidden"}">
@@ -91,8 +96,8 @@ function pastItem(t) {
             <div class="meg-nb-past-body">
                 <div class="meg-nb-truth-head">
                     <b>${esc(t.id)}</b>
-                    <span class="meg-nb-turn">written turn ${esc(t.createdSeq)}</span>
-                    <span class="meg-nb-turn">came out turn ${esc(t.revealedSeq)}</span>
+                    <span class="meg-nb-turn">written ${esc(where(t.createdSeq))}</span>
+                    <span class="meg-nb-turn">came out ${esc(where(t.revealedSeq))}</span>
                 </div>
                 <div class="meg-nb-line">${esc(t.truth)}</div>
                 ${hidden}
@@ -149,6 +154,7 @@ export function renderNotebookTab(c) {
     const paused = hasChat && notebookPaused();
     const phase = hasChat ? notebookCurrentPhase() : "off";
     const state = hasChat ? notebookState() : null;
+    if (hasChat) at = notebookTurnLabel();
     const live = state ? liveTruths(state).length : 0;
     const past = state ? pastTruths(state).length : 0;
 

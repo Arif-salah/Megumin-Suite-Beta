@@ -10,7 +10,7 @@
 
 import { Popup, POPUP_TYPE } from "../../st.js";
 import { renderBody } from "../../blocks/text.js";
-import { notebookCardInfo, notebookSetEntryDisabled } from "../../state/index.js";
+import { notebookCardInfo, notebookSetEntryDisabled, notebookTurnLabel } from "../../state/index.js";
 import { describeNotebookChange, renderTruthCard } from "../../state/modules/notebook/render.js";
 
 // Drawn by the card renderer like any block, so the raw text is hidden from the
@@ -37,8 +37,9 @@ function contentFor(info, fallbackHtml) {
     if (info.pending) return renderBody("*Chomusuke is reading this reply for the notebook…*");
     const parts = [];
     const lines = [];
+    const label = notebookTurnLabel();
     for (const a of info.applied) {
-        if (a.op === "entry" && info.truths[a.id]) parts.push(renderTruthCard(info.truths[a.id]));
+        if (a.op === "entry" && info.truths[a.id]) parts.push(renderTruthCard(info.truths[a.id], { label }));
         else {
             const line = describeNotebookChange(a);
             if (line) lines.push(`* ${line}`);
