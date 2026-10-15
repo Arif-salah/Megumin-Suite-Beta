@@ -19,11 +19,7 @@ import {
     normalizeBlockBody, blockTagFromName, validateCustomBlock, meguminSyncLegacyBlockIds,
 } from "./registry.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
-import {
-    stateStore, worldUpdateMode, notebookEnabled, notebookForcedByEngine, notebookPaused, setNotebookPaused,
-    notebookCurrentPhase, notebookState
-} from "../../state/index.js";
-import { liveTruths, LIVE_CAP } from "../../state/modules/notebook/model.js";
+import { stateStore, worldUpdateMode } from "../../state/index.js";
 import { openWorldEditor } from "../worldstate/editor.js";
 import { meguminSlotByTrigger } from "../../../data/slots.js";
 import { hasSharedFragment } from "../../core/sharedFragments.js";
@@ -36,39 +32,6 @@ function editedFlag(b) {
     const slot = b && b.source ? meguminSlotByTrigger(b.source) : null;
     if (!slot || !slot.key || !hasSharedFragment(slot.key)) return "";
     return ` <span class="blk-edited-flag" title="You edited this in Dev Mode. It no longer uses the built-in text.">edited</span>`;
-}
-
-function notebookControls(c) {
-    const forced = notebookForcedByEngine();
-    const on = notebookEnabled();
-    const hasChat = Boolean(getContext()?.chatId);
-    const paused = hasChat && notebookPaused();
-    const phase = hasChat ? notebookCurrentPhase() : "off";
-    const live = hasChat ? liveTruths(notebookState()).length : 0;
-    const status = !on ? "Off."
-        : !hasChat ? "Open a chat to see its notebook."
-        : paused ? "Paused in this chat: nothing is sent and no new truths are written."
-        : phase === "setup" ? "The next reply writes the notebook (two or three hidden truths)."
-        : `${live} of ${LIVE_CAP} truths live in this chat.`;
-    const box = $(`
-        <div class="blk-sub blk-ws">
-            <label class="blk-ws-chip" title="The story decides hidden truths, keeps them, plants clues and reveals them when the story is ready. World State stops asking for a Secret while this is on.">
-                <input type="checkbox" id="blk_nb_on" ${on ? "checked" : ""} ${forced ? "disabled" : ""}/> Author's Notebook${forced ? " (your engine keeps one)" : ""}
-            </label>
-            <label class="blk-ws-chip" title="Stop the notebook in this chat only: no setup, nothing sent. The truths already written are kept.">
-                <input type="checkbox" id="blk_nb_pause" ${paused ? "checked" : ""} ${on && hasChat ? "" : "disabled"}/> Pause in this chat
-            </label>
-            <span class="blk-sub-desc">${status}</span>
-        </div>
-    `);
-    box.find("#blk_nb_on").on("change", function () {
-        localProfile.notebook = { ...(localProfile.notebook || {}), enabled: this.checked };
-        saveProfileToMemory(); renderBlocksTab(c); meguminScheduleBlocksRefresh();
-    });
-    box.find("#blk_nb_pause").on("change", function () {
-        setNotebookPaused(this.checked); renderBlocksTab(c);
-    });
-    return box;
 }
 
 export function renderBlocksTab(c) {
@@ -109,11 +72,6 @@ export function renderBlocksTab(c) {
         localProfile.hideBlocksFromAI = this.checked; saveProfileToMemory();
     });
     left.append(hide);
-
-    // ── AUTHOR'S NOTEBOOK (plan 010) ──
-    // Not a block in the stack: when on, it rides in the envelope by itself.
-    // Its own tab comes later; until then its switches live here.
-    left.append(notebookControls(c));
 
     // ── IN THE BLOCK ──
     left.append(`<div class="wstyle-section-head gold"><i class="fa-solid fa-list-ol"></i> Inside the master block</div>`);
