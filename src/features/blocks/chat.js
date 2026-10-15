@@ -14,12 +14,13 @@ import { meguminRenderRegistry, meguminBlocksTakenByPanel, meguminStatFieldMap }
 // One directed edge from the blocks feature to the NPC feature. No cycle:
 // nothing under features/npc/ imports the block card.
 import { npcDecorateUpdatePane } from "../npc/updateCard.js";
-import { worldCardTextAt, worldExtractMessage, blocksCardTextAt } from "../../state/index.js";
+import { worldCardTextAt, worldExtractMessage, blocksCardTextAt, notebookCardTextAt } from "../../state/index.js";
 import { blocksReadForReply } from "./worker.js";
 import { bondsDecoratePane, sheetDecoratePane } from "../bonds/overview.js";
 import { worldDecoratePane } from "../worldstate/card.js";
 import { openWorldEditor } from "../worldstate/editor.js";
 import { NOTEBOOK_CARD_DEFS, notebookDecoratePane, notebookCardStamp } from "../notebook/card.js";
+import { notebookReadForReply } from "../notebook/worker.js";
 
 // ── Clicking a choice ────────────────────────────────────────────────────────
 //
@@ -140,6 +141,9 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
                 : b.status === "pending" ? (b.body || "*Writing this block…*")
                 : "*Nothing was written for this block. Use Read again.*";
         });
+        // Plan 010: notebook lines Chomusuke wrote, on a reply that has no notebook block.
+        const nbText = typeof msgIndex === "number" ? notebookCardTextAt(msgIndex) : "";
+        if (nbText) storeBlocks.Notebook_Update = nbText;
         // The notebook is not a block in the stack, but its blocks are drawn
         // (behind a spoiler) on every reply that wrote one, on or off.
         applyBlocksToMessage(bodyEl, mesText, [...meguminRenderRegistry(), ...NOTEBOOK_CARD_DEFS], {
@@ -172,7 +176,10 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
                 if (pane) blocksDecorateReadAgain(pane, msgIndex, b.status === "pending");
             });
             bodyEl.querySelectorAll('.meg-block-body[data-block-id="notebook"], .meg-block-body[data-block-id="notebookUpdate"]')
-                .forEach(p => notebookDecoratePane(p, msgIndex, { onChanged: () => meguminScheduleBlocksRefresh() }));
+                .forEach(p => notebookDecoratePane(p, msgIndex, {
+                    onChanged: () => meguminScheduleBlocksRefresh(),
+                    onReread: () => { notebookReadForReply(msgIndex, { force: true }); }
+                }));
             const wsPane = bodyEl.querySelector('.meg-block-body[data-block-id="world"]');
             if (wsPane) worldDecoratePane(wsPane, msgIndex, {
                 onEdit: () => openWorldEditor(),

@@ -219,6 +219,14 @@ export function renderChomusuke(c) {
             defaultOff: true
         },
         {
+            key: "notebook",
+            title: "The Notebook",
+            icon: "fa-book",
+            color: "#8b5cf6",
+            desc: "On: after each reply, Chomusuke notes the clues it showed, who found out a hidden truth, and what came out. The story model only writes new truths. Needs The Notebook turned on. One worker call per reply.",
+            defaultOff: true
+        },
+        {
             key: "styleGen",
             title: "Writing Style Generator",
             icon: "fa-wand-magic-sparkles",
@@ -299,7 +307,8 @@ export function renderChomusuke(c) {
     const worldOn = cfg.features.worldState === true;
     const imageOn = cfg.features.imageGen !== false;
     const blocksOn = cfg.features.blocks === true;
-    const combineReady = Boolean(cfg.enabled && cfg.profileId && (worldOn + imageOn + blocksOn) >= 2);
+    const notebookOn = cfg.features.notebook === true;
+    const combineReady = Boolean(cfg.enabled && cfg.profileId && (worldOn + imageOn + blocksOn + notebookOn) >= 2);
     const $combinePanel = $(`
         <div class="mtab-panel" style="margin-top: 14px; margin-bottom:0;">
             <div class="mtab-panel-title blue" style="margin-bottom: 6px;">
@@ -307,7 +316,7 @@ export function renderChomusuke(c) {
             </div>
             <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">
                 Do several Chomusuke jobs in one call instead of one call each.
-                ${combineReady ? "" : "<br><b>Needs:</b> Chomusuke on, with at least two of <b>World State</b>, <b>Blocks</b> and <b>Image Generation</b> routed above."}
+                ${combineReady ? "" : "<br><b>Needs:</b> Chomusuke on, with at least two of <b>World State</b>, <b>Blocks</b>, <b>The Notebook</b> and <b>Image Generation</b> routed above."}
             </div>
         </div>
     `);
@@ -334,14 +343,14 @@ export function renderChomusuke(c) {
     $combinePanel.append(toggleRow(
         "all",
         `<i class="fa-solid fa-layer-group" style="color:#f59e0b; margin-right: 6px;"></i> Everything in one call`,
-        "After each reply, one call does everything routed to Chomusuke: the World State update, the blocks, and the image prompt when an image is due (on V2 also the outfit tags and new looks). A reply that needs only one of them keeps its own call, so every reply costs at most one call.",
+        "After each reply, one call does everything routed to Chomusuke: the World State update, the blocks, the notebook, and the image prompt when an image is due (on V2 also the outfit tags and new looks). A reply that needs only one of them keeps its own call, so every reply costs at most one call.",
         combineReady,
         false
     ));
     $combinePanel.append(toggleRow(
         "worldFallback",
         `<i class="fa-solid fa-life-ring" style="color:#10b981; margin-right: 6px;"></i> Fall back to separate reads`,
-        "If the combined answer has no usable World State update or blocks, read the reply again for just that part (one extra call, only then). Off: the card shows it, with Read again.",
+        "If the combined answer has no usable World State update, blocks or notebook lines, read the reply again for just that part (one extra call, only then). Off: the card shows it, with Read again.",
         combineReady && combine.all === true,
         true
     ));

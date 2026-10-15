@@ -24,7 +24,7 @@ export const NOTEBOOK_CARD_DEFS = [
 export function notebookCardStamp(msgIndex) {
     try {
         const info = notebookCardInfo(msgIndex);
-        return info ? JSON.stringify([info.entry.id, info.disabled, info.applied, info.notes]) : "";
+        return info ? JSON.stringify([info.entry && info.entry.id, info.disabled, info.applied, info.notes, info.pending, info.missing, info.canRead]) : "";
     } catch (e) { return ""; }
 }
 
@@ -34,6 +34,7 @@ const revealed = new Set();
 function contentFor(info, fallbackHtml) {
     if (!info) return fallbackHtml;
     if (info.disabled) return renderBody("*This reply's notebook changes are reverted.*");
+    if (info.pending) return renderBody("*Chomusuke is reading this reply for the notebook…*");
     const parts = [];
     const lines = [];
     for (const a of info.applied) {
@@ -45,14 +46,15 @@ function contentFor(info, fallbackHtml) {
     }
     if (lines.length) parts.push(lines.join("\n"));
     for (const n of info.notes) parts.push(`*Left out: ${n}*`);
-    if (!parts.length) return fallbackHtml;
+    if (info.missing) parts.push("*Chomusuke's read gave nothing usable. Use Read again.*");
+    if (!parts.length) return info.read ? renderBody("*Nothing changed in the notebook in this reply.*") : fallbackHtml;
     return renderBody(parts.join("\n\n---\n\n"));
 }
 
 /**
  * @param {HTMLElement} pane  the notebook pane of one message's card
  * @param {number} msgIndex
- * @param {{ onChanged?: () => void }} [hooks]
+ * @param {{ onChanged?: () => void, onReread?: () => void }} [hooks]
  */
 export function notebookDecoratePane(pane, msgIndex, hooks = {}) {
     if (!pane || pane.dataset.megNotebook === "1") return;
@@ -60,7 +62,8 @@ export function notebookDecoratePane(pane, msgIndex, hooks = {}) {
     let info = null;
     try { info = notebookCardInfo(msgIndex); } catch (e) { console.warn("[Megumin Suite] Notebook card:", e); }
     const key = info?.entry?.id || `msg:${msgIndex}`;
-    const shown = revealed.has(key);
+    // Nothing to spoil while Chomusuke is still reading.
+    const shown = revealed.has(key) || Boolean(info && info.pending);
 
     const wrap = document.createElement("div");
     wrap.className = `meg-nb-spoiler${shown ? "" : " is-hidden"}`;
@@ -81,7 +84,7 @@ export function notebookDecoratePane(pane, msgIndex, hooks = {}) {
     hide.type = "button";
     hide.className = "menu_button";
     hide.innerHTML = `<i class="fa-solid fa-eye-slash"></i> Hide`;
-    hide.style.display = shown ? "" : "none";
+    hide.style.display = shown && !info?.pending ? "" : "none";
     hide.addEventListener("click", e => {
         e.stopPropagation();
         revealed.delete(key);
@@ -101,6 +104,20 @@ export function notebookDecoratePane(pane, msgIndex, hooks = {}) {
             if (hooks.onChanged) hooks.onChanged();
         });
         actions.appendChild(undo);
+    }
+    // Chomusuke writes this reply's notebook lines: read it again.
+    if (info && (info.canRead || info.pending) && hooks.onReread) {
+        const again = document.createElement("button");
+        again.type = "button";
+        again.className = "menu_button";
+        again.disabled = Boolean(info.pending);
+        again.title = "Chomusuke reads this reply again for clues, who found out, and what came out";
+        again.innerHTML = info.pending ? `<i class="fa-solid fa-spinner fa-spin"></i> Reading…` : `<i class="fa-solid fa-rotate"></i> Read again`;
+        again.addEventListener("click", e => {
+            e.stopPropagation();
+            hooks.onReread();
+        });
+        actions.appendChild(again);
     }
 
     reveal.addEventListener("click", async e => {

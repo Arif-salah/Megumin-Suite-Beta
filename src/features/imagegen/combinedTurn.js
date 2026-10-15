@@ -3,6 +3,7 @@
 // Combine calls). Plan 009 widened it from "World State + image" to any of:
 //   • the World State read (World State route on),
 //   • the blocks Chomusuke writes (Blocks route on: Bonds, Sheet, Chatter, CYOA),
+//   • the notebook read (Notebook route on, plan 010),
 //   • the automatic image, on replies that get one (Image Generation route on).
 // When a reply needs two or more of them, one call does them all; a reply that
 // needs only one keeps its own call. So every reply costs at most one call.
@@ -11,8 +12,9 @@
 //   1. the World Update is filed under the reply's swipe (or, when missing,
 //      a separate read runs if the fallback is on, else "no update" is noted);
 //   2. the blocks are filed the same way;
-//   3. V2: outfit tags and new looks are saved against the NEW outfits;
-//   4. the image prompt goes to ComfyUI (V2 fills in @Name from the updated
+//   3. the notebook lines are filed with the reply's own;
+//   4. V2: outfit tags and new looks are saved against the NEW outfits;
+//   5. the image prompt goes to ComfyUI (V2 fills in @Name from the updated
 //      World State; Classic sends it as written).
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -24,8 +26,12 @@ import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
 import {
     worldEnabled, worldUpdateMode, worldBeginExternalRead, worldReadInputs,
     worldFinishExternalRead, worldRecordMissing, worldExtractMessage,
-    routedBlockIds, blocksBeginRead, blocksReadNotes, blocksFinishRead
+    routedBlockIds, blocksBeginRead, blocksReadNotes, blocksFinishRead,
+    notebookViaChomusuke, notebookBeginRead, notebookReadNotes, notebookFinishRead, notebookRecordMissing,
+    notebookCurrentPhase
 } from "../../state/index.js";
+import { notebookReadForReply } from "../notebook/worker.js";
+import { renderNotebookClerkTask, replyWroteNotebookChanges } from "../../state/modules/notebook/worker.js";
 import { blocksTasksFor, blocksReadForReply, exchangeText } from "../blocks/worker.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { statsModuleParses } from "../../state/index.js";
@@ -54,7 +60,7 @@ export function combineSettings() {
 
 /**
  * What this reply needs from Chomusuke, when it is worth one combined call:
- * { world, image, blocks } with two or more of them true. Null otherwise (the
+ * { world, image, blocks, notebook } with two or more of them true. Null otherwise (the
  * reply's jobs, if any, run on their own).
  */
 export function combinedTurnWanted(messageId, type) {
@@ -69,8 +75,10 @@ export function combinedTurnWanted(messageId, type) {
     const world = worldEnabled() && worldUpdateMode() === "sidemodel" && !worldModule.parse(text);
     const image = Boolean(ig && ig.enabled && imageViaChomusuke() && dueNow(ig, chat));
     const blocks = routedBlockIds().some(id => !statsModuleParses(id, text));
-    const plan = { world, image, blocks };
-    return (world + image + blocks) >= 2 ? plan : null;
+    // Live truths to read against (the notebook was running for this reply).
+    const notebook = notebookViaChomusuke() && notebookCurrentPhase() === "running" && !replyWroteNotebookChanges(text);
+    const plan = { world, image, blocks, notebook };
+    return (world + image + blocks + notebook) >= 2 ? plan : null;
 }
 
 // The messages before the latest exchange (the exchange = the user turn(s)
@@ -86,7 +94,7 @@ function earlierStory(index, count = 4) {
 /**
  * Runs the combined call for one reply. Resolves when everything is filed and
  * the image (if any) has been sent to ComfyUI. Never throws.
- * @param {{ world: boolean, image: boolean, blocks: boolean }} plan  from combinedTurnWanted
+ * @param {{ world: boolean, image: boolean, blocks: boolean, notebook?: boolean }} plan  from combinedTurnWanted
  */
 export async function runCombinedTurn(messageId, type, plan) {
     const ig = localProfile.imageGen;
@@ -95,9 +103,10 @@ export async function runCombinedTurn(messageId, type, plan) {
     const message = chat[index];
     const token = plan.world ? worldBeginExternalRead(index) : null;
     const bToken = plan.blocks ? blocksBeginRead(index, { force: type === "continue" }) : null;
+    const nToken = plan.notebook ? notebookBeginRead(index, { force: type === "continue" }) : null;
     const wantImage = plan.image;
-    if (!token && !bToken && !wantImage) return false;
-    if (bToken) meguminScheduleBlocksRefresh();
+    if (!token && !bToken && !nToken && !wantImage) return false;
+    if (bToken || nToken) meguminScheduleBlocksRefresh();
 
     const inline = wantImage && (ig.injectMode || "new_msg") === "inline";
     const id = `kazuma-img-${Date.now()}-auto`;
@@ -110,10 +119,10 @@ export async function runCombinedTurn(messageId, type, plan) {
     let missingLooks = [];
     let raw = "";
     try {
-        raw = await runWithChomusuke(wantImage ? "imageGen" : (token ? "worldState" : "blocks"), async () => {
+        raw = await runWithChomusuke(wantImage ? "imageGen" : token ? "worldState" : bToken ? "blocks" : "notebook", async () => {
             // Built when this job has the worker, so it sees whatever landed before it.
             const w = token ? worldReadInputs(token) : null;
-            const exchange = w ? w.exchange : exchangeText(index, String((bToken && bToken.text) || message.mes || ""));
+            const exchange = w ? w.exchange : exchangeText(index, String((bToken && bToken.text) || (nToken && nToken.text) || message.mes || ""));
             const common = {
                 notes: w ? renderClerkNotes(w.notes) : "",
                 earlier: earlierStory(index),
@@ -121,7 +130,8 @@ export async function runCombinedTurn(messageId, type, plan) {
                 world: w ? renderWorldClerkTask(w.mode, { noSecret: w.noSecret }) : null,
                 image: wantImage,
                 onlyIfPhoto: (ig.triggerMode || "always") === "conditional",
-                blocks: bToken ? { notes: blocksReadNotes(bToken, exchange), tasks: blocksTasksFor(bToken.ids) } : null
+                blocks: bToken ? { notes: blocksReadNotes(bToken, exchange), tasks: blocksTasksFor(bToken.ids) } : null,
+                notebook: nToken ? { notes: notebookReadNotes(nToken), task: renderNotebookClerkTask() } : null
             };
             if (!wantImage) {
                 built = renderCombinedPrompt(common);
@@ -190,13 +200,26 @@ export async function runCombinedTurn(messageId, type, plan) {
         meguminScheduleBlocksRefresh();
     }
 
+    // 3. The notebook.
+    if (nToken) {
+        const res = notebookFinishRead(nToken, full);
+        if (!res.ok && !res.dropped) {
+            notebookRecordMissing(nToken);
+            if (combineSettings().worldFallback) notebookReadForReply(index, { force: true });
+            else toastr.warning("Chomusuke gave no usable notebook lines for that reply. Use Read again on its card.", "Megumin Suite");
+        }
+        dropped = dropped || res.dropped;
+        meguminScheduleBlocksRefresh();
+    }
+
     if (!wantImage) return true;
-    if (dropped || getContext()?.chatId !== (token ? token.chatId : bToken ? bToken.chatId : getContext()?.chatId)) {
+    const anyToken = token || bToken || nToken;
+    if (dropped || getContext()?.chatId !== (anyToken ? anyToken.chatId : getContext()?.chatId)) {
         if (inline) await removePlaceholder(id);
         return false;
     }
 
-    // 3. V2: outfit tags and new looks, against the outfits AFTER the update.
+    // 4. V2: outfit tags and new looks, against the outfits AFTER the update.
     const { prompt: rawPrompt, rest } = splitCombinedAnswer(full);
     if (engine === "v2" && rest) {
         const staleNow = currentImageCast().filter(m => m.outfitStale && inImage(m, cfg.shot));
@@ -208,7 +231,7 @@ export async function runCombinedTurn(messageId, type, plan) {
         warnLooksNotMade(missingLooks, added);
     }
 
-    // 4. The image.
+    // 5. The image.
     const prompt = unwrapImgTag(engine === "v2" ? cleanModelPrompt(rawPrompt) : rawPrompt);
     if (!prompt || /^none\.?$/i.test(prompt)) {
         if (inline) await removePlaceholder(id);

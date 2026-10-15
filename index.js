@@ -103,6 +103,7 @@ import {
 } from "./src/core/profile.js";
 import { meguminSyncLegacyBlockIds } from "./src/features/blocks/registry.js";
 import { blocksReadForReply, NOT_A_REPLY as BLOCKS_NOT_A_REPLY } from "./src/features/blocks/worker.js";
+import { notebookReadForReply } from "./src/features/notebook/worker.js";
 import { buildConfigBlock } from "./src/features/storyconfig/config.js";
 import { renderStoryConfig } from "./src/features/storyconfig/ui.js";
 import { SD_GENRES, renderStoryPlanner, generateStoryPlanLogic } from "./src/features/storyplan/ui.js";
@@ -528,6 +529,16 @@ jQuery(async () => {
                     const blocksIndex = typeof receivedId === "number" ? receivedId : chatNow.length - 1;
                     blocksReadForReply(blocksIndex, { force: receivedType === "continue" })
                         .catch(e => console.error("[Megumin-Suite] Blocks read failed", e));
+                }
+
+                // --- NOTEBOOK BY CHOMUSUKE (plan 010) ---
+                // Clues, who learned what, what came out. Does nothing unless the
+                // Notebook route is on and the notebook has live truths.
+                if (!BLOCKS_NOT_A_REPLY.has(receivedType) && !(combinedTurn && combinedTurn.notebook)) {
+                    const chatNow = getContext().chat || [];
+                    const nbIndex = typeof receivedId === "number" ? receivedId : chatNow.length - 1;
+                    notebookReadForReply(nbIndex, { force: receivedType === "continue" })
+                        .catch(e => console.error("[Megumin-Suite] Notebook read failed", e));
                 }
 
                 // --- AUTOMATIC IMAGE BY CHOMUSUKE ---

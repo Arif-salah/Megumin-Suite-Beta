@@ -14,7 +14,7 @@ import { renderBlocksTasks } from "../../../state/modules/stats/worker.js";
 
 // Every section a combined answer can carry besides the image prompt (plan 009
 // adds the blocks Chomusuke writes), so none of them leaks into the prompt.
-const SECTION_TAGS = ["Outfit_Tags", "Character_Visual", "World_Update", "World_State", "Bonds", "Character_Sheet", "NPC_Inner_Chatter", "CYOA"];
+const SECTION_TAGS = ["Outfit_Tags", "Character_Visual", "World_Update", "World_State", "Bonds", "Character_Sheet", "NPC_Inner_Chatter", "CYOA", "Notebook_Update"];
 const ANY_SECTION = SECTION_TAGS.join("|");
 
 export const V2_STYLES = ["tags", "natural"];
@@ -223,6 +223,8 @@ export const COMBINED_SYSTEM =
  *   world  — the World State task (renderWorldClerkTask), or null
  *   image  — false for no image task (default: an image task)
  *   blocks — { notes, tasks: [{ tag, body }] } for the blocks Chomusuke writes (plan 009)
+ *   notebook — { notes, task } for the notebook read (plan 010): notes is
+ *              <Author_Notebook> before the reply, task is renderNotebookClerkTask()
  * @param {{
  *   notes?: string,           // the continuity notes as a reader sees them (renderClerkNotes)
  *   castList?: string,        // V2 only
@@ -236,7 +238,8 @@ export const COMBINED_SYSTEM =
  *   onlyIfPhoto?: boolean,
  *   extras?: { outfits?: Array<{name: string, outfit: string}>, looks?: string[], followUpdate?: boolean },
  *   previous?: string|null,   // V2 "Edit last prompt" method: the previous image prompt
- *   blocks?: { notes?: string, tasks: Array<{ tag: string, body: string }> } | null
+ *   blocks?: { notes?: string, tasks: Array<{ tag: string, body: string }> } | null,
+ *   notebook?: { notes?: string, task: { rules: string, template: string, tag: string } } | null
  * }} a
  * @returns {{ system: string, user: string, prefill: string }}
  */
@@ -248,6 +251,7 @@ export function renderCombinedPrompt(a) {
     const extras = v2 ? (a.extras || {}) : {};
     const extraTasks = v2 ? renderV2ExtraTasks(world ? extras : { ...extras, followUpdate: false }) : "";
     const blocks = a.blocks && (a.blocks.tasks || []).length ? renderBlocksTasks(a.blocks.tasks) : null;
+    const notebook = a.notebook && a.notebook.task ? a.notebook : null;
 
     let n = 0;
     const tasks = [];
@@ -265,10 +269,12 @@ export function renderCombinedPrompt(a) {
         ].filter(Boolean).join("\n"));
     }
     if (blocks && blocks.tasks) tasks.push(`# Task ${++n}: Story notes\n${blocks.tasks}`);
+    if (notebook) tasks.push(`# Task ${++n}: The author's notebook\n${notebook.task.rules}`);
 
     const user = [
         world ? a.notes : "",
         a.blocks ? a.blocks.notes : "",
+        notebook ? notebook.notes : "",
         v2 ? a.castList : "",
         renderSheetsBlock(a.sheets),
         String(a.earlier || "").trim() ? `<Earlier_Story>\n${String(a.earlier).trim()}\n</Earlier_Story>` : "",
@@ -281,19 +287,21 @@ export function renderCombinedPrompt(a) {
             world ? world.template : "",
             image ? "<Image_Prompt>the image prompt</Image_Prompt>" : "",
             ...(v2 ? renderV2ExtraShape(world ? extras : { ...extras, followUpdate: false }) : []),
-            ...(blocks ? blocks.shape : [])
+            ...(blocks ? blocks.shape : []),
+            notebook ? notebook.task.template : ""
         ].filter(Boolean).join("\n")
     ].filter(s => String(s || "").trim()).join("\n\n");
-    return { system: combinedSystem({ world: Boolean(world), image, blocks: Boolean(blocks) }), user, prefill: world ? `<${tag}>\n` : "" };
+    return { system: combinedSystem({ world: Boolean(world), image, blocks: Boolean(blocks), notebook: Boolean(notebook) }), user, prefill: world ? `<${tag}>\n` : "" };
 }
 
 // The system line for whatever the call does. World State + image keeps the
 // original wording.
-function combinedSystem({ world, image, blocks }) {
-    if (world && image && !blocks) return COMBINED_SYSTEM;
+function combinedSystem({ world, image, blocks, notebook = false }) {
+    if (world && image && !blocks && !notebook) return COMBINED_SYSTEM;
     const jobs = [];
     if (world) jobs.push("note what it changed in the world");
     if (blocks) jobs.push("keep the story's running notes (how the characters feel about {{user}}, {{user}}'s condition and belongings, their private thoughts, the choices open next)");
+    if (notebook) jobs.push("keep the author's notebook (the clues it shows, who finds out a hidden truth, what comes out)");
     if (image) jobs.push("write an image prompt for the moment it ends on");
     const last = jobs.pop();
     const list = jobs.length ? `${jobs.join(", ")} and ${last}` : last;

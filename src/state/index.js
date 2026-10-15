@@ -23,6 +23,11 @@ import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast } from "./modules/world/model.js";
 import { notebookModule } from "./modules/notebook/index.js";
 import { notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules } from "./modules/notebook/render.js";
+import { liveTruths } from "./modules/notebook/model.js";
+import { parseNotebook } from "./modules/notebook/parse.js";
+import {
+    replyWroteNotebookChanges, notebookAnswerBlock, joinNotebookRead, notebookReadPart, parseNotebookRead
+} from "./modules/notebook/worker.js";
 import {
     renderWorldForPrompt, renderWorldInstructions, renderWorldCard, findReturning, isEmptyWorld, describeWorldChange,
     renderWorldExtractPrompt
@@ -535,9 +540,24 @@ export function notebookBlockRequest() {
         return { phase, rules: sub(renderNotebookSetup()), template: "<Notebook>\n[two or three truths, each in the form above]\n</Notebook>" };
     }
     if (phase === "running") {
-        return { phase, rules: sub(renderNotebookUpdateRules()), template: "<Notebook_Update>\n[change lines; leave this block out when nothing changed]\n</Notebook_Update>" };
+        // With the Chomusuke route on, the story model only writes new truths.
+        const newOnly = notebookViaChomusuke();
+        return {
+            phase,
+            rules: sub(renderNotebookUpdateRules({ newOnly })),
+            template: newOnly
+                ? "<Notebook_Update>\n[a new truth with its lines; leave this block out when there is none]\n</Notebook_Update>"
+                : "<Notebook_Update>\n[change lines; leave this block out when nothing changed]\n</Notebook_Update>"
+        };
     }
     return null;
+}
+
+/** Chomusuke reads each reply for clues, who learned what, and what came out (Chomusuke tab: Notebook route). */
+export function notebookViaChomusuke() {
+    const c = localProfile && localProfile.chomusuke;
+    if (!c || !c.enabled || !c.profileId || !c.features || c.features.notebook !== true) return false;
+    return notebookEnabled();
 }
 
 /**
@@ -551,16 +571,36 @@ export function notebookCardInfo(msgIndex) {
     const uid = msg?.extra?.megumin_uid;
     if (!msg || msg.is_user || !uid) return null;
     const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    const pending = pendingNotebook.has(uid + ":" + swipe);
     const entry = stateStore.getEntryFor("notebook", uid, swipe);
-    if (!entry) return null;
-    const step = entry.disabled ? null : stateStore.getStep("notebook", uid);
+    if (!entry && !pending) return null;
+    const step = !entry || entry.disabled ? null : stateStore.getStep("notebook", uid);
     return {
         entry,
         applied: step?.applied || [],
         notes: step?.notes || [],
-        truths: (step?.state || stateStore.getStateAt("notebook", entry.seq)).truths || {},
-        disabled: Boolean(entry.disabled)
+        truths: (step?.state || (entry ? stateStore.getStateAt("notebook", entry.seq) : {})).truths || {},
+        disabled: Boolean(entry && entry.disabled),
+        // Chomusuke's read: running now, done, or answered with nothing usable.
+        pending,
+        read: Boolean(entry && entry.source === "sidemodel"),
+        missing: Boolean(entry && entry.source === "sidemodel" && entry.missing),
+        // Only a reply that had live truths before it can be read for them.
+        canRead: notebookViaChomusuke() && !pending && typeof msg.extra.megumin_seq === "number"
+            && liveTruths(stateStore.getStateAt("notebook", msg.extra.megumin_seq - 0.5)).length > 0
     };
+}
+
+/**
+ * What the card draws for a reply whose text has no notebook block but that
+ * Chomusuke read: "" when there is no tab to draw (nothing changed).
+ */
+export function notebookCardTextAt(msgIndex) {
+    const info = notebookCardInfo(msgIndex);
+    if (!info || !(info.pending || info.read)) return "";
+    if (info.pending) return "*Reading this reply for the notebook…*";
+    if (info.missing) return "*Nothing usable came back for this reply. Use Read again.*";
+    return info.applied.length || info.notes.length || info.disabled ? "*Notebook*" : "";
 }
 
 /** Revert (or restore) what one reply did to the notebook. */
@@ -583,10 +623,93 @@ function notebookInPlay() {
 
 // Most replies write nothing to the notebook, so a reply with no block is not
 // "missing" anything: nothing is recorded for it.
+// A reply Chomusuke already read keeps Chomusuke's lines when its text is
+// recorded again (an edit, a continue): only the reply's own part is re-read.
 function notebookRecord(index) {
     const msg = adapter.getChat()[index];
     if (!msg || msg.is_user || msg.is_system) return;
+    const uid = msg.extra?.megumin_uid;
+    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    const e = uid ? stateStore.getEntryFor("notebook", uid, swipe) : null;
+    const part = e && e.source === "sidemodel" ? notebookReadPart(e.raw) : "";
+    if (part) { fileNotebookRead(index, swipe, String(msg.mes || ""), part); return; }
     stateStore.recordMessage(index, { moduleIds: ["notebook"] });
+}
+
+// ── The notebook read (plan 010, phase 5) ──
+// Same shape as the blocks read: begin (claims the reply's swipe), notes
+// (built when the worker is free), finish (files the answer, or drops it when
+// the reply changed or is gone).
+
+const pendingNotebook = new Set();
+
+function fileNotebookRead(at, swipe, replyText, block) {
+    const parsed = parseNotebookRead(replyText, block) || { kind: "delta", ops: [] };
+    stateStore.recordMessage(at, { source: "sidemodel", moduleIds: ["notebook"], swipe, parsed, raw: joinNotebookRead(replyText, block) });
+}
+
+/**
+ * Claims one reply for a notebook read. Null when there is nothing to read:
+ * route off, paused, no live truth before the reply (it was the setup), or the
+ * reply wrote its own clue lines.
+ */
+export function notebookBeginRead(index, { force = false } = {}) {
+    if (!notebookViaChomusuke() || !adapter.getMeta() || notebookPaused()) return null;
+    const msg = adapter.getChat()[index];
+    if (!msg || msg.is_user || msg.is_system) return null;
+    const st = stateStore.stamp(msg);
+    if (!st) return null;
+    if (st.dirty) adapter.saveChat();
+    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    const text = swipeText(msg, swipe);
+    if (text == null || replyWroteNotebookChanges(text)) return null;
+    if (!liveTruths(stateStore.getStateAt("notebook", st.seq - 0.5)).length) return null;
+    const key = st.uid + ":" + swipe;
+    if (pendingNotebook.has(key)) return null;
+    const e = stateStore.getEntryFor("notebook", st.uid, swipe);
+    if (!force && e && e.source === "sidemodel") return null;
+    pendingNotebook.add(key);
+    stateChangedHook();
+    return { index, uid: st.uid, swipe, seq: st.seq, text, hash: hashText(text), key, chatId: getContext()?.chatId };
+}
+
+/** <Author_Notebook> as it stood before the reply, for the worker. */
+export function notebookReadNotes(token) {
+    return sub(renderNotebookForPrompt(stateStore.getStateAt("notebook", token.seq - 0.5)));
+}
+
+/**
+ * Files Chomusuke's answer with the reply's own notebook lines.
+ * @returns {{ ok: boolean, dropped: boolean }}
+ */
+export function notebookFinishRead(token, raw) {
+    pendingNotebook.delete(token.key);
+    const at = findTokenMessage(token);
+    if (at < 0) {
+        console.debug("[Megumin-Suite] Notebook read dropped: the reply changed or is gone.");
+        stateChangedHook();
+        return { ok: false, dropped: true };
+    }
+    const ans = notebookAnswerBlock(raw);
+    if (!ans) { stateChangedHook(); return { ok: false, dropped: false }; }
+    fileNotebookRead(at, token.swipe, token.text, ans.block);
+    stateChangedHook();
+    return { ok: true, dropped: false };
+}
+
+/** No usable answer: the reply's own lines stay, and the card offers Read again. */
+export function notebookRecordMissing(token) {
+    pendingNotebook.delete(token.key);
+    const at = findTokenMessage(token);
+    if (at < 0) { stateChangedHook(); return; }
+    stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["notebook"], swipe: token.swipe, parsed: parseNotebook(token.text) });
+    stateChangedHook();
+}
+
+/** Gives up a claimed read without filing anything. */
+export function notebookAbandonRead(token) {
+    if (token) pendingNotebook.delete(token.key);
+    stateChangedHook();
 }
 
 function notebookOnReceived(messageId) {
