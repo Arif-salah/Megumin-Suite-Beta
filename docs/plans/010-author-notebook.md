@@ -193,7 +193,7 @@ None yet.
 
 ## Progress
 
-- [ ] Phase 1: pure module
+- [x] Phase 1: pure module (src/state/modules/notebook/, tests/notebook.test.mjs)
 - [ ] Phase 2: bridge + prompts
 - [ ] Phase 3: chat card
 - [ ] Phase 4: notebook tab
