@@ -37,12 +37,20 @@ V11 owns the craft.
 - **The code enforces the rules, not only the prompt:**
   - ids: the extension assigns them. A `new T{id}` that reuses an id gets the
     next free one; it never overwrites a truth.
-  - cap: a `new` past 3 live truths is ignored.
-  - `learned` names: exact name, then a unique first name (like Bonds);
+  - cap: a `Truth+` past 3 live truths is ignored.
+  - `Learned` names: exact name, then a unique first name (like Bonds);
     "the reader" is a special name; a name not on the list is ignored.
   - first wins: a second line for the same truth and operation in one block is
     ignored.
   - no edit operation exists: a truth gains clues and comes out, nothing else.
+- **Update lines look like World Update** (decided 2026-10-15): `Clue T1:`,
+  `Learned T1:`, `Truth+: T3` (new), `Truth-: T1` (came out). The model already
+  writes `Thread+`/`Thread-` in the same reply, so the forms are familiar.
+  `Truth-` is the direct way to say a truth is out; `Learned` stays for when
+  only some people find out (the reader knows, a character still doesn't).
+- **Unwritten clues are flagged**: when a `Clue` line shares no words with the
+  reply's prose (names and small words don't count), the clue is kept but
+  marked in the tab as "not found in the reply".
 - **Turn numbers** use the message's stored `megumin_seq`, not its chat index,
   so deleting a message doesn't shift the Past timeline.
 - **Pause switch** on the tab: while paused, no setup and no notebook in the
@@ -51,9 +59,9 @@ V11 owns the craft.
   the `<Blocks>` envelope like the other blocks, and are added to the
   hide-blocks tag list so the model never re-reads them in the history.
 - **Chomusuke route for clues**: a Chomusuke tab switch (off by default). On:
-  Chomusuke reads each finished reply and writes the `clue` and `learned`
-  lines, which is more honest than the writer's own claim. The story model then
-  only writes `new` lines. Setup and `new` always stay with the story model,
+  Chomusuke reads each finished reply and writes the `Clue`, `Learned` and
+  `Truth-` lines, which is more honest than the writer's own claim. The story
+  model then only writes `Truth+` lines. Setup and `Truth+` always stay with the story model,
   because it needs the truths while writing. Goes into the combined call when
   "Combine calls" is on.
 - **Story Director** isn't used with V11. No code change: it's a per-profile
@@ -74,9 +82,9 @@ One entry per hidden truth.
 | Clues planted | model (or Chomusuke), appended | One line per clue written, stamped with the reply's seq. |
 | Created / revealed | extension | Seq numbers, for the timeline. |
 
-Updates: `clue T{id}: …`, `learned T{id}: names`, `new T{id}` + a full entry.
-When Hidden from becomes empty, the truth is revealed: it leaves the prompt and
-moves to Past. User edits (tab) are user entries in the store, so they can
+Updates: `Clue T{id}: …`, `Learned T{id}: names`, `Truth+: T{id}` + a full
+entry, `Truth-: T{id}`. A truth is revealed by `Truth-`, or when `Learned`
+empties its Hidden from list: it leaves the prompt and moves to Past. User edits (tab) are user entries in the store, so they can
 change any field; the model can't.
 
 ## Phases of the prompt
@@ -132,26 +140,21 @@ Update rules (the tag differs from the output block on purpose):
 <Notebook_Update_Rules>
 After the story, write a <Notebook_Update> block if the notebook changed this turn. Most turns it doesn't, and then you leave the block out. The block doesn't count toward the reply's length.
 
-Three things count as a change:
-
-clue T{id}: a clue for that truth is in this turn's story. Say in one line what's on the page. Log it only if it really is in the prose.
-
-learned T{id}: someone on that truth's Hidden from list found it out in this turn's story. Name who.
-
-new T{id}: the story opened room for a truth the notebook doesn't have yet. Write it in the same form as the entries in the notebook. Add one only while fewer than 3 are live.
+Clue T1: <the clue this turn's story showed>
+Learned T1: <who on its Hidden from list found it out this turn>
+Truth-: T1      it came out this turn, to everyone it was hidden from
+Truth+: T3      a new truth, only while fewer than 3 are live, followed by its lines in the notebook's form
 
 A truth never changes once written. It gains clues and comes out.
 
-Format:
 <Notebook_Update>
-clue T1: ...
-learned T2: ...
+[change lines]
 </Notebook_Update>
 </Notebook_Update_Rules>
 ```
 
-With the Chomusuke route on, the story model's rules keep only `new`; the
-`clue`/`learned` part becomes Chomusuke's task (reworded for a reader of the
+With the Chomusuke route on, the story model's rules keep only `Truth+`; the
+`Clue`/`Learned`/`Truth-` part becomes Chomusuke's task (reworded for a reader of the
 reply, like `renderWorldClerkTask`).
 
 `[[notebook]]` carries the craft paragraph (Prompt 4 in the design) while the
@@ -161,8 +164,9 @@ chat; the extension only decides whether it appears.
 ## Phases
 
 1. **Pure module**: `notebook/parse.js` (`<Notebook>` entries, update lines,
-   `new` with its entry), `model.js` (ids, cap, first wins, name match, reveal
-   when the list empties, seq stamps, user edits/forget), `render.js` (the
+   `Truth+` with its entry), `model.js` (ids, cap, first wins, name match,
+   reveal by `Truth-` or when the list empties, seq stamps, user edits/forget,
+   the unwritten-clue check), `render.js` (the
    three prompts, the notes, the card text), tests. Parser tests use the filled
    example from the design, never put in a prompt.
 2. **Bridge + prompts**: register the module in the store; phase 1/2 choice;
@@ -173,9 +177,10 @@ chat; the extension only decides whether it appears.
    confirm → shown. Revert/Read again like the other cards.
 4. **Notebook tab**: Past (timeline: truth, every clue with its turn, the turn
    it came out) and Active (blurred cards with the live count, a warning before
-   opening; then read, edit any field, delete, mark revealed). Pause switch.
+   opening; then read, edit any field, delete, mark revealed). Clues not
+   found in their reply carry a "not found in the reply" mark. Pause switch.
 5. **Chomusuke route**: switch in the Chomusuke tab; separate read writes
-   `clue`/`learned`; story model's rules shrink to `new`; part of the combined
+   `Clue`/`Learned`/`Truth-`; story model's rules shrink to `Truth+`; part of the combined
    call when on.
 6. **Test + docs** in SillyTavern with V11; `docs/` and CLAUDE.md updated.
 
@@ -184,9 +189,7 @@ adds the flag and the placeholder; the engine is added when its text is ready.
 
 ## Open questions
 
-- Flag a logged clue that never made it into the prose? Cheap check: any word
-  overlap between the clue line and the reply, flagged in the tab. Mostly moot
-  with the Chomusuke route on.
+None yet.
 
 ## Progress
 
