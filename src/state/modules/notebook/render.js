@@ -101,7 +101,7 @@ export function describeNotebookChange(ch) {
         case "out": return `${ch.id} came out: ${ch.text}`;
         case "edit": return `${ch.id} edited`;
         case "forget": return `${ch.id} deleted`;
-        case "restore": return `${ch.id} hidden again`;
+        case "restore": return `${ch.id} activated again`;
         default: return "";
     }
 }

@@ -99,7 +99,7 @@ function pastItem(t) {
                 <div class="meg-nb-line meg-nb-how">${esc(HOW[t.revealedHow] || "came out")}</div>
                 ${clueList(t)}
                 <div class="meg-nb-actions">
-                    <button type="button" class="menu_button meg-nb-restore" title="Put it back among the live truths, hidden again"><i class="fa-solid fa-rotate-left"></i> Hide again</button>
+                    <button type="button" class="menu_button meg-nb-restore" title="Put it back in the story as a live truth"><i class="fa-solid fa-rotate-left"></i> Activate again</button>
                     <button type="button" class="menu_button meg-nb-del" title="Delete this truth"><i class="fa-solid fa-trash"></i> Delete</button>
                 </div>
             </div>
