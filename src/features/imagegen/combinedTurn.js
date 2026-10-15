@@ -118,7 +118,7 @@ export async function runCombinedTurn(messageId, type, plan) {
                 notes: w ? renderClerkNotes(w.notes) : "",
                 earlier: earlierStory(index),
                 exchange,
-                world: w ? renderWorldClerkTask(w.mode) : null,
+                world: w ? renderWorldClerkTask(w.mode, { noSecret: w.noSecret }) : null,
                 image: wantImage,
                 onlyIfPhoto: (ig.triggerMode || "always") === "conditional",
                 blocks: bToken ? { notes: blocksReadNotes(bToken, exchange), tasks: blocksTasksFor(bToken.ids) } : null

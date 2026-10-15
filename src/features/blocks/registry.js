@@ -12,7 +12,8 @@
 
 import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
-import { worldBlockRequest, blockViaChomusuke } from "../../state/index.js";
+import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest } from "../../state/index.js";
+import { NOTEBOOK_TAGS } from "../../state/modules/notebook/parse.js";
 
 // -------------------------------------------------------------
 // BLOCK REGISTRY — one definition per block the <Blocks> envelope can carry
@@ -220,7 +221,11 @@ export function meguminBlockTemplateBody(b, dict) {
 
 export function buildBlocksEnvelope(dict) {
     const active = meguminActiveBlocks();
-    if (!active.length) return "";
+    // Plan 010: the Author's Notebook is not a block in the stack; it rides in
+    // the envelope whenever it is on, even with no other block.
+    let notebook = null;
+    try { notebook = notebookBlockRequest(); } catch (e) { console.warn("[Megumin Suite] Notebook: could not build its request.", e); }
+    if (!active.length && !notebook) return "";
 
     const parts = [];
     const rules = [];   // per-block rules, written above <Blocks>
@@ -259,6 +264,11 @@ export function buildBlocksEnvelope(dict) {
 
         parts.push(`<${b.tag}>\n${body}\n</${b.tag}>`);
     });
+
+    if (notebook) {
+        rules.push(notebook.rules);
+        parts.push(notebook.template);
+    }
 
     if (!parts.length) return "";
 
@@ -422,7 +432,7 @@ export function meguminBlockById(id) {
 // block that silently leaks, which is why it is derived rather than typed out.
 export function meguminAllBlockTags() {
     const custom = (localProfile && localProfile.blockStack && localProfile.blockStack.custom) || [];
-    const tags = [...MEGUMIN_BLOCK_REGISTRY.map(b => b.tag), ...custom.map(b => b.tag)];
+    const tags = [...MEGUMIN_BLOCK_REGISTRY.map(b => b.tag), ...custom.map(b => b.tag), ...NOTEBOOK_TAGS];
     // Story_Tracker is stripped explicitly by the cleaner before this list is
     // used, and stripping it twice is harmless, but a duplicate here would build
     // the same RegExp twice on every cleaned message.
@@ -441,7 +451,8 @@ export const BLOCK_VISIBILITY_CHOICES = [
 // silently instead of failing loudly.
 export const RESERVED_BLOCK_TAGS = [
     "blocks", "details", "summary", "think", "thinking", "gametxt", "updatevariable",
-    "combat_log", "location", "options", "disclaimer", "div", "span", "img", "p", "br"
+    "combat_log", "location", "options", "disclaimer", "div", "span", "img", "p", "br",
+    "notebook", "notebook_update"
 ];
 
 export function blockTagFromName(name) {

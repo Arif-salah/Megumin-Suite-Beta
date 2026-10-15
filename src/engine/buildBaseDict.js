@@ -27,7 +27,8 @@ import { memGetRelevantVaultEntries } from "../features/memory/index.js";
 import { meguminRollD20s } from "../utils/dice.js";
 import { meguminOverridableSlots, meguminSlotIsLive, meguminModuleTrigger } from "../../data/slots.js";
 import { resolveSlot } from "../core/sharedFragments.js";
-import { worldPromptBlock, statsPromptParts } from "../state/index.js";
+import { worldPromptBlock, statsPromptParts, notebookPromptBlock, notebookCurrentPhase } from "../state/index.js";
+import { NOTEBOOK_CRAFT } from "../prompts/notebook.js";
 import { meguminCleanChatHistoryText } from "./chatText.js";
 
 export function buildBaseDict(isTokenCount = false) {
@@ -472,8 +473,16 @@ export function buildBaseDict(isTokenCount = false) {
     if (dict["[[storytracker]]"]) dict["[[storytracker2]]"] = "[Story tracker here]"; else dict["[[storytracker2]]"] = "";
     if (dict["[[npc_inner_chatter]]"]) dict["[[npc_inner_chatter2]]"] = "[Npc inner chatter here]"; else dict["[[npc_inner_chatter2]]"] = "";
 
+    // --- AUTHOR'S NOTEBOOK (plan 010) ---
+    // The craft of keeping it, for an engine that carries [[notebook]] in its
+    // text (so it is resolved early, below). Empty while the notebook is off or
+    // paused, so the engine never talks about a notebook that isn't there.
+    let notebookPhaseNow = "off";
+    try { notebookPhaseNow = notebookCurrentPhase(); } catch (e) { /* no chat */ }
+    dict["[[notebook]]"] = notebookPhaseNow === "off" ? "" : NOTEBOOK_CRAFT;
+
     // Resolve early-evaluated tokens inside all other strings to prevent them from being missed and then cleaned up
-    const earlyTokens = ["[[count]]", "[[Language]]", "[[pronouns]]", "[[DNRATIO]]", "[[img2]]", "[[v9_lean_min]]", "[[v9_lean_max]]", "[[v9_full_min]]", "[[v9_full_max]]"];
+    const earlyTokens = ["[[notebook]]", "[[count]]", "[[Language]]", "[[pronouns]]", "[[DNRATIO]]", "[[img2]]", "[[v9_lean_min]]", "[[v9_lean_max]]", "[[v9_full_min]]", "[[v9_full_max]]"];
     earlyTokens.forEach(et => {
         if (dict[et] !== undefined) {
             const val = dict[et];
@@ -764,8 +773,13 @@ function buildCurrentInfo(worldNotes) {
     try { parts = statsPromptParts({ recentText: recentStoryText() }); } catch (e) {
         console.warn("[Megumin Suite] Current Info: could not read the kept blocks.", e);
     }
+    let notebook = "";
+    try { notebook = notebookPromptBlock(); } catch (e) {
+        console.warn("[Megumin Suite] Current Info: could not read the notebook.", e);
+    }
     const sections = [];
     if (worldNotes) sections.push(worldNotes);
+    if (notebook) sections.push(notebook);
     if (parts.bonds) sections.push(`<Bonds_Now>\n${parts.bonds}\n</Bonds_Now>`);
     if (parts.sheet) sections.push(`<Character_Sheet_Now>\n${parts.sheet}\n</Character_Sheet_Now>`);
     if (parts.chatter) sections.push(`<Last_Inner_Chatter>\n${parts.chatter}\n</Last_Inner_Chatter>`);

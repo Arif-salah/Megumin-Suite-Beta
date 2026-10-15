@@ -26,7 +26,7 @@ export const TAB_SYNC_KEYS = {
     "Persona": ["personality", "toggles"],
     "Writing Style": ["activeStyleId", "aiRule", "customStyles", "dnRatio"],
     "Global Toggles & Add Ons": ["addons", "blocks", "userLanguage", "userPronouns", "onomatopoeia", "v9Limits"],
-    "BLOCKS": ["blockStack", "statBlocks", "blocks", "hideBlocksFromAI"],
+    "BLOCKS": ["blockStack", "statBlocks", "blocks", "hideBlocksFromAI", "notebook"],
     "Story Director": ["storyPlan"],
     "Dynamic Ban List": ["banList", "banListBackend", "banListCustomPromptsEnabled", "banListCustomPrompts"],
     "Image Generation": ["imageGen"],

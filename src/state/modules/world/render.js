@@ -59,12 +59,13 @@ export function findReturning(state, recentText) {
 
 /**
  * @param {object} state
- * @param {{ detail?: "full"|"scene", returning?: object[], pcName?: string }} [opts]
+ * @param {{ detail?: "full"|"scene", returning?: object[], pcName?: string, noSecret?: boolean }} [opts]
+ *   noSecret — the Author's Notebook is on: hidden things live there, not here
  */
 export function renderWorldForPrompt(state, opts = {}) {
     if (isEmptyWorld(state)) return "";
     const full = opts.detail !== "scene";
-    const keep = f => full || !DEEP_FIELDS.has(f);
+    const keep = f => (full || !DEEP_FIELDS.has(f)) && !(opts.noSecret && f === "secret");
     const lines = [];
     const s = state.scene || {};
 
@@ -142,11 +143,27 @@ const DEEP_CURRENTS_UPDATE =
     "A Secret changes only when it is exposed or a new one is born. A Thread closes only when the story answers it. " +
     "A small moment is never a reason to rewrite them.";
 
+// While the Author's Notebook is on (plan 010), hidden things live in the
+// notebook only, so World State stops asking for a Secret.
+export function withoutSecret(text) {
+    return String(text || "")
+        .split("Mood, Agenda, Secret and Threads").join("Mood, Agenda and Threads")
+        .split("Outfit, Position, Mood, Agenda, Secret").join("Outfit, Position, Mood, Agenda")
+        .split("A Secret changes only when it is exposed or a new one is born. ").join("")
+        .split("\n").filter(l => !/\.Secret:/.test(l)).join("\n");
+}
+
 /**
  * @param {"update"|"bootstrap"} mode
+ * @param {{ noSecret?: boolean }} [opts]
  * @returns {{ rules: string, template: string }}
  */
-export function renderWorldInstructions(mode) {
+export function renderWorldInstructions(mode, { noSecret = false } = {}) {
+    const ins = worldInstructions(mode);
+    return noSecret ? { rules: withoutSecret(ins.rules), template: withoutSecret(ins.template) } : ins;
+}
+
+function worldInstructions(mode) {
     if (mode === "bootstrap") {
         return {
             rules: [
@@ -234,7 +251,7 @@ export function renderWorldCard(state, opts = {}) {
         out.push("", "---", "", "**👥 NPCs Present:**");
         for (const c of present) {
             out.push(`**${castDisplayName(c)}:**`);
-            for (const f of orderedFields(c.fields, NPC_FIELDS)) out.push(`* *${CARD_LABEL[f] || fieldLabel(f)}:* ${c.fields[f]}`);
+            for (const f of orderedFields(c.fields, NPC_FIELDS).filter(f => !(opts.noSecret && f === "secret"))) out.push(`* *${CARD_LABEL[f] || fieldLabel(f)}:* ${c.fields[f]}`);
             out.push("");
         }
     }
@@ -306,8 +323,8 @@ export function describeWorldChange(ch, pcLabel = "{{user}}") {
  * Shared word for word by the Chomusuke read and the combined call.
  * @returns {{ rules: string, template: string, tag: string }}
  */
-export function renderWorldClerkTask(mode) {
-    const ins = renderWorldInstructions(mode);
+export function renderWorldClerkTask(mode, { noSecret = false } = {}) {
+    const ins = renderWorldInstructions(mode, { noSecret });
     const reword = t => t
         .replace(/before your reply/g, "before the latest exchange")
         .replace(/what your reply changed/g, "what the latest exchange changed")
@@ -324,8 +341,8 @@ export function renderClerkNotes(notes) {
         : "<Current_World_State>\n(Nothing has been noted about this story yet.)\n</Current_World_State>";
 }
 
-export function renderWorldExtractPrompt({ notes, exchange, mode }) {
-    const task = renderWorldClerkTask(mode);
+export function renderWorldExtractPrompt({ notes, exchange, mode, noSecret = false }) {
+    const task = renderWorldClerkTask(mode, { noSecret });
     const system =
         "You are a continuity clerk for an ongoing roleplay. You read the latest exchange and note what it changed: " +
         "the physical scene, who is present and how they look, and the story's slow deep currents. " +

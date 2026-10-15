@@ -7,7 +7,10 @@
 // under node (tests/).
 // ────────────────────────────────────────────────────────────────────────────
 
-import { getContext, saveMetadataDebounced, saveChatDebounced, substituteParams, name1, generateQuietPrompt } from "../st.js";
+import { getContext, saveMetadataDebounced, saveChatDebounced, substituteParams, name1, generateQuietPrompt, extension_settings } from "../st.js";
+import { extensionName } from "../core/constants.js";
+import { engineKeepsNotebook } from "../core/engines.js";
+import { hardcodedLogic } from "../../data/database.js";
 import { runWithChomusuke } from "../engine/tasks.js";
 import { setActiveWorldExtractRequest } from "../core/activeRequests.js";
 import { localProfile } from "../core/state.js";
@@ -18,6 +21,8 @@ import { renderWorkerNotes, cleanWorkerAnswer, blockTextIn } from "./modules/sta
 import { pickBondsFor } from "./modules/stats/model.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast } from "./modules/world/model.js";
+import { notebookModule } from "./modules/notebook/index.js";
+import { notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules } from "./modules/notebook/render.js";
 import {
     renderWorldForPrompt, renderWorldInstructions, renderWorldCard, findReturning, isEmptyWorld, describeWorldChange,
     renderWorldExtractPrompt
@@ -80,7 +85,7 @@ const adapter = {
 
 export const stateStore = createStateStore({
     adapter,
-    modules: { world: worldModule, bonds: bondsModule, sheet: sheetModule, chatter: chatterModule, tracker: trackerModule, cyoa: cyoaModule },
+    modules: { world: worldModule, bonds: bondsModule, sheet: sheetModule, chatter: chatterModule, tracker: trackerModule, cyoa: cyoaModule, notebook: notebookModule },
     journalDepth: () => worldSettings().journalDepth
 });
 
@@ -111,7 +116,7 @@ export function worldPromptBlock() {
     const cfg = worldSettings();
     const state = getWorldState();
     const returning = cfg.showReturning ? findReturning(state, recentText()) : [];
-    return sub(renderWorldForPrompt(state, { detail: cfg.injectionDetail, returning }));
+    return sub(renderWorldForPrompt(state, { detail: cfg.injectionDetail, returning, noSecret: notebookEnabled() }));
 }
 
 /**
@@ -123,7 +128,7 @@ export function worldBlockRequest() {
     if (!worldEnabled()) return null;
     if (worldUpdateMode() !== "inline") return null;
     const mode = !stateStore.hasState("world") || stateStore.isPendingFullRewrite("world") ? "bootstrap" : "update";
-    const ins = renderWorldInstructions(mode);
+    const ins = renderWorldInstructions(mode, { noSecret: notebookEnabled() });
     return { rules: sub(ins.rules), template: sub(ins.template), mode };
 }
 
@@ -134,7 +139,7 @@ export function worldCardTextAt(msgIndex) {
     const seq = msg?.extra?.megumin_seq;
     const state = typeof seq === "number" ? stateStore.getStateAt("world", seq) : getWorldState();
     if (isEmptyWorld(state)) return "";
-    return sub(renderWorldCard(state, { pcName: sub("{{user}}") }));
+    return sub(renderWorldCard(state, { pcName: sub("{{user}}"), noSecret: notebookEnabled() }));
 }
 
 /**
@@ -321,8 +326,9 @@ export function worldExtractMessage(index, { force = false } = {}) {
             // landed before it.
             const before = stateStore.getStateAt("world", st.seq - 0.5);
             const mode = isEmptyWorld(before) ? "bootstrap" : "update";
-            const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full" }));
-            const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, mode), mode });
+            const noSecret = notebookEnabled();
+            const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
+            const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, mode), mode, noSecret });
             req = { system: sub(built.system), user: sub(built.user), prefill: built.prefill };
             // The marker is set only once this job has the worker. Chomusuke runs
             // are queued; set while waiting, it would hijack whatever generation
@@ -401,8 +407,9 @@ export function worldBeginExternalRead(index) {
 export function worldReadInputs(token) {
     const before = stateStore.getStateAt("world", token.seq - 0.5);
     const mode = isEmptyWorld(before) ? "bootstrap" : "update";
-    const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full" }));
-    return { mode, notes, exchange: exchangeFor(token.index, token.text, mode) };
+    const noSecret = notebookEnabled();
+    const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
+    return { mode, notes, noSecret, exchange: exchangeFor(token.index, token.text, mode) };
 }
 
 function findTokenMessage(token) {
@@ -465,6 +472,93 @@ function inPlay() {
 }
 
 const NOT_A_REPLY = new Set(["first_message", "command", "impersonate", "quiet"]);
+
+// ── Author's Notebook (plan 010) ─────────────────────────────────────────
+// The hidden truths the story model keeps: it writes them after its reply
+// (<Notebook> at setup, <Notebook_Update> after), the store keeps them per
+// message and swipe, and they come back every turn in Current Info.
+//
+// On for an engine that keeps one (V11: `notebook: true`), or by the Blocks tab
+// switch. Paused per chat: no setup, nothing in the prompt.
+
+function activeEngine() {
+    const custom = (extension_settings[extensionName] && extension_settings[extensionName].customModes) || [];
+    return [...(hardcodedLogic.modes || []), ...custom].find(m => m.id === localProfile?.mode) || null;
+}
+
+/** The engine turns the notebook on by itself (the switch can't turn it off). */
+export function notebookForcedByEngine() {
+    return engineKeepsNotebook(activeEngine());
+}
+
+export function notebookEnabled() {
+    if (!localProfile) return false;
+    return notebookForcedByEngine() || Boolean(localProfile.notebook && localProfile.notebook.enabled);
+}
+
+export function notebookPaused() {
+    const meta = adapter.getMeta();
+    return Boolean(meta && meta.megumin_notebook && meta.megumin_notebook.paused);
+}
+
+export function setNotebookPaused(paused) {
+    const meta = adapter.getMeta();
+    if (!meta) return false;
+    meta.megumin_notebook = { ...(meta.megumin_notebook || {}), paused: Boolean(paused) };
+    adapter.saveMeta();
+    return true;
+}
+
+export function notebookState() {
+    return stateStore.getState("notebook");
+}
+
+/** "setup", "running" or "off" for the open chat. */
+export function notebookCurrentPhase() {
+    if (!adapter.getMeta()) return "off";
+    return notebookPhase(notebookState(), { on: notebookEnabled(), paused: notebookPaused() });
+}
+
+/** <Author_Notebook> for Current Info, or "". */
+export function notebookPromptBlock() {
+    if (notebookCurrentPhase() !== "running") return "";
+    return sub(renderNotebookForPrompt(notebookState()));
+}
+
+/**
+ * What the <Blocks> envelope asks for: the setup, or the update rules. null when off.
+ * @returns {{ rules: string, template: string, phase: string } | null}
+ */
+export function notebookBlockRequest() {
+    const phase = notebookCurrentPhase();
+    if (phase === "setup") {
+        return { phase, rules: sub(renderNotebookSetup()), template: "<Notebook>\n[two or three truths, each in the form above]\n</Notebook>" };
+    }
+    if (phase === "running") {
+        return { phase, rules: sub(renderNotebookUpdateRules()), template: "<Notebook_Update>\n[change lines; leave this block out when nothing changed]\n</Notebook_Update>" };
+    }
+    return null;
+}
+
+function notebookInPlay() {
+    return Boolean(adapter.getMeta()) && (notebookEnabled() || stateStore.hasState("notebook"));
+}
+
+// Most replies write nothing to the notebook, so a reply with no block is not
+// "missing" anything: nothing is recorded for it.
+function notebookRecord(index) {
+    const msg = adapter.getChat()[index];
+    if (!msg || msg.is_user || msg.is_system) return;
+    stateStore.recordMessage(index, { moduleIds: ["notebook"] });
+}
+
+function notebookOnReceived(messageId) {
+    if (!notebookEnabled() || !adapter.getMeta()) return;
+    const chat = adapter.getChat();
+    const index = typeof messageId === "number" ? messageId : chat.length - 1;
+    stateStore.reconcile();
+    notebookRecord(index);
+}
 
 // ── Bonds, Sheet, Inner Chatter, Story Tracker (plan 008) ────────────────
 // Kept from the blocks in each reply, so the story model can be handed the
@@ -727,6 +821,7 @@ function repliesUpdate() {
  */
 export function stateOnMessageReceived(messageId, type, { skipSideRead = false } = {}) {
     statsOnReceived(messageId);
+    notebookOnReceived(messageId);
     if (!repliesUpdate() || !adapter.getMeta()) return false;
     const chat = adapter.getChat();
     const index = typeof messageId === "number" ? messageId : chat.length - 1;
@@ -760,6 +855,7 @@ export function stateOnSwiped(messageId) {
     const chat = adapter.getChat();
     const index = typeof messageId === "number" ? messageId : chat.length - 1;
     if (statsInPlay()) stateStore.onSwiped(index, { moduleIds: STAT_MODULES });
+    if (notebookInPlay()) stateStore.onSwiped(index, { moduleIds: ["notebook"] });
     if (!inPlay()) return false;
     if (!repliesUpdate()) {
         stateStore.reconcile();
@@ -778,6 +874,7 @@ export function stateOnSwipeDeleted(data) {
 
 export function stateOnEdited(messageId) {
     if (statsInPlay()) statsRecord(messageId);
+    if (notebookInPlay()) notebookRecord(messageId);
     if (!repliesUpdate() || !adapter.getMeta()) return false;
     const msg = adapter.getChat()[messageId];
     if (!msg || msg.is_user) return false;
@@ -808,6 +905,7 @@ export function stateOnDeleted() {
 /** Chat opened or reloaded: stamp, square with deletions made meanwhile, one-time import. */
 export function stateOnChatLoaded() {
     statsOnChatLoaded();
+    if (notebookInPlay()) stateStore.reparseStale("notebook");
     if (!inPlay()) return false;
     if (worldEnabled()) stateStore.stampAll();
     stateStore.reconcile();

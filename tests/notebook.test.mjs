@@ -236,3 +236,24 @@ test("store: swiping the setup reply empties the notebook; swiping back restores
     e.store.onSwiped(1);
     assert.equal(liveTruths(e.store.getState("notebook")).length, 2);
 });
+
+// ── Phase 2: World State stops asking for a Secret while the notebook is on ──
+import { renderWorldInstructions, renderWorldForPrompt, renderWorldCard, renderWorldClerkTask } from "../src/state/modules/world/render.js";
+import { parseWorldBlocks } from "../src/state/modules/world/parse.js";
+import { emptyWorld, applyWorldChanges } from "../src/state/modules/world/model.js";
+
+test("noSecret: no Secret in the World State rules, template, notes or card", () => {
+    for (const mode of ["update", "bootstrap"]) {
+        const on = renderWorldInstructions(mode);
+        assert.match(on.rules + on.template, /Secret/, "unchanged without the notebook");
+        const off = renderWorldInstructions(mode, { noSecret: true });
+        assert.doesNotMatch(off.rules + off.template, /secret/i);
+        assert.match(off.rules + off.template, /Agenda/, "the rest stays");
+        assert.doesNotMatch(renderWorldClerkTask(mode, { noSecret: true }).rules, /secret/i);
+    }
+    const w = applyWorldChanges(emptyWorld(), parseWorldBlocks("<World_State>\nTime: Night\n+ Aqua\nAqua.Mood: smug\nAqua.Secret: owes money\n</World_State>"), { userNames: ["Kazuma"] }).state;
+    assert.match(renderWorldForPrompt(w), /Secret: owes money/);
+    assert.doesNotMatch(renderWorldForPrompt(w, { noSecret: true }), /Secret/);
+    assert.match(renderWorldForPrompt(w, { noSecret: true }), /Mood: smug/);
+    assert.doesNotMatch(renderWorldCard(w, { noSecret: true }), /Secret/);
+});

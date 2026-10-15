@@ -268,7 +268,9 @@ export function initProfile() {
         // (chat_metadata.megumin_state), never here.
         worldState: { ...WORLD_SETTINGS_DEFAULTS },
         // Plan 008: the story model reads Current Info, not its own old blocks.
-        hideBlocksFromAI: true
+        hideBlocksFromAI: true,
+        // Plan 010: the Author's Notebook. An engine with `notebook: true` turns it on anyway.
+        notebook: { enabled: false }
     };
 
 

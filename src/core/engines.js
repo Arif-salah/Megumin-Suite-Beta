@@ -43,6 +43,9 @@ export const engineLocksStyle = m => isV7Engine(m) || isModernEngine(m);
  *  take from V9, and the reason it stopped borrowing the isV9 flag. */
 export const engineUsesRenderLimits = m => isV9Engine(m) && !isV10Engine(m);
 
+/** Keeps an Author's Notebook (plan 010): picking it turns the notebook on. */
+export const engineKeepsNotebook = m => !!m && m.notebook === true;
+
 /** The built-in style an engine drops you on when you switch to it. */
 export function lockedStyleIdFor(m) {
     if (!m) return null;

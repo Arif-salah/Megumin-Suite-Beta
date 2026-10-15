@@ -194,7 +194,7 @@ None yet.
 ## Progress
 
 - [x] Phase 1: pure module (src/state/modules/notebook/, tests/notebook.test.mjs)
-- [ ] Phase 2: bridge + prompts
+- [x] Phase 2: bridge + prompts (switches in the Blocks tab until the notebook tab exists; craft text = the design draft, src/prompts/notebook.js)
 - [ ] Phase 3: chat card
 - [ ] Phase 4: notebook tab
 - [ ] Phase 5: Chomusuke route
