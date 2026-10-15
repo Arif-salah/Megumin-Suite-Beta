@@ -68,6 +68,7 @@ function liveCard(t, isOpen) {
             </div>
             <div class="meg-nb-spoiler${isOpen ? "" : " is-hidden"}">
                 <div class="meg-nb-content">
+                    <div class="meg-nb-none">Changes save as soon as you leave a box.</div>
                     ${FIELDS.map(field).join("")}
                     <div class="meg-nb-field"><span>Clues planted</span>${clueList(t, { removable: true })}</div>
                 </div>
@@ -76,7 +77,6 @@ function liveCard(t, isOpen) {
             ${isOpen ? `
             <div class="meg-nb-actions">
                 <button type="button" class="menu_button meg-nb-hide"><i class="fa-solid fa-eye-slash"></i> Hide</button>
-                <button type="button" class="menu_button meg-nb-save"><i class="fa-solid fa-floppy-disk"></i> Save changes</button>
                 <button type="button" class="menu_button meg-nb-out" title="The truth is out: it leaves the story's notebook and joins Past"><i class="fa-solid fa-flag-checkered"></i> Mark revealed</button>
                 <button type="button" class="menu_button meg-nb-del" title="Delete this truth. Its id is never used again."><i class="fa-solid fa-trash"></i> Delete</button>
             </div>` : ""}
@@ -236,27 +236,28 @@ function bindNotebook(c, state, chatId) {
         renderNotebookTab(c);
     });
 
-    c.find(".meg-nb-save").on("click", function () {
+    // Saved as soon as the reader leaves a box, like the Bonds editor.
+    c.find(".meg-nb-input").on("change", function () {
         const t = truthOf(this);
         if (!t) return;
+        const key = this.dataset.key;
+        const raw = String($(this).val() || "").trim();
         const fields = {};
-        $(this).closest(".meg-nb-truth").find(".meg-nb-input").each(function () {
-            const key = this.dataset.key;
-            const raw = String($(this).val() || "").trim();
-            if (key === "hiddenFrom") {
-                const names = splitNames(raw);
-                if (names.join("|") !== t.hiddenFrom.join("|")) fields.hiddenFrom = names;
-            } else if (raw !== (t[key] || "")) {
-                fields[key] = raw;
-            }
-        });
-        if (fields.truth === "") { toastr.warning("A truth can't be empty. Delete it instead.", "Megumin Suite"); return; }
-        if (!Object.keys(fields).length) { toastr.info("Nothing changed.", "Megumin Suite"); return; }
+        if (key === "hiddenFrom") {
+            const names = splitNames(raw);
+            if (names.join("|") !== t.hiddenFrom.join("|")) fields.hiddenFrom = names;
+        } else if (raw !== (t[key] || "")) {
+            fields[key] = raw;
+        }
+        if (fields.truth === "") {
+            toastr.warning("A truth can't be empty. Delete it instead.", "Megumin Suite");
+            $(this).val(t.truth);
+            return;
+        }
+        if (!Object.keys(fields).length) return;
         commit({ op: "edit", id: t.id, fields });
-        toastr.success(fields.hiddenFrom && !fields.hiddenFrom.length
-            ? `${t.id} is hidden from no one now, so it came out.`
-            : `${t.id} saved.`, "Megumin Suite");
-    });
+        if (fields.hiddenFrom && !fields.hiddenFrom.length) toastr.info(`${t.id} is hidden from no one now, so it came out.`, "Megumin Suite");
+    }).on("keydown", function (e) { if (e.key === "Enter" && this.tagName === "INPUT") this.blur(); });
 
     c.find(".meg-nb-clue-del").on("click", function () {
         const t = truthOf(this);
