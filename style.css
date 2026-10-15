@@ -5126,3 +5126,27 @@
 .meg-nb-reveal:hover { background: rgba(139,92,246,.3); }
 .meg-nb-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
 .meg-nb-actions .menu_button { font-size: .7rem; padding: 3px 10px; margin: 0; }
+
+/* The Notebook tab: Active cards and the Past timeline */
+.meg-nb-count { margin-left: 6px; font-size: .68rem; font-weight: 500; color: var(--text-muted); }
+.meg-nb-none { font-size: .76rem; color: var(--text-muted); font-style: italic; margin: 4px 0 8px; }
+.meg-nb-truth { border: 1px solid rgba(139,92,246,.25); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: rgba(139,92,246,.04); }
+.meg-nb-truth-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+.meg-nb-truth-head b { color: #c4b5fd; }
+.meg-nb-turn { font-size: .66rem; color: var(--text-muted); white-space: nowrap; }
+.meg-nb-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; font-size: .64rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .3px; }
+.meg-nb-field .ps-modern-input { width: 100%; box-sizing: border-box; font-size: .78rem; padding: 6px 8px; text-transform: none; letter-spacing: normal; resize: vertical; }
+.meg-nb-clues { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; text-transform: none; letter-spacing: normal; }
+.meg-nb-clues li { display: flex; gap: 8px; align-items: baseline; font-size: .76rem; color: var(--text-main, inherit); }
+.meg-nb-clues li > span:nth-child(2) { flex: 1; }
+.meg-nb-flag { color: #f59e0b; font-size: .66rem; white-space: nowrap; }
+.meg-nb-mini { background: transparent; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: .62rem; padding: 2px 6px; }
+.meg-nb-mini:hover { color: #ef4444; border-color: rgba(239,68,68,.45); }
+.meg-nb-actions { flex-wrap: wrap; }
+.meg-nb-actions .menu_button.armed { color: #ef4444; border-color: rgba(239,68,68,.5); }
+.meg-nb-timeline { position: relative; padding-left: 18px; }
+.meg-nb-timeline::before { content: ""; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 2px; background: rgba(16,185,129,.25); }
+.meg-nb-past { position: relative; margin-bottom: 14px; }
+.meg-nb-past-dot { position: absolute; left: -17px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: #10b981; }
+.meg-nb-line { font-size: .8rem; line-height: 1.5; margin-bottom: 4px; }
+.meg-nb-how { font-size: .7rem; color: #10b981; }

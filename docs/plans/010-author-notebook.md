@@ -197,6 +197,6 @@ None yet.
 - [x] Phase 1: pure module (src/state/modules/notebook/, tests/notebook.test.mjs)
 - [x] Phase 2: bridge + prompts (switches in "The Notebook" tab, src/features/notebook/ui.js; craft text in src/prompts/notebook.js, wrapped in <The_Notebook>, engine-neutral: it is for older engines, V11 carries its own; tested by the developer)
 - [x] Phase 3: chat card (src/features/notebook/card.js: blurred pane, confirm popup, Hide, Revert/Restore; the store state is in the redraw stamp)
-- [ ] Phase 4: notebook tab
+- [x] Phase 4: notebook tab (src/features/notebook/ui.js: Active blurred cards with a confirm, edit any field, remove a clue, mark revealed, delete; Past timeline with Hide again; every change is a user entry via notebookEdit)
 - [ ] Phase 5: Chomusuke route
 - [ ] Phase 6: test + docs

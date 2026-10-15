@@ -568,6 +568,15 @@ export function notebookSetEntryDisabled(entryId, disabled) {
     return stateStore.setDisabled(entryId, disabled);
 }
 
+/**
+ * A change from The Notebook tab (edit, forget, reveal, restore), kept as the
+ * user's own entry so swipes and rewinds never undo it.
+ */
+export function notebookEdit(op) {
+    if (!adapter.getMeta() || !op) return null;
+    return stateStore.addUserEntry("notebook", { ops: [op] });
+}
+
 function notebookInPlay() {
     return Boolean(adapter.getMeta()) && (notebookEnabled() || stateStore.hasState("notebook"));
 }
