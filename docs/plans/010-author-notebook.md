@@ -157,9 +157,10 @@ With the Chomusuke route on, the story model's rules keep only `Truth+`; the
 `Clue`/`Learned`/`Truth-` part becomes Chomusuke's task (reworded for a reader of the
 reply, like `renderWorldClerkTask`).
 
-`[[notebook]]` carries the craft paragraph (Prompt 4 in the design) while the
-notebook is on, and is empty while it's off. Its text comes from the prompt
-chat; the extension only decides whether it appears.
+`[[notebook]]` is for backward compatibility: older engines that carry it get
+the craft text in a <The_Notebook> block while the notebook is on, and nothing
+while it is off. V11 writes the craft into its own prompt and doesn't use it, so
+the text never leans on one engine's wording (numbered rules, "the room").
 
 ## Phases
 
@@ -194,7 +195,7 @@ None yet.
 ## Progress
 
 - [x] Phase 1: pure module (src/state/modules/notebook/, tests/notebook.test.mjs)
-- [x] Phase 2: bridge + prompts (switches in "The Notebook" tab, src/features/notebook/ui.js; craft text = the design draft, src/prompts/notebook.js)
+- [x] Phase 2: bridge + prompts (switches in "The Notebook" tab, src/features/notebook/ui.js; craft text in src/prompts/notebook.js, wrapped in <The_Notebook>, engine-neutral: it is for older engines, V11 carries its own; tested by the developer)
 - [ ] Phase 3: chat card
 - [ ] Phase 4: notebook tab
 - [ ] Phase 5: Chomusuke route
