@@ -88,6 +88,7 @@ export function renderCoreAndCot(c) {
         "v8-m": "Unmatched in complex human psychology, authentic flawed dialogue, and autonomous, multi-layered story plotting.",
         "v8-lite": "A streamlined, highly efficient version of Obsidian. Retains the core rules of psychology, dialogue, and momentum with a much lighter token footprint.",
         "v8-fusion": "The absolute pinnacle of the Megumin Suite. A hybrid engine mixing V8 Obsidian's deep psychology with V6 Dream Team's specialist writer room framework.",
+        "v11-room": "A writers' room of five: a director who keeps continuity and checks every draft, a psychologist for what each character wants, a story architect who keeps the author's notebook of hidden truths, a storyteller for the narration, and a dialogue writer for the voices. The reader gets one voice. Turns the Author's Notebook on by itself.",
         "v10-core": "The storyteller. Ukiyo is the looser of the two — a teller with a temperament, spinning the world and its history, following whatever in the scene is most alive. It trades a little polish for invention: the prose wanders, reaches for an image, and occasionally overreaches. Pick it for atmosphere, momentum and a world that feels told rather than composed. Neither V10 is a downgrade of the other — run a few scenes on each and keep the one that sounds like the story you want to read.",
         "v10-shura": "The writer. Shura is the stricter of the two — no slop, no AI tells, no line that exists to manage the scene. Every character is the protagonist of their own story, acting from their own values, and none of them is a villain in their own eyes; there is no objective right or wrong for the narration to take sides on. Pick it for prose that reads like a book and a cast that drives the story itself. Neither V10 is a downgrade of the other — run a few scenes on each and keep the one that sounds like the story you want to read.",
         "v10-core-cw": "Ukiyo, with the narrator writing {{user}} as well. It reads how you write — diction, rhythm, how boldly you act — and plays your character in that voice. Anything you write yourself is canon and is never overwritten or corrected. Your history stays yours; only the acting is shared.",
@@ -101,13 +102,14 @@ export function renderCoreAndCot(c) {
     const activeEng = hardcodedLogic.modes.find(m => m.id === localProfile.mode);
     const activeLabel = activeEng ? activeEng.label : localProfile.mode;
 
-    let v4Count = 0, v5Count = 0, v6Count = 0, v7Count = 0, v8Count = 0, v9Count = 0, v10Count = 0;
+    let v4Count = 0, v5Count = 0, v6Count = 0, v7Count = 0, v8Count = 0, v9Count = 0, v10Count = 0, v11Count = 0;
     hardcodedLogic.modes.forEach(m => {
         if (m.label.includes("V4")) v4Count++;
         else if (m.label.includes("V5")) v5Count++;
         else if (m.id.includes("v6")) v6Count++;
         else if (m.id.includes("v7")) v7Count++;
         else if (m.id.includes("v8")) v8Count++;
+        else if (m.id.includes("v11")) v11Count++;
         else if (m.id.includes("v10")) v10Count++;
         else if (m.id.includes("v9")) v9Count++;
     });
@@ -183,6 +185,7 @@ export function renderCoreAndCot(c) {
             <button class="wstyle-filter-pill ${activeFilter === 'V8' ? 'active' : ''}" data-filter="V8">V8 <span class="pill-count">${v8Count}</span></button>
             <button class="wstyle-filter-pill ${activeFilter === 'V9' ? 'active' : ''}" data-filter="V9">V9 <span class="pill-count">${v9Count}</span></button>
             <button class="wstyle-filter-pill ${activeFilter === 'V10' ? 'active' : ''}" data-filter="V10">V10 <span class="pill-count">${v10Count}</span></button>
+            <button class="wstyle-filter-pill ${activeFilter === 'V11' ? 'active' : ''}" data-filter="V11">V11 <span class="pill-count">${v11Count}</span></button>
         </div>
     `);
     secOfficial.append(filterBar);
@@ -198,6 +201,7 @@ export function renderCoreAndCot(c) {
         else if (m.id.includes("v7")) version = "V7";
         else if (m.id.includes("v8")) version = "V8";
         // Before the v9 test purely so the two lists stay in the same order.
+        else if (m.id.includes("v11")) version = "V11";
         else if (m.id.includes("v10")) version = "V10";
         else if (m.id.includes("v9")) version = "V9";
 
@@ -392,7 +396,8 @@ export function renderCoreAndCot(c) {
         // Longest prefix first: "cot-v10-shura-cap-" also starts with
         // "cot-v10-shura-", so the capped ids have to be tested ahead of the plain
         // ones or every cap reads back as its uncapped sibling.
-        if (localProfile.model && localProfile.model.startsWith("cot-v10-ukiyo-cap-")) { currentType = "v10-ukiyo-cap"; currentLang = "english"; }
+        if (localProfile.model && localProfile.model.startsWith("cot-v11-")) { currentType = "v11"; currentLang = "english"; }
+        else if (localProfile.model && localProfile.model.startsWith("cot-v10-ukiyo-cap-")) { currentType = "v10-ukiyo-cap"; currentLang = "english"; }
         else if (localProfile.model && localProfile.model.startsWith("cot-v10-shura-cap-")) { currentType = "v10-shura-cap"; currentLang = "english"; }
         else if (localProfile.model && localProfile.model.startsWith("cot-v10-ukiyo-")) { currentType = "v10-ukiyo"; currentLang = "english"; }
         else if (localProfile.model && localProfile.model.startsWith("cot-v10-shura-")) { currentType = "v10-shura"; currentLang = "english"; }
@@ -412,7 +417,8 @@ export function renderCoreAndCot(c) {
         else if (localProfile.model && localProfile.model.startsWith("cot-v9-")) { currentType = "v9"; currentLang = localProfile.model.replace("cot-v9-", ""); }
 
         let allowedCotTypes = null; 
-        if (localProfile.mode.includes("v10")) allowedCotTypes = ["v10-ukiyo", "v10-ukiyo-cap", "v10-shura", "v10-shura-cap"];
+        if (localProfile.mode.includes("v11")) allowedCotTypes = ["v11"];
+        else if (localProfile.mode.includes("v10")) allowedCotTypes = ["v10-ukiyo", "v10-ukiyo-cap", "v10-shura", "v10-shura-cap"];
         else if (localProfile.mode.includes("v6")) allowedCotTypes = ["v6", "v6-lite"];
         else if (localProfile.mode === "v7.5") allowedCotTypes = ["v7.5"];
         else if (localProfile.mode.includes("v7")) allowedCotTypes = ["v7", "v7-lite"];
@@ -424,6 +430,7 @@ export function renderCoreAndCot(c) {
         secCot.append(`<div class="wstyle-section-head purple"><i class="fa-solid fa-diagram-project"></i> Select Framework</div>`);
         const typeGrid = $(`<div class="mtab-card-grid" style="margin-bottom: 24px;"></div>`);
         const types = [
+            { id: "v11", label: "CoT V11", desc: "The writers' room works the turn in order: the director reads the history, the psychologist decides what each character does, the story architect picks what is new and whether a hidden truth gets a clue or comes out, the writers draft, and the director checks it against the rules.", isNew: true },
             { id: "v10-ukiyo", label: "CoT V10 Ukiyo", desc: "The long-form reasoning built for Ukiyo. Thinks like a novelist muttering before a draft \u2014 present tense, a little messy, never a plan. No phases, no checklists, no audits.", isNew: true },
             { id: "v10-ukiyo-cap", label: "CoT V10 Ukiyo \u2014 Thinking Cap", desc: "The same writer's mind with a hard ceiling on the thinking phase. For models that over-think.", isNew: true },
             { id: "v10-shura", label: "CoT V10 Shura", desc: "Seven rules carried into the writing rather than a plan made before it. Built for V10 Shura, and the lightest of the four.", isNew: true },
@@ -466,7 +473,7 @@ export function renderCoreAndCot(c) {
             `);
             
             card.on("click", () => {
-                if (t.id.startsWith("v10")) localProfile.model = `cot-${t.id}-english`;
+                if (t.id.startsWith("v11") || t.id.startsWith("v10")) localProfile.model = `cot-${t.id}-english`;
                 else if (t.id === "v7") localProfile.model = `cot-v7-english`;
                 else if (t.id === "v7.5") localProfile.model = `cot-v7.5-english`;
                 else if (t.id === "v7-lite") localProfile.model = `cot-v7-lite-english`;

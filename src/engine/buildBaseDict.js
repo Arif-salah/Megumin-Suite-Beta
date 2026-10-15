@@ -10,7 +10,7 @@
 import { getContext, extension_settings, substituteParams } from "../st.js";
 import { extensionName } from "../core/constants.js";
 import { localProfile } from "../core/state.js";
-import { isV7Engine, isV8Engine, isModernEngine, engineUsesRenderLimits, isCoWriterEngine } from "../core/engines.js";
+import { isV7Engine, isV8Engine, isModernEngine, engineUsesRenderLimits, isCoWriterEngine, engineKeepsNotebook } from "../core/engines.js";
 import {
     activeNpcImages, pushActiveNpcImage, clearActiveNpcImages,
 } from "../core/activeRequests.js";
@@ -205,7 +205,7 @@ export function buildBaseDict(isTokenCount = false) {
         // shared fragment still wins, exactly like every other shared slot.
         dict["[[user]]"] = isCoWriterEngine(activeEngine)
             ? ""
-            : "4. NEVER write for or Control {{user}}";
+            : "5. The response does not speak, think, feel, or act for {{user}}, and it shows everything {{user}} reached for.";
 
         // Slot overrides, driven by MEGUMIN_SLOT_REGISTRY.
         //
@@ -476,10 +476,12 @@ export function buildBaseDict(isTokenCount = false) {
     // --- AUTHOR'S NOTEBOOK (plan 010) ---
     // The craft of keeping it, for an engine that carries [[notebook]] in its
     // text (so it is resolved early, below). Empty while the notebook is off or
-    // paused, so the engine never talks about a notebook that isn't there.
+    // paused, so the engine never talks about a notebook that isn't there, and
+    // empty for an engine that keeps its own notebook (V11): its own text
+    // carries the craft, and a preset holding [[notebook]] would say it twice.
     let notebookPhaseNow = "off";
     try { notebookPhaseNow = notebookCurrentPhase(); } catch (e) { /* no chat */ }
-    dict["[[notebook]]"] = notebookPhaseNow === "off" ? "" : NOTEBOOK_CRAFT;
+    dict["[[notebook]]"] = notebookPhaseNow === "off" || engineKeepsNotebook(activeEngine) ? "" : NOTEBOOK_CRAFT;
 
     // Resolve early-evaluated tokens inside all other strings to prevent them from being missed and then cleaned up
     const earlyTokens = ["[[notebook]]", "[[count]]", "[[Language]]", "[[pronouns]]", "[[DNRATIO]]", "[[img2]]", "[[v9_lean_min]]", "[[v9_lean_max]]", "[[v9_full_min]]", "[[v9_full_max]]"];
