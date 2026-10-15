@@ -5110,3 +5110,19 @@
 .chomu-block-route i { color: #f43f5e; width: 14px; text-align: center; }
 .chomu-block-route.is-off { opacity: .55; }
 .chomu-block-route small { color: var(--text-muted); }
+
+/* Author's Notebook (plan 010): a reply's notebook tab, blurred until the reader asks */
+.meg-nb-spoiler { position: relative; }
+.meg-nb-spoiler.is-hidden { min-height: 64px; }
+.meg-nb-spoiler.is-hidden .meg-nb-content { filter: blur(7px); user-select: none; pointer-events: none; max-height: 140px; overflow: hidden; }
+.meg-nb-reveal { display: none; }
+.meg-nb-spoiler.is-hidden .meg-nb-reveal {
+  display: inline-flex; align-items: center; gap: 6px;
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  padding: 7px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  background: rgba(139,92,246,.18); color: #c4b5fd; border: 1px solid rgba(139,92,246,.4);
+  font-size: .75rem; font-weight: 600;
+}
+.meg-nb-reveal:hover { background: rgba(139,92,246,.3); }
+.meg-nb-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
+.meg-nb-actions .menu_button { font-size: .7rem; padding: 3px 10px; margin: 0; }

@@ -19,6 +19,7 @@ import { blocksReadForReply } from "./worker.js";
 import { bondsDecoratePane, sheetDecoratePane } from "../bonds/overview.js";
 import { worldDecoratePane } from "../worldstate/card.js";
 import { openWorldEditor } from "../worldstate/editor.js";
+import { NOTEBOOK_CARD_DEFS, notebookDecoratePane, notebookCardStamp } from "../notebook/card.js";
 
 // ── Clicking a choice ────────────────────────────────────────────────────────
 //
@@ -139,10 +140,14 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
                 : b.status === "pending" ? (b.body || "*Writing this block…*")
                 : "*Nothing was written for this block. Use Read again.*";
         });
-        applyBlocksToMessage(bodyEl, mesText, meguminRenderRegistry(), {
+        // The notebook is not a block in the stack, but its blocks are drawn
+        // (behind a spoiler) on every reply that wrote one, on or off.
+        applyBlocksToMessage(bodyEl, mesText, [...meguminRenderRegistry(), ...NOTEBOOK_CARD_DEFS], {
             msgIndex,
             worldStateText: wsText,
             storeBlocks,
+            // Drawn from the store, so a Revert changes the card without the text.
+            extraStamp: typeof msgIndex === "number" ? notebookCardStamp(msgIndex) : "",
             omit: meguminBlocksTakenByPanel(),
             onChoice: meguminApplyChoice,
             shouldAnimate: meguminAnimateGate(msgIndex),
@@ -166,6 +171,8 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
                 const pane = bodyEl.querySelector(`.meg-block-body[data-block-id="${b.id}"]`);
                 if (pane) blocksDecorateReadAgain(pane, msgIndex, b.status === "pending");
             });
+            bodyEl.querySelectorAll('.meg-block-body[data-block-id="notebook"], .meg-block-body[data-block-id="notebookUpdate"]')
+                .forEach(p => notebookDecoratePane(p, msgIndex, { onChanged: () => meguminScheduleBlocksRefresh() }));
             const wsPane = bodyEl.querySelector('.meg-block-body[data-block-id="world"]');
             if (wsPane) worldDecoratePane(wsPane, msgIndex, {
                 onEdit: () => openWorldEditor(),

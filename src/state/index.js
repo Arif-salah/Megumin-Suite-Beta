@@ -540,6 +540,34 @@ export function notebookBlockRequest() {
     return null;
 }
 
+/**
+ * What one message's shown swipe did to the notebook, for its card.
+ * @returns {null | { entry: object, applied: object[], notes: string[], truths: object, disabled: boolean }}
+ *   truths — the notebook right after the message, to draw the truths it wrote
+ */
+export function notebookCardInfo(msgIndex) {
+    if (!adapter.getMeta()) return null;
+    const msg = adapter.getChat()[msgIndex];
+    const uid = msg?.extra?.megumin_uid;
+    if (!msg || msg.is_user || !uid) return null;
+    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    const entry = stateStore.getEntryFor("notebook", uid, swipe);
+    if (!entry) return null;
+    const step = entry.disabled ? null : stateStore.getStep("notebook", uid);
+    return {
+        entry,
+        applied: step?.applied || [],
+        notes: step?.notes || [],
+        truths: (step?.state || stateStore.getStateAt("notebook", entry.seq)).truths || {},
+        disabled: Boolean(entry.disabled)
+    };
+}
+
+/** Revert (or restore) what one reply did to the notebook. */
+export function notebookSetEntryDisabled(entryId, disabled) {
+    return stateStore.setDisabled(entryId, disabled);
+}
+
 function notebookInPlay() {
     return Boolean(adapter.getMeta()) && (notebookEnabled() || stateStore.hasState("notebook"));
 }
