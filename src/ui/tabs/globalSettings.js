@@ -9,6 +9,8 @@ import { initProfile, saveProfileToMemory } from "../../core/profile.js";
 import { flushProfileSettingsToLoadedKey, _saveProfileDebouncedInner } from "../../core/profile.js";
 import { cancelDebounce } from "../../st.js";
 import { suiteEnabled, setSuiteEnabled } from "../../core/power.js";
+import { BG_JOBS, bgJobWanted } from "../../engine/bgPromptsCore.js";
+import { openBackgroundLog } from "../../engine/bgPrompts.js";
 
 // The version on the about card. One place, so it cannot fall out of step with
 // itself the way "v9" did once V10 shipped.
@@ -82,10 +84,34 @@ export function renderGlobalSettings(c) {
     $content.append(`
         <div class="mtab-toggle-row ${gs.promptPreview ? 'active' : ''}" id="gs_toggle_prompt_preview" style="cursor: pointer;">
             <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-magnifying-glass" style="color: var(--gold);"></i> Prompt Payload Preview</div>
-                <div class="toggle-desc">Shows the finished prompt in a popup before it is sent, so you can read exactly what the AI receives. Cancelling the popup stops the generation.</div>
+                <div class="toggle-label"><i class="fa-solid fa-magnifying-glass" style="color: var(--gold);"></i> Preview story prompts</div>
+                <div class="toggle-desc">Shows the finished story prompt in a popup before it is sent, so you can read exactly what the AI receives. Cancelling the popup stops the reply.</div>
             </div>
             <div class="ps-switch" style="${gs.promptPreview ? 'background: var(--gold);' : ''}"></div>
+        </div>
+    `);
+    // Background prompts (plan 013): the switch, which jobs, and the log of the last 10.
+    const bgJobs = gs.bgPreviewJobs || {};
+    $content.append(`
+        <div class="mtab-toggle-row ${gs.bgPreview ? 'active' : ''}" id="gs_toggle_bg_preview" style="cursor: pointer;">
+            <div class="toggle-info">
+                <div class="toggle-label"><i class="fa-solid fa-eye" style="color: var(--gold);"></i> Preview background prompts</div>
+                <div class="toggle-desc">Shows a background job's prompt (Memory, NPC Bank, World State, images…) in a popup before it is sent. You can change the text, or cancel that one job; the story carries on.</div>
+            </div>
+            <div class="ps-switch" style="${gs.bgPreview ? 'background: var(--gold);' : ''}"></div>
+        </div>
+        <div class="gs-bgjobs" id="gs_bg_jobs" style="display: ${gs.bgPreview ? 'flex' : 'none'};">
+            <div class="gs-bgjobs-title">Show the prompts of:</div>
+            ${BG_JOBS.map(j => `<label class="gs-bgjob"><input type="checkbox" data-job="${j.id}" ${bgJobWanted(bgJobs, j.id) ? 'checked' : ''} /> ${j.label}</label>`).join("")}
+        </div>
+        <div class="mtab-panel" style="margin: 0; padding: 12px 16px;">
+            <div class="mtab-setting-row" style="padding: 0; border: none;">
+                <div class="set-info">
+                    <div class="set-label"><i class="fa-solid fa-clock-rotate-left" style="color: var(--gold);"></i> Last background prompts</div>
+                    <div class="set-desc">The last 10 background prompts that were sent, for every chat and character. Kept in this browser, not in your settings file.</div>
+                </div>
+                <button type="button" id="gs_bg_log" class="menu_button" style="width: auto; margin: 0; white-space: nowrap;"><i class="fa-solid fa-list"></i> Show them</button>
+            </div>
         </div>
     `);
     $content.append(`
@@ -188,6 +214,13 @@ export function renderGlobalSettings(c) {
     };
     $content.find("#gs_toggle_suite").on("click", () => setSuiteEnabled(!suiteEnabled()));
     wireToggle("#gs_toggle_prompt_preview", "promptPreview", "var(--gold)");
+    wireToggle("#gs_toggle_bg_preview", "bgPreview", "var(--gold)");
+    $content.find("#gs_toggle_bg_preview").on("click", () => $content.find("#gs_bg_jobs").css("display", gs.bgPreview ? "flex" : "none"));
+    $content.find("#gs_bg_jobs input[data-job]").on("change", function () {
+        gs.bgPreviewJobs = { ...(gs.bgPreviewJobs || {}), [$(this).data("job")]: this.checked };
+        saveSettingsDebounced();
+    });
+    $content.find("#gs_bg_log").on("click", () => openBackgroundLog());
     wireToggle("#gs_toggle_utility_prefill", "enableUtilityPrefill", "#10b981");
     wireToggle("#gs_toggle_lore_tasks", "loreInTasks", "#a855f7");
 

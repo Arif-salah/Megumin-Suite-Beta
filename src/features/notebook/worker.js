@@ -45,7 +45,7 @@ export function notebookReadForReply(index, { force = false } = {}) {
                     earlier: earlierText(token.index),
                     exchange: exchangeText(token.index, token.text)
                 });
-                setActiveWorldExtractRequest({ system: sub(built.system), user: sub(built.user) });
+                setActiveWorldExtractRequest({ system: sub(built.system), user: sub(built.user), job: "notebook" });
                 try {
                     return await generateQuietPrompt({ prompt: "___PS_WORLD_EXTRACT___", quietPrompt: "___PS_WORLD_EXTRACT___" });
                 } finally {

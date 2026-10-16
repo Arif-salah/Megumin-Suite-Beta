@@ -163,7 +163,7 @@ export async function runCombinedTurn(messageId, type, plan) {
                     imageRules: classicImageRulesBlock(parts)
                 });
             }
-            setActiveImageGenRequest({ v2: { system: sub(built.system), user: sub(built.user), prefill: built.prefill } });
+            setActiveImageGenRequest({ v2: { system: sub(built.system), user: sub(built.user), prefill: built.prefill, job: "combined" } });
             try {
                 return await generateQuietPrompt({ prompt: "___PS_IMAGE_GEN___" });
             } finally {

@@ -188,6 +188,11 @@ export async function runWithChomusuke(featureKey, task, { force = false } = {})
 
 let runningWorkerJob = null;
 
+/** The Chomusuke job running right now ("worldState", "imageGen"…), or null. */
+export function chomusukeJobRunning() {
+    return runningWorkerJob;
+}
+
 let workerQueue = Promise.resolve();
 
 async function runOnWorker(featureKey, task, chomusuke, workerProfileId) {

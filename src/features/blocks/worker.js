@@ -81,7 +81,7 @@ export function blocksReadForReply(index, { force = false } = {}) {
                     exchange,
                     tasks: blocksTasksFor(token.ids)
                 });
-                setActiveWorldExtractRequest({ system: sub(built.system), user: sub(built.user) });
+                setActiveWorldExtractRequest({ system: sub(built.system), user: sub(built.user), job: "blocks" });
                 try {
                     return await generateQuietPrompt({ prompt: "___PS_WORLD_EXTRACT___", quietPrompt: "___PS_WORLD_EXTRACT___" });
                 } finally {

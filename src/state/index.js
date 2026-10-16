@@ -336,7 +336,7 @@ export function worldExtractMessage(index, { force = false } = {}) {
             const noSecret = notebookEnabled();
             const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
             const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, mode), mode, noSecret });
-            req = { system: sub(built.system), user: sub(built.user), prefill: built.prefill };
+            req = { system: sub(built.system), user: sub(built.user), prefill: built.prefill, job: "world" };
             // The marker is set only once this job has the worker. Chomusuke runs
             // are queued; set while waiting, it would hijack whatever generation
             // is running ahead of it (an image prompt would get this prompt).

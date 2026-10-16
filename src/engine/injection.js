@@ -28,13 +28,27 @@ import { hideBlocksInMessages } from "./hideBlocks.js";
 import { meguminAllBlockTags } from "../features/blocks/registry.js";
 import { meguminAllSlotTriggers } from "../../data/slots.js";
 import { suiteEnabled } from "../core/power.js";
+import { backgroundJobNow, reviewBackgroundPrompt } from "./bgPrompts.js";
 import { loreForChat, loreForNames, loreBlock } from "../core/lore.js";
 
 // Throttles the prompt-preview popup so token counting and rapid ST background
 // triggers can't stack popups. Read and written only by the injection handler.
 export let lastPromptPreviewTime = 0;
 
+// Every prompt goes through here. A background job's messages are built by
+// buildPromptInjection, then shown or logged (plan 013, engine/bgPrompts.js).
 export async function handlePromptInjection(data, type) {
+    const job = backgroundJobNow();
+    await buildPromptInjection(data, type);
+    if (!job) return;
+    // Token counts and dry runs are not a call being sent.
+    if (type === "count" || type === "dry" || type === "dryRun" || data?.dryRun === true || data?.dry === true) return;
+    const messages = data?.messages || data?.chat || (Array.isArray(data) ? data : null);
+    if (!messages || !Array.isArray(messages) || !messages.length) return;
+    await reviewBackgroundPrompt(messages, job);
+}
+
+async function buildPromptInjection(data, type) {
     const messages = data?.messages || data?.chat || (Array.isArray(data) ? data : null);
     if (!messages || !Array.isArray(messages)) return;
     // Opt IN, not opt out. The prefill breaks utility generations on Claude and

@@ -5240,3 +5240,25 @@
         display: none !important;
     }
 }
+
+/* ── Background prompts (plan 013): the popup, the log, the job switches ── */
+.bgp { text-align: left; display: flex; flex-direction: column; gap: 12px; }
+.bgp-head { display: flex; flex-direction: column; gap: 3px; }
+.bgp-meta { font-size: .76rem; color: var(--text-muted); }
+.bgp-msgs { display: flex; flex-direction: column; gap: 10px; }
+.bgp-msg { display: flex; flex-direction: column; gap: 4px; }
+.bgp-role { font-size: .7rem; font-weight: 800; letter-spacing: .6px; color: var(--gold); }
+.bgp-text { width: 100%; box-sizing: border-box; font-family: monospace; font-size: .76rem; line-height: 1.45; min-height: 90px; resize: vertical; white-space: pre-wrap; }
+.bgp-stop { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--text-muted); cursor: pointer; }
+.bgp-list { display: flex; flex-direction: column; gap: 6px; }
+.bgp-entry { border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 10px; background: rgba(0,0,0,.18); }
+.bgp-entry > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .82rem; }
+.bgp-entry > summary .bgp-meta { flex: 1 1 100%; }
+.bgp-entry-body { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.bgp-entry-body .menu_button, .bgp-clear { width: auto !important; margin: 0 !important; align-self: flex-start; font-size: .76rem; }
+.bgp-pre { margin: 0; max-height: 50vh; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: .74rem; line-height: 1.45; padding: 8px; border-radius: 6px; background: rgba(0,0,0,.35); }
+.bgp-tag { font-size: .66rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(245,158,11,.14); color: #fbbf24; }
+.bgp-tag.off { background: rgba(239,68,68,.14); color: #f87171; }
+.gs-bgjobs { flex-wrap: wrap; gap: 6px 14px; padding: 10px 14px; margin-top: -4px; border: 1px dashed var(--border-color); border-radius: 10px; }
+.gs-bgjobs-title { flex: 1 1 100%; font-size: .74rem; font-weight: 700; color: var(--text-muted); }
+.gs-bgjob { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; cursor: pointer; }
