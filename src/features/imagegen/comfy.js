@@ -15,29 +15,39 @@ import { showKazumaProgress } from "../../ui/progress.js";
 import { KAZUMA_PLACEHOLDERS } from "../../../data/image_data.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { makeComfyClientId, openComfyProgressSocket } from "./comfyProgress.js";
+import { comfyBase } from "./comfyUrl.js";
 
 // -------------------------------------------------------------
 // STAGE 8 HELPER FUNCTIONS
 // -------------------------------------------------------------
+// Every ComfyUI request the settings tab makes gives up quickly. When ComfyUI is
+// unreachable, SillyTavern's server waits about two minutes for each one, and a
+// browser keeps only ~6 connections open to one server: a few of these left
+// waiting and every SillyTavern request queues behind them (it looks offline).
+// Aborting here frees the browser's connection at once.
+const LIST_TIMEOUT_MS = 10000;
+const PING_TIMEOUT_MS = 6000;
+const timeout = ms => (typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
+
 export async function igFetchComfyLists() {
     const s = localProfile.imageGen;
-    const url = s.comfyUrl;
+    const url = comfyBase(s.comfyUrl);
     try {
-        const mRes = await fetch('/api/sd/comfy/models', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ url: url }) });
+        const mRes = await fetch('/api/sd/comfy/models', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ url: url }), signal: timeout(LIST_TIMEOUT_MS) });
         if (mRes.ok) {
             const models = await mRes.json();
             const sel = $("#ig_model"); sel.empty().append('<option value="">-- Select Model --</option>');
             models.forEach(m => { let v = m.value || m; let t = m.text || v; sel.append(`<option value="${v}">${t}</option>`); });
             if (s.selectedModel) sel.val(s.selectedModel);
         }
-        const sRes = await fetch('/api/sd/comfy/samplers', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ url: url }) });
+        const sRes = await fetch('/api/sd/comfy/samplers', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ url: url }), signal: timeout(LIST_TIMEOUT_MS) });
         if (sRes.ok) {
             const samplers = await sRes.json();
             const sel = $("#ig_sampler"); sel.empty();
             samplers.forEach(sa => sel.append(`<option value="${sa}">${sa}</option>`));
             if (s.selectedSampler) sel.val(s.selectedSampler);
         }
-        const lRes = await fetch(`${url}/object_info/LoraLoader`);
+        const lRes = await fetch(`${url}/object_info/LoraLoader`, { signal: timeout(LIST_TIMEOUT_MS) });
         if (lRes.ok) {
             const json = await lRes.json();
             const files = json['LoraLoader'].input.required.lora_name[0];
@@ -61,17 +71,53 @@ export function toggleQuickGenButton() {
     }
 }
 
+// The last answer for one address, and the check still running for it. The tab
+// redraws often (every page switch); they all share one check per address.
+const conn = { url: null, ok: null, pending: null };
+
+/** What the last check said for the current address: true, false, or null (not known yet). */
+export function igKnownConnection() {
+    const url = localProfile?.imageGen?.comfyUrl;
+    return conn.url === url ? conn.ok : null;
+}
+
+/**
+ * Quiet check for the Images tab: true when ComfyUI answers. No toasts. Asked
+ * once per address; `force` asks again (the Test button).
+ */
+export function igCheckConnection({ force = false } = {}) {
+    const url = localProfile?.imageGen?.comfyUrl;
+    if (!url) return Promise.resolve(false);
+    if (!force && conn.url === url) {
+        if (conn.pending) return conn.pending;
+        if (conn.ok !== null) return Promise.resolve(conn.ok);
+    }
+    conn.url = url;
+    conn.ok = null;
+    const job = (async () => {
+        try {
+            const res = await fetch('/api/sd/comfy/ping', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ url }), signal: timeout(PING_TIMEOUT_MS) });
+            return res.ok;
+        } catch (e) { return false; }
+    })().then(ok => {
+        if (conn.url === url && conn.pending === job) { conn.ok = ok; conn.pending = null; }
+        return ok;
+    });
+    conn.pending = job;
+    return job;
+}
+
 export async function igTestConnection() {
-    try {
-        const res = await fetch('/api/sd/comfy/ping', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ url: localProfile.imageGen.comfyUrl }) });
-        if (res.ok) { toastr.success("ComfyUI Connected!"); await igFetchComfyLists(); } else throw new Error("Ping failed");
-    } catch (e) { toastr.error("Connection Failed: " + e.message); }
+    const ok = await igCheckConnection({ force: true });
+    if (ok) { toastr.success("ComfyUI is connected.", "Megumin Suite"); await igFetchComfyLists(); }
+    else toastr.error("ComfyUI didn't answer at this address. Check that it is running and the address is right.", "Megumin Suite");
+    return ok;
 }
 
 export async function igPopulateWorkflows() {
     const sel = $("#ig_workflow_list"); sel.empty();
     try {
-        const res = await fetch('/api/sd/comfy/workflows', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ url: localProfile.imageGen.comfyUrl }) });
+        const res = await fetch('/api/sd/comfy/workflows', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ url: localProfile.imageGen.comfyUrl }), signal: timeout(LIST_TIMEOUT_MS) });
         if (res.ok) {
             const wfs = await res.json();
             wfs.forEach(w => sel.append(`<option value="${w}">${w}</option>`));
@@ -474,7 +520,7 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
     });
 
     try {
-        const res = await fetch(`${s.comfyUrl}/prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: workflow, client_id: comfyClientId }) });
+        const res = await fetch(`${comfyBase(s.comfyUrl)}/prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: workflow, client_id: comfyClientId }) });
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();
 
@@ -490,7 +536,7 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
             if (pollBusy || pollDone) return;
             pollBusy = true;
             try {
-                const h = await (await fetch(`${s.comfyUrl}/history/${data.prompt_id}`)).json();
+                const h = await (await fetch(`${comfyBase(s.comfyUrl)}/history/${data.prompt_id}`)).json();
                 if (h[data.prompt_id] && !pollDone) {
                     pollDone = true;
                     clearInterval(checkInterval);
@@ -501,7 +547,7 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
                     }
                     if (finalImage) {
                         showKazumaProgress("Downloading...");
-                        const imgUrl = `${s.comfyUrl}/view?filename=${finalImage.filename}&subfolder=${finalImage.subfolder}&type=${finalImage.type}`;
+                        const imgUrl = `${comfyBase(s.comfyUrl)}/view?filename=${finalImage.filename}&subfolder=${finalImage.subfolder}&type=${finalImage.type}`;
 
                         // Download & Compress
                         const response = await fetch(imgUrl); const blob = await response.blob();
