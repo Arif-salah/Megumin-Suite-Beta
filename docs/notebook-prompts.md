@@ -8,7 +8,7 @@ Parts marked **(example: built from made-up data)** only show how the pieces fit
 
 ## When each text is sent
 
-- **Notebook off, or paused in this chat:** nothing. `[[notebook]]` is empty.
+- **Notebook off:** nothing. `[[notebook]]` is empty. (It is always on for a preset that keeps one, V11.)
 - **Setup** (on, no live truth yet): N2 goes in the blocks request; the reply writes a `<Notebook>` block.
 - **Running** (at least one live truth): N3 goes in `<Current_Info>`, N4 in the blocks request.
 - **Chomusuke route on** (Chomusuke tab → The Notebook): the story model gets N5 instead of N4, and Chomusuke reads each reply with N6 (or N7 inside the combined call).

@@ -5270,3 +5270,69 @@
 .ptx-compact .ecard-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ptx-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .ptx-edit { padding: 4px 10px !important; font-size: .7rem !important; color: var(--gold) !important; border-color: rgba(245,158,11,.3) !important; background: transparent !important; }
+
+/* ── The Notebook tab as one page (no boxes): headings with thin dividers,
+   truths as rows, fields as label | text lines. Scoped to .nbx so the chat
+   card (which shares .meg-nb-spoiler) keeps its own look. ── */
+.nbx { display: flex; flex-direction: column; }
+.nbx .nbx-header { margin-bottom: 14px; padding-bottom: 0; border-bottom: 0; gap: 16px; }
+/* One frosted sheet under the whole page: the modal is see-through, and without
+   it the chat behind reads through the text. Still glass (tint + blur, the same
+   top highlight as the other panels), just enough to keep words apart. */
+.nbx .nbx-sheet {
+    --text-muted: #b9b9c3;
+    background: rgba(14,14,17,.78);
+    backdrop-filter: blur(22px) saturate(1.2);
+    -webkit-backdrop-filter: blur(22px) saturate(1.2);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    box-shadow: var(--spec), 0 18px 40px -22px rgba(0,0,0,.8);
+    padding: 14px 20px 6px;
+}
+.nbx .nbx-header p { max-width: 640px; line-height: 1.5; }
+.nbx .nbx-switch { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 4px 0 !important; margin: 0 !important; gap: 10px; flex: none; }
+.nbx .nbx-switch .toggle-label { font-size: .82rem; white-space: nowrap; }
+.nbx .nbx-switch .toggle-label i { color: #8b5cf6; margin-right: 4px; }
+.nbx .nbx-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 4px 0 14px; border-bottom: 1px solid var(--border-color); }
+.nbx .nbx-status-text { font-size: .82rem; color: var(--text-muted); line-height: 1.5; flex: 1 1 280px; }
+.nbx .nbx-status-text i { color: #8b5cf6; margin-right: 6px; }
+.nbx .nbx-section { padding: 18px 0 6px; border-bottom: 1px solid var(--border-color); }
+.nbx .nbx-section:last-child { border-bottom: 0; }
+.nbx .nbx-heading { margin: 0 0 6px; font-size: .95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
+.nbx .nbx-heading.purple i { color: #8b5cf6; }
+.nbx .nbx-heading.green i { color: #10b981; }
+.nbx .meg-nb-count { margin-left: 0; font-size: .74rem; }
+.nbx .nbx-note { margin: 0 0 6px; font-size: .78rem; color: var(--text-muted); line-height: 1.5; }
+.nbx .nbx-note.warn i { color: #f87171; margin-right: 6px; }
+
+/* Truths: rows split by a hairline, not cards */
+.nbx .meg-nb-truth.nbx-row { border: 0; border-radius: 0; background: transparent; padding: 14px 0; margin: 0; border-top: 1px solid rgba(255,255,255,.06); }
+.nbx .meg-nb-truth-head { align-items: center; margin-bottom: 8px; }
+.nbx .meg-nb-truth-head b { font-size: .9rem; }
+.nbx .meg-nb-turn { font-size: .72rem; }
+.nbx .meg-nb-actions { margin: 0 0 0 auto; gap: 2px; justify-content: flex-end; }
+.nbx .meg-nb-actions .menu_button { background: transparent !important; border-color: transparent !important; color: var(--text-muted); font-size: .74rem; padding: 3px 8px; width: auto; }
+.nbx .meg-nb-actions .menu_button:hover { color: var(--text-main); background: rgba(255,255,255,.06) !important; }
+.nbx .meg-nb-actions .menu_button.armed { color: #ef4444; }
+
+/* Fields: label on the left, the text on the right, an underline instead of a box */
+.nbx .nbx-field { display: grid; grid-template-columns: 140px 1fr; gap: 12px; align-items: start; margin: 0; padding: 6px 0; text-transform: none; letter-spacing: normal; font-size: .76rem; }
+.nbx .nbx-field > span { padding-top: 6px; font-weight: 600; color: var(--text-muted); }
+.nbx .nbx-field .ps-modern-input { background: transparent; border: 0; border-bottom: 1px solid rgba(255,255,255,.1); border-radius: 0; padding: 6px 2px; font-size: .82rem; line-height: 1.5; box-shadow: none; }
+.nbx .nbx-field .ps-modern-input:focus { border-bottom-color: #8b5cf6; outline: none; }
+.nbx .nbx-field .ps-modern-input::placeholder { color: rgba(161,161,170,.6); }
+.nbx .meg-nb-clues { margin-top: 6px; }
+.nbx .meg-nb-content > .meg-nb-none { margin: 8px 0 0; }
+
+/* The hidden truth: a soft blur in the flow, the button over it */
+.nbx .meg-nb-reveal { border-radius: 999px; }
+
+/* Past timeline: the section heading is enough, no panel */
+.nbx .meg-nb-timeline { margin-top: 10px; }
+.nbx .meg-nb-past { padding-bottom: 6px; }
+
+@media (max-width: 560px) {
+    .nbx .nbx-field { grid-template-columns: 1fr; gap: 2px; }
+    .nbx .nbx-field > span { padding-top: 0; }
+    .nbx .nbx-header { flex-wrap: wrap; }
+}

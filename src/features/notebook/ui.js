@@ -1,6 +1,6 @@
 // ────────────────────────────────────────────────────────────────────────────
-// The Notebook tab (plan 010): the Author's Notebook switch, the per-chat
-// pause, where the story stands, and the notebook itself:
+// The Notebook tab (plan 010): the Author's Notebook switch (always on for a
+// preset that keeps one, V11), where the story stands, and the notebook itself:
 //
 //   Active — the live truths, blurred. Opening one asks first (it spoils the
 //            story); an open truth can be edited, marked revealed or deleted.
@@ -15,7 +15,7 @@ import { localProfile } from "../../core/state.js";
 import { saveProfileToMemory } from "../../core/profile.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import {
-    notebookEnabled, notebookForcedByEngine, notebookPaused, setNotebookPaused, notebookCurrentPhase, notebookState,
+    notebookEnabled, notebookForcedByEngine, notebookCurrentPhase, notebookState,
     notebookEdit, notebookTurnLabel
 } from "../../state/index.js";
 import { liveTruths, pastTruths, LIVE_CAP } from "../../state/modules/notebook/model.js";
@@ -59,32 +59,32 @@ function clueList(t, { removable = false } = {}) {
 function liveCard(t, isOpen) {
     const value = f => f.key === "hiddenFrom" ? t.hiddenFrom.join(", ") : (t[f.key] || "");
     const field = f => `
-        <label class="meg-nb-field"><span>${f.label}</span>
+        <label class="meg-nb-field nbx-field"><span>${f.label}</span>
             ${f.rows
                 ? `<textarea class="ps-modern-input meg-nb-input" data-key="${f.key}" rows="${f.rows}">${esc(value(f))}</textarea>`
                 : `<input type="text" class="ps-modern-input meg-nb-input" data-key="${f.key}" value="${esc(value(f))}" placeholder="${esc(f.hint || "")}" />`}
         </label>`;
     return `
-        <div class="meg-nb-truth" data-id="${esc(t.id)}">
+        <div class="meg-nb-truth nbx-row" data-id="${esc(t.id)}">
             <div class="meg-nb-truth-head">
                 <b>${esc(t.id)}</b>
                 <span class="meg-nb-turn">written ${esc(where(t.createdSeq))}</span>
                 <span class="meg-nb-turn">${t.clues.length} clue${t.clues.length === 1 ? "" : "s"}</span>
+                ${isOpen ? `
+                <span class="meg-nb-actions">
+                    <button type="button" class="menu_button meg-nb-hide"><i class="fa-solid fa-eye-slash"></i> Hide</button>
+                    <button type="button" class="menu_button meg-nb-out" title="The truth is out: it leaves the story's notebook and joins Past"><i class="fa-solid fa-flag-checkered"></i> Mark revealed</button>
+                    <button type="button" class="menu_button meg-nb-del" title="Delete this truth. Its id is never used again."><i class="fa-solid fa-trash"></i> Delete</button>
+                </span>` : ""}
             </div>
             <div class="meg-nb-spoiler${isOpen ? "" : " is-hidden"}">
                 <div class="meg-nb-content">
-                    <div class="meg-nb-none">Changes save as soon as you leave a box.</div>
                     ${FIELDS.map(field).join("")}
-                    <div class="meg-nb-field"><span>Clues planted</span>${clueList(t, { removable: true })}</div>
+                    <div class="meg-nb-field nbx-field"><span>Clues planted</span>${clueList(t, { removable: true })}</div>
+                    <div class="meg-nb-none">Changes save as soon as you leave a box.</div>
                 </div>
                 <button type="button" class="meg-nb-reveal"><i class="fa-solid fa-eye"></i> Show this truth</button>
             </div>
-            ${isOpen ? `
-            <div class="meg-nb-actions">
-                <button type="button" class="menu_button meg-nb-hide"><i class="fa-solid fa-eye-slash"></i> Hide</button>
-                <button type="button" class="menu_button meg-nb-out" title="The truth is out: it leaves the story's notebook and joins Past"><i class="fa-solid fa-flag-checkered"></i> Mark revealed</button>
-                <button type="button" class="menu_button meg-nb-del" title="Delete this truth. Its id is never used again."><i class="fa-solid fa-trash"></i> Delete</button>
-            </div>` : ""}
         </div>`;
 }
 
@@ -98,15 +98,15 @@ function pastItem(t) {
                     <b>${esc(t.id)}</b>
                     <span class="meg-nb-turn">written ${esc(where(t.createdSeq))}</span>
                     <span class="meg-nb-turn">came out ${esc(where(t.revealedSeq))}</span>
+                    <span class="meg-nb-actions">
+                        <button type="button" class="menu_button meg-nb-restore" title="Put it back in the story as a live truth"><i class="fa-solid fa-rotate-left"></i> Activate again</button>
+                        <button type="button" class="menu_button meg-nb-del" title="Delete this truth"><i class="fa-solid fa-trash"></i> Delete</button>
+                    </span>
                 </div>
                 <div class="meg-nb-line">${esc(t.truth)}</div>
                 ${hidden}
                 <div class="meg-nb-line meg-nb-how">${esc(HOW[t.revealedHow] || "came out")}</div>
                 ${clueList(t)}
-                <div class="meg-nb-actions">
-                    <button type="button" class="menu_button meg-nb-restore" title="Put it back in the story as a live truth"><i class="fa-solid fa-rotate-left"></i> Activate again</button>
-                    <button type="button" class="menu_button meg-nb-del" title="Delete this truth"><i class="fa-solid fa-trash"></i> Delete</button>
-                </div>
             </div>
         </div>`;
 }
@@ -117,21 +117,18 @@ function notebookSections(state, chatId, on) {
     if (!live.length && !past.length) return "";
     const kept = on ? "" : `<div class="meg-nb-none">The notebook is off, so these are kept but not handed to the story.</div>`;
     return `
-        <div class="mtab-panel" style="margin-bottom:16px;">
-            <div class="mtab-panel-title purple"><i class="fa-solid fa-mask"></i> Active <span class="meg-nb-count">${live.length} of ${LIVE_CAP} live</span></div>
+        <section class="nbx-section">
+            <h3 class="nbx-heading purple"><i class="fa-solid fa-mask"></i> Active <span class="meg-nb-count">${live.length} of ${LIVE_CAP} live</span></h3>
             ${kept}
             ${live.length ? `
-            <div class="mtab-callout red" style="margin-bottom:12px;">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <span>These are the truths the story is still hiding. Opening one spoils what the story is building toward.</span>
-            </div>
+            <p class="nbx-note warn"><i class="fa-solid fa-triangle-exclamation"></i> These are the truths the story is still hiding. Opening one spoils what the story is building toward.</p>
             ${live.map(t => liveCard(t, opened.has(`${chatId}|${t.id}`))).join("")}` : `<div class="meg-nb-none">No truth is live. The next reply writes new ones.</div>`}
-        </div>
+        </section>
         ${past.length ? `
-        <div class="mtab-panel" style="margin-bottom:16px;">
-            <div class="mtab-panel-title green"><i class="fa-solid fa-timeline"></i> Past <span class="meg-nb-count">${past.length}</span></div>
+        <section class="nbx-section">
+            <h3 class="nbx-heading green"><i class="fa-solid fa-timeline"></i> Past <span class="meg-nb-count">${past.length}</span></h3>
             <div class="meg-nb-timeline">${past.map(pastItem).join("")}</div>
-        </div>` : ""}`;
+        </section>` : ""}`;
 }
 
 // The box the tab scrolls in, so a redraw after an edit keeps the place.
@@ -151,7 +148,6 @@ export function renderNotebookTab(c) {
     const on = notebookEnabled();
     const chatId = getContext()?.chatId;
     const hasChat = Boolean(chatId);
-    const paused = hasChat && notebookPaused();
     const phase = hasChat ? notebookCurrentPhase() : "off";
     const state = hasChat ? notebookState() : null;
     if (hasChat) at = notebookTurnLabel();
@@ -160,46 +156,33 @@ export function renderNotebookTab(c) {
 
     const status = !on ? "The notebook is off."
         : !hasChat ? "Open a chat to see its notebook."
-        : paused ? "Paused in this chat: nothing is sent and no new truths are written. The truths already written are kept."
         : phase === "setup" ? "The next reply writes the notebook: two or three hidden truths."
         : `${live} of ${LIVE_CAP} truths are live in this chat${past ? `, ${past} came out` : ""}.`;
 
     c.append(`
-        <div class="mtab-header">
-            <div class="mtab-header-left">
-                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);"><i class="fa-solid fa-book"></i></div>
-                <div>
-                    <h2>The Notebook</h2>
-                    <p>The truths the story is hiding, the clues it plants, and when they come out.</p>
+        <div class="nbx">
+            <div class="mtab-header nbx-header">
+                <div class="mtab-header-left">
+                    <div class="mtab-header-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);"><i class="fa-solid fa-book"></i></div>
+                    <div>
+                        <h2>The Notebook</h2>
+                        <p>The story decides a few hidden truths, keeps them from turn to turn, plants clues, and reveals them when the story is ready. World State stops asking for a Secret while this is on.</p>
+                    </div>
+                </div>
+                <div class="mtab-toggle-row nbx-switch ${on ? "active" : ""}" id="nb_enable_card" title="${forced ? "V11 always uses its notebook, so it can't be turned off." : ""}" style="${forced ? "cursor: default;" : ""}">
+                    <div class="toggle-info"><div class="toggle-label">${forced ? "Forced on for V11" : on ? "Notebook on" : "Notebook off"}</div></div>
+                    <div class="ps-switch"></div>
                 </div>
             </div>
-            <div class="mtab-header-badge" style="background: ${on ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.06)"}; color: ${on ? "#10b981" : "var(--text-muted)"}; border: 1px solid ${on ? "rgba(16,185,129,0.25)" : "var(--border-color)"};">
-                <i class="fa-solid fa-${on ? "circle-check" : "circle-xmark"}" style="font-size:0.6rem;"></i> ${on ? "Enabled" : "Disabled"}
+
+            <div class="nbx-sheet">
+            <div class="nbx-status">
+                <span class="nbx-status-text"><i class="fa-solid fa-circle-info"></i> ${status}</span>
+            </div>
+
+            ${state ? notebookSections(state, chatId, on) : ""}
             </div>
         </div>
-
-        <div class="mtab-toggle-row ${on ? "active" : ""}" id="nb_enable_card" style="margin-bottom: 12px; ${forced ? "cursor: default; opacity: 0.85;" : ""}">
-            <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-book" style="color:#8b5cf6;"></i> Author's Notebook${forced ? " (your engine keeps one)" : ""}</div>
-                <div class="toggle-desc">The story decides a few hidden truths, keeps them from turn to turn, plants clues, and reveals them when the story is ready. World State stops asking for a Secret while this is on.</div>
-            </div>
-            <div class="ps-switch"></div>
-        </div>
-
-        <div class="mtab-toggle-row ${paused ? "active" : ""}" id="nb_pause_card" style="margin-bottom: 16px; ${on && hasChat ? "" : "opacity: 0.5; cursor: default;"}">
-            <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-pause" style="color:#8b5cf6;"></i> Pause in this chat</div>
-                <div class="toggle-desc">Stops the notebook in this chat only: no setup, nothing sent.</div>
-            </div>
-            <div class="ps-switch"></div>
-        </div>
-
-        <div class="mtab-callout" style="margin-bottom: 16px;">
-            <i class="fa-solid fa-circle-info"></i>
-            <span>${status}</span>
-        </div>
-
-        ${state ? notebookSections(state, chatId, on) : ""}
     `);
 
     c.find("#nb_enable_card").on("click", () => {
@@ -207,11 +190,6 @@ export function renderNotebookTab(c) {
         localProfile.notebook = { ...(localProfile.notebook || {}), enabled: !on };
         saveProfileToMemory();
         meguminScheduleBlocksRefresh();
-        renderNotebookTab(c);
-    });
-    c.find("#nb_pause_card").on("click", () => {
-        if (!on || !hasChat) return;
-        setNotebookPaused(!paused);
         renderNotebookTab(c);
     });
     if (state) bindNotebook(c, state, chatId);

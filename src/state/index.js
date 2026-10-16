@@ -503,18 +503,9 @@ export function notebookEnabled() {
     return notebookForcedByEngine() || Boolean(localProfile.notebook && localProfile.notebook.enabled);
 }
 
-export function notebookPaused() {
-    const meta = adapter.getMeta();
-    return Boolean(meta && meta.megumin_notebook && meta.megumin_notebook.paused);
-}
-
-export function setNotebookPaused(paused) {
-    const meta = adapter.getMeta();
-    if (!meta) return false;
-    meta.megumin_notebook = { ...(meta.megumin_notebook || {}), paused: Boolean(paused) };
-    adapter.saveMeta();
-    return true;
-}
+// There is no per-chat pause any more (it was removed with the tab's "Pause in
+// this chat"): V11's text always speaks of its notebook, so it must always have
+// one. An old chat's `megumin_notebook.paused` flag is simply ignored.
 
 export function notebookState() {
     return stateStore.getState("notebook");
@@ -523,7 +514,7 @@ export function notebookState() {
 /** "setup", "running" or "off" for the open chat. */
 export function notebookCurrentPhase() {
     if (!adapter.getMeta()) return "off";
-    return notebookPhase(notebookState(), { on: notebookEnabled(), paused: notebookPaused() });
+    return notebookPhase(notebookState(), { on: notebookEnabled() });
 }
 
 /** <Author_Notebook> for Current Info, or "". */
@@ -666,7 +657,7 @@ function fileNotebookRead(at, swipe, replyText, block) {
  * reply wrote its own clue lines.
  */
 export function notebookBeginRead(index, { force = false } = {}) {
-    if (!notebookViaChomusuke() || !adapter.getMeta() || notebookPaused()) return null;
+    if (!notebookViaChomusuke() || !adapter.getMeta()) return null;
     const msg = adapter.getChat()[index];
     if (!msg || msg.is_user || msg.is_system) return null;
     const st = stateStore.stamp(msg);

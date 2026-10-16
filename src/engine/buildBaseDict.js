@@ -475,8 +475,8 @@ export function buildBaseDict(isTokenCount = false) {
 
     // --- AUTHOR'S NOTEBOOK (plan 010) ---
     // The craft of keeping it, for an engine that carries [[notebook]] in its
-    // text (so it is resolved early, below). Empty while the notebook is off or
-    // paused, so the engine never talks about a notebook that isn't there, and
+    // text (so it is resolved early, below). Empty while the notebook is off,
+    // so the engine never talks about a notebook that isn't there, and
     // empty for an engine that keeps its own notebook (V11): its own text
     // carries the craft, and a preset holding [[notebook]] would say it twice.
     let notebookPhaseNow = "off";
