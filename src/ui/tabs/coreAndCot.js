@@ -124,8 +124,8 @@ export function renderCoreAndCot(c) {
                     <i class="fa-solid fa-server"></i>
                 </div>
                 <div>
-                    <h2>PRESETS & COT</h2>
-                    <p>Choose the core preset, and COT.</p>
+                    <h2>Preset & Thinking</h2>
+                    <p>Choose the preset and how it thinks before it writes.</p>
                 </div>
             </div>
             <div class="wstyle-active-badge">

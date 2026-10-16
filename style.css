@@ -5150,3 +5150,64 @@
 .meg-nb-past-dot { position: absolute; left: -17px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: #10b981; }
 .meg-nb-line { font-size: .8rem; line-height: 1.5; margin-bottom: 4px; }
 .meg-nb-how { font-size: .7rem; color: #10b981; }
+
+/* ── Dock groups (plan 011) ──────────────────────────────────────────────────
+   Story Setup and More Tools fold into one row each. The head is a dock icon
+   with a chevron; its tabs sit under it while it is open. A thin line marks
+   where each group starts, so it reads as a group with the dock closed too. */
+.dock-group-head {
+    position: relative;
+}
+.dock-group-head::before {
+    content: "";
+    position: absolute;
+    top: -3px;
+    left: 12px;
+    right: 12px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+}
+.dock-group-head .dock-group-chevron {
+    width: auto;
+    margin: 0 0 0 auto;
+    font-size: 0.7rem;
+    opacity: 0;
+    transition: transform 0.2s, opacity 0.2s;
+}
+.dock:hover .dock-group-head .dock-group-chevron {
+    opacity: 0.7;
+}
+.dock-group-head.open .dock-group-chevron {
+    transform: rotate(90deg);
+}
+/* Closed group holding the tab you are on. */
+.dock-group-head.has-active {
+    color: #f59e0b;
+}
+.dock-group-items {
+    display: none;
+}
+.dock-group-items.open {
+    display: block;
+    box-shadow: inset 2px 0 0 rgba(245, 158, 11, 0.3);
+}
+.dock-group-items .dock-icon {
+    height: 44px;
+    font-size: 0.85rem;
+}
+.dock-hidden {
+    display: none !important;
+}
+
+/* Phone bar: no folding. Every tab is a pill you can swipe to, as before. */
+@media (max-width: 768px) {
+    .dock > .dock-group-items {
+        display: contents !important;
+    }
+    .dock .dock-group-head {
+        display: none !important;
+    }
+    .dock .dock-hidden {
+        display: none !important;
+    }
+}

@@ -554,7 +554,7 @@ export function initProfile() {
         console.log("[Megumin Suite] A hand-edited NPC dossier template was found. The template is generated from the NPC Bank's field list now, so that edit is no longer applied — rebuild it as fields in the NPCs Bank tab.");
         if (typeof toastr !== "undefined") {
             toastr.info(
-                "Your edited NPC dossier template is no longer used — the dossier is built from the field list in the NPCs Bank tab now. Your old text is still stored, nothing was deleted.",
+                "Your edited NPC dossier template is no longer used — the dossier is built from the field list in the NPC Bank tab now. Your old text is still stored, nothing was deleted.",
                 "Megumin Suite — NPC template moved",
                 { timeOut: 12000 }
             );

@@ -21,7 +21,7 @@ import { npcBuildTextFromData } from "./data.js";
 export async function npcGeneratePfp(npcName) {
     const s = localProfile.imageGen;
     if (!s || !s.enabled || !s.currentWorkflowName) {
-        toastr.warning("Image Generation must be enabled and configured first.");
+        toastr.warning("Turn on Images and set up ComfyUI in the Images tab first.");
         return null;
     }
 

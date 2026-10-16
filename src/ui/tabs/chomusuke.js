@@ -169,7 +169,7 @@ export function renderChomusuke(c) {
     const featuresList = [
         {
             key: "memory",
-            title: "Memory Core",
+            title: "Memory",
             icon: "fa-memory",
             color: "#3b82f6",
             desc: "Summarizing chat chunks and creating archived entries for the long-term vault."
@@ -190,14 +190,14 @@ export function renderChomusuke(c) {
         },
         {
             key: "banList",
-            title: "Dynamic Ban List",
+            title: "Banned Phrases",
             icon: "fa-ban",
             color: "#ef4444",
             desc: "Scanning recent turns for repetitive clichés and updating the active ban list."
         },
         {
             key: "imageGen",
-            title: "Image Generation",
+            title: "Images",
             icon: "fa-image",
             color: "#f59e0b",
             desc: "Extracting visual scene details and crafting descriptive prompts for ComfyUI."

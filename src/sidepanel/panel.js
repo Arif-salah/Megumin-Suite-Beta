@@ -195,17 +195,12 @@ function buildPanelSkeleton() {
 }
 
 // -----------------------------------------------------------------------------
-// NPC Book bridge — opens the existing Megumin Suite modal on the NPCs Bank tab
+// NPC Book bridge — opens the existing Megumin Suite modal on the NPC Bank tab
 // -----------------------------------------------------------------------------
 function clickNpcBankDot() {
-    // Title-based lookup so upstream tab reorders don't break us
-    const dock = document.querySelectorAll("#ps_dynamic_dots .dock-icon");
-    for (let i = 0; i < dock.length; i++) {
-        if ((dock[i].getAttribute("title") || "").trim() === "NPCs Bank") {
-            const dot = document.getElementById("dot_" + i);
-            if (dot) { dot.click(); return true; }
-        }
-    }
+    // Found by the tab's id, so reorders and renames don't break us
+    const dot = document.querySelector('#ps_dynamic_dots .dock-icon[data-tab-id="npc"]');
+    if (dot) { dot.click(); return true; }
     return false;
 }
 

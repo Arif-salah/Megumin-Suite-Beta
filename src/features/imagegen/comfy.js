@@ -235,7 +235,7 @@ export function addKazumaRetryButtons(msgIndex) {
             e.preventDefault();
 
             const s = localProfile?.imageGen;
-            if (!s || !s.enabled) { toastr.warning("Image Generation is disabled."); return; }
+            if (!s || !s.enabled) { toastr.warning("Images are off. Turn them on in the Images tab."); return; }
 
             // Re-find the message dynamically (index may have shifted)
             const ctx = getContext();

@@ -62,7 +62,7 @@ export function renderNpcBank(c) {
                     <i class="fa-solid fa-address-book"></i>
                 </div>
                 <div>
-                    <h2>NPCs Bank</h2>
+                    <h2>NPC Bank</h2>
                     <p>Automatically extract and track significant NPCs in the story.</p>
                 </div>
             </div>

@@ -50,7 +50,7 @@ export function renderMemoryCore(c) {
                     <i class="fa-solid fa-memory"></i>
                 </div>
                 <div>
-                    <h2>Memory Core</h2>
+                    <h2>Memory</h2>
                     <p>3-Tier Context Management: Working, Short-Term, and Long-Term Vector DB.</p>
                 </div>
             </div>
@@ -72,7 +72,7 @@ export function renderMemoryCore(c) {
         <!-- MASTER TOGGLE -->
         <div class="mtab-toggle-row ${mem.enabled ? 'active' : ''}" id="mem_enable_card" style="margin-bottom: 20px;">
             <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-microchip" style="color:#10b981;"></i> Enable Memory Core</div>
+                <div class="toggle-label"><i class="fa-solid fa-microchip" style="color:#10b981;"></i> Turn on Memory</div>
                 <div class="toggle-desc">Archiving happens silently in the background. Old messages fade in the UI and are replaced in the prompt with injected summaries.</div>
             </div>
             <div class="ps-switch"></div>
@@ -288,7 +288,7 @@ export function renderMemoryCore(c) {
             try {
                 const data = JSON.parse(evt.target.result);
                 if (!data.shortTermChunks && !data.longTermVault) {
-                    toastr.error("Invalid Memory Core file format.");
+                    toastr.error("This file isn't a Memory export.");
                     return;
                 }
                 if (confirm("Do you want to merge imported memories with your existing ones? (Click 'Cancel' to overwrite)")) {
@@ -391,7 +391,7 @@ export function renderMemoryCore(c) {
             $("#mem_header_badge").css({ background: 'rgba(16,185,129,0.12)', color: '#10b981', 'border-color': 'rgba(16,185,129,0.25)' }).html(`<i class="fa-solid fa-circle-check" style="font-size:0.6rem;"></i> Enabled`);
             
             if (isFirstEnable) {
-                toastr.success("Memory Core activated! Auto-archiving on every reply.", "Megumin Suite");
+                toastr.success("Memory is on. Older chat is archived after every reply.", "Megumin Suite");
                 // Re-render to update the dropdowns and settings values in the UI
                 setTimeout(() => renderMemoryCore(c), 200);
             } else {

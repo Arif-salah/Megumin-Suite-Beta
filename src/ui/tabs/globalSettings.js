@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────────────
-// Global Settings — extension preferences, community links and about.
+// Settings — extension preferences, community links and about.
 // ────────────────────────────────────────────────────────────────────────────
 
 import { extension_settings, saveSettingsDebounced } from "../../st.js";
@@ -55,7 +55,7 @@ export function renderGlobalSettings(c) {
                     <i class="fa-solid fa-gear"></i>
                 </div>
                 <div>
-                    <h2>Global Settings</h2>
+                    <h2>Settings</h2>
                     <p>Preferences that apply to every character and every chat.</p>
                 </div>
             </div>

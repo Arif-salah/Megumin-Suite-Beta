@@ -25,7 +25,7 @@ export function renderClassicImageGen(c) {
                     <i class="fa-solid fa-image"></i>
                 </div>
                 <div>
-                    <h2>Image Generation</h2>
+                    <h2>Images</h2>
                     <p>ComfyUI integration for automatic scene rendering.</p>
                 </div>
             </div>
@@ -47,7 +47,7 @@ export function renderClassicImageGen(c) {
         <!-- MASTER TOGGLE -->
         <div class="mtab-toggle-row ${s.enabled ? 'active' : ''}" id="ig_enable_card" style="margin-bottom: 20px;">
             <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-image" style="color:#06b6d4;"></i> Enable Image Generation</div>
+                <div class="toggle-label"><i class="fa-solid fa-image" style="color:#06b6d4;"></i> Turn on Images</div>
                 <div class="toggle-desc">Activate ComfyUI integration for this specific character/group.</div>
             </div>
             <div class="ps-switch"></div>

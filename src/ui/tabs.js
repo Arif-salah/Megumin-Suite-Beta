@@ -13,7 +13,7 @@ import { TAB_SYNC_KEYS, TABS_ALREADY_GLOBAL, meguminGlobalSyncMap, meguminIsTabS
 import { saveSettingsDebounced } from "../st.js";
 import { updateLiveTokenCount } from "../core/tokens.js";
 import { renderCoreAndCot } from "./tabs/coreAndCot.js";
-import { renderPersonality } from "./tabs/personality.js";
+import { renderPersonality, personaTabInUse } from "./tabs/personality.js";
 import { renderGlobalAndBlocks } from "./tabs/globalAndBlocks.js";
 import { renderSidePanelTab } from "./tabs/sidePanelTab.js";
 import { renderGlobalSettings, hasUnseenSettingsNotice } from "./tabs/globalSettings.js";
@@ -27,22 +27,93 @@ import { renderMemoryCore } from "../features/memory/index.js";
 import { renderBlocksTab } from "../features/blocks/ui.js";
 import { renderChomusuke } from "./tabs/chomusuke.js";
 
+// Dock order is array order. `group` puts a tab inside a folding group of the
+// dock; `bottom` pins it under the spacer; `shown()` hides it while it has
+// nothing to do. Find a tab by `id` (tabIndex), never by title or position:
+// titles are what the user reads and positions move when the dock is reordered.
+// The title is also the global-sync key (core/sync.js), so renaming one needs a
+// line in RENAMED_TABS (core/migrations.js).
 export const tabsUI = [
-    { title: "PRESETS & COT", sub: "Choose the core preset and COT, and set the standing rules of the story.", icon: "fa-server", render: renderCoreAndCot },
-    { title: "Persona", sub: "Define the personality.", icon: "fa-user-astronaut", render: renderPersonality },
-    { title: "Writing Style", sub: "Pick the prose voice the story is told in.", icon: "fa-pen-nib", render: renderStoryConfig },
-    { title: "Global Toggles & Add Ons", sub: "Language, pronouns, and the gameplay systems bolted onto the story.", icon: "fa-earth-americas", render: renderGlobalAndBlocks },
-    { title: "BLOCKS", sub: "What goes inside the master block, in what order, and how it looks.", icon: "fa-cubes", render: renderBlocksTab },
-    { title: "Story Director", sub: "Direct the narrative. Shape what happens next.", icon: "fa-clapperboard", render: renderStoryPlanner },
-    { title: "The Notebook", sub: "The truths the story is hiding, the clues it plants, and when they come out.", icon: "fa-book", render: renderNotebookTab },
-    { title: "Dynamic Ban List", sub: "Scan and ban repetitive AI phrases.", icon: "fa-ban", render: renderBanList },
-    { title: "Image Generation", sub: "Wire up ComfyUI to auto-generate scene images during roleplay.", icon: "fa-image", render: renderImageGen },
-    { title: "NPCs Bank", sub: "Automatically extract and track significant NPCs in the story.", icon: "fa-address-book", render: renderNpcBank },
-    { title: "Memory Core", sub: "Advanced 3-Tier Context & History Management.", icon: "fa-memory", render: renderMemoryCore },
-    { title: "Chomusuke", sub: "The little sub agent", icon: "fa-cat", render: renderChomusuke },
-    { title: "Side Panel", sub: "Pop the tracker blocks out of the chat into a fixed side panel.", icon: "fa-table-columns", render: renderSidePanelTab },
-    { title: "Global Settings", sub: "Extension preferences and about info.", icon: "fa-gear", render: renderGlobalSettings }
+    { id: "preset", title: "Preset & Thinking", sub: "Choose the preset, how it thinks, and the story's standing rules.", icon: "fa-server", render: renderCoreAndCot },
+    { id: "blocks", title: "Blocks", sub: "What goes in the block under each reply, in what order, and how it looks.", icon: "fa-cubes", render: renderBlocksTab },
+    { id: "notebook", title: "The Notebook", sub: "The truths the story is hiding, the clues it plants, and when they come out.", icon: "fa-book", render: renderNotebookTab },
+    { id: "npc", title: "NPC Bank", sub: "The characters the story has met, kept and tracked.", icon: "fa-address-book", render: renderNpcBank },
+    { id: "images", title: "Images", sub: "Wire up ComfyUI to draw the scenes of the story.", icon: "fa-image", render: renderImageGen },
+    { id: "chomusuke", title: "Chomusuke", sub: "Your helper model: it does background work so the story model doesn't have to.", icon: "fa-cat", render: renderChomusuke },
+    { id: "style", group: "setup", title: "Writing Style", sub: "Pick the prose voice the story is told in.", icon: "fa-pen-nib", render: renderStoryConfig },
+    { id: "addons", group: "setup", title: "Language & Add-ons", sub: "Language, pronouns, and the gameplay add-ons.", icon: "fa-puzzle-piece", render: renderGlobalAndBlocks },
+    { id: "director", group: "tools", title: "Story Director", sub: "Direct the narrative. Shape what happens next.", icon: "fa-clapperboard", render: renderStoryPlanner },
+    { id: "memory", group: "tools", title: "Memory", sub: "How the story remembers older parts of the chat.", icon: "fa-memory", render: renderMemoryCore },
+    { id: "banlist", group: "tools", title: "Banned Phrases", sub: "Find the phrases the AI keeps repeating and ban them.", icon: "fa-ban", render: renderBanList },
+    { id: "sidepanel", group: "tools", title: "Side Panel", sub: "Pop the tracker blocks out of the chat into a fixed side panel.", icon: "fa-table-columns", render: renderSidePanelTab },
+    { id: "persona", group: "tools", title: "Persona", sub: "Define the personality.", icon: "fa-user-astronaut", render: renderPersonality, shown: personaTabInUse },
+    { id: "settings", bottom: true, title: "Settings", sub: "Extension preferences and about info.", icon: "fa-gear", render: renderGlobalSettings }
 ];
+
+export const DOCK_GROUPS = [
+    { id: "setup", title: "Story Setup", icon: "fa-sliders" },
+    { id: "tools", title: "More Tools", icon: "fa-toolbox" }
+];
+
+export function tabIndex(id) {
+    return tabsUI.findIndex(t => t.id === id);
+}
+
+// Which groups are open. Not saved: the group of the tab you open is opened for
+// you, so there is nothing to lose between sessions.
+const openGroups = new Set();
+
+function dockDot(t, i) {
+    return `<div class="dock-icon sidebar-step" id="dot_${i}" data-tab-id="${t.id}" title="${t.title}">
+        <i class="fa-solid ${t.icon}"></i> <span>${t.title}</span>
+    </div>`;
+}
+
+function buildDock(dotsContainer) {
+    dotsContainer.empty();
+
+    tabsUI.forEach((t, i) => { if (!t.group && !t.bottom) dotsContainer.append(dockDot(t, i)); });
+
+    DOCK_GROUPS.forEach(g => {
+        dotsContainer.append(`<div class="dock-icon dock-group-head" data-group="${g.id}" title="${g.title}">
+            <i class="fa-solid ${g.icon}"></i> <span>${g.title}</span>
+            <i class="fa-solid fa-chevron-right dock-group-chevron"></i>
+        </div>`);
+        const items = $(`<div class="dock-group-items" data-group="${g.id}"></div>`);
+        tabsUI.forEach((t, i) => { if (t.group === g.id) items.append(dockDot(t, i)); });
+        dotsContainer.append(items);
+    });
+
+    // Push Settings to the bottom of the dock
+    dotsContainer.append(`<div style="flex-grow: 1;"></div>`);
+    tabsUI.forEach((t, i) => {
+        if (t.bottom) dotsContainer.append($(dockDot(t, i)).css({ "margin-bottom": "15px", color: "#a1a1aa", transition: "0.2s" }));
+    });
+
+    dotsContainer.attr("data-built", "1");
+    dotsContainer.off("click.dockGroup").on("click.dockGroup", ".dock-group-head", function () {
+        const id = $(this).attr("data-group");
+        if (openGroups.has(id)) openGroups.delete(id); else openGroups.add(id);
+        refreshDockGroups();
+    });
+}
+
+// Open/closed state, the highlight on a closed group that holds the open tab,
+// and the tabs that are hidden right now (Persona on presets that lock it).
+function refreshDockGroups() {
+    const dotsContainer = $("#ps_dynamic_dots");
+    tabsUI.forEach((t, i) => {
+        $(`#dot_${i}`).toggleClass("dock-hidden", typeof t.shown === "function" && !t.shown());
+    });
+    const activeGroup = (tabsUI[currentTab] || {}).group;
+    DOCK_GROUPS.forEach(g => {
+        const open = openGroups.has(g.id);
+        dotsContainer.find(`.dock-group-head[data-group="${g.id}"]`)
+            .toggleClass("open", open)
+            .toggleClass("has-active", !open && activeGroup === g.id);
+        dotsContainer.find(`.dock-group-items[data-group="${g.id}"]`).toggleClass("open", open);
+    });
+}
 
 export function switchTab(index) {
     $(".dock").show();
@@ -65,32 +136,20 @@ export function switchTab(index) {
 
     // Generate Icons
     const dotsContainer = $("#ps_dynamic_dots");
-    if (dotsContainer.children(".sidebar-step").length < tabsUI.length) {
-        dotsContainer.empty();
-        
-        // Render all normal tabs
-        for (let i = 0; i < tabsUI.length - 1; i++) {
-            const t = tabsUI[i];
-            dotsContainer.append(`<div class="dock-icon sidebar-step" id="dot_${i}" title="${t.title}">
-                <i class="fa-solid ${t.icon}"></i> <span>${t.title}</span>
-            </div>`);
-        }
-        
-        // Push the Global Settings gear to the absolute bottom of the dock
-        dotsContainer.append(`<div style="flex-grow: 1;"></div>`); 
-        const lastIdx = tabsUI.length - 1;
-        const lastTab = tabsUI[lastIdx];
-        dotsContainer.append(`<div class="dock-icon sidebar-step" id="dot_${lastIdx}" title="${lastTab.title}" style="margin-bottom: 15px; color: #a1a1aa; transition: 0.2s;">
-            <i class="fa-solid ${lastTab.icon}"></i> <span>${lastTab.title}</span>
-        </div>`);
+    if (dotsContainer.attr("data-built") !== "1" || !dotsContainer.children(".sidebar-step").length) {
+        buildDock(dotsContainer);
     }
+
+    // Going to a tab opens its group, so you can see where you are.
+    if (tab && tab.group && !isSameTab) openGroups.add(tab.group);
 
     $(".dock-icon").removeClass("active");
     $(`#dot_${index}`).addClass("active");
+    refreshDockGroups();
 
     // Re-read every switch rather than only at build time: the dots are drawn once
     // and reused, so a notice spent this session has to be able to go out again.
-    $(`#dot_${tabsUI.length - 1}`).toggleClass("has-notice", hasUnseenSettingsNotice());
+    $(`#dot_${tabIndex("settings")}`).toggleClass("has-notice", hasUnseenSettingsNotice());
 
     container.empty();
     container.off(".devDirty");

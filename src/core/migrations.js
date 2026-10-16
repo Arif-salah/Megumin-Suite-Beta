@@ -45,6 +45,16 @@ export function cleanLegacySettings() {
 const RENAMED_TABS = [
     ["Story Config", "Writing Style"],
     ["Global Toggles & Blocks", "Global Toggles & Add Ons"],
+    // Plan 011: the dock cleanup. Runs after the line above, so the oldest
+    // name still lands on the newest.
+    ["PRESETS & COT", "Preset & Thinking"],
+    ["Global Toggles & Add Ons", "Language & Add-ons"],
+    ["BLOCKS", "Blocks"],
+    ["Dynamic Ban List", "Banned Phrases"],
+    ["Image Generation", "Images"],
+    ["NPCs Bank", "NPC Bank"],
+    ["Memory Core", "Memory"],
+    ["Global Settings", "Settings"],
 ];
 
 export function migrateRenamedTabs() {
