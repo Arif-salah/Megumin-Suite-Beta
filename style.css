@@ -5228,18 +5228,60 @@
     display: none !important;
 }
 
-/* Phone bar: no folding. Every tab is a pill you can swipe to, as before. */
+/* The tab you are in, after a group's name: shown on the phone bar only. */
+.dock-group-current { font-style: normal; display: none; }
+
+/* Phone bar: groups are pills too. A group's tabs open in a small sheet above
+   the bar (tabs.js, togglePhoneSheet), so the bar holds the main tabs, the two
+   groups and Settings. */
 @media (max-width: 768px) {
     .dock > .dock-group-items {
-        display: contents !important;
-    }
-    .dock .dock-group-head {
         display: none !important;
     }
     .dock .dock-hidden {
         display: none !important;
     }
+    .dock .dock-group-head::before { display: none; }
+    .dock .dock-group-head .dock-group-chevron {
+        opacity: .7 !important;
+        transform: rotate(-90deg) !important;
+        font-size: .6rem !important;
+    }
+    .dock .dock-group-current { display: inline; }
+    .dock .dock-group-head.has-tab {
+        background: rgba(245, 158, 11, 0.17) !important;
+        border-color: rgba(245, 158, 11, 0.48) !important;
+        color: var(--gold) !important;
+    }
 }
+.dock-sheet {
+    position: absolute;
+    z-index: 120;
+    min-width: 200px;
+    max-width: calc(100% - 20px);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    border-radius: 14px;
+    background: rgba(24, 24, 28, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    backdrop-filter: blur(22px) saturate(1.3);
+    -webkit-backdrop-filter: blur(22px) saturate(1.3);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.dock-sheet-title { font-size: .68rem; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted); padding: 4px 8px 6px; }
+.dock-sheet-title i { margin-right: 6px; }
+.dock-sheet-item {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 44px; padding: 0 12px; border-radius: 10px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--text-main); font-size: .85rem; font-weight: 700; text-align: left; cursor: pointer;
+}
+.dock-sheet-item i { width: 18px; text-align: center; color: var(--text-muted); }
+.dock-sheet-item:hover, .dock-sheet-item:active { background: rgba(255, 255, 255, 0.08); }
+.dock-sheet-item.active { background: rgba(245, 158, 11, 0.17); border-color: rgba(245, 158, 11, 0.48); color: var(--gold); }
+.dock-sheet-item.active i { color: var(--gold); }
 
 /* ── Background prompts (plan 013): the popup, the log, the job switches ── */
 .bgp { text-align: left; display: flex; flex-direction: column; gap: 12px; }

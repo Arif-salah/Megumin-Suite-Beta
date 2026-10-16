@@ -76,7 +76,7 @@ function buildDock(dotsContainer) {
 
     DOCK_GROUPS.forEach(g => {
         dotsContainer.append(`<div class="dock-icon dock-group-head" data-group="${g.id}" title="${g.title}">
-            <i class="fa-solid ${g.icon}"></i> <span>${g.title}</span>
+            <i class="fa-solid ${g.icon}"></i> <span>${g.title}<em class="dock-group-current"></em></span>
             <i class="fa-solid fa-chevron-right dock-group-chevron"></i>
         </div>`);
         const items = $(`<div class="dock-group-items" data-group="${g.id}"></div>`);
@@ -91,11 +91,60 @@ function buildDock(dotsContainer) {
     });
 
     dotsContainer.attr("data-built", "1");
-    dotsContainer.off("click.dockGroup").on("click.dockGroup", ".dock-group-head", function () {
+    dotsContainer.off("click.dockGroup").on("click.dockGroup", ".dock-group-head", function (e) {
         const id = $(this).attr("data-group");
+        // The phone bar has no room to unfold a group: its tabs open in a
+        // small sheet above the bar instead.
+        if (isPhoneDock()) { e.stopPropagation(); togglePhoneSheet(id, this); return; }
         if (openGroups.has(id)) openGroups.delete(id); else openGroups.add(id);
         refreshDockGroups();
     });
+}
+
+// The dock is a bottom bar at this width (style.css, "DOCK → floating bottom bar").
+const isPhoneDock = () => window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+
+function closePhoneSheet() {
+    $("#ps_dock_sheet").remove();
+    $(document).off("click.dockSheet");
+}
+
+function togglePhoneSheet(groupId, head) {
+    const open = $("#ps_dock_sheet");
+    if (open.length) {
+        const same = open.attr("data-group") === groupId;
+        closePhoneSheet();
+        if (same) return;
+    }
+    const modal = $(head).closest(".ps-modern-modal");
+    const host = modal.length ? modal : $("body");
+    const g = DOCK_GROUPS.find(x => x.id === groupId);
+    const $sheet = $(`<div id="ps_dock_sheet" class="dock-sheet" data-group="${groupId}">
+        <div class="dock-sheet-title"><i class="fa-solid ${g ? g.icon : "fa-folder"}"></i> ${g ? g.title : ""}</div>
+    </div>`);
+    tabsUI.forEach((t, i) => {
+        if (t.group !== groupId) return;
+        if (typeof t.shown === "function" && !t.shown()) return;
+        const $b = $(`<button type="button" class="dock-sheet-item ${i === currentTab ? "active" : ""}"><i class="fa-solid ${t.icon}"></i> ${t.title}</button>`);
+        $b.on("click", () => { closePhoneSheet(); switchTab(i); });
+        $sheet.append($b);
+    });
+    host.append($sheet);
+
+    // Over the pill that opened it, kept inside the window.
+    const hostRect = host[0].getBoundingClientRect();
+    const headRect = head.getBoundingClientRect();
+    const width = $sheet.outerWidth();
+    let left = headRect.left - hostRect.left;
+    left = Math.max(10, Math.min(left, hostRect.width - width - 10));
+    $sheet.css({ left: `${left}px`, bottom: `${Math.max(70, hostRect.bottom - headRect.top + 8)}px` });
+
+    // Closes on any tap outside it (the next tap, not this one).
+    setTimeout(() => {
+        $(document).on("click.dockSheet", ev => {
+            if (!$(ev.target).closest("#ps_dock_sheet").length) closePhoneSheet();
+        });
+    }, 0);
 }
 
 // Open/closed state, the highlight on a closed group that holds the open tab,
@@ -105,12 +154,17 @@ function refreshDockGroups() {
     tabsUI.forEach((t, i) => {
         $(`#dot_${i}`).toggleClass("dock-hidden", typeof t.shown === "function" && !t.shown());
     });
-    const activeGroup = (tabsUI[currentTab] || {}).group;
+    const activeTab = tabsUI[currentTab] || {};
+    const activeGroup = activeTab.group;
     DOCK_GROUPS.forEach(g => {
         const open = openGroups.has(g.id);
-        dotsContainer.find(`.dock-group-head[data-group="${g.id}"]`)
-            .toggleClass("open", open)
-            .toggleClass("has-active", !open && activeGroup === g.id);
+        const $head = dotsContainer.find(`.dock-group-head[data-group="${g.id}"]`);
+        $head.toggleClass("open", open)
+            .toggleClass("has-active", !open && activeGroup === g.id)
+            // The phone bar never unfolds, so it always marks the group you are in
+            // and names the tab: "More Tools · Memory".
+            .toggleClass("has-tab", activeGroup === g.id);
+        $head.find(".dock-group-current").text(activeGroup === g.id ? ` · ${activeTab.title}` : "");
         dotsContainer.find(`.dock-group-items[data-group="${g.id}"]`).toggleClass("open", open);
     });
 }
@@ -133,6 +187,7 @@ export function switchTab(index) {
 
     setCurrentTab(index);
     const tab = tabsUI[index];
+    closePhoneSheet();
 
     // Generate Icons
     const dotsContainer = $("#ps_dynamic_dots");
