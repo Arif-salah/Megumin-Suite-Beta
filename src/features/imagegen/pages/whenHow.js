@@ -11,7 +11,7 @@ import { toggleQuickGenButton } from "../comfy.js";
 import { prefixForStyle } from "../qualityPrefix.js";
 import { v2Settings } from "../v2/index.js";
 import { renderClassicLook, renderClassicAdvanced } from "../classic/ui.js";
-import { card, tiles, segmented, switchRow, field, esc } from "./controls.js";
+import { card, tiles, segmented, switchRow, field, esc } from "../../../ui/controls.js";
 
 // The Advanced fold stays open across redraws once opened.
 let advancedOpen = false;

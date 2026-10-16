@@ -5262,3 +5262,11 @@
 .gs-bgjobs { flex-wrap: wrap; gap: 6px 14px; padding: 10px 14px; margin-top: -4px; border: 1px dashed var(--border-color); border-radius: 10px; }
 .gs-bgjobs-title { flex: 1 1 100%; font-size: .74rem; font-weight: 700; color: var(--text-muted); }
 .gs-bgjob { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; cursor: pointer; }
+
+/* ── Preset & Thinking (plan 014): uses the Images tab's pages, cards and
+   segmented rows (.igx-*), plus compact preset cards. ── */
+.ptx-summary { margin: -10px 0 14px; }
+.ptx-grid { margin: 0 !important; }
+.ptx-compact .ecard-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ptx-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.ptx-edit { padding: 4px 10px !important; font-size: .7rem !important; color: var(--gold) !important; border-color: rgba(245,158,11,.3) !important; background: transparent !important; }

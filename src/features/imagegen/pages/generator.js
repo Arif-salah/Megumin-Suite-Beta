@@ -12,7 +12,7 @@ import { localProfile } from "../../../core/state.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../../core/profile.js";
 import { RESOLUTIONS } from "../../../../data/image_data.js";
 import { igFetchComfyLists, igTestConnection, igCheckConnection, igPopulateWorkflows, igNewWorkflowClick, igDeleteWorkflowClick, igOpenWorkflowEditorClick } from "../comfy.js";
-import { card, field, switchRow, esc } from "./controls.js";
+import { card, field, switchRow, esc } from "../../../ui/controls.js";
 
 const GUIDE_URL = "https://www.reddit.com/r/SillyTavernAI/comments/1u87agq/tutorial_how_to_setup_inline_image_generation_in/";
 

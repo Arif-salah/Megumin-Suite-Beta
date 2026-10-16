@@ -11,7 +11,7 @@ import { syncPromptsGlobally } from "../../../core/sync.js";
 import { DEFAULT_PROMPTS } from "../../../prompts/index.js";
 import { renderPromptEditor } from "../../../ui/promptEditor.js";
 import { prefixForStyle, styleOfTemplate } from "../qualityPrefix.js";
-import { field, switchRow, esc } from "../pages/controls.js";
+import { field, switchRow, esc } from "../../../ui/controls.js";
 
 const TEMPLATES = [
     ["illus_cinematic", "Illustrious/Anima + Cinematic"],

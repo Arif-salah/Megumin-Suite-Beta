@@ -10,7 +10,7 @@ import { Popup, POPUP_TYPE } from "../../../st.js";
 import { v2Settings, currentImageCast, getLooks } from "./index.js";
 import { scanLooks, describeLooks } from "./looks.js";
 import { findLookKey, outfitHash } from "./looksCore.js";
-import { card, busy, esc } from "../pages/controls.js";
+import { card, busy, esc } from "../../../ui/controls.js";
 
 const SOURCE_LABEL = { npc: "from the NPC Bank", sheet: "read from the card", chat: "read from the chat", manual: "written by you" };
 

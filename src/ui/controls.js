@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────────────
-// Images tab — the small building blocks its pages share: a card, big choice
+// Settings pages (Images, Preset & Thinking) — the small building blocks they share: a card, big choice
 // tiles, a segmented row, an on/off row, a labelled field.
 // ────────────────────────────────────────────────────────────────────────────
 
