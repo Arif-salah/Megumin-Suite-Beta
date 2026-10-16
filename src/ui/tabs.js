@@ -240,7 +240,10 @@ export function updateGlobalSyncButton() {
 // Wiring.
 // ────────────────────────────────────────────────────────────────────────────
 
-// With no index: redraw whatever is on screen. With one: navigate to it.
-registerRefreshHook(REFRESH.SWITCH_TAB, (index) =>
-    switchTab(typeof index === "number" ? index : currentTab));
+// With no index: redraw whatever is on screen. With one (a number, or a tab id
+// like "notebook"): navigate to it.
+registerRefreshHook(REFRESH.SWITCH_TAB, (index) => {
+    const i = typeof index === "string" ? tabIndex(index) : index;
+    switchTab(typeof i === "number" && i >= 0 ? i : currentTab);
+});
 registerRefreshHook(REFRESH.TAB_PROPAGATE, () => meguminPropagateTabIfSynced());

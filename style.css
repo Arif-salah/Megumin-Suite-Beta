@@ -5336,3 +5336,34 @@
     .nbx .nbx-field > span { padding-top: 0; }
     .nbx .nbx-header { flex-wrap: wrap; }
 }
+
+/* ── Chomusuke tab (plan 015): one page, jobs grouped by cost ── */
+.chx-conn select { max-width: 420px; }
+.chx-ok { color: #34d399; }
+.chx-bad { color: #f87171; }
+.chx-cost { display: flex; gap: 8px; align-items: baseline; font-size: .82rem; line-height: 1.5; padding: 8px 12px; border-radius: 9px; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.22); }
+.chx-cost i { color: #f59e0b; }
+.chx-cost b { color: #fbbf24; }
+.chx-route { margin: 0 !important; padding: 11px 14px !important; cursor: pointer; }
+.chx-route .toggle-label { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.chx-off { margin-left: 4px; font-size: .68rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; cursor: pointer; background: rgba(239,68,68,.12); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+.chx-off:hover { background: rgba(239,68,68,.22); }
+.chx-off i { font-size: .6rem; }
+.chx-blocks { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 2px 34px; }
+.chx-block { display: inline-flex; align-items: center; gap: 6px; font-size: .76rem; cursor: pointer; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-color); background: rgba(0,0,0,.2); }
+.chx-block.on { border-color: rgba(244,63,94,.45); background: rgba(244,63,94,.1); }
+.chx-block i { color: #f43f5e; }
+.chx-block.is-off { opacity: .55; }
+.chx-block input { margin: 0; }
+.chx-sub { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: .8rem; font-weight: 700; color: var(--text-main); }
+.chx-sub small { font-weight: 500; color: var(--text-muted); margin-left: 6px; }
+.chx-indent { margin-left: 24px !important; }
+.chx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
+.chx-how { margin: 2px 4px 10px; }
+.chx-how i { color: #f43f5e; margin-right: 6px; }
+@media (max-width: 560px) {
+    .chx-blocks { margin-left: 0; }
+    .chx-indent { margin-left: 0 !important; }
+}
+.chx-note { margin-top: 5px; font-size: .74rem; font-weight: 600; color: #fbbf24; }
+.chx-note i { font-size: .62rem; margin-right: 4px; }

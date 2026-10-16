@@ -1,411 +1,329 @@
 // ──────────────────────────────────────────────────────────────────────────────
-// Chomusuke — The Little Sub-Agent
+// Chomusuke — the helper model.
 //
-// Manages the secondary worker model via SillyTavern Connection Profiles.
-// Offloads heavy background chores (Memory Core summarization, NPC scanning,
-// Story Director planning, Ban List analysis, ComfyUI prompt crafting)
-// so the primary model never pauses or reloads presets.
+// Runs background jobs on a second connection profile (SillyTavern Connection
+// Profiles), so the story model never pauses or reloads presets.
+//
+// One page (plan 015): the on switch and the worker connection, then the jobs
+// grouped by what they cost: "After every reply" (a call on every reply, with
+// Combine calls and a live cost line) and "When the job runs" (occasional).
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { localProfile } from "../../core/state.js";
 import { saveProfileToMemory } from "../../core/profile.js";
+import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import {
     getSillyTavernConnectionProfiles,
-    getCurrentConnectionProfileId,
     runWithChomusuke,
 } from "../../engine/tasks.js";
 import { generateQuietPrompt } from "../../st.js";
+import { worldEnabled, notebookEnabled } from "../../state/index.js";
+import { card, switchRow, esc } from "../controls.js";
+
+// Folds stay as they were across redraws.
+let advancedOpen = false;
+
+const BLOCK_ROUTES = [
+    { id: "bonds", label: "Bonds", icon: "fa-heart" },
+    { id: "sheet", label: "Character Sheet", icon: "fa-shield-halved" },
+    { id: "chatter", label: "NPC Inner Chatter", icon: "fa-comments" },
+    { id: "cyoa", label: "CYOA choices", icon: "fa-list-check" }
+];
+
+// After every reply: each is a call on every reply while on (off by default,
+// except Images, which also covers the image button).
+// Blocks covers World State too (it is a block in the Blocks tab): its chip is
+// the World State route, the other chips the Blocks route (plan 009).
+const PER_REPLY = [
+    { key: "blocks", title: "Blocks", icon: "fa-cubes", color: "#f43f5e", defaultOff: true,
+      desc: "Writes the blocks you tick after each reply, World State included. The story model stops writing them, so more of its reply goes to the story. World State is a call of its own; the other blocks share one." },
+    { key: "notebook", title: "The Notebook", icon: "fa-book", color: "#8b5cf6", defaultOff: true,
+      desc: "Notes the clues each reply showed, who found out a hidden truth, and what came out. The story model only writes new truths.",
+      note: "I recommend keeping this one for the story model to handle." },
+    { key: "imageGen", title: "Images", icon: "fa-image", color: "#06b6d4",
+      desc: "Writes the image prompts: the automatic images after a reply, and the image button." }
+];
+
+// When the job runs: occasional, only when that job fires.
+const OCCASIONAL = [
+    { key: "memory", title: "Memory", icon: "fa-memory", color: "#3b82f6", desc: "Summarises older chat for the long-term vault." },
+    { key: "npc", title: "NPC Bank", icon: "fa-address-book", color: "#10b981", desc: "Scans for new characters and updates their records." },
+    { key: "storyPlan", title: "Story Director", icon: "fa-clapperboard", color: "#a855f7", desc: "Writes and evolves the story's next direction." },
+    { key: "banList", title: "Banned Phrases", icon: "fa-ban", color: "#ef4444", desc: "Finds the phrases the AI keeps repeating." },
+    { key: "styleGen", title: "Writing Style generator", icon: "fa-wand-magic-sparkles", color: "#ec4899", desc: "Writes new writing styles from your tags." }
+];
+
+function ensureConfig() {
+    if (!localProfile.chomusuke) {
+        localProfile.chomusuke = {
+            enabled: false, profileId: "", primaryProfileId: "",
+            features: { memory: true, storyPlan: true, npc: true, banList: true, imageGen: true, styleGen: true, worldState: false },
+        };
+    }
+    const cfg = localProfile.chomusuke;
+    if (!cfg.features) cfg.features = {};
+    if (!cfg.blockRoutes || typeof cfg.blockRoutes !== "object") cfg.blockRoutes = { bonds: true, sheet: true, chatter: true, cyoa: true };
+    if (!cfg.combine || typeof cfg.combine !== "object") cfg.combine = { all: false, worldFallback: false };
+    // One switch now; the old "World State and image" switch carries over.
+    if (cfg.combine.all === undefined) cfg.combine.all = cfg.combine.worldImage === true;
+    return cfg;
+}
+
+const worldRouted = cfg => cfg.features.worldState === true;
+const blockRouted = (cfg, id) => cfg.features.blocks === true && cfg.blockRoutes[id] !== false;
+const anyBlockRouted = cfg => worldRouted(cfg) || BLOCK_ROUTES.some(b => blockRouted(cfg, b.id));
+
+// Most routes are on unless switched off; a route that costs a call per reply
+// (defaultOff) is off unless switched on.
+const routeOn = (cfg, feat) => feat.defaultOff ? cfg.features[feat.key] === true : cfg.features[feat.key] !== false;
+
+/** Is the job itself switched on in its own tab? null = yes (or nothing to switch). */
+function featureOff(key) {
+    const p = localProfile;
+    const stack = (p.blockStack && p.blockStack.order) || [];
+    switch (key) {
+        case "blocks": return worldEnabled() || BLOCK_ROUTES.some(b => stack.includes(b.id)) ? null : { text: "None of these blocks are on", tab: "blocks" };
+        case "notebook": return notebookEnabled() ? null : { text: "The Notebook is off", tab: "notebook" };
+        case "imageGen": return p.imageGen && p.imageGen.enabled ? null : { text: "Images are off", tab: "images" };
+        case "memory": return p.memoryCore && p.memoryCore.enabled ? null : { text: "Memory is off", tab: "memory" };
+        case "npc": return p.npcBank && p.npcBank.enabled ? null : { text: "NPC Bank is off", tab: "npc" };
+        case "storyPlan": return p.storyPlan && p.storyPlan.enabled ? null : { text: "Story Director is off", tab: "director" };
+        default: return null;
+    }
+}
+
+function offChip(key) {
+    const off = featureOff(key);
+    return off ? `<button type="button" class="chx-off" data-tab="${off.tab}" title="Open that tab">${esc(off.text)} <i class="fa-solid fa-arrow-right"></i></button>` : "";
+}
+
+/** How many Chomusuke calls a reply can cost right now. */
+function callsPerReply(cfg) {
+    const stack = (localProfile.blockStack && localProfile.blockStack.order) || [];
+    const ig = localProfile.imageGen || {};
+    let n = 0;
+    // World State and the other blocks are separate calls unless combined.
+    if (worldRouted(cfg) && worldEnabled()) n++;
+    if (BLOCK_ROUTES.some(b => blockRouted(cfg, b.id) && stack.includes(b.id))) n++;
+    if (cfg.features.notebook === true && notebookEnabled()) n++;
+    if (cfg.features.imageGen !== false && ig.enabled && (ig.triggerMode || "always") !== "manual") n++;
+    return n;
+}
 
 export function renderChomusuke(c) {
     c.empty();
+    const cfg = ensureConfig();
+    const redraw = () => renderChomusuke(c);
+    const profiles = getSillyTavernConnectionProfiles();
+    const worker = profiles.find(p => p.id === cfg.profileId);
+    const running = Boolean(cfg.enabled && cfg.profileId);
 
-    if (!localProfile.chomusuke) {
-        localProfile.chomusuke = {
-            enabled: false,
-            profileId: "",
-            primaryProfileId: "",
-            features: {
-                memory: true,
-                storyPlan: true,
-                npc: true,
-                banList: true,
-                imageGen: true,
-                styleGen: true,
-                worldState: false,
-            },
-        };
-    }
-
-    const cfg = localProfile.chomusuke;
-    const availableProfiles = getSillyTavernConnectionProfiles();
-    const currentActiveProfileId = getCurrentConnectionProfileId();
-    const activeProfileObj = availableProfiles.find(p => p.id === cfg.profileId);
-
-    const isRunning = Boolean(cfg.enabled && cfg.profileId);
-    const badgeColor = isRunning ? "#10b981" : "var(--text-muted)";
-    const badgeBg = isRunning ? "rgba(16, 185, 129, 0.12)" : "rgba(255, 255, 255, 0.05)";
-    const badgeBorder = isRunning ? "rgba(16, 185, 129, 0.3)" : "var(--border-color)";
-    const badgeLabel = isRunning
-        ? `<i class="fa-solid fa-cat" style="font-size:0.65rem;"></i> Active: ${activeProfileObj ? activeProfileObj.name : "Worker Ready"}`
-        : `<i class="fa-solid fa-moon" style="font-size:0.65rem;"></i> Inactive`;
-
-    // ── HEADER ──
-    c.append(`
+    // ── Title + on/off ──
+    const $head = $(`
         <div class="mtab-header">
             <div class="mtab-header-left">
-                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #f43f5e, #be123c);">
-                    <i class="fa-solid fa-cat"></i>
-                </div>
-                <div>
-                    <h2>Chomusuke</h2>
-                    <p>The Little Sub-Agent — secondary worker LLM for background tasks.</p>
-                </div>
-            </div>
-            <div class="mtab-header-badge" id="chomusuke_header_badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder};">
-                ${badgeLabel}
+                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #f43f5e, #be123c);"><i class="fa-solid fa-cat"></i></div>
+                <div><h2>Chomusuke</h2><p>Your helper model: it does the background jobs on a second connection, so the story model doesn't have to.</p></div>
             </div>
         </div>
     `);
+    const $on = $(`<div class="mtab-toggle-row igx-switch igx-master ${cfg.enabled ? "active" : ""}">
+        <div class="toggle-info"><div class="toggle-label">${cfg.enabled ? "Chomusuke on" : "Chomusuke off"}</div></div>
+        <div class="ps-switch"></div>
+    </div>`);
+    $on.on("click", () => { cfg.enabled = !cfg.enabled; saveProfileToMemory(); redraw(); });
+    $head.append($on);
+    c.append($head);
 
-    const $content = $(`<div style="display:flex; flex-direction:column; gap:16px;"></div>`);
-
-    // ── CARD 1: SUB-AGENT CONNECTION SETTINGS ──
-    const $settingsPanel = $(`
-        <div class="mtab-panel" style="margin-bottom:0;">
-            <div class="mtab-panel-title purple" style="margin-bottom: 12px;">
-                <i class="fa-solid fa-microchip"></i> Worker Connection Settings
-            </div>
-        </div>
-    `);
-
-    // Master Enable Toggle
-    const $masterToggle = $(`
-        <div class="mtab-toggle-row ${cfg.enabled ? 'active' : ''}" id="chomusuke_master_toggle" style="cursor: pointer; margin-bottom: 14px;">
-            <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-power-off" style="color: ${cfg.enabled ? '#10b981' : 'var(--text-muted)'};"></i> Enable Chomusuke (Worker LLM)</div>
-                <div class="toggle-desc">When enabled, assigned background tasks run silently on a separate model via SillyTavern Connection Profiles. Zero chat reloads, zero 3-second freezes.</div>
-            </div>
-            <div class="ps-switch" style="${cfg.enabled ? 'background: #10b981;' : ''}"></div>
-        </div>
-    `);
-
-    $masterToggle.on("click", function () {
-        cfg.enabled = !cfg.enabled;
-        $(this).toggleClass("active", cfg.enabled);
-        $(this).find(".ps-switch").css("background", cfg.enabled ? "#10b981" : "");
-        $(this).find(".toggle-label i").css("color", cfg.enabled ? "#10b981" : "var(--text-muted)");
-        saveProfileToMemory();
-        renderChomusuke(c);
-    });
-    $settingsPanel.append($masterToggle);
-
-    // Profile Dropdowns
-    if (availableProfiles.length === 0) {
-        $settingsPanel.append(`
-            <div class="mtab-callout red" style="margin-top: 10px;">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <span>No Connection Profiles found in SillyTavern. Please create at least one Connection Profile in SillyTavern's connection settings first (e.g. for Gemini Flash or a fast local model).</span>
-            </div>
-        `);
+    // ── Connection ──
+    const conn = card("Worker connection", "The connection profile Chomusuke uses. A fast, cheap model works well: Claude Haiku, Gemini Flash, or a local 7B/8B.");
+    if (!profiles.length) {
+        conn.append(`<div class="igx-banner red"><i class="fa-solid fa-triangle-exclamation"></i>
+            <span>No connection profiles yet. Make one in SillyTavern's connection settings first (for example for Gemini Flash or a fast local model).</span></div>`);
     } else {
-        // Worker Profile Selection
-        let workerOptionsHtml = `<option value="">-- Select Worker Connection Profile --</option>`;
-        availableProfiles.forEach(p => {
-            const isSel = p.id === cfg.profileId;
-            workerOptionsHtml += `<option value="${p.id}" ${isSel ? 'selected' : ''}>${p.name} (${p.mode === 'cc' ? 'Chat' : 'Text'})</option>`;
-        });
+        const $line = $(`<div class="igx-inline chx-conn">
+            <select id="chomusuke_worker_profile" class="ps-modern-input">
+                <option value="">Pick a connection profile…</option>
+                ${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === cfg.profileId ? "selected" : ""}>${esc(p.name)} (${p.mode === "cc" ? "Chat" : "Text"})</option>`).join("")}
+            </select>
+            <button type="button" id="btn_test_chomusuke" class="menu_button igx-btn"><i class="fa-solid fa-vial"></i> Test</button>
+        </div>`);
+        conn.append($line);
+        conn.append(`<div id="chomusuke_test_status" class="igx-note">${running ? `Ready on <b>${esc(worker ? worker.name : "your worker")}</b>.` : cfg.enabled ? "Pick a connection profile to start." : "Chomusuke is off: every job below uses your story model."}</div>`);
 
-        // Primary Profile Selection
-        let primaryOptionsHtml = `<option value="" ${!cfg.primaryProfileId ? 'selected' : ''}>Auto-Detect (Current Active Profile)</option>`;
-        availableProfiles.forEach(p => {
-            const isSel = p.id === cfg.primaryProfileId;
-            primaryOptionsHtml += `<option value="${p.id}" ${isSel ? 'selected' : ''}>${p.name}</option>`;
-        });
-
-        $settingsPanel.append(`
-            <div class="mtab-setting-row" style="margin-bottom: 10px;">
-                <div class="set-info">
-                    <div class="set-label"><i class="fa-solid fa-robot" style="color: #a855f7;"></i> Worker Profile (Chomusuke)</div>
-                    <div class="set-desc">The model that handles background jobs (recommended: a fast, cheap model like Claude Haiku, Gemini Flash, or a local 7B/8B).</div>
-                </div>
-                <select id="chomusuke_worker_profile" class="ps-modern-input" style="width: 260px; cursor: pointer;">
-                    ${workerOptionsHtml}
+        // Advanced: where to go back to after a job.
+        const $fold = $(`<button type="button" class="igx-fold"><i class="fa-solid fa-chevron-${advancedOpen ? "down" : "right"}"></i> Advanced</button>`);
+        const $box = $(`<div class="igx-stack" style="display:${advancedOpen ? "flex" : "none"};">
+            <div class="igx-field">
+                <div class="igx-field-label">Go back to after each job <small>Automatic uses whatever profile was on before the job ran</small></div>
+                <select id="chomusuke_primary_profile" class="ps-modern-input igx-narrow">
+                    <option value="" ${!cfg.primaryProfileId ? "selected" : ""}>Automatic</option>
+                    ${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === cfg.primaryProfileId ? "selected" : ""}>${esc(p.name)}</option>`).join("")}
                 </select>
             </div>
-
-            <div class="mtab-setting-row" style="margin-bottom: 12px;">
-                <div class="set-info">
-                    <div class="set-label"><i class="fa-solid fa-shield-halved" style="color: #3b82f6;"></i> Primary Chat Profile (Restore To)</div>
-                    <div class="set-desc">The connection profile restored after each task finishes. Auto-detect uses whatever profile was active before the task ran.</div>
-                </div>
-                <select id="chomusuke_primary_profile" class="ps-modern-input" style="width: 260px; cursor: pointer;">
-                    ${primaryOptionsHtml}
-                </select>
-            </div>
-
-            <div style="display: flex; gap: 10px; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color);">
-                <button id="btn_test_chomusuke" class="ps-modern-btn secondary" style="padding: 6px 16px; font-size: 0.8rem; color: #a855f7; border-color: rgba(168, 85, 247, 0.3);">
-                    <i class="fa-solid fa-vial"></i> Test Chomusuke Connection
-                </button>
-                <span id="chomusuke_test_status" style="font-size: 0.78rem; color: var(--text-muted); font-style: italic;"></span>
-            </div>
-        `);
+        </div>`);
+        $fold.on("click", () => {
+            advancedOpen = !advancedOpen;
+            $box.css("display", advancedOpen ? "flex" : "none");
+            $fold.find("i").attr("class", `fa-solid fa-chevron-${advancedOpen ? "down" : "right"}`);
+        });
+        conn.append($fold).append($box);
     }
+    c.append(conn);
 
-    $content.append($settingsPanel);
-
-    // ── CARD 2: FEATURE DELEGATION (ROUTING MATRIX) ──
-    const $routingPanel = $(`
-        <div class="mtab-panel" style="margin-bottom:0;">
-            <div class="mtab-panel-title blue" style="margin-bottom: 6px;">
-                <i class="fa-solid fa-diagram-project"></i> Secondary Feature Routing
-            </div>
-            <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 14px;">
-                Choose which background tasks Chomusuke takes over. Toggled features run through your Worker LLM; disabled features stay on <b>Direct Call</b> (your current chat model).
-            </div>
-        </div>
-    `);
-
-    const featuresList = [
-        {
-            key: "memory",
-            title: "Memory",
-            icon: "fa-memory",
-            color: "#3b82f6",
-            desc: "Summarizing chat chunks and creating archived entries for the long-term vault."
-        },
-        {
-            key: "storyPlan",
-            title: "Story Director",
-            icon: "fa-clapperboard",
-            color: "#a855f7",
-            desc: "Auto-evolving the narrative directive and generating new story beats."
-        },
-        {
-            key: "npc",
-            title: "NPC Bank",
-            icon: "fa-address-book",
-            color: "#10b981",
-            desc: "Auto-scanning message history for newly met characters and updating existing dossiers."
-        },
-        {
-            key: "banList",
-            title: "Banned Phrases",
-            icon: "fa-ban",
-            color: "#ef4444",
-            desc: "Scanning recent turns for repetitive clichés and updating the active ban list."
-        },
-        {
-            key: "imageGen",
-            title: "Images",
-            icon: "fa-image",
-            color: "#f59e0b",
-            desc: "Extracting visual scene details and crafting descriptive prompts for ComfyUI."
-        },
-        {
-            key: "worldState",
-            title: "World State",
-            icon: "fa-thumbtack",
-            color: "#f59e0b",
-            desc: "On: Chomusuke reads every reply for scene changes (outfits, who is present, threads) and the story model no longer writes them. Off: the story model writes them in its reply. One worker call per reply.",
-            defaultOff: true
-        },
-        {
-            key: "blocks",
-            title: "Blocks",
-            icon: "fa-cubes",
-            color: "#f43f5e",
-            desc: "On: Chomusuke writes the blocks you pick below after each reply, and the story model no longer writes them (more of its reply goes to the story). One worker call per reply.",
-            defaultOff: true
-        },
-        {
-            key: "notebook",
-            title: "The Notebook",
-            icon: "fa-book",
-            color: "#8b5cf6",
-            desc: "On: after each reply, Chomusuke notes the clues it showed, who found out a hidden truth, and what came out. The story model only writes new truths. Needs The Notebook turned on. One worker call per reply.",
-            defaultOff: true
-        },
-        {
-            key: "styleGen",
-            title: "Writing Style Generator",
-            icon: "fa-wand-magic-sparkles",
-            color: "#ec4899",
-            desc: "Generating custom prose styles from tag templates in the Writing Style library."
-        }
-    ];
-
-    // Most routes are on unless switched off; a route that costs a call per reply
-    // (defaultOff) is off unless switched on.
-    const featOn = feat => feat.defaultOff ? cfg.features[feat.key] === true : cfg.features[feat.key] !== false;
-
-    featuresList.forEach(feat => {
-        const isFeatOn = featOn(feat);
-        const $row = $(`
-            <div class="mtab-toggle-row ${isFeatOn ? 'active' : ''}" data-feat="${feat.key}" style="cursor: pointer; margin-bottom: 8px;">
-                <div class="toggle-info">
-                    <div class="toggle-label">
-                        <i class="fa-solid ${feat.icon}" style="color: ${feat.color}; margin-right: 6px;"></i> ${feat.title}
-                    </div>
-                    <div class="toggle-desc">${feat.desc}</div>
-                </div>
-                <div class="ps-switch" style="${isFeatOn ? 'background: #10b981;' : ''}"></div>
-            </div>
-        `);
-
-        $row.on("click", function () {
-            const next = !featOn(feat);
-            cfg.features[feat.key] = next;
-            $(this).toggleClass("active", next);
-            $(this).find(".ps-switch").css("background", next ? "#10b981" : "");
-            saveProfileToMemory();
-            // "Combine calls" depends on these routes: redraw so it is never stale.
-            renderChomusuke(c);
-        });
-
-        $routingPanel.append($row);
-
-        // Plan 009: which blocks the Blocks route takes, one switch each.
-        if (feat.key === "blocks" && isFeatOn) {
-            if (!cfg.blockRoutes || typeof cfg.blockRoutes !== "object") cfg.blockRoutes = { bonds: true, sheet: true, chatter: true, cyoa: true };
-            const subs = [
-                { id: "bonds", label: "Bonds", icon: "fa-heart" },
-                { id: "sheet", label: "Character Sheet", icon: "fa-shield-halved" },
-                { id: "chatter", label: "NPC Inner Chatter", icon: "fa-comments" },
-                { id: "cyoa", label: "CYOA choices", icon: "fa-list-check" }
-            ];
-            const stack = (localProfile.blockStack && localProfile.blockStack.order) || [];
-            const $subs = $(`<div class="chomu-block-routes"></div>`);
-            subs.forEach(s => {
-                const on = cfg.blockRoutes[s.id] !== false;
-                const inStack = stack.includes(s.id);
-                const $s = $(`
-                    <label class="chomu-block-route ${inStack ? "" : "is-off"}" title="${inStack ? "" : "This block is not in your block stack (Blocks tab), so there is nothing to write."}">
-                        <input type="checkbox" ${on ? "checked" : ""}/>
-                        <i class="fa-solid ${s.icon}"></i> ${s.label}${inStack ? "" : " <small>(not in your blocks)</small>"}
-                    </label>
-                `);
-                $s.find("input").on("change", function () {
-                    cfg.blockRoutes[s.id] = this.checked;
-                    saveProfileToMemory();
-                });
-                $subs.append($s);
-            });
-            $routingPanel.append($subs);
-        }
-    });
-
-    $content.append($routingPanel);
-
-    // ── CARD 3: COMBINE CALLS ──
-    // Everything a reply needs from Chomusuke in ONE call (plan 009): World
-    // State, the blocks, and the image when one is due.
-    if (!cfg.combine || typeof cfg.combine !== "object") cfg.combine = { all: false, worldFallback: false };
+    // ── After every reply ──
+    const n = callsPerReply(cfg);
     const combine = cfg.combine;
-    // One switch now; the old "World State and image" switch carries over.
-    if (combine.all === undefined) combine.all = combine.worldImage === true;
-    const worldOn = cfg.features.worldState === true;
-    const imageOn = cfg.features.imageGen !== false;
-    const blocksOn = cfg.features.blocks === true;
-    const notebookOn = cfg.features.notebook === true;
-    const combineReady = Boolean(cfg.enabled && cfg.profileId && (worldOn + imageOn + blocksOn + notebookOn) >= 2);
-    const $combinePanel = $(`
-        <div class="mtab-panel" style="margin-top: 14px; margin-bottom:0;">
-            <div class="mtab-panel-title blue" style="margin-bottom: 6px;">
-                <i class="fa-solid fa-layer-group"></i> Combine calls
-            </div>
-            <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">
-                Do several Chomusuke jobs in one call instead of one call each.
-                ${combineReady ? "" : "<br><b>Needs:</b> Chomusuke on, with at least two of <b>World State</b>, <b>Blocks</b>, <b>The Notebook</b> and <b>Image Generation</b> routed above."}
-            </div>
-        </div>
-    `);
-    const toggleRow = (key, title, desc, enabled, indent) => {
-        const on = combine[key] === true;
-        const $row = $(`
-            <div class="mtab-toggle-row ${on ? "active" : ""}" style="cursor: ${enabled ? "pointer" : "not-allowed"}; margin-bottom: 8px; ${enabled ? "" : "opacity: .5;"} ${indent ? "margin-left: 22px;" : ""}">
-                <div class="toggle-info">
-                    <div class="toggle-label">${title}</div>
-                    <div class="toggle-desc">${desc}</div>
-                </div>
-                <div class="ps-switch" style="${on ? "background: #10b981;" : ""}"></div>
-            </div>
-        `);
-        $row.on("click", () => {
-            if (!enabled) return;
-            combine[key] = !(combine[key] === true);
-            if (key === "all" && !combine.all) combine.worldFallback = false;
-            saveProfileToMemory();
-            renderChomusuke(c);
-        });
-        return $row;
-    };
-    $combinePanel.append(toggleRow(
-        "all",
-        `<i class="fa-solid fa-layer-group" style="color:#f59e0b; margin-right: 6px;"></i> Everything in one call`,
-        "After each reply, one call does everything routed to Chomusuke: the World State update, the blocks, the notebook, and the image prompt when an image is due (on V2 also the outfit tags and new looks). A reply that needs only one of them keeps its own call, so every reply costs at most one call.",
-        combineReady,
-        false
-    ));
-    $combinePanel.append(toggleRow(
-        "worldFallback",
-        `<i class="fa-solid fa-life-ring" style="color:#10b981; margin-right: 6px;"></i> Fall back to separate reads`,
-        "If the combined answer has no usable World State update, blocks or notebook lines, read the reply again for just that part (one extra call, only then). Off: the card shows it, with Read again.",
-        combineReady && combine.all === true,
-        true
-    ));
-    $content.append($combinePanel);
+    const routedPerReply = [worldRouted(cfg), cfg.features.blocks === true, cfg.features.notebook === true, cfg.features.imageGen !== false].filter(Boolean).length;
+    const combineReady = Boolean(running && routedPerReply >= 2);
+    const cost = !running ? "Chomusuke is off, so none of these cost a Chomusuke call."
+        : n === 0 ? "No job runs after every reply right now."
+        : n === 1 ? "Each reply costs <b>1</b> Chomusuke call."
+        : combine.all && combineReady ? `Each reply costs up to <b>${n}</b> Chomusuke calls → with Combine calls on: <b>1</b>.`
+        : `Each reply costs up to <b>${n}</b> Chomusuke calls. Turn on Combine calls to make it <b>1</b>.`;
 
-    // ── CALLOUT / TIP ──
-    $content.append(`
-        <div class="mtab-callout purple">
-            <i class="fa-solid fa-cat"></i>
-            <span><b>How Chomusuke works:</b> When a background task fires, Chomusuke seamlessly switches SillyTavern's connection to your worker profile, completes the task quietly, and restores your primary profile. If any error occurs, your primary connection is guaranteed to be restored instantly.</span>
-        </div>
-    `);
-
-    c.append($content);
-
-    // ── EVENT WIRING ──
-    c.find("#chomusuke_worker_profile").on("change", function () {
-        cfg.profileId = $(this).val();
-        saveProfileToMemory();
-        renderChomusuke(c);
-    });
-
-    c.find("#chomusuke_primary_profile").on("change", function () {
-        cfg.primaryProfileId = $(this).val();
-        saveProfileToMemory();
-    });
-
-    c.find("#btn_test_chomusuke").on("click", async function () {
-        const btn = $(this);
-        const statusSpan = $("#chomusuke_test_status");
-
-        if (!cfg.profileId) {
-            toastr.warning("Please select a Worker Profile first.", "Chomusuke");
-            return;
-        }
-
-        btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Testing...`);
-        statusSpan.text("Connecting to worker profile...");
-
-        try {
-            const testResult = await runWithChomusuke("test", async () => {
-                const response = await generateQuietPrompt({ prompt: "Reply with the single word: OK", quietPrompt: "Reply with the single word: OK" });
-                return typeof response === "string" ? response.trim() : "";
-            }, { force: true });
-
-            if (testResult) {
-                statusSpan.html(`<span style="color: #10b981;"><i class="fa-solid fa-circle-check"></i> Connection successful! Worker replied.</span>`);
-                toastr.success("Chomusuke connection verified! Primary connection restored.", "Chomusuke");
+    const every = card("After every reply", "Each job here is one Chomusuke call on every reply while it is on.");
+    every.append(`<div class="chx-cost"><i class="fa-solid fa-receipt"></i> <span>${cost}</span></div>`);
+    PER_REPLY.forEach(feat => {
+        const isBlocks = feat.key === "blocks";
+        const on = isBlocks ? anyBlockRouted(cfg) : routeOn(cfg, feat);
+        const $row = routeRow(feat, on, offChip(feat.key));
+        $row.on("click", e => {
+            if ($(e.target).closest(".chx-off").length) return;
+            if (isBlocks) {
+                // The row turns every block on or off; the chips pick single ones.
+                cfg.features.worldState = !on;
+                cfg.features.blocks = !on;
+                if (!on) BLOCK_ROUTES.forEach(b => { cfg.blockRoutes[b.id] = true; });
             } else {
-                statusSpan.html(`<span style="color: #ef4444;"><i class="fa-solid fa-circle-xmark"></i> Worker did not return text. Primary connection restored.</span>`);
+                cfg.features[feat.key] = !on;
+            }
+            saveProfileToMemory();
+            // Combine calls and the cost line depend on these: redraw.
+            redraw();
+        });
+        every.append($row);
+        if (isBlocks) every.append(blockChips(cfg, redraw));
+    });
+
+    // Combine calls belongs to this group.
+    every.append(`<div class="chx-sub">Combine calls ${combineReady ? "" : `<small>Needs Chomusuke on and at least two of the jobs above.</small>`}</div>`);
+    every.append(switchRow({
+        label: `<i class="fa-solid fa-layer-group" style="color:#f59e0b; margin-right: 6px;"></i> Everything in one call`,
+        desc: "After each reply, one call does every job above that is on, plus the image prompt when an image is due (on Version 2 also outfit tags and new looks). A reply that needs only one of them keeps its own call.",
+        on: combine.all === true && combineReady,
+        disabled: !combineReady,
+        onChange: on => { combine.all = on; if (!on) combine.worldFallback = false; saveProfileToMemory(); redraw(); }
+    }));
+    every.append(switchRow({
+        label: `<i class="fa-solid fa-life-ring" style="color:#10b981; margin-right: 6px;"></i> Fall back to separate reads`,
+        desc: "If the combined answer has no usable World State update, blocks or notebook lines, read the reply again for just that part (one extra call, only then). Off: the card shows it, with Read again.",
+        on: combine.worldFallback === true && combineReady && combine.all === true,
+        disabled: !(combineReady && combine.all === true),
+        onChange: on => { combine.worldFallback = on; saveProfileToMemory(); }
+    }).addClass("chx-indent"));
+    c.append(every);
+
+    // ── When the job runs ──
+    const occ = card("When the job runs", "Only when that job fires: a scan, a summary, a new direction.");
+    const $grid = $(`<div class="chx-grid"></div>`);
+    OCCASIONAL.forEach(feat => {
+        const on = routeOn(cfg, feat);
+        const $row = routeRow(feat, on, offChip(feat.key));
+        $row.on("click", e => {
+            if ($(e.target).closest(".chx-off").length) return;
+            cfg.features[feat.key] = !on;
+            saveProfileToMemory();
+            redraw();
+        });
+        $grid.append($row);
+    });
+    occ.append($grid);
+    c.append(occ);
+
+    c.append(`<div class="igx-note chx-how"><i class="fa-solid fa-cat"></i> When a job starts, Chomusuke switches to the worker connection, does the job quietly, then switches back. If anything goes wrong, your story connection is put back straight away.</div>`);
+
+    // ── Wiring ──
+    c.find(".chx-off").on("click", function (e) {
+        e.stopPropagation();
+        fireRefreshHook(REFRESH.SWITCH_TAB, $(this).data("tab"));
+    });
+    c.find("#chomusuke_worker_profile").on("change", function () { cfg.profileId = $(this).val(); saveProfileToMemory(); redraw(); });
+    c.find("#chomusuke_primary_profile").on("change", function () { cfg.primaryProfileId = $(this).val(); saveProfileToMemory(); });
+    c.find("#btn_test_chomusuke").on("click", async function () {
+        const $btn = $(this);
+        const $status = c.find("#chomusuke_test_status");
+        if (!cfg.profileId) { toastr.warning("Pick a connection profile first.", "Chomusuke"); return; }
+        $btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Testing…`);
+        $status.text("Connecting to the worker…");
+        try {
+            const reply = await runWithChomusuke("test", async () => {
+                const r = await generateQuietPrompt({ prompt: "Reply with the single word: OK", quietPrompt: "Reply with the single word: OK" });
+                return typeof r === "string" ? r.trim() : "";
+            }, { force: true });
+            if (reply) {
+                $status.html(`<span class="chx-ok"><i class="fa-solid fa-circle-check"></i> It works: the worker answered, and your story connection is back.</span>`);
+                toastr.success("Chomusuke answered. Your story connection is back.", "Chomusuke");
+            } else {
+                $status.html(`<span class="chx-bad"><i class="fa-solid fa-circle-xmark"></i> The worker sent no text back. Your story connection is back.</span>`);
             }
         } catch (err) {
-            statusSpan.html(`<span style="color: #ef4444;"><i class="fa-solid fa-circle-xmark"></i> Test failed: ${err.message || err}</span>`);
+            $status.html(`<span class="chx-bad"><i class="fa-solid fa-circle-xmark"></i> The test failed: ${esc(err.message || err)}</span>`);
         } finally {
-            btn.prop("disabled", false).html(`<i class="fa-solid fa-vial"></i> Test Chomusuke Connection`);
+            $btn.prop("disabled", false).html(`<i class="fa-solid fa-vial"></i> Test`);
         }
     });
+}
+
+function routeRow(feat, on, chip) {
+    return $(`
+        <div class="mtab-toggle-row chx-route ${on ? "active" : ""}" data-feat="${feat.key}">
+            <div class="toggle-info">
+                <div class="toggle-label"><i class="fa-solid ${feat.icon}" style="color: ${feat.color}; margin-right: 6px;"></i> ${feat.title} ${chip}</div>
+                <div class="toggle-desc">${feat.desc}</div>
+                ${feat.note ? `<div class="chx-note"><i class="fa-solid fa-star"></i> ${feat.note}</div>` : ""}
+            </div>
+            <div class="ps-switch"></div>
+        </div>
+    `);
+}
+
+// Which blocks Chomusuke writes, one tick each. World State is its own route
+// (features.worldState); the rest are the Blocks route (features.blocks +
+// blockRoutes, plan 009).
+function blockChips(cfg, redraw) {
+    const stack = (localProfile.blockStack && localProfile.blockStack.order) || [];
+    const $chips = $(`<div class="chx-blocks"></div>`);
+    const worldOn = worldRouted(cfg);
+    const worldInStack = worldEnabled();
+    const $world = $(`<label class="chx-block ${worldOn ? "on" : ""} ${worldInStack ? "" : "is-off"}" title="${worldInStack ? "" : "World State isn't on in the Blocks tab, so there is nothing to read."}">
+        <input type="checkbox" ${worldOn ? "checked" : ""}/> <i class="fa-solid fa-thumbtack"></i> World State${worldInStack ? "" : " <small>(not on)</small>"}
+    </label>`);
+    $world.find("input").on("change", function () {
+        cfg.features.worldState = this.checked;
+        saveProfileToMemory();
+        redraw();
+    });
+    $chips.append($world);
+    BLOCK_ROUTES.forEach(b => {
+        const on = blockRouted(cfg, b.id);
+        const inStack = stack.includes(b.id);
+        const $chip = $(`<label class="chx-block ${on ? "on" : ""} ${inStack ? "" : "is-off"}" title="${inStack ? "" : "This block isn't on in the Blocks tab, so there is nothing to write."}">
+            <input type="checkbox" ${on ? "checked" : ""}/> <i class="fa-solid ${b.icon}"></i> ${b.label}${inStack ? "" : " <small>(not on)</small>"}
+        </label>`);
+        $chip.find("input").on("change", function () {
+            if (this.checked && cfg.features.blocks !== true) {
+                // The first block ticked turns the route on with just that block.
+                cfg.features.blocks = true;
+                BLOCK_ROUTES.forEach(x => { cfg.blockRoutes[x.id] = x.id === b.id; });
+            } else {
+                cfg.blockRoutes[b.id] = this.checked;
+                if (!BLOCK_ROUTES.some(x => cfg.blockRoutes[x.id] !== false)) cfg.features.blocks = false;
+            }
+            saveProfileToMemory();
+            redraw();
+        });
+        $chips.append($chip);
+    });
+    return $chips;
 }
