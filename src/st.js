@@ -12,11 +12,11 @@
 // path inside OUR tree, so it moves with the file and is easy to fix).
 // ─────────────────────────────────────────────────────────────────────────────
 
-export { extension_settings, getContext } from "../../../../extensions.js";
+export { extension_settings, getContext, saveMetadataDebounced } from "../../../../extensions.js";
 
-export {
+import {
     saveSettingsDebounced,
-    generateQuietPrompt,
+    generateQuietPrompt as stGenerateQuietPrompt,
     event_types,
     eventSource,
     substituteParams,
@@ -29,8 +29,52 @@ export {
     chat_metadata,
     saveMetadata,
     isGenerating,
+    online_status,
+    saveChatDebounced,
+    name1,
 } from "../../../../../script.js";
 
-export { saveBase64AsFile, debounce, cancelDebounce } from "../../../../utils.js";
+import { saveBase64AsFile, debounce, cancelDebounce, waitUntilCondition } from "../../../../utils.js";
 export { humanizedDateTime } from "../../../../RossAscends-mods.js";
 export { Popup, POPUP_TYPE } from "../../../../popup.js";
+export { checkWorldInfo, getSortedEntries } from "../../../../world-info.js";
+
+export {
+    saveSettingsDebounced,
+    event_types,
+    eventSource,
+    substituteParams,
+    saveChat,
+    reloadCurrentChat,
+    addOneMessage,
+    getRequestHeaders,
+    appendMediaToMessage,
+    updateMessageBlock,
+    chat_metadata,
+    saveMetadata,
+    isGenerating,
+    online_status,
+    saveChatDebounced,
+    name1,
+    saveBase64AsFile,
+    debounce,
+    cancelDebounce,
+    waitUntilCondition,
+};
+
+/**
+ * Universal wrapper for SillyTavern's generateQuietPrompt.
+ * Ensures compatibility whether callers provide { prompt: '...' } or { quietPrompt: '...' }.
+ * @param {object|string} params
+ * @returns {Promise<string>}
+ */
+export async function generateQuietPrompt(params = {}) {
+    if (typeof params === "string") {
+        params = { quietPrompt: params, prompt: params };
+    } else if (params && typeof params === "object") {
+        const text = params.quietPrompt ?? params.prompt ?? "";
+        params = { ...params, quietPrompt: text, prompt: text };
+    }
+    return await stGenerateQuietPrompt(params);
+}
+

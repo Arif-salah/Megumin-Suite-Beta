@@ -3,6 +3,12 @@
 
 export const directStyles = [
     {
+      id: "dir_v11",
+      name: "V11 Default",
+      desc: "An overt narrator with a voice and opinions, in every paragraph. Never a camera.",
+      rule: "an overt narrator teller with a voice and opinions, present in every paragraph. Do not write as an effaced narrator or a camera."
+    },
+    {
       id: "dir_v10_ukiyo",
       name: "V10 Ukiyo Default",
       desc: "The register shifts scene to scene and never repeats the last turn's temperature.",

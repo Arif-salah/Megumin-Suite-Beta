@@ -12,6 +12,8 @@
 
 import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
+import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest } from "../../state/index.js";
+import { NOTEBOOK_TAGS } from "../../state/modules/notebook/parse.js";
 
 // -------------------------------------------------------------
 // BLOCK REGISTRY — one definition per block the <Blocks> envelope can carry
@@ -77,6 +79,14 @@ export const MEGUMIN_BLOCK_REGISTRY = [
         emoji: "📌", icon: "fa-thumbtack", color: "#f59e0b",
         visibility: "open", builtin: true,
         source: "[[infoblock]]", legacyIds: ["info"]
+    },
+    {
+        id: "worldUpdate", tag: "World_Update", label: "World Update",
+        desc: "Shows physical world state updates (location, clothing, time, posture) when they change.",
+        emoji: "📍", icon: "fa-location-dot", color: "#f59e0b",
+        visibility: "open", builtin: true, system: true,
+        // Handled dynamically inside buildBlocksEnvelope when 'world' is active
+        requires: () => false
     },
     {
         id: "chatter", tag: "NPC_Inner_Chatter", label: "NPC Inner Chatter",
@@ -192,11 +202,33 @@ export function meguminActiveBlocks() {
 // The instruction is a literal skeleton rather than a description of one. Models
 // follow a structure they can see far more reliably than a structure they have to
 // infer from prose, and the templates were already fill-in-the-blank.
+// A block's template as the model is asked for it (the story model in the
+// envelope, or Chomusuke when it writes the block). Any per-block header line
+// comes off first: the envelope carries one of its own, above everything.
+// Three ways a body arrives: a dict tag the rest of the pipeline already
+// produced (so engine overrides and custom prompts still apply), a template
+// generated from a field list, or a custom block's own text.
+export function meguminBlockTemplateBody(b, dict) {
+    let raw;
+    if (typeof b.build === "function") raw = b.build();
+    else if (b.source) raw = (dict && dict[b.source]) || "";
+    else raw = b.content || "";
+    return normalizeBlockBody(
+        String(raw).replace(/^#{1,3}\s*At the end of your response[^\n]*\n?/i, ""),
+        b.tag
+    );
+}
+
 export function buildBlocksEnvelope(dict) {
     const active = meguminActiveBlocks();
-    if (!active.length) return "";
+    // Plan 010: the Author's Notebook is not a block in the stack; it rides in
+    // the envelope whenever it is on, even with no other block.
+    let notebook = null;
+    try { notebook = notebookBlockRequest(); } catch (e) { console.warn("[Megumin Suite] Notebook: could not build its request.", e); }
+    if (!active.length && !notebook) return "";
 
     const parts = [];
+    const rules = [];   // per-block rules, written above <Blocks>
     active.forEach(b => {
         // A lead block is written before the prose, so it is deliberately not in
         // the envelope at all — the envelope is the last thing in the reply, and
@@ -212,32 +244,46 @@ export function buildBlocksEnvelope(dict) {
             return;
         }
 
-        // Any per-block header line comes off first: the envelope carries one of
-        // its own, above everything.
-        // Three ways a body arrives: a dict tag the rest of the pipeline already
-        // produced (so engine overrides and custom prompts still apply), a
-        // template generated from a field list, or a custom block's own text.
-        let raw;
-        if (typeof b.build === "function") raw = b.build();
-        else if (b.source) raw = dict[b.source] || "";
-        else raw = b.content || "";
-        const body = normalizeBlockBody(
-            String(raw).replace(/^#{1,3}\s*At the end of your response[^\n]*\n?/i, ""),
-            b.tag
-        );
+        // World State is owned by the state store: it decides between the first
+        // full snapshot and a short update, and whether the main model is asked
+        // at all (side-model and manual modes leave it out). Its rules sit above
+        // <Blocks> so the template itself stays small enough not to be echoed.
+        if (b.id === "world") {
+            const req = worldBlockRequest();
+            if (!req) return;
+            rules.push(req.rules);
+            parts.push(req.template);
+            return;
+        }
+
+        // Plan 009: Chomusuke writes this one after the reply.
+        if (blockViaChomusuke(b.id)) return;
+
+        const body = meguminBlockTemplateBody(b, dict);
         if (!body) return;
 
         parts.push(`<${b.tag}>\n${body}\n</${b.tag}>`);
     });
 
+    if (notebook) {
+        rules.push(notebook.rules);
+        parts.push(notebook.template);
+    }
+
     if (!parts.length) return "";
 
+    // The rules come FIRST and the "output" line sits right above the skeleton.
+    // Placed between the two, the rules read as part of what to write: the model
+    // echoed them into its reply. They are headings, never tags, for the same reason.
+    const rulesText = rules.length
+        ? `These rules say how to fill the blocks below. Follow them; never write them out.\n\n${rules.join("\n\n")}\n\n`
+        : "";
     const header = [
         "## At the end of your response, output exactly one <Blocks> section.",
-        "Put every block inside it, in this order, each in its own tag. Do not add tags that are not listed. Do not nest blocks inside each other. Close every tag you open. Never wrap a block in <details> or <summary> — the interface draws the header and the fold itself."
+        "Put every block inside it, in this order, each in its own tag. A block whose rules say to leave it out this turn is left out. Do not add tags that are not listed. Do not nest blocks inside each other. Close every tag you open. Never wrap a block in <details> or <summary>; write each block as its plain tag."
     ].join("\n");
 
-    return `${header}\n\n<Blocks>\n${parts.join("\n")}\n</Blocks>`;
+    return `${rulesText}${header}\n\n<Blocks>\n${parts.join("\n")}\n</Blocks>`;
 }
 
 //
@@ -331,8 +377,12 @@ export function meguminStatRules(fields, subject, opts = {}) {
     const meters = fields.filter(f => f.type === "meter");
     const seeds = tracked.map(f => `${f.label} ${f.start !== undefined ? f.start : 0}`).join(", ");
 
+    // Plan 008: the values on file reach the model in <Current_Info>, not
+    // through its own old blocks (which are hidden from it), so that is where
+    // it is told to start from.
+    const notes = opts.notesTag || `${subject}_Now`;
     const lines = [
-        `- Carry every number forward from the previous ${subject} block. Never reset one, and never invent a value that already exists.`,
+        `- Start every number from <${notes}> in <Current_Info>. Never reset one, and never invent a value that is already there.`,
         `- A number moves only when something in THIS scene moved it. Write the change and the reason in brackets, e.g. (-6 he apologised and she heard pity). When nothing moved it, write (=).`
     ];
     // The cap is for meters only. A counted field like Gold legitimately jumps by
@@ -341,7 +391,7 @@ export function meguminStatRules(fields, subject, opts = {}) {
     if (meters.length) {
         lines.push(`- ${meters.map(f => f.label).join(", ")} move at most 10 in one reply unless the scene plainly earns more.`);
     }
-    lines.push(`- Starting values when there is no previous one${opts.perSubject ? " for that person" : ""}: ${seeds}.`);
+    lines.push(`- Starting values when <${notes}> has none${opts.perSubject ? " for that person" : ""}: ${seeds}.`);
     return lines.join("\n");
 }
 
@@ -352,7 +402,7 @@ export function meguminBuildBondsTemplate() {
     const line = fields.map(meguminStatFieldSpec).join(" | ");
     return [
         "[One line per named NPC present in the scene, plus any NPC whose numbers changed this scene. Nobody else.",
-        meguminStatRules(fields, "Bonds", { perSubject: true }),
+        meguminStatRules(fields, "Bonds", { perSubject: true, notesTag: "Bonds_Now" }),
         "- These are feelings, not bodies. Do not describe clothing, posture or location here.]",
         "",
         `[NPC Name]: ${line}`
@@ -367,7 +417,7 @@ export function meguminBuildSheetTemplate() {
     const own = fields.filter(f => f.ownLine).map(meguminStatFieldSpec);
     return [
         "[{{user}}'s sheet.",
-        meguminStatRules(fields, "Character Sheet"),
+        meguminStatRules(fields, "Character Sheet", { notesTag: "Character_Sheet_Now" }),
         "- Inventory and skills change only when the story changes them. Do not restock or re-equip on your own.]",
         "",
         inline,
@@ -387,7 +437,7 @@ export function meguminBlockById(id) {
 // block that silently leaks, which is why it is derived rather than typed out.
 export function meguminAllBlockTags() {
     const custom = (localProfile && localProfile.blockStack && localProfile.blockStack.custom) || [];
-    const tags = [...MEGUMIN_BLOCK_REGISTRY.map(b => b.tag), ...custom.map(b => b.tag)];
+    const tags = [...MEGUMIN_BLOCK_REGISTRY.map(b => b.tag), ...custom.map(b => b.tag), ...NOTEBOOK_TAGS];
     // Story_Tracker is stripped explicitly by the cleaner before this list is
     // used, and stripping it twice is harmless, but a duplicate here would build
     // the same RegExp twice on every cleaned message.
@@ -406,7 +456,8 @@ export const BLOCK_VISIBILITY_CHOICES = [
 // silently instead of failing loudly.
 export const RESERVED_BLOCK_TAGS = [
     "blocks", "details", "summary", "think", "thinking", "gametxt", "updatevariable",
-    "combat_log", "location", "options", "disclaimer", "div", "span", "img", "p", "br"
+    "combat_log", "location", "options", "disclaimer", "div", "span", "img", "p", "br",
+    "notebook", "notebook_update"
 ];
 
 export function blockTagFromName(name) {

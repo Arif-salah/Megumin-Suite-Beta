@@ -49,15 +49,15 @@ export const SLOT_SCOPE = { ENGINE: "engine", SHARED: "shared", AUTO: "auto" };
 const gate = (test, label, where) => ({ test, label, where });
 
 const GATE = {
-    think:   gate(p => p.cotEnabled !== false, "Chain of Thought", "Presets & CoT"),
+    think:   gate(p => p.cotEnabled !== false, "Chain of Thought", "Preset & Thinking"),
     block:   id => gate(p => (p.blocks || []).includes(id), null, "Blocks"),
     addon:   id => gate(p => (p.addons || []).includes(id), null, "Add-ons"),
     chatter: gate(p => (p.blocks || []).includes("npc_inner_chatter")
                     || (p.blocks || []).includes("npc_inner_chatter_v2"),
                   "NPC Inner Chatter", "Blocks"),
     plan:    gate(p => !!(p.storyPlan && p.storyPlan.enabled), "Story Director", "Story Plan"),
-    dnratio: gate(p => !!(p.dnRatio && p.dnRatio.enabled), "Dialogue/Narration ratio", "Global"),
-    onomato: gate(p => !!(p.onomatopoeia && p.onomatopoeia.enabled), "Onomatopoeia", "Global"),
+    dnratio: gate(p => !!(p.dnRatio && p.dnRatio.enabled), "Dialogue/Narration ratio", "Writing Style"),
+    onomato: gate(p => !!(p.onomatopoeia && p.onomatopoeia.enabled), "Onomatopoeia", "Language & Add-ons"),
     dice:    gate(p => (p.addons || []).includes("dice")
                     || (p.addons || []).includes("dice_all"), "Dice", "Add-ons"),
 
@@ -69,7 +69,7 @@ const GATE = {
     // Custom clones are resolved from customModes as well as the shipped list,
     // because a clone of a Co-writer is still a Co-writer.
     notCoWriter: gate(p => !isCoWriterEngine(meguminModeById(p && p.mode)),
-                      "a non Co-writer engine", "Presets & CoT"),
+                      "a non Co-writer engine", "Preset & Thinking"),
 };
 
 /**
@@ -114,8 +114,8 @@ export const MEGUMIN_SLOT_REGISTRY = [
     { key: "p6", trigger: "[[prompt6]]", structural: true, label: "Prompt 6", scope: "engine", group: "engine",
       hint: "The last of the engine's own instructions." },
     { key: "main", trigger: "[[main]]", hidden: true, label: "Personality", scope: "auto", group: "engine",
-      where: "Personality",
-      hint: "Comes from the Personality tab. Blanked entirely on V6 and newer engines." },
+      where: "Persona",
+      hint: "Comes from the Persona tab. Blanked entirely on V6 and newer engines." },
     { key: "A1", trigger: "[[AI1]]", structural: true, hidden: true, label: "Model Acknowledgement 1", scope: "engine", group: "engine",
       advanced: true, hint: "A fake reply from the model, agreeing that it read the rules." },
     { key: "A2", trigger: "[[AI2]]", structural: true, hidden: true, label: "Model Acknowledgement 2", scope: "engine", group: "engine",
@@ -158,8 +158,8 @@ export const MEGUMIN_SLOT_REGISTRY = [
       ] },
     { key: "userControl", trigger: "[[user]]", label: "Never Write For {{user}}", scope: "shared", group: "systems",
       gate: GATE.notCoWriter,
-      hint: "Sent on every engine except the Co-writer variants, which are built to write {{user}}. It lands as item 4 of the preset's final reminder list, so keep it written as a numbered line.",
-      fallback: () => "4. NEVER write for or Control {{user}}" },
+      hint: "Sent on every engine except the Co-writer variants, which are built to write {{user}}. It lands in the preset's numbered final reminder list, so keep it written as a numbered line.",
+      fallback: () => "5. The response does not speak, think, feel, or act for {{user}}, and it shows everything {{user}} reached for." },
     { key: "direct", trigger: "[[Direct]]", label: "Direct Language", scope: "shared", group: "systems",
       gate: GATE.addon("direct"), hint: "Blunt anatomical wording instead of euphemism.",
       fallback: () => addonText("direct") },
@@ -203,41 +203,45 @@ export const MEGUMIN_SLOT_REGISTRY = [
 
     // ── Computed from your settings. Overridable, but rarely worth it ────────
     { key: "language", trigger: "[[Language]]", label: "Language Rule", scope: "auto", group: "global",
-      overridable: true, where: "Global",
-      hint: "Built from the language you picked in the Global tab." },
+      overridable: true, where: "Language & Add-ons",
+      hint: "Built from the language you picked in the Language & Add-ons tab." },
     { key: "pronouns", trigger: "[[pronouns]]", label: "Your Pronouns", scope: "auto", group: "global",
-      overridable: true, where: "Global",
-      hint: "Built from the pronouns you picked in the Global tab." },
+      overridable: true, where: "Language & Add-ons",
+      hint: "Built from the pronouns you picked in the Language & Add-ons tab." },
     { key: "count", trigger: "[[count]]", label: "Word Count", scope: "auto", group: "global",
-      overridable: true, deprecated: true, where: "Presets & CoT",
+      overridable: true, deprecated: true, where: "Preset & Thinking",
       hint: "Superseded by Length in Story Config. Always sent empty unless you override it here." },
 
     // ── Filled live by a feature. Nothing to edit ────────────────────────────
-    { key: null, trigger: "[[config]]", label: "Story Config", scope: "auto", group: "live", where: "Presets & CoT",
+    { key: null, trigger: "[[config]]", label: "Story Config", scope: "auto", group: "live", where: "Preset & Thinking",
       hint: "The <config> block built from your Story Config choices." },
+    { key: null, trigger: "[[infoblockcurrent]]", label: "Current World State", scope: "auto", group: "live", where: "Blocks",
+      hint: "The current compiled World State context on file, injected right above <Blocks> when in delta update mode." },
+    { key: null, trigger: "[[notebook]]", label: "Author's Notebook", scope: "auto", group: "live", where: "Blocks",
+      hint: "How to keep the notebook's hidden truths. Empty while the notebook is off or paused." },
     { key: null, trigger: "[[blocks]]", label: "Output Blocks", scope: "auto", group: "live", where: "Blocks",
       hint: "The whole <Blocks> envelope, assembled from the blocks you switched on." },
     { key: null, trigger: "[[long-Memory]]", label: "Long-term Memory", scope: "auto", group: "live", where: "Memory",
       hint: "Archived summaries pulled from the vault for this turn." },
     { key: null, trigger: "[[Short-memory]]", label: "Short-term Memory", scope: "auto", group: "live", where: "Memory",
       hint: "Recent chat kept verbatim." },
-    { key: null, trigger: "[[npc list]]", label: "NPC List", scope: "auto", group: "live", where: "NPC",
+    { key: null, trigger: "[[npc list]]", label: "NPC List", scope: "auto", group: "live", where: "NPC Bank",
       hint: "The NPCs judged relevant to the current scene." },
-    { key: null, trigger: "[[npc_dossier]]", label: "NPC Dossier Rules", scope: "auto", group: "live", where: "NPC",
+    { key: null, trigger: "[[npc_dossier]]", label: "NPC Dossier Rules", scope: "auto", group: "live", where: "NPC Bank",
       hint: "Instructions for keeping dossiers up to date. Not the dossiers themselves." },
     { key: null, trigger: "[[npc_events]]", label: "Organic NPCs & Events", scope: "auto", group: "live",
-      where: "Add-ons", gate: GATE.addon("npc_events"),
+      where: "Language & Add-ons", gate: GATE.addon("npc_events"),
       hint: "Stops new characters appearing out of nowhere." },
-    { key: null, trigger: "[[storyplan]]", label: "Story Plan", scope: "auto", group: "live", where: "Story Plan",
+    { key: null, trigger: "[[storyplan]]", label: "Story Plan", scope: "auto", group: "live", where: "Story Director",
       gate: GATE.plan, hint: "The current directive from the Story Director." },
-    { key: null, trigger: "[[img1]]", label: "Image Rules", scope: "auto", group: "live", where: "Image Gen",
+    { key: null, trigger: "[[img1]]", label: "Image Rules", scope: "auto", group: "live", where: "Images",
       hint: "Instructions for emitting image prompts." },
     { key: null, trigger: "[[aiprompt]]", label: "Narration Style", scope: "auto", group: "live",
       where: "Writing Style",
       hint: "Your writing style, wrapped differently depending on the engine generation." },
-    { key: null, trigger: "[[OOC]]", label: "OOC Protocol", scope: "auto", group: "live", where: "Global",
+    { key: null, trigger: "[[OOC]]", label: "OOC Protocol", scope: "auto", group: "live", where: "Persona",
       hint: "Out-of-character directives. Blanked on V8 and V9." },
-    { key: null, trigger: "[[control]]", label: "Control Protocol", scope: "auto", group: "live", where: "Global",
+    { key: null, trigger: "[[control]]", label: "Control Protocol", scope: "auto", group: "live", where: "Persona",
       hint: "Who may act for whom. Blanked on V8 and V9." },
 ];
 

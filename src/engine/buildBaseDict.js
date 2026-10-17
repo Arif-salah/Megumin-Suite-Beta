@@ -10,7 +10,7 @@
 import { getContext, extension_settings, substituteParams } from "../st.js";
 import { extensionName } from "../core/constants.js";
 import { localProfile } from "../core/state.js";
-import { isV7Engine, isV8Engine, isModernEngine, engineUsesRenderLimits, isCoWriterEngine } from "../core/engines.js";
+import { isV7Engine, isV8Engine, isModernEngine, engineUsesRenderLimits, isCoWriterEngine, engineKeepsNotebook } from "../core/engines.js";
 import {
     activeNpcImages, pushActiveNpcImage, clearActiveNpcImages,
 } from "../core/activeRequests.js";
@@ -19,13 +19,17 @@ import { hardcodedLogic } from "../../data/database.js";
 import { applyEnhancedDialogue } from "../../data/modes/v10.js";
 import { buildBlocksEnvelope } from "../features/blocks/registry.js";
 import { buildConfigBlock } from "../features/storyconfig/config.js";
-import { npcBuildTextFromData, getRelevantNpcImageTags } from "../features/npc/data.js";
+import { npcBuildTextFromData } from "../features/npc/data.js";
+import { imageInjectionNpcTags, imageV2InlineInstruction, imageViaChomusuke } from "../features/imagegen/index.js";
 import { npcBuildDossierPrompt, npcBuildUpdatePrompt } from "../features/npc/fields.js";
 import { memGetCachedKeywords } from "../features/memory/keywords.js";
 import { memGetRelevantVaultEntries } from "../features/memory/index.js";
 import { meguminRollD20s } from "../utils/dice.js";
 import { meguminOverridableSlots, meguminSlotIsLive, meguminModuleTrigger } from "../../data/slots.js";
 import { resolveSlot } from "../core/sharedFragments.js";
+import { worldPromptBlock, statsPromptParts, notebookPromptBlock, notebookCurrentPhase } from "../state/index.js";
+import { NOTEBOOK_CRAFT } from "../prompts/notebook.js";
+import { meguminCleanChatHistoryText } from "./chatText.js";
 
 export function buildBaseDict(isTokenCount = false) {
     const dict = {};
@@ -201,7 +205,7 @@ export function buildBaseDict(isTokenCount = false) {
         // shared fragment still wins, exactly like every other shared slot.
         dict["[[user]]"] = isCoWriterEngine(activeEngine)
             ? ""
-            : "4. NEVER write for or Control {{user}}";
+            : "5. The response does not speak, think, feel, or act for {{user}}, and it shows everything {{user}} reached for.";
 
         // Slot overrides, driven by MEGUMIN_SLOT_REGISTRY.
         //
@@ -314,8 +318,11 @@ export function buildBaseDict(isTokenCount = false) {
     }
 
     // NEW: Inject Thinking Effort to the absolute top of whatever [[COT]] is currently active
+    // Not for a Thinking Cap: it sets its own length, and a word count makes the
+    // models it is for count and redraft.
     let effort = localProfile.thinkEffort || "unspecified";
-    if (effort !== "unspecified" && dict["[[COT]]"]) {
+    const isCap = /^cot-.+-cap-/.test(localProfile.model || "");
+    if (effort !== "unspecified" && dict["[[COT]]"] && !isCap) {
         let words = effort === "custom" ? (localProfile.customThinkEffort || "100") : effort;
         dict["[[COT]]"] = `Your Thinking must not be more than ${words} words.\n\n` + dict["[[COT]]"];
     }
@@ -404,6 +411,10 @@ export function buildBaseDict(isTokenCount = false) {
             conditionalText = "CRITICAL INSTRUCTION: ONLY output the <img prompt=\"...\"> tag if the character is explicitly taking a photo, sending a picture, or sharing an image in this exact moment. If not, do NOT output the image tags at all.\n\n";
         }
 
+        // Chomusuke writes the automatic images after the reply (imagegen/auto.js),
+        // so the story model is not asked for an <img> tag at all.
+        if (imageViaChomusuke()) shouldInject = false;
+
         if (shouldInject) {
             const customIg = localProfile.imageGen.customPromptsEnabled ? (localProfile.imageGen.customPrompts || {}) : {};
             const defIg = DEFAULT_PROMPTS.imageGen;
@@ -430,7 +441,7 @@ export function buildBaseDict(isTokenCount = false) {
             const template = customIg.injectionTemplate || defIg.injectionTemplate;
             let extraSection = ig.promptExtra ? `Extra Instructions: ${ig.promptExtra}` : "";
             let directLangStr = ig.directLanguage ? "**DIRECT LANGUAGE:** Use exact Booru tags only. \"naked\" not \"wearing nothing.\" \"erection\" not \"visible arousal.\"\n\n**NSFW TAG REFERENCE (use when scene is explicit):**\nBody: naked, nude, topless, exposed nipples, small breasts, medium breasts, large breasts, spread legs, ass, erection, veins, veiny penis\nActions: hetero, sex, vaginal, anal, oral, fellatio, after fellatio, paizuri, straddling, riding, missionary, doggystyle, cowgirl position, moaning, open mouth, tongue out, ahegao, clenching teeth\nFluids: cum, cum on body, cum on breasts, cum on face, cum on hair, cum on tongue, cum in mouth, cum inside, ejaculation, facial, saliva, sweat\nState: flushed face, heavy breathing, trembling, crying with eyes open, half-closed eyes, solo focus" : "";
-            let npcTagsStr = getRelevantNpcImageTags(); // <-- GET THE TAGS
+            let npcTagsStr = imageInjectionNpcTags(); // <-- GET THE TAGS (Classic or V2)
             const imageCountStr = ig.imageCount || 1; 
 
             dict["[[img1]]"] = template
@@ -442,6 +453,10 @@ export function buildBaseDict(isTokenCount = false) {
                 .replace('{{npcImageTags}}', npcTagsStr) // <-- INJECT THEM
                 .replace('{{templateExamples}}', examples);
             
+            // Image Gen V2 has its own, shorter instruction (@Name, cast list).
+            const v2Inline = imageV2InlineInstruction({ conditionalText, imageCount: imageCountStr });
+            if (v2Inline) dict["[[img1]]"] = v2Inline;
+
             // Set the new value for img2 dynamically based on the count!
             dict["[[img2]]"] = ` and the ${imageCountStr} image tag`;
         } else {
@@ -461,8 +476,18 @@ export function buildBaseDict(isTokenCount = false) {
     if (dict["[[storytracker]]"]) dict["[[storytracker2]]"] = "[Story tracker here]"; else dict["[[storytracker2]]"] = "";
     if (dict["[[npc_inner_chatter]]"]) dict["[[npc_inner_chatter2]]"] = "[Npc inner chatter here]"; else dict["[[npc_inner_chatter2]]"] = "";
 
+    // --- AUTHOR'S NOTEBOOK (plan 010) ---
+    // The craft of keeping it, for an engine that carries [[notebook]] in its
+    // text (so it is resolved early, below). Empty while the notebook is off,
+    // so the engine never talks about a notebook that isn't there, and
+    // empty for an engine that keeps its own notebook (V11): its own text
+    // carries the craft, and a preset holding [[notebook]] would say it twice.
+    let notebookPhaseNow = "off";
+    try { notebookPhaseNow = notebookCurrentPhase(); } catch (e) { /* no chat */ }
+    dict["[[notebook]]"] = notebookPhaseNow === "off" || engineKeepsNotebook(activeEngine) ? "" : NOTEBOOK_CRAFT;
+
     // Resolve early-evaluated tokens inside all other strings to prevent them from being missed and then cleaned up
-    const earlyTokens = ["[[count]]", "[[Language]]", "[[pronouns]]", "[[DNRATIO]]", "[[img2]]", "[[v9_lean_min]]", "[[v9_lean_max]]", "[[v9_full_min]]", "[[v9_full_max]]"];
+    const earlyTokens = ["[[notebook]]", "[[count]]", "[[Language]]", "[[pronouns]]", "[[DNRATIO]]", "[[img2]]", "[[v9_lean_min]]", "[[v9_lean_max]]", "[[v9_full_min]]", "[[v9_full_max]]"];
     earlyTokens.forEach(et => {
         if (dict[et] !== undefined) {
             const val = dict[et];
@@ -474,20 +499,19 @@ export function buildBaseDict(isTokenCount = false) {
         }
     });
 
-    // --- COMPACT WORLD STATE LOGIC ---
-    if (localProfile.blocks.includes("info") && dict["[[infoblock]]"] && localProfile.worldState && localProfile.worldState.compactEnabled) {
-        const context = typeof getContext === "function" ? getContext() : null;
-        if (context && context.chat) {
-            // Count how many AI messages exist so far
-            const aiMsgCount = context.chat.filter(m => !m.is_user && !m.is_system).length;
-            const freq = localProfile.worldState.fullFreq || 5;
-            
-            // If checking tokens for the UI, OR if the upcoming reply is NOT a multiple of the full frequency
-            if (isTokenCount || (aiMsgCount + 1) % freq !== 0) {
-                dict["[[infoblock]]"] = `Omit deep lore, unresolved threads, and off-screen tracking. Focus ONLY on immediate physical presence:\n<World_State>\n**Time & Loc:** [Time] at [Location]\n**PC:** [Brief visible clothing] | [Current posture/position]\n**NPCs Present:**\n* [Name]: [Brief visible clothing] | [Posture/position]\n</World_State>`;
-            }
-        }
-    }
+    // --- CURRENT WORLD STATE (continuity notes) ---
+    // Injected into [[infoblockcurrent]] above [[blocks]] once the story has a
+    // state on file. The state store owns it; see src/state/index.js.
+    // [[infoblockcorrent]] is an old misspelling some presets still carry.
+    //
+    // Plan 008: the same spot is "Current Info" — World State plus the Bonds the
+    // story needs right now, the player's sheet, and the last Inner Chatter and
+    // Story Tracker — so the model reads the true values here instead of its own
+    // old blocks in the chat. Each part only when its block is on.
+    const worldNotes = localProfile.blocks && localProfile.blocks.includes("info") ? worldPromptBlock() : "";
+    const currentInfo = buildCurrentInfo(worldNotes);
+    dict["[[infoblockcurrent]]"] = currentInfo;
+    dict["[[infoblockcorrent]]"] = currentInfo;
 
     // --- PER-BLOCK HEADERS ---
     // The envelope carries its own header, once, above everything. These lines
@@ -734,4 +758,43 @@ export function buildBaseDict(isTokenCount = false) {
     dict["[[blocks]]"] = buildBlocksEnvelope(dict);
 
     return dict;
+}
+
+// The last few messages, blocks removed: whose bonds the story needs is read from these.
+function recentStoryText(count = 3) {
+    const chat = (getContext() && getContext().chat) || [];
+    const out = [];
+    for (let i = chat.length - 1; i >= 0 && out.length < count; i--) {
+        const m = chat[i];
+        if (!m || m.is_system) continue;
+        out.push(meguminCleanChatHistoryText(String(m.mes || "")));
+    }
+    return out.join("\n");
+}
+
+// [[infoblockcurrent]]: one <Current_Info> section, or "" when nothing is on file.
+function buildCurrentInfo(worldNotes) {
+    let parts = { bonds: "", sheet: "", chatter: "", tracker: "" };
+    try { parts = statsPromptParts({ recentText: recentStoryText() }); } catch (e) {
+        console.warn("[Megumin Suite] Current Info: could not read the kept blocks.", e);
+    }
+    let notebook = "";
+    try { notebook = notebookPromptBlock(); } catch (e) {
+        console.warn("[Megumin Suite] Current Info: could not read the notebook.", e);
+    }
+    const sections = [];
+    if (worldNotes) sections.push(worldNotes);
+    if (notebook) sections.push(notebook);
+    if (parts.bonds) sections.push(`<Bonds_Now>\n${parts.bonds}\n</Bonds_Now>`);
+    if (parts.sheet) sections.push(`<Character_Sheet_Now>\n${parts.sheet}\n</Character_Sheet_Now>`);
+    if (parts.chatter) sections.push(`<Last_Inner_Chatter>\n${parts.chatter}\n</Last_Inner_Chatter>`);
+    if (parts.tracker) sections.push(`<Last_Story_Tracker>\n${parts.tracker}\n</Last_Story_Tracker>`);
+    if (!sections.length) return "";
+    return [
+        "<Current_Info>",
+        "<!-- Where the story stands right now, before your reply: the world, how the characters feel about {{user}}, {{user}}'s sheet, and the last private thoughts and story notes. Keep your reply consistent with it and carry these values forward. Never copy this section into your reply. -->",
+        "",
+        sections.join("\n\n"),
+        "</Current_Info>"
+    ].join("\n");
 }

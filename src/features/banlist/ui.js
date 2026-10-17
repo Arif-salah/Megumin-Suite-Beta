@@ -8,7 +8,7 @@ import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js
 import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { getCleanedChatHistory } from "../../engine/chatText.js";
-import { analyzeSlopDirectly, analyzeSlopWithPreset } from "../../engine/tasks.js";
+import { analyzeSlopDirectly, analyzeSlopWithPreset, runWithChomusuke } from "../../engine/tasks.js";
 
 export function renderBanList(c) {
     c.empty();
@@ -23,14 +23,10 @@ export function renderBanList(c) {
             </div>
             <div class="mtab-setting-row">
                 <div class="set-info">
-                    <div class="set-label">Generator Backend</div>
-                    <div class="set-desc">Choose how to generate the analysis.</div>
+                    <div class="set-label"><i class="fa-solid fa-cat" style="color: #f43f5e; margin-right: 6px;"></i> Background Worker</div>
+                    <div class="set-desc">Managed by the <b>Chomusuke</b> tab. Configure Chomusuke to offload slop analysis to a dedicated worker LLM.</div>
                 </div>
-                <select id="ban_list_backend" class="ps-modern-input" style="width: 200px; cursor: pointer;">
-                <option value="direct" ${localProfile.banListBackend === 'direct' ? 'selected' : ''}>Direct API Call (Fast)</option>
-                <option value="preset" ${localProfile.banListBackend === 'preset' ? 'selected' : ''}>Megumin Engine Preset</option>
-            </select>
-        </div>
+            </div>
 
         <div class="mtab-panel" style="margin-bottom:16px;">
             <div class="mtab-panel-title red"><i class="fa-solid fa-plus-circle"></i> Add Phrase</div>
@@ -159,20 +155,11 @@ export function renderBanList(c) {
         reader.readAsText(file);
         $(this).val('');
     });
-    $("#ban_list_backend").on("change", function () {
-        localProfile.banListBackend = $(this).val();
-        saveProfileToMemory();
-    });
     $("#ps_btn_scan_slop").on("click", async function () {
         const chatText = getCleanedChatHistory();
         if (chatText.length < 50) return toastr.warning("Not enough chat history to analyze!");
         $(this).prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...`);
-        let rawResponse;
-        if (!localProfile.banListBackend || localProfile.banListBackend === "direct") {
-            rawResponse = await analyzeSlopDirectly(chatText);
-        } else {
-            rawResponse = await analyzeSlopWithPreset(chatText);
-        }
+        let rawResponse = await runWithChomusuke("banList", () => analyzeSlopDirectly(chatText));
         if (rawResponse) {
             const newPhrases = rawResponse.split(/[,*\n-]/).map(t => t.trim().replace(/['"\[\]\.]/g, '')).filter(t => t.length > 3);
             let addedCount = 0;

@@ -23,6 +23,7 @@ import { hardcodedLogic } from "../../data/database.js";
 import { MEGUMIN_BLOCK_REGISTRY, meguminSyncLegacyBlockIds } from "../features/blocks/registry.js";
 import { NPC_DEFAULT_FIELDS, NPC_SYSTEM_ROLES } from "../features/npc/fields.js";
 import { npcRollbackHistoryFrom } from "../features/npc/updates.js";
+import { WORLD_SETTINGS_DEFAULTS } from "../state/index.js";
 import { normalizeStoryConfig, applyStoryConfigDefaults } from "../features/storyconfig/config.js";
 import { escapeRegex } from "../utils/regex.js";
 import { refreshSidePanel, refreshPresentBar } from "../sidepanel/panel.js";
@@ -197,6 +198,10 @@ export function initProfile() {
             selectedSampler: "euler",
             compressImages: true,
             steps: 20, cfg: 7.0, denoise: 0.5, clipSkip: 1,
+            // "classic" (the tab as before task 001) or "v2" (plan 006). New installs
+            // start on V2; a profile saved before the switch existed stays Classic.
+            engine: "v2",
+            v2: { style: "tags", shot: "cinematic", extra: "", method: "placeholders" },
             promptTemplate: "illus_cinematic",
             includeExamples: true,
             directLanguage: false,
@@ -207,7 +212,8 @@ export function initProfile() {
             previewPrompt: false,
             savedWorkflowStates: {},
             customPrompts: null,
-            customPromptsEnabled: false
+            customPromptsEnabled: false,
+            characterTags: {}
         },
         memoryCore: {
             enabled: false,
@@ -238,7 +244,33 @@ export function initProfile() {
             scanDepth: 60,
             ignoredNames: "",
             injectionLimit: 3
-        }
+        },
+        chomusuke: {
+            enabled: false,
+            profileId: "",
+            primaryProfileId: "",
+            features: {
+                memory: true,
+                storyPlan: true,
+                npc: true,
+                banList: true,
+                imageGen: true,
+                styleGen: true,
+                // Off by default: when on, every reply costs one extra worker call.
+                worldState: false,
+                // Plan 009: Chomusuke writes the chosen blocks instead of the story model.
+                blocks: false
+            },
+            // Which blocks go to Chomusuke when the Blocks route is on.
+            blockRoutes: { bonds: true, sheet: true, chatter: true, cyoa: true }
+        },
+        // Settings only. The World State itself lives in the chat file
+        // (chat_metadata.megumin_state), never here.
+        worldState: { ...WORLD_SETTINGS_DEFAULTS },
+        // Plan 008: the story model reads Current Info, not its own old blocks.
+        hideBlocksFromAI: true,
+        // Plan 010: the Author's Notebook. An engine with `notebook: true` turns it on anyway.
+        notebook: { enabled: false }
     };
 
 
@@ -324,6 +356,12 @@ export function initProfile() {
     if (!localProfile.toggles) localProfile.toggles = defaults.toggles;
     if (!localProfile.v9Limits) localProfile.v9Limits = defaults.v9Limits;
     if (!localProfile.imageGen) localProfile.imageGen = defaults.imageGen;
+    if (localProfile.imageGen.engine === undefined) localProfile.imageGen.engine = "classic";
+    if (localProfile.imageGen.autoPlacement === undefined) localProfile.imageGen.autoPlacement = "end";
+    if (!localProfile.imageGen.v2 || typeof localProfile.imageGen.v2 !== "object") {
+        localProfile.imageGen.v2 = { style: "tags", shot: "cinematic", extra: "", method: "placeholders" };
+    }
+    if (localProfile.imageGen.v2.method === undefined) localProfile.imageGen.v2.method = "placeholders";
     if (localProfile.imageGen.directLanguage === undefined) localProfile.imageGen.directLanguage = false;
     if (localProfile.imageGen.imageCount === undefined) localProfile.imageGen.imageCount = 1;
     if (localProfile.imageGen.promptPrefix === undefined) localProfile.imageGen.promptPrefix = "";
@@ -448,7 +486,56 @@ export function initProfile() {
     }
     if (!localProfile.dnRatio) localProfile.dnRatio = defaults.dnRatio;
     if (!localProfile.onomatopoeia) localProfile.onomatopoeia = defaults.onomatopoeia;
-    if (!localProfile.worldState) localProfile.worldState = { compactEnabled: false, fullFreq: 5 };
+    // World State: settings only. Profiles written before the state store kept
+    // the state itself here, per CHARACTER rather than per chat, which is how
+    // one chat's outfits vanished on reload. That copy is dropped; each chat's
+    // own messages are imported into its chat file instead.
+    if (!localProfile.worldState || typeof localProfile.worldState !== "object") {
+        localProfile.worldState = { ...WORLD_SETTINGS_DEFAULTS };
+    } else {
+        delete localProfile.worldState.current;
+        delete localProfile.worldState.history;
+        delete localProfile.worldState.compactEnabled;
+        delete localProfile.worldState.fullFreq;
+        for (const [k, v] of Object.entries(WORLD_SETTINGS_DEFAULTS)) {
+            if (localProfile.worldState[k] === undefined) localProfile.worldState[k] = v;
+        }
+    }
+    if (!localProfile.chomusuke) {
+        localProfile.chomusuke = JSON.parse(JSON.stringify(defaults.chomusuke));
+    } else {
+        if (localProfile.chomusuke.enabled === undefined) localProfile.chomusuke.enabled = false;
+        if (localProfile.chomusuke.profileId === undefined) localProfile.chomusuke.profileId = "";
+        if (localProfile.chomusuke.primaryProfileId === undefined) localProfile.chomusuke.primaryProfileId = "";
+        if (!localProfile.chomusuke.features) {
+            localProfile.chomusuke.features = {
+                memory: true,
+                storyPlan: true,
+                npc: true,
+                banList: true,
+                imageGen: true,
+                styleGen: true,
+                // Off by default: when on, every reply costs one extra worker call.
+                worldState: false
+            };
+        }
+    }
+    // A feature added after the profile was saved. World State starts OFF (it
+    // costs a worker call per reply). Set explicitly: the Chomusuke tab flips a
+    // toggle with `!value`, so a missing key would click to true, never to off.
+    if (localProfile.chomusuke?.features && localProfile.chomusuke.features.worldState === undefined) {
+        localProfile.chomusuke.features.worldState = false;
+    }
+    // "Combine calls": several Chomusuke jobs in one call. Both off by default.
+    if (localProfile.chomusuke && (!localProfile.chomusuke.combine || typeof localProfile.chomusuke.combine !== "object")) {
+        localProfile.chomusuke.combine = { all: false, worldFallback: false };
+    }
+    // "Side model" briefly lived in the Blocks tab's Updates list; that choice
+    // is now the Chomusuke World State route.
+    if (localProfile.worldState?.updateMode === "sidemodel") {
+        localProfile.worldState.updateMode = "inline";
+        if (localProfile.chomusuke?.features) localProfile.chomusuke.features.worldState = true;
+    }
     // Prompt blocks are stored as a diff against DEFAULT_PROMPTS. Put the untouched keys
     // back before anything reads them. Runs after the patching above has guaranteed each
     // module container exists, so a profile saved before a module shipped is covered too.
@@ -467,7 +554,7 @@ export function initProfile() {
         console.log("[Megumin Suite] A hand-edited NPC dossier template was found. The template is generated from the NPC Bank's field list now, so that edit is no longer applied — rebuild it as fields in the NPCs Bank tab.");
         if (typeof toastr !== "undefined") {
             toastr.info(
-                "Your edited NPC dossier template is no longer used — the dossier is built from the field list in the NPCs Bank tab now. Your old text is still stored, nothing was deleted.",
+                "Your edited NPC dossier template is no longer used — the dossier is built from the field list in the NPC Bank tab now. Your old text is still stored, nothing was deleted.",
                 "Megumin Suite — NPC template moved",
                 { timeOut: 12000 }
             );
@@ -520,7 +607,8 @@ export function initProfile() {
     const metaHadOnEntry = {
         memory: !!(chat_metadata && chat_metadata["megumin_memory_core"]),
         plan: !!(chat_metadata && chat_metadata["megumin_story_plan"]),
-        npcs: !!(chat_metadata && chat_metadata["megumin_npc_bank"])
+        npcs: !!(chat_metadata && chat_metadata["megumin_npc_bank"]),
+        charTags: !!(chat_metadata && chat_metadata["megumin_character_tags"])
     };
 
     if (chat_metadata && chat_metadata["megumin_memory_core"]) {
@@ -562,6 +650,19 @@ export function initProfile() {
         saveMetadata();
     }
 
+    // --- LOAD CHARACTER TAGS FROM CHAT METADATA ---
+    if (chat_metadata && chat_metadata["megumin_character_tags"]) {
+        if (localProfile.imageGen) {
+            localProfile.imageGen.characterTags = chat_metadata["megumin_character_tags"].characterTags || {};
+        }
+    } else if (localProfile.imageGen) {
+        // No looks in this chat yet: it starts with none. Looks were never kept in
+        // settings.json except by a one-day Beta build whose global sync copied one
+        // chat's looks into every profile; seeding from there put an old story's
+        // characters into every new chat (dropLookResidue clears them).
+        localProfile.imageGen.characterTags = {};
+    }
+
     // The three blocks above are still a migration SOURCE: a chat opened for the first
     // time since chat_metadata became the home for this data has its only copy sitting in
     // settings.json. That residue is the other half of what makes settings.json large, so
@@ -590,6 +691,10 @@ export function initProfile() {
             }
             if (metaHadOnEntry.npcs && stored.npcBank && stored.npcBank.npcs !== undefined) {
                 delete stored.npcBank.npcs;
+                freed = true;
+            }
+            if (metaHadOnEntry.charTags && stored.imageGen && stored.imageGen.characterTags !== undefined) {
+                delete stored.imageGen.characterTags;
                 freed = true;
             }
             if (freed) saveSettingsDebounced();
@@ -740,6 +845,8 @@ export function pruneFutureData() {
     if (npcRollbackHistoryFrom(chatLength)) {
         changesMade = true;
     }
+    // World State needs no rollback here: the state store squares itself with
+    // the chat on MESSAGE_DELETED (src/state/index.js).
 
     // 2b. Rebalance the working window.
     //
@@ -843,9 +950,16 @@ export function saveProfileToMemory() {
             chat_metadata["megumin_npc_bank"].npcs = bank.npcs || [];
         }
 
+        const charTags = localProfile.imageGen?.characterTags;
+        if (charTags && ((Object.keys(charTags).length > 0) || chat_metadata["megumin_character_tags"] !== undefined)) {
+            if (!chat_metadata["megumin_character_tags"]) chat_metadata["megumin_character_tags"] = {};
+            chat_metadata["megumin_character_tags"].characterTags = charTags || {};
+        }
+
         const hasAnyBlock = !!(chat_metadata["megumin_memory_core"]
             || chat_metadata["megumin_story_plan"]
-            || chat_metadata["megumin_npc_bank"]);
+            || chat_metadata["megumin_npc_bank"]
+            || chat_metadata["megumin_character_tags"]);
 
         if (hasAnyBlock) {
             // chat_metadata ends up holding the same array objects as localProfile, so
@@ -855,7 +969,8 @@ export function saveProfileToMemory() {
             const metaStamp = key + "|" + JSON.stringify([
                 chat_metadata["megumin_memory_core"] || null,
                 chat_metadata["megumin_story_plan"] || null,
-                chat_metadata["megumin_npc_bank"] || null
+                chat_metadata["megumin_npc_bank"] || null,
+                chat_metadata["megumin_character_tags"] || null
             ]);
             if (metaStamp !== _lastSavedMetaStamp) {
                 _lastSavedMetaStamp = metaStamp;
@@ -875,6 +990,13 @@ export function saveProfileToMemory() {
     }
     if (profileToSave.npcBank) {
         delete profileToSave.npcBank.npcs; // DO NOT save NPCs in settings.json!
+    }
+    if (profileToSave.imageGen) {
+        delete profileToSave.imageGen.characterTags; // DO NOT save characterTags in settings.json!
+    }
+    if (profileToSave.worldState) {
+        delete profileToSave.worldState.current; // World State lives in the chat file
+        delete profileToSave.worldState.history;
     }
 
     // Drop prompt text that matches DEFAULT_PROMPTS. Safe on profileToSave because it is
@@ -939,6 +1061,13 @@ export function flushProfileSettingsToLoadedKey() {
     }
     if (profileToSave.npcBank) {
         delete profileToSave.npcBank.npcs; // DO NOT save NPCs in settings.json!
+    }
+    if (profileToSave.imageGen) {
+        delete profileToSave.imageGen.characterTags; // DO NOT save characterTags in settings.json!
+    }
+    if (profileToSave.worldState) {
+        delete profileToSave.worldState.current; // World State lives in the chat file
+        delete profileToSave.worldState.history;
     }
 
     meguminSparsifyProfilePrompts(profileToSave);
