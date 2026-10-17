@@ -9,6 +9,151 @@ README on the stable branch.
 
 ---
 
+## 2026-10-17 — V11 Тайна
+
+> A worker of your own called Chomusuke, a World State that remembers properly,
+> image generation that keeps every character looking the same, bonds the
+> AI actually reads right instead of digging through a hundred old blocks, a new
+> V11 engine, an Author's Notebook so the story can keep a secret and pay it off,
+> and a cleaner window that's easier to find your way around.
+
+### A cleaner window
+
+- **The tab list is shorter and grouped.** The main tabs are always there: **Preset & Thinking, Blocks, The Notebook, NPC Bank, Images, Chomusuke**. The rest fold into two groups: **Story Setup** (Writing Style, Language & Add-ons) and **More Tools** (Story Director, Memory, Banned Phrases, Side Panel, Persona). **Settings** stays at the bottom.
+- **Clearer names.** Presets & CoT → **Preset & Thinking**, Global Toggles & Add Ons → **Language & Add-ons**, NPCs Bank → **NPC Bank**, Image Generation → **Images**, Memory Core → **Memory**, Dynamic Ban List → **Banned Phrases**, Global Settings → **Settings**. A tab you had set to Global stays Global.
+- **Persona only shows when your preset uses it.** Every V8-and-later preset brings its own, so the tab is out of the way.
+- **On a phone**, the bottom bar shows the main tabs and two group buttons; tap a group and its tabs open in a small sheet above the bar. The group you're in lights up and names the tab ("More Tools · Memory").
+
+### Preset & Thinking — rebuilt
+
+- **Three pages at the top: Preset · Thinking · Story Config**, with a summary of what's picked (preset, thinking, how many Story Config settings are set).
+- **Latest presets first.** Choose a preset from **Latest** (V10 and V11), **All**, or **Mine** (your own presets from Dev Mode, with Edit). Compact cards; the full description shows on hover.
+- **Only the thinking made for your preset.** The Thinking page shows the frameworks that fit your preset (CoT V11 and its Thinking Cap on V11) as cards that show their whole description, with a switch to show every framework. Thinking length is one row of buttons (100 / 250 / 450 / Custom / No limit), the language only shows where there's more than English, and the Gemini override sits under Advanced.
+- **V7 modules** sit at the top of the Preset page while a V7 preset is picked.
+- **Model guide** (button at the top of the tab): which settings fit your model. Gemini runs CoT V11 with the Gemini thinking override and the preset's prefill on; Chinese models (Kimi, DeepSeek, GLM, Qwen) get the Thinking Cap and a 0.7–0.8 temperature, with a button that picks the cap for you; DeepSeek likes to ignore the blocks, so Chomusuke writes them and the World State updates in a call after the reply (it can use the same connection), and local models do the same so they focus on the story. Plus the good habits: turn on only what your story needs, keep old blocks hidden from the AI, and combine Chomusuke's calls.
+
+### V11 Тайна — a new engine
+
+- **A new preset in Preset & Thinking, under Latest.** The model works as a writers' room of five: a director who keeps continuity and checks every draft, a psychologist for what each character wants, a story architect who keeps the hidden truths, a storyteller for the narration and a dialogue writer for the voices. You read one voice; the team only talks in the thinking.
+- **Its own CoT and writing style.** Picking V11 picks **CoT V11** (the room works the turn in order) and the **V11 Default** style: an overt narrator with a voice and opinions, never a camera.
+- **CoT V11 — Thinking Cap**, for models that over-think (DeepSeek, Kimi, GLM, Qwen). The same five steps, but each one is a short line of notes, no draft (not even "in its head"), no going through the rules or the banlist, and the reply is written only once, in the reply. Its rules are repeated as the last thing the model reads, where these models actually follow them. No word count: a Thinking Cap sets its own length, and the Thinking page shows a tip for Kimi and DeepSeek instead. CoT V11 stays the default; pick the Thinking Cap on the Thinking page when your model thinks too long.
+- **V11 keeps an Author's Notebook by itself** (see below). Nothing to switch on.
+
+### Author's Notebook — the story keeps secrets and pays them off
+
+- **The story decides two or three hidden truths early**, keeps them, plants small clues, and reveals each one when the story earns it. Before, whatever the model decided while thinking was gone the next turn, so it either forgot the secret or blurted it out.
+- **On by itself with V11.** For any other engine, switch it on in the new **The Notebook** tab.
+- **The extension keeps the notebook**, not the chat. The model gets the live truths every turn, and the old notebook blocks are hidden from it like the other blocks.
+- **The rules are kept by the extension, not just asked for:** at most three live truths, a truth can't be quietly rewritten by the model, and a clue the model claims to have planted but never actually wrote in the story is marked **"not found in the reply"**.
+- **No spoilers unless you want them.** A reply that touched the notebook gets a 📓 **Notebook** tab on its card, blurred; it asks before showing you. Inside, a new truth is its own card (the truth, who it's hidden from, when it comes out, what it changes), and each change is one line with an icon: **Clue planted**, **Found out**, **Came out**. **Revert** / **Restore** undo or bring back what that reply did.
+- **The Notebook tab** reads as one page: the live truths behind a spoiler warning (open one to edit any field, remove a clue, **Mark revealed** or **Delete**), and **Past**, a timeline of every truth that came out, with each clue and the message it was planted in (`#15`). **Activate again** puts a past truth back into the story.
+- **Always on with V11** ("Forced on for V11"): V11's own text speaks of its notebook, so it can't be switched off there.
+- **Swipes, edits and deletes undo exactly what that reply did**, the same as World State. Swipe away the reply that wrote the truths and the story writes new ones.
+- **Chomusuke can note the clues for you** (Chomusuke tab, **The Notebook**, off by default, though I recommend leaving it to the story model). The story model only writes new truths; Chomusuke reads each reply and notes the clues, who found out, and what came out. **Read again** redoes it.
+- **World State drops the NPC Secret field while the notebook is on**, so hidden things live in one place.
+
+### One switch for the whole suite
+
+- **On / Off, right in the top bar** of the window (and in Settings). Turn it off and the suite steps aside: your prompt goes out exactly as SillyTavern builds it, and nothing runs in the background after a reply — no World State or block reads, no automatic images, no Story Director, Memory or NPC Bank.
+- **Nothing breaks while it's off.** Cards and images already in your chat still show, and swipes, edits and deletes are still followed, so World State and your bonds are right when you turn it back on.
+- **The floating button fades while it's off**, so you can tell at a glance without opening anything.
+- Handy for a quick chat with a different preset, or to check whether something odd is the suite's doing.
+
+### Chomusuke — a second model for the background work
+
+- **A new tab: Chomusuke.** Pick a connection profile and the background jobs run on it instead of your story model: Memory, Story Director, NPC Bank, Banned Phrases, Images, World State, Blocks, The Notebook and the Writing Style generator. Each one has its own switch, so you choose what goes to the worker and what stays.
+- **Grouped by what they cost.** **After every reply** (Blocks with World State, The Notebook, Images) costs a call on every reply; **When the job runs** (Memory, NPC Bank, Story Director, Banned Phrases, Writing Style) only when that job fires. A line tells you how many Chomusuke calls each reply costs, and what it would be with Combine calls on.
+- **A job that's off in its own tab says so** ("The Notebook is off →") and takes you there.
+- **Use a cheap or fast model for the chores** and keep your good one for the story. The extension switches the connection over for the job and back afterwards.
+- **Jobs wait their turn.** Chomusuke does one job at a time, so two features never fight over the connection.
+- **Your reply can't go to the wrong model.** If you hit send while Chomusuke is still switching in or out, your message waits a moment and then goes to the story model where it belongs.
+
+### World State — rebuilt from the ground up
+
+- **It's saved in the chat now, not on the character.** Every chat has its own world state, and it survives reloads, switching chats, branches, `/hide`, summaries and deleting old messages. Outfits no longer vanish from Image Gen after a reload.
+- **Swipes, edits and regenerates undo exactly what that reply changed.** Swipe back and the changes come back too. Deleting an old message keeps what it changed, so the story doesn't lose its place.
+- **Characters come back as they left.** Someone who walks out and returns ninety messages later still has their last outfit and details, even if the chat was summarized in between.
+- **The model writes a few short change lines instead of a full block every reply.** Fewer tokens, and nothing gets mangled. The extension keeps the full state and gives the model the true version each turn.
+- **"Changed in this reply."** A small strip on the card shows what that message changed, e.g. `Aqua · Outfit: blue dress → bath towel`. It's folded by default. Next to it: **Revert** (turn off that reply's changes), **Restore**, **Read again** and **Edit**.
+- **A World State editor.** Fix any field, add or remove characters, move someone in or out of the scene, see the history of changes, or ask for a full rewrite on the next reply.
+- **Mood, Agenda, Secret and Threads hold steady.** They're the story's deep currents now: a character's Agenda is the big goal that drives them, not "wants to make coffee", and it only changes when the story really turns it. Same for secrets and open threads.
+- **Nicknames work.** `Matthew "Matt"` is one character, and either name finds him.
+- **Three ways to keep it updated** (World State section of the Blocks tab): the story model writes the changes (**Inline**), Chomusuke reads each reply and writes them (**Side model**, chosen in the Chomusuke tab), or you do it by hand in the editor (**Manual**).
+- **Old chats carry over.** The first time you open one, the last World State in it is read in, along with every update after it.
+
+### Bonds, Character Sheet, Inner Chatter and Story Tracker — the AI reads the true values
+
+- **No more reading a hundred old Bonds blocks.** Before, the model had to find its last Bonds block in the chat and carry the numbers forward — so it was reading 20, 35, 65, 42 affection all the way down. Now the extension keeps the values and gives the model one clean **Current Info** section with the real numbers.
+- **Bonds are only sent for who matters right now:** characters in the scene, anyone named in the last few messages, and anyone in the latest Bonds block. Everyone else stays on file and comes back when they do.
+- **The Character Sheet is always sent** while its block is on. **Inner Chatter** and the **Story Tracker** send their last one.
+- **Swipes and edits undo them properly**, the same way as World State.
+- **Old chats work from day one.** The first time a chat opens, every block already in it is read, so old characters' bonds are there straight away.
+- **"All characters" on the Bonds card.** A popup with every character's bonds, the ones in the story right now first.
+- **Edit bonds and the sheet yourself.** **Edit** on the Bonds card and **Edit sheet** on the Sheet card open an editor: change any value, add a character, forget one. Clear a box to remove that value.
+
+### Lorebooks reach the background jobs
+
+- **On by default** (Settings). Background jobs build their own prompt, so your lorebook never reached them. Now image looks, NPC portraits and NPC refreshes get the entries that name that character, and the Story Director and NPC scans get the entries your story has active.
+
+### See what background jobs send
+
+- **Preview background prompts** (Settings, off by default). Before a background job sends its prompt — Memory, NPC Bank, World State, Blocks, the Notebook, Images, Banned Phrases, Story Director, Writing Style — a popup shows the exact messages and where they're going. **You can change the text before sending**, or cancel just that job; the story carries on. Pick which jobs to watch, all of them by default.
+- **Last background prompts.** The last 10 prompts that were sent, for every chat and character, with Copy. Kept in your browser, never in the settings file, so it can't bloat it.
+- The old preview is now called **Preview story prompts**.
+
+### New NPCs get a proper card
+
+- **A new NPC's dossier is a card**, the same look as the World State cast: name, role, age and sex, then one tidy row per field. Personality shows as chips when it's a few words, secrets stay blurred until you hover or tap, and **Open in NPC Bank** takes you to their record.
+
+### Hide old blocks from the AI
+
+- **On by default, marked Recommended** (Blocks tab). The extension removes the old blocks from the chat history the story model reads. You still see them in the chat, but the AI only gets what it's fed in Current Info — no pile of old blocks to wade through, and no tokens spent on them. No preset regex needed. Chat Completion only.
+
+### Chomusuke can write your blocks
+
+- **Blocks in the Chomusuke tab**, with a switch for each: **World State, Bonds, Character Sheet, NPC Inner Chatter and CYOA choices.** A block you send to Chomusuke is no longer asked of the story model; Chomusuke writes it after each reply. The story model spends its words on the story.
+- **The cards look the same.** Tabs, CYOA buttons and Bonds buttons all work as before, and **Read again** asks Chomusuke to redo that reply's blocks.
+- **The Story Tracker and Dice stay with the story model.** The tracker is the story model's own plan, and dice are rolled before the reply is written.
+
+### Combine calls — one Chomusuke call per reply
+
+- **One switch, in the Chomusuke tab.** When it's on, everything Chomusuke does for a reply — World State, your routed blocks, the notebook and the image when one is due — goes out as one call instead of several. It's off by default, and has a fallback to separate calls if the combined answer comes back incomplete.
+
+### Images — Classic and Version 2
+
+- **Two versions at the top of the tab: Classic | Version 2 · Consistent characters.** Classic is the image tab you know, with its own prompts. Version 2 is new. Both keep their settings when you switch, and they share the ComfyUI generator settings.
+- **A tab that doesn't scare you off.** Three pages: **Characters** (Version 2), **When & how** and **Generator**. The everyday choices are big buttons (when images come, where they go, the shot, the prompt style); the rest waits under Advanced, and sampler, steps, seed, LoRAs and the rest under **Expert settings**.
+- **ComfyUI status at the top.** It says whether ComfyUI is connected; when it isn't, a note says so and every setting stays where it is.
+- **Characters as cards.** One small card per character (where they are, their look, what they're wearing); click one to edit its look in a popup. Everyone away is folded under one line.
+- **V2: characters look the same in every image.** Most of every image prompt — each character's look and clothes — now stays the same from one picture to the next, and only changes when the story changes it. The model doesn't retype anyone's looks any more. It writes `@Aqua` and the extension puts in Aqua's saved look and her current outfit from World State. Retry gives you the same picture, even if her outfit has changed since.
+- **One line per character.** Each character gets their own line in the prompt, so traits stop bleeding from one character into another.
+- **The image shows the last message.** The model gets the earlier story only as background, and draws the moment the latest message ends on.
+- **Looks come from the NPC Bank, the character card, the chat, or you.** A scan finds the characters and their looks. An established look only changes when you click Scan, and a popup shows old vs new for each one: Keep or Use new. A new character arriving in the story gets a look automatically. Lock a look and nothing replaces it.
+- **Outfits come from World State**, so they're always the current ones. Optional **Detailed outfit tags** turn an outfit into precise tags once, when it changes, and reuse them for every image after.
+- **Chomusuke can make the images for you.** Automatic images are written by Chomusuke instead of the story model, and placed at the end of the reply or in a random paragraph.
+- **V2 needs World State on.** If it's off, the tab tells you and falls back to Classic.
+- **Classic: the manual image prompt knows what characters look like.** It used to see only the last five messages. Now it also gets the character sheets (every member in a group chat), your persona, and the NPC Bank image tags.
+- **Picking a tag style fills in the quality tags** in the prompt prefix for you.
+- **Choose how many characters an image focuses on** (V2): 2, 3, 4 or all, 3 by default.
+- **Better looks.** Every look starts with the sex and a real age tag (`young adult`, `old man`…), 8 to 12 tags you'd recognise the character by. A feminine-looking man or a masculine-looking woman gets the tags that make the image model draw the right sex. Outfits are a few plain tags, one per garment.
+- **Plainer image prompts.** A few plain words per character for the pose, action and expression, a few objects and one main light.
+- **A character with no look is left out of the image**, and you're told who, instead of the model guessing.
+
+### Fixes
+
+- **One image per image.** While ComfyUI was busy, the extension could post the same finished picture over and over — one report had seventeen copies. It checks one at a time now, and only posts once.
+- **Cancelling an automatic image no longer leaves `[Generating Image...]` in the reply.**
+- **Cancelling a regenerate puts the old image back** instead of leaving the message without one.
+- **New chats no longer start with another story's characters** in Image Gen V2.
+- **A look saved under a first name finds the full name** ("Anno" finds "Anno Ryo"), and POV images no longer ask for the player's outfit.
+- **An empty image prompt answer stops with an error** instead of sending the prefix alone.
+- **The NPC Bank no longer runs code hidden in an imported or AI-written NPC.**
+- **Opening the Images tab no longer knocks SillyTavern offline** when ComfyUI isn't running. Its checks give up after a few seconds instead of tying up the connection for two minutes.
+- **A ComfyUI address ending in `/` works.** The LoRA list, images and NPC portraits no longer break on `http://…:8188/`.
+- **The rule about the player is clearer.** The default line now says the response doesn't speak, think, feel or act for you, and shows everything you reached for. Your own version from Dev Mode still wins.
+
+---
+
 ## 2026-08-28
 
 > Blocks stop disappearing when you run other extensions, Memory Core stops

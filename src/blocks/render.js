@@ -279,6 +279,8 @@ function renderTreated(b, opts) {
         // line; one that does not still works, on the old inference.
         const parsed = t.parse(b.body, {
             keepPlaceholders: Boolean(opts && opts.preview),
+            // A repeating block's name="" attribute (a New NPC's name).
+            name: b.name || "",
             fields: (opts && opts.statFields && opts.statFields[b.def.id]) || null
         });
         if (!parsed) return "";

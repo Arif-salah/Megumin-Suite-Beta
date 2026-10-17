@@ -19,6 +19,7 @@ import { meguminCotForMode } from "../../../data/cot/index.js";
 import { buildStoryConfigSection } from "../../features/storyconfig/ui.js";
 import { countActiveConfigFields } from "../../features/storyconfig/config.js";
 import { card as pageCard, segmented, switchRow, field, esc } from "../controls.js";
+import { openModelGuide } from "../modelGuide.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enhanced Dialogue — the switch drawn inside a preset card.
@@ -99,6 +100,7 @@ const DESCRIPTIONS = {
 
 const COT_TYPES = [
     { id: "v11", label: "CoT V11", desc: "The writers' room works the turn in order: the director reads the history, the psychologist decides what each character does, the story architect picks what is new and whether a hidden truth gets a clue or comes out, the writers draft, and the director checks it against the rules.", isNew: true },
+    { id: "v11-cap", label: "CoT V11 — Thinking Cap", desc: "The same five steps with a hard ceiling on the thinking: one line of notes per step, and the reply is written only once, in the reply. For models that over-think, like DeepSeek, Kimi, GLM and Qwen.", isNew: true },
     { id: "v10-ukiyo", label: "CoT V10 Ukiyo", desc: "The long-form reasoning built for Ukiyo. Thinks like a novelist muttering before a draft — present tense, a little messy, never a plan. No phases, no checklists, no audits.", isNew: true },
     { id: "v10-ukiyo-cap", label: "CoT V10 Ukiyo — Thinking Cap", desc: "The same writer's mind with a hard ceiling on the thinking phase. For models that over-think.", isNew: true },
     { id: "v10-shura", label: "CoT V10 Shura", desc: "Seven rules carried into the writing rather than a plan made before it. Built for V10 Shura, and the lightest of the four.", isNew: true },
@@ -145,6 +147,7 @@ const LATEST = ["V11", "V10"];
 // tested ahead of the plain ones or every cap reads back as its uncapped sibling.
 function parseCot(model) {
     const m = String(model || "");
+    if (m.startsWith("cot-v11-cap-")) return { type: "v11-cap", lang: "english" };
     if (m.startsWith("cot-v11-")) return { type: "v11", lang: "english" };
     if (m.startsWith("cot-v10-ukiyo-cap-")) return { type: "v10-ukiyo-cap", lang: "english" };
     if (m.startsWith("cot-v10-shura-cap-")) return { type: "v10-shura-cap", lang: "english" };
@@ -158,7 +161,7 @@ function parseCot(model) {
 // The frameworks made for a preset; null = any (older and your own presets).
 function cotTypesFor(mode) {
     const m = String(mode || "");
-    if (m.includes("v11")) return ["v11"];
+    if (m.includes("v11")) return ["v11", "v11-cap"];
     if (m.includes("v10")) return ["v10-ukiyo", "v10-ukiyo-cap", "v10-shura", "v10-shura-cap"];
     if (m.includes("v6")) return ["v6", "v6-lite"];
     if (m === "v7.5") return ["v7.5"];
@@ -169,7 +172,7 @@ function cotTypesFor(mode) {
     return null;
 }
 
-const ENGLISH_ONLY = t => t.startsWith("v10") || t.startsWith("v9") || ["v11", "v7", "v7-lite", "v7.5", "v8", "v8-fusion"].includes(t);
+const ENGLISH_ONLY = t => t.startsWith("v11") || t.startsWith("v10") || t.startsWith("v9") || ["v7", "v7-lite", "v7.5", "v8", "v8-fusion"].includes(t);
 
 function cotModelId(type, lang) {
     if (type.startsWith("v11") || type.startsWith("v10") || type.startsWith("v9")) return `cot-${type}-english`;
@@ -216,6 +219,7 @@ export function renderCoreAndCot(c) {
                 <div class="mtab-header-icon" style="background: linear-gradient(135deg, #f59e0b, #a855f7);"><i class="fa-solid fa-server"></i></div>
                 <div><h2>Preset & Thinking</h2><p>Choose the preset, how it thinks before it writes, and the story's standing settings.</p></div>
             </div>
+            <button type="button" class="menu_button ptx-guide-btn" title="Which settings fit the model you use"><i class="fa-solid fa-compass"></i> Model guide</button>
         </div>
         <div class="igx-chips ptx-summary">
             <span class="igx-chip ok"><i class="fa-solid fa-server"></i> ${esc(active ? active.label : localProfile.mode)}</span>
@@ -223,6 +227,21 @@ export function renderCoreAndCot(c) {
             <span class="igx-chip"><i class="fa-solid fa-sliders"></i> Story Config: ${cfgCount ? `${cfgCount} set` : "preset defaults"}</span>
         </div>
     `);
+
+    // The guide's "Pick the Thinking Cap" picks the cap made for this preset
+    // (Shura's for Shura, Ukiyo's otherwise); none when the preset has no cap.
+    const caps = (cotTypesFor(localProfile.mode) || []).filter(t => t.endsWith("-cap"));
+    const capType = caps.find(t => t === `${cot.type}-cap`) || caps[0];
+    c.find(".ptx-guide-btn").on("click", () => openModelGuide({
+        onPickCap: capType ? () => {
+            localProfile.model = cotModelId(capType, "english");
+            localProfile.cotEnabled = true;
+            saveProfileToMemory();
+            currentPage = "thinking";
+            rerender();
+            toastr.success(`Thinking set to ${COT_TYPES.find(t => t.id === capType).label}.`, "Megumin Suite");
+        } : undefined
+    }));
 
     const pages = [
         { id: "preset", label: "Preset", icon: "fa-server" },
@@ -276,7 +295,7 @@ function renderPresetPage(c, { active, activeIsCustom, official, customModes, re
     c.append(`
         <div class="mtab-callout gold" style="margin-bottom: 14px;">
             <i class="fa-solid fa-lightbulb"></i>
-            <span><strong>Pro Tip:</strong> The preset defines the "laws of physics" and pacing of your story. Thinking is the AI's scratchpad before it writes. For the best experience, match V11 Writers' Room with CoT V11. Picking a preset picks its thinking for you.</span>
+            <span><strong>Pro Tip:</strong> The preset defines the "laws of physics" and pacing of your story. Thinking is the AI's scratchpad before it writes. For the best experience, match V11 Тайна with CoT V11. Picking a preset picks its thinking for you.</span>
         </div>
     `);
 
@@ -379,7 +398,7 @@ function renderThinkingPage(c, { active, cot, rerender }) {
     const allowed = cotTypesFor(localProfile.mode);
     const fw = pageCard("How it thinks", allowed ? "The frameworks made for your preset." : "Your preset works with any of these.");
     const visible = COT_TYPES.filter(t => !allowed || showAllCot || allowed.includes(t.id) || t.id === cot.type);
-    const $grid = $(`<div class="mtab-card-grid ptx-grid"></div>`);
+    const $grid = $(`<div class="mtab-card-grid ptx-grid ptx-cot-grid"></div>`);
     visible.forEach(t => {
         const isSel = cot.type === t.id;
         const warned = allowed && !allowed.includes(t.id);
@@ -387,13 +406,13 @@ function renderThinkingPage(c, { active, cot, rerender }) {
             ? `<span class="ecard-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><i class="fa-solid fa-triangle-exclamation"></i> Made for another preset</span>`
             : (t.isNew ? `<span class="ecard-badge new">New</span>` : "");
         const $card = $(`
-            <div class="mtab-eng-card ptx-compact ${isSel ? "active" : ""}">
+            <div class="mtab-eng-card ptx-cot ${isSel ? "active" : ""}">
                 <div class="ecard-accent"></div>
                 <div class="ecard-body">
                     <div class="ecard-title"><span>${t.label}</span>
                         ${isSel ? `<span class="ecard-badge" style="background:rgba(168,85,247,0.15);color:#a855f7;"><i class="fa-solid fa-check"></i> Active</span>` : ""}
                     </div>
-                    <p class="ecard-desc" title="${esc(t.desc)}">${t.desc}</p>
+                    <p class="ecard-desc">${t.desc}</p>
                     ${badge ? `<div class="ptx-badges">${badge}</div>` : ""}
                 </div>
             </div>
@@ -417,23 +436,34 @@ function renderThinkingPage(c, { active, cot, rerender }) {
     }
     c.append(fw);
 
-    // ── Length ──
+    // ── Length (a Thinking Cap sets its own) ──
     if (!localProfile.thinkEffort) localProfile.thinkEffort = "unspecified";
     if (!localProfile.customThinkEffort) localProfile.customThinkEffort = "100";
-    const len = pageCard("How long it thinks");
-    const $custom = field("Words", "", $(`<input type="number" id="ps_input_custom_effort" class="ps-modern-input igx-tiny" min="1" value="${esc(localProfile.customThinkEffort)}" />`));
-    $custom.toggle(localProfile.thinkEffort === "custom");
-    len.append(segmented([
-        { id: "100", label: "100 words" }, { id: "250", label: "250 words" }, { id: "450", label: "450 words" },
-        { id: "custom", label: "Custom" }, { id: "unspecified", label: "No limit" }
-    ], localProfile.thinkEffort, id => {
-        localProfile.thinkEffort = id;
-        saveProfileToMemory();
-        $custom.toggle(id === "custom");
-    }));
-    $custom.find("input").on("change input", function () { localProfile.customThinkEffort = $(this).val(); saveProfileToMemory(); });
-    len.append($custom);
-    c.append(len);
+    if (cot.type.endsWith("-cap")) {
+        const capLen = pageCard("How long it thinks", "The Thinking Cap keeps the thinking short by itself, so there's no length to set.");
+        capLen.append(`
+            <div class="mtab-callout gold">
+                <i class="fa-solid fa-lightbulb"></i>
+                <span>For Kimi and DeepSeek, a temperature of 0.7–0.8 also helps them think less. Kimi ignores Reasoning Effort: it only thinks or doesn't.</span>
+            </div>
+        `);
+        c.append(capLen);
+    } else {
+        const len = pageCard("How long it thinks");
+        const $custom = field("Words", "", $(`<input type="number" id="ps_input_custom_effort" class="ps-modern-input igx-tiny" min="1" value="${esc(localProfile.customThinkEffort)}" />`));
+        $custom.toggle(localProfile.thinkEffort === "custom");
+        len.append(segmented([
+            { id: "100", label: "100 words" }, { id: "250", label: "250 words" }, { id: "450", label: "450 words" },
+            { id: "custom", label: "Custom" }, { id: "unspecified", label: "No limit" }
+        ], localProfile.thinkEffort, id => {
+            localProfile.thinkEffort = id;
+            saveProfileToMemory();
+            $custom.toggle(id === "custom");
+        }));
+        $custom.find("input").on("change input", function () { localProfile.customThinkEffort = $(this).val(); saveProfileToMemory(); });
+        len.append($custom);
+        c.append(len);
+    }
 
     // ── Language: only where the framework has more than English ──
     if (!ENGLISH_ONLY(cot.type) && cot.type !== "off") {

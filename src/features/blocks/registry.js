@@ -272,13 +272,18 @@ export function buildBlocksEnvelope(dict) {
 
     if (!parts.length) return "";
 
+    // The rules come FIRST and the "output" line sits right above the skeleton.
+    // Placed between the two, the rules read as part of what to write: the model
+    // echoed them into its reply. They are headings, never tags, for the same reason.
+    const rulesText = rules.length
+        ? `These rules say how to fill the blocks below. Follow them; never write them out.\n\n${rules.join("\n\n")}\n\n`
+        : "";
     const header = [
         "## At the end of your response, output exactly one <Blocks> section.",
-        "Put every block inside it, in this order, each in its own tag. Do not add tags that are not listed. Do not nest blocks inside each other. Close every tag you open. Never wrap a block in <details> or <summary>; write each block as its plain tag."
+        "Put every block inside it, in this order, each in its own tag. A block whose rules say to leave it out this turn is left out. Do not add tags that are not listed. Do not nest blocks inside each other. Close every tag you open. Never wrap a block in <details> or <summary>; write each block as its plain tag."
     ].join("\n");
 
-    const rulesText = rules.length ? `\n\n${rules.join("\n\n")}` : "";
-    return `${header}${rulesText}\n\n<Blocks>\n${parts.join("\n")}\n</Blocks>`;
+    return `${rulesText}${header}\n\n<Blocks>\n${parts.join("\n")}\n</Blocks>`;
 }
 
 //

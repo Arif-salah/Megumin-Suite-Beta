@@ -14,6 +14,7 @@ import { meguminRenderRegistry, meguminBlocksTakenByPanel, meguminStatFieldMap }
 // One directed edge from the blocks feature to the NPC feature. No cycle:
 // nothing under features/npc/ imports the block card.
 import { npcDecorateUpdatePane } from "../npc/updateCard.js";
+import { npcDecorateNewPane } from "../npc/newCard.js";
 import { worldCardTextAt, worldExtractMessage, blocksCardTextAt, notebookCardTextAt } from "../../state/index.js";
 import { blocksReadForReply } from "./worker.js";
 import { bondsDecoratePane, sheetDecoratePane } from "../bonds/overview.js";
@@ -164,6 +165,8 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
             // feature to fill in.
             const pane = bodyEl.querySelector('.meg-block-body[data-block-id="npcUpdate"]');
             if (pane) npcDecorateUpdatePane(pane, msgIndex);
+            // New NPC: one tab per dossier, each with "Open in NPC Bank".
+            bodyEl.querySelectorAll('.meg-block-body[data-block-id="newNpc"]').forEach(p => npcDecorateNewPane(p));
             // Same for World State: what this reply changed, on top of the board.
             // Bonds: a button to every character's bonds on file.
             const bondsPane = bodyEl.querySelector('.meg-block-body[data-block-id="bonds"]');

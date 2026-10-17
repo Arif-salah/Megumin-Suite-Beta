@@ -1,12 +1,14 @@
 # Notebook prompts: every text the Author's Notebook sends to a model
 
-Generated from the code on 2026-10-15, so every text below is exactly what is sent today.
+Generated from the code on 2026-10-17, so every text below is exactly what is sent today.
 
 **How to use this file:** edit the text inside the ```text blocks directly, or write notes under a block (start them with `NOTE:`). Keep the `{{placeholders}}` unless you mean to drop them: the code fills them in. When you're done, send the file back and I'll move the changes into the code.
 
 Parts marked **(example: built from made-up data)** only show how the pieces fit together. Don't edit those; edit the pieces they're built from.
 
 ## When each text is sent
+
+- **Where the rules sit:** N2, N4 and N5 go in the blocks request ABOVE the line "At the end of your response, output exactly one <Blocks> section", under "These rules say how to fill the blocks below. Follow them; never write them out." The block skeletons sit right under that line, inside `<Blocks>`. The rules are headings, never tags, so the model has nothing to copy.
 
 - **Notebook off:** nothing. `[[notebook]]` is empty. (It is always on for a preset that keeps one, V11.)
 - **Setup** (on, no live truth yet): N2 goes in the blocks request; the reply writes a `<Notebook>` block.
@@ -35,10 +37,10 @@ When a truth comes out, the story plays out what it changes. A revealed thing is
 _Code: `src/state/modules/notebook/render.js → renderNotebookSetup`_
 
 ```text
-<Notebook_Setup>
+## Author's Notebook rules
 This story keeps an author's notebook, and it is empty, so you write it this turn.
 
-Write your reply as usual. After the story, write a <Notebook> block with two or three truths, built from the character sheet, the setting, and the story so far. Write each one in this form:
+Write your reply as usual. In <Blocks>, write the Notebook block with two or three truths, built from the character sheet, the setting, and the story so far. Write each one in this form:
 
 T1
 Truth: what is actually true, in a few plain sentences, with enough detail that every later clue and the reveal itself can be written from it.
@@ -47,8 +49,7 @@ Comes out when: what has to happen in the story for it to come out.
 What it changes: who acts differently once it's out, and how.
 Clue ideas: two or three small things the story could show that point at it and could also mean something else.
 
-The <Notebook> block doesn't count toward the reply's length.
-</Notebook_Setup>
+The Notebook block doesn't count toward the reply's length.
 ```
 
 Template line in the blocks request:
@@ -81,8 +82,8 @@ Live truths: 1 of 3. Next id: T2.
 _Code: `render.js → renderNotebookUpdateRules()`_
 
 ```text
-<Notebook_Update_Rules>
-After the story, write a <Notebook_Update> block if the notebook changed this turn. Most turns it doesn't, and then you leave the block out. The block doesn't count toward the reply's length.
+## Author's Notebook rules
+In <Blocks>, write the Notebook_Update block only if the notebook changed this turn. Most turns it doesn't, and then you leave the block out. The block doesn't count toward the reply's length.
 
 Clue T1: <the clue this turn's story showed>
 Learned T1: <who on its Hidden from list found it out this turn>
@@ -90,11 +91,6 @@ Truth-: T1      it came out this turn, to everyone it was hidden from
 Truth+: T3      a new truth, only while fewer than 3 are live, followed by its lines in the notebook's form
 
 A truth never changes once written. It gains clues and comes out.
-
-<Notebook_Update>
-[change lines]
-</Notebook_Update>
-</Notebook_Update_Rules>
 ```
 
 Template line in the blocks request:
@@ -109,17 +105,12 @@ Template line in the blocks request:
 _Code: `render.js → renderNotebookUpdateRules({ newOnly: true })`_
 
 ```text
-<Notebook_Update_Rules>
-After the story, write a <Notebook_Update> block if the notebook changed this turn. Most turns it doesn't, and then you leave the block out. The block doesn't count toward the reply's length.
+## Author's Notebook rules
+In <Blocks>, write the Notebook_Update block only if the notebook changed this turn. Most turns it doesn't, and then you leave the block out. The block doesn't count toward the reply's length.
 
 Truth+: T3      a new truth, only while fewer than 3 are live, followed by its lines in the notebook's form
 
 A truth never changes once written. It gains clues and comes out.
-
-<Notebook_Update>
-[change lines]
-</Notebook_Update>
-</Notebook_Update_Rules>
 ```
 
 Template line in the blocks request:

@@ -67,6 +67,13 @@ test("the rules and the setup prompt are never read as blocks", () => {
     assert.equal(parseNotebook(echoed), null);
 });
 
+test("the rules are headings, never tags: nothing in them looks like a block to write", () => {
+    for (const t of [renderNotebookSetup(), renderNotebookUpdateRules(), renderNotebookUpdateRules({ newOnly: true })]) {
+        assert.match(t, /^## Author's Notebook rules\n/);
+        assert.doesNotMatch(t, /<\/?(Notebook|Notebook_Update|Notebook_Setup|Notebook_Update_Rules)\b/);
+    }
+});
+
 test("update lines: Clue, Learned, Truth-, Truth+ with its lines", () => {
     const text = upd("The ferryman refused her coin.", [
         "Clue T1: the ferryman refused payment from Mira",

@@ -16,7 +16,7 @@
 // ("JULIA is: ...").
 
 const V11 = {
-    id: "v11-room", label: "V11 Writers' Room", color: "#0ea5e9", isNew: true, isV11: true, isCoreClone: true, recommended: true,
+    id: "v11-room", label: "V11 Тайна", color: "#0ea5e9", isNew: true, isV11: true, isCoreClone: true, recommended: true,
     notebook: true,
     p1: `You are a writers' room of five, writing an ongoing story with {{user}}. The room talks things over in your thinking. The reader sees only the finished turn, told in one voice, with no trace of the team in it.
 

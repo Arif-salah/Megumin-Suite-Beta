@@ -318,8 +318,11 @@ export function buildBaseDict(isTokenCount = false) {
     }
 
     // NEW: Inject Thinking Effort to the absolute top of whatever [[COT]] is currently active
+    // Not for a Thinking Cap: it sets its own length, and a word count makes the
+    // models it is for count and redraft.
     let effort = localProfile.thinkEffort || "unspecified";
-    if (effort !== "unspecified" && dict["[[COT]]"]) {
+    const isCap = /^cot-.+-cap-/.test(localProfile.model || "");
+    if (effort !== "unspecified" && dict["[[COT]]"] && !isCap) {
         let words = effort === "custom" ? (localProfile.customThinkEffort || "100") : effort;
         dict["[[COT]]"] = `Your Thinking must not be more than ${words} words.\n\n` + dict["[[COT]]"];
     }

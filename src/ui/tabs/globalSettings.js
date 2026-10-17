@@ -14,7 +14,7 @@ import { openBackgroundLog } from "../../engine/bgPrompts.js";
 
 // The version on the about card. One place, so it cannot fall out of step with
 // itself the way "v9" did once V10 shipped.
-const SUITE_VERSION = "V10";
+const SUITE_VERSION = "V11";
 
 // Where the "send Kazuma something" button points. Tally rather than Google Forms
 // for one reason: Google makes anyone uploading a file sign in and records their

@@ -9,9 +9,8 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { Popup, POPUP_TYPE } from "../../st.js";
-import { renderBody } from "../../blocks/text.js";
 import { notebookCardInfo, notebookSetEntryDisabled, notebookTurnLabel } from "../../state/index.js";
-import { describeNotebookChange, renderTruthCard } from "../../state/modules/notebook/render.js";
+import { describeNotebookChange } from "../../state/modules/notebook/render.js";
 
 // Drawn by the card renderer like any block, so the raw text is hidden from the
 // chat and the tab appears. Not in the block stack: the notebook has its own tab.
@@ -31,25 +30,79 @@ export function notebookCardStamp(msgIndex) {
 // Panes the reader chose to see, by journal entry (or message) so a redraw keeps them open.
 const revealed = new Set();
 
+const esc = v => String(v == null ? "" : v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// What each change looks like on the card: an icon, a colour, the words.
+const CHANGE_LOOK = {
+    clue:    { icon: "fa-magnifying-glass", tone: "clue",  word: "Clue planted" },
+    learned: { icon: "fa-user-check",       tone: "learn", word: "Found out" },
+    out:     { icon: "fa-flag-checkered",   tone: "out",   word: "Came out" },
+    edit:    { icon: "fa-pen",              tone: "muted", word: "Edited" },
+    forget:  { icon: "fa-trash",            tone: "muted", word: "Deleted" },
+    restore: { icon: "fa-rotate-left",      tone: "muted", word: "Active again" }
+};
+
+const note = text => `<div class="meg-nbc-note">${esc(text)}</div>`;
+
+// A truth the reply wrote: the truth itself as a quote, then what it hangs on.
+function truthHtml(t, label) {
+    const rows = [];
+    if (t.hiddenFrom.length) rows.push(`<div class="meg-nbc-row"><span class="meg-nbc-k">Hidden from</span><span class="meg-nbc-names">${t.hiddenFrom.map(n => `<span>${esc(n)}</span>`).join("")}</span></div>`);
+    if (t.when) rows.push(`<div class="meg-nbc-row"><span class="meg-nbc-k">Comes out when</span><span>${esc(t.when)}</span></div>`);
+    if (t.changes) rows.push(`<div class="meg-nbc-row"><span class="meg-nbc-k">What it changes</span><span>${esc(t.changes)}</span></div>`);
+    if (t.clueIdeas) rows.push(`<div class="meg-nbc-row"><span class="meg-nbc-k">Clue ideas</span><span>${esc(t.clueIdeas)}</span></div>`);
+    const clues = t.clues.map(c => `<li><span class="meg-nbc-turn">${esc(label(c.seq))}</span> ${esc(c.text)}${c.found === false ? ` <span class="meg-nbc-flag"><i class="fa-solid fa-triangle-exclamation"></i> not found in the reply</span>` : ""}</li>`).join("");
+    return `
+        <div class="meg-nbc-truth">
+            <div class="meg-nbc-truth-head"><span class="meg-nbc-id">${esc(t.id)}</span> New hidden truth</div>
+            <div class="meg-nbc-quote">${esc(t.truth)}</div>
+            ${rows.length ? `<div class="meg-nbc-rows">${rows.join("")}</div>` : ""}
+            ${clues ? `<ul class="meg-nbc-clues">${clues}</ul>` : ""}
+        </div>`;
+}
+
+function changeHtml(a) {
+    const look = CHANGE_LOOK[a.op];
+    if (!look) {
+        const line = describeNotebookChange(a);
+        return line ? `<div class="meg-nbc-event muted"><span class="meg-nbc-text">${esc(line)}</span></div>` : "";
+    }
+    // "learned" carries who found out; the others carry the clue or what came out.
+    return `
+        <div class="meg-nbc-event ${look.tone}">
+            <i class="fa-solid ${look.icon}"></i>
+            <span class="meg-nbc-id">${esc(a.id)}</span>
+            <span class="meg-nbc-word">${look.word}</span>
+            ${a.text ? `<span class="meg-nbc-text">${esc(a.text)}</span>` : ""}
+            ${a.found === false ? `<span class="meg-nbc-flag"><i class="fa-solid fa-triangle-exclamation"></i> not found in the reply</span>` : ""}
+        </div>`;
+}
+
 function contentFor(info, fallbackHtml) {
     if (!info) return fallbackHtml;
-    if (info.disabled) return renderBody("*This reply's notebook changes are reverted.*");
-    if (info.pending) return renderBody("*Chomusuke is reading this reply for the notebook…*");
-    const parts = [];
-    const lines = [];
+    if (info.disabled) return note("This reply's notebook changes are reverted.");
+    if (info.pending) return note("Chomusuke is reading this reply for the notebook…");
     const label = notebookTurnLabel();
+    const truths = [];
+    const events = [];
     for (const a of info.applied) {
-        if (a.op === "entry" && info.truths[a.id]) parts.push(renderTruthCard(info.truths[a.id], { label }));
-        else {
-            const line = describeNotebookChange(a);
-            if (line) lines.push(`* ${line}`);
-        }
+        if (a.op === "entry" && info.truths[a.id]) truths.push(truthHtml(info.truths[a.id], label));
+        else { const h = changeHtml(a); if (h) events.push(h); }
     }
-    if (lines.length) parts.push(lines.join("\n"));
-    for (const n of info.notes) parts.push(`*Left out: ${n}*`);
-    if (info.missing) parts.push("*Chomusuke's read gave nothing usable. Use Read again.*");
-    if (!parts.length) return info.read ? renderBody("*Nothing changed in the notebook in this reply.*") : fallbackHtml;
-    return renderBody(parts.join("\n\n---\n\n"));
+    const extra = [
+        ...info.notes.map(n => note(`Left out: ${n}`)),
+        ...(info.missing ? [note("Chomusuke's read gave nothing usable. Use Read again.")] : [])
+    ];
+    if (!truths.length && !events.length && !extra.length) {
+        return info.read ? note("Nothing changed in the notebook in this reply.") : fallbackHtml;
+    }
+    return `
+        <div class="meg-nbc">
+            ${truths.join("")}
+            ${events.length ? `<div class="meg-nbc-events">${events.join("")}</div>` : ""}
+            ${extra.join("")}
+        </div>`;
 }
 
 /**

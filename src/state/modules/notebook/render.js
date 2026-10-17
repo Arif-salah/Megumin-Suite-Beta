@@ -19,10 +19,10 @@ export function notebookPhase(state, { on = true, paused = false } = {}) {
 
 export function renderNotebookSetup() {
     return [
-        "<Notebook_Setup>",
+        "## Author's Notebook rules",
         "This story keeps an author's notebook, and it is empty, so you write it this turn.",
         "",
-        "Write your reply as usual. After the story, write a <Notebook> block with two or three truths, built from the character sheet, the setting, and the story so far. Write each one in this form:",
+        "Write your reply as usual. In <Blocks>, write the Notebook block with two or three truths, built from the character sheet, the setting, and the story so far. Write each one in this form:",
         "",
         "T1",
         "Truth: what is actually true, in a few plain sentences, with enough detail that every later clue and the reveal itself can be written from it.",
@@ -31,8 +31,7 @@ export function renderNotebookSetup() {
         "What it changes: who acts differently once it's out, and how.",
         "Clue ideas: two or three small things the story could show that point at it and could also mean something else.",
         "",
-        "The <Notebook> block doesn't count toward the reply's length.",
-        "</Notebook_Setup>"
+        "The Notebook block doesn't count toward the reply's length."
     ].join("\n");
 }
 
@@ -76,17 +75,12 @@ export function renderNotebookUpdateRules({ newOnly = false } = {}) {
             "Truth+: T3      a new truth, only while fewer than 3 are live, followed by its lines in the notebook's form"
         ];
     return [
-        "<Notebook_Update_Rules>",
-        "After the story, write a <Notebook_Update> block if the notebook changed this turn. Most turns it doesn't, and then you leave the block out. The block doesn't count toward the reply's length.",
+        "## Author's Notebook rules",
+        "In <Blocks>, write the Notebook_Update block only if the notebook changed this turn. Most turns it doesn't, and then you leave the block out. The block doesn't count toward the reply's length.",
         "",
         ...lines,
         "",
-        "A truth never changes once written. It gains clues and comes out.",
-        "",
-        "<Notebook_Update>",
-        "[change lines]",
-        "</Notebook_Update>",
-        "</Notebook_Update_Rules>"
+        "A truth never changes once written. It gains clues and comes out."
     ].join("\n");
 }
 

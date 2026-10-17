@@ -19,9 +19,12 @@ import {
 import { generateQuietPrompt } from "../../st.js";
 import { worldEnabled, notebookEnabled } from "../../state/index.js";
 import { card, switchRow, esc } from "../controls.js";
+import { CHOMUSUKE_SETUP_STEPS, CHOMUSUKE_SETUP_NOTE } from "../modelGuide.js";
 
 // Folds stay as they were across redraws.
 let advancedOpen = false;
+// null = not touched yet: open while there's no profile to pick.
+let setupOpen = null;
 
 const BLOCK_ROUTES = [
     { id: "bonds", label: "Bonds", icon: "fa-heart" },
@@ -139,7 +142,7 @@ export function renderChomusuke(c) {
     const conn = card("Worker connection", "The connection profile Chomusuke uses. A fast, cheap model works well: Claude Haiku, Gemini Flash, or a local 7B/8B.");
     if (!profiles.length) {
         conn.append(`<div class="igx-banner red"><i class="fa-solid fa-triangle-exclamation"></i>
-            <span>No connection profiles yet. Make one in SillyTavern's connection settings first (for example for Gemini Flash or a fast local model).</span></div>`);
+            <span>No connection profiles yet. Make one in SillyTavern's connection settings first: the steps are below.</span></div>`);
     } else {
         const $line = $(`<div class="igx-inline chx-conn">
             <select id="chomusuke_worker_profile" class="ps-modern-input">
@@ -169,6 +172,20 @@ export function renderChomusuke(c) {
         });
         conn.append($fold).append($box);
     }
+
+    // Step by step: making the connection profiles.
+    const open = setupOpen === null ? !profiles.length : setupOpen;
+    const $howFold = $(`<button type="button" class="igx-fold"><i class="fa-solid fa-chevron-${open ? "down" : "right"}"></i> How do I make a connection profile?</button>`);
+    const $how = $(`<div class="chx-how" style="display:${open ? "flex" : "none"};">
+        <div class="mtab-callout gold mgd-note"><i class="fa-solid fa-triangle-exclamation"></i><span>${CHOMUSUKE_SETUP_NOTE}</span></div>
+        <ol class="chx-steps">${CHOMUSUKE_SETUP_STEPS.map(s => `<li>${s}</li>`).join("")}</ol>
+    </div>`);
+    $howFold.on("click", () => {
+        setupOpen = $how.css("display") === "none";
+        $how.css("display", setupOpen ? "flex" : "none");
+        $howFold.find("i").attr("class", `fa-solid fa-chevron-${setupOpen ? "down" : "right"}`);
+    });
+    conn.append($howFold).append($how);
     c.append(conn);
 
     // ── After every reply ──
