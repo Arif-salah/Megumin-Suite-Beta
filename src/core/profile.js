@@ -155,6 +155,7 @@ export function initProfile() {
         userPronouns: "off",
         devOverrides: {},
         banList: [],
+        banListBuiltIn: true,
         banListBackend: "direct",
         banListCustomPrompts: null,
         banListCustomPromptsEnabled: false,
@@ -404,6 +405,7 @@ export function initProfile() {
     }
     if (localProfile.npcBank && localProfile.npcBank.scanDepth === undefined) localProfile.npcBank.scanDepth = 60;
     if (localProfile.banListCustomPromptsEnabled === undefined) localProfile.banListCustomPromptsEnabled = false;
+    if (localProfile.banListBuiltIn === undefined) localProfile.banListBuiltIn = true;
     if (localProfile.imageGen.injectNpcTags === undefined) localProfile.imageGen.injectNpcTags = false;
     // Story Config (replaces the old standalone POV dropdown and the legacy word count)
     if (!localProfile.storyConfig) localProfile.storyConfig = JSON.parse(JSON.stringify(defaults.storyConfig));

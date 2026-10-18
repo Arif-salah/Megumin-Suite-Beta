@@ -9,10 +9,61 @@ import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { getCleanedChatHistory } from "../../engine/chatText.js";
 import { analyzeSlopDirectly, analyzeSlopWithPreset, runWithChomusuke } from "../../engine/tasks.js";
+import { Popup, POPUP_TYPE } from "../../st.js";
+import { switchRow } from "../../ui/controls.js";
+import { getSharedFragment, setSharedFragment } from "../../core/sharedFragments.js";
+import { BUILTIN_BAN_LIST } from "../../prompts/presetFrame.js";
+
+// The built-in list in a popup. Saving the original text back stores nothing,
+// so a later update to the original still reaches this install.
+async function editBuiltInList() {
+    const $root = $(`
+        <div style="text-align:left;">
+            <h3 style="margin-top:0;">Built-in list</h3>
+            <div style="opacity:0.75; font-size:0.85rem; margin-bottom:8px;">The same list in every chat. Switch it off in the Banned Phrases tab.</div>
+            <textarea class="ps-modern-input" rows="18" style="width:100%; font-family:monospace; font-size:0.8rem;"></textarea>
+            <button type="button" class="ps-modern-btn secondary bl-reset" style="margin-top:8px; padding: 4px 10px; font-size: 0.75rem;"><i class="fa-solid fa-rotate-left"></i> Put back the original list</button>
+        </div>
+    `);
+    const $text = $root.find("textarea");
+    $text.val(getSharedFragment("banlistBuiltIn") || BUILTIN_BAN_LIST);
+    $root.find(".bl-reset").on("click", () => $text.val(BUILTIN_BAN_LIST));
+
+    const saved = await new Popup($root, POPUP_TYPE.CONFIRM, "", { okButton: "Save", cancelButton: "Cancel", wide: true, large: true, allowVerticalScrolling: true }).show();
+    if (!saved) return;
+    const value = String($text.val() || "");
+    const original = value.replace(/\r\n/g, "\n").trim() === BUILTIN_BAN_LIST.trim();
+    setSharedFragment("banlistBuiltIn", original ? "" : value);
+    if (!original && value.trim() === "") toastr.info("The built-in list is empty now, so the original list will be used. To send none, switch it off instead.");
+    else toastr.success(original ? "Built-in list set back to the original." : "Built-in list saved.");
+}
 
 export function renderBanList(c) {
     c.empty();
     if (!localProfile.banList) localProfile.banList = [];
+
+    // ── BUILT-IN LIST (plan 017) ──
+    // Used to be fixed text in the preset. It can be switched off per profile
+    // (follows this tab's Global switch); the edited text is one for the whole
+    // install, the same text Dev Mode shows as "Ban List (built-in)".
+    const $builtIn = $(`
+        <div class="mtab-panel" style="margin-bottom:16px;">
+            <div class="mtab-panel-title red"><i class="fa-solid fa-book"></i> Built-in list</div>
+        </div>
+    `);
+    $builtIn.append(switchRow({
+        label: "Use the built-in list",
+        desc: "Wording and habits the story never uses: cliché phrases, naming feelings, echoing your words. Your own phrases below are added to it.",
+        on: localProfile.banListBuiltIn !== false,
+        onChange: on => {
+            localProfile.banListBuiltIn = on;
+            saveProfileToMemory();
+        },
+    }));
+    const $editBuiltIn = $(`<button class="ps-modern-btn secondary" style="margin-top:10px; padding: 6px 12px; font-size: 0.78rem;"><i class="fa-solid fa-pen"></i> Edit the built-in list</button>`);
+    $editBuiltIn.on("click", editBuiltInList);
+    $builtIn.append($editBuiltIn);
+    c.append($builtIn);
 
     // ── AI SLOP DETECTOR ──
     c.append(`

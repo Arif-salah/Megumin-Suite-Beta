@@ -39,7 +39,8 @@ import { isDevEngineDirty, setDevEngineDirty } from "../core/state.js";
 import { fireRefreshHook, REFRESH } from "../core/refreshHooks.js";
 import { hardcodedLogic } from "../../data/database.js";
 import { meguminCotEntryForMode } from "../../data/cot/index.js";
-import { SKELETON } from "../../data/skeleton.js";
+import { SKELETON as PRESET_SKELETON } from "../../data/skeleton.js";
+import { expandPresetSections } from "../engine/presetSections.js";
 import {
     MEGUMIN_SLOT_REGISTRY,
     SLOT_GROUPS, meguminSlotByTrigger, meguminSlotByKey, meguminSlotIsLive,
@@ -109,6 +110,10 @@ const session = {
 // so where a tag sits and whether its message is on are that person's settled
 // decisions — not defects to report to whoever is typing in the box. A field
 // badge now says what is IN the field, and nothing about the preset.
+// The preset as drawn: a section slot ([[thinking]], [[reminder]]...) is shown
+// as the parts it is made of, so each editable part sits where it is sent.
+const SKELETON = PRESET_SKELETON.map(card => ({ ...card, content: expandPresetSections(card.content) }));
+
 const CHAT_HISTORY_INDEX = SKELETON.findIndex(c => c.id === "chatHistory");
 
 // Some slots reach the model without ever appearing under their own tag.

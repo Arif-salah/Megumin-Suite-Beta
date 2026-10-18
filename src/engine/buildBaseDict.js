@@ -25,7 +25,8 @@ import { npcBuildDossierPrompt, npcBuildUpdatePrompt } from "../features/npc/fie
 import { memGetCachedKeywords } from "../features/memory/keywords.js";
 import { memGetRelevantVaultEntries } from "../features/memory/index.js";
 import { meguminRollD20s } from "../utils/dice.js";
-import { meguminOverridableSlots, meguminSlotIsLive, meguminModuleTrigger } from "../../data/slots.js";
+import { meguminOverridableSlots, meguminSlotIsLive, meguminModuleTrigger, meguminSlotByTrigger } from "../../data/slots.js";
+import { thinkingSection, formattingSection, bannedSection, reminderSection } from "./presetSections.js";
 import { resolveSlot } from "../core/sharedFragments.js";
 import { worldPromptBlock, statsPromptParts, notebookPromptBlock, notebookCurrentPhase } from "../state/index.js";
 import { NOTEBOOK_CRAFT } from "../prompts/notebook.js";
@@ -741,6 +742,30 @@ export function buildBaseDict(isTokenCount = false) {
             }
         }
     }
+
+    // --- PRESET SECTIONS (plan 017) ---
+    // The V11 preset is only slots. These carry their own headers, so a section
+    // that is off takes its header with it. Built here, after [[THINK]], the
+    // ban list and the override pass, from the finished parts: a Dev Mode edit
+    // of any part still reaches the section.
+    const slotText = trigger => {
+        const slot = meguminSlotByTrigger(trigger);
+        if (!slot || !meguminSlotIsLive(slot, localProfile)) return "";
+        return resolveSlot(slot, activeEngine).value || "";
+    };
+    const banned = bannedSection({ builtIn: slotText("[[banlist_builtin]]"), additions: dict["[[banlist]]"] });
+    dict["[[thinking]]"] = thinkingSection(dict["[[THINK]]"]);
+    dict["[[formatting]]"] = formattingSection({
+        dnratio: dict["[[DNRATIO]]"], color: dict["[[COLOR]]"], rules: slotText("[[formatting_rules]]"),
+        direct: dict["[[Direct]]"], dn: dict["[[DN]]"],
+    });
+    dict["[[banned]]"] = banned;
+    dict["[[reminder]]"] = reminderSection({
+        checks: slotText("[[final_checks]]"), banned: !!banned,
+        presetChecks: slotText("[[reminder_checks]]"), userLine: dict["[[user]]"],
+    });
+    ["[[content]]", "[[fiction]]", "[[lore_open]]", "[[lore_close]]", "[[persona_open]]",
+        "[[persona_close]]", "[[history_open]]", "[[history_close]]"].forEach(t => { dict[t] = slotText(t); });
 
     // --- MASTER BLOCK ENVELOPE ---
     // Built from the same per-block values the legacy path uses, so engine

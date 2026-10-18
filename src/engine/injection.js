@@ -407,8 +407,12 @@ async function buildPromptInjection(data, type) {
     }
 
     let replacementsMade = 0;
+    // A preset message made only of slots (V11's Content message, plan 017)
+    // can come out empty. It is dropped below rather than sent as nothing.
+    const emptied = new Set();
     for (const msg of messages) {
         if (msg.content && typeof msg.content === 'string') {
+            const heldSlot = msg.role === "system" && /\[\[[^\]\n]+\]\]/.test(msg.content);
             Object.entries(dict).forEach(([trigger, replacement]) => {
                 if (msg.content.includes(trigger)) {
                     const processed = typeof substituteParams === 'function' ? substituteParams(replacement) : replacement;
@@ -447,7 +451,11 @@ async function buildPromptInjection(data, type) {
 
             // Final Sweep: Collapse 3 or more blank lines into a standard double line break
             msg.content = msg.content.replace(/(?:\r?\n[ \t]*){3,}/g, '\n\n');
+            if (heldSlot && msg.content.trim() === "") emptied.add(msg);
         }
+    }
+    for (let i = messages.length - 1; i >= 0; i--) {
+        if (emptied.has(messages[i])) messages.splice(i, 1);
     }
 
     // Thinking Cap: its rules again as the last thing the model reads.

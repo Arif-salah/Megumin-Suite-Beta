@@ -20,6 +20,10 @@
 
 import { addons, blocks, models, modes } from "./database.js";
 import { isCoWriterEngine } from "../src/core/engines.js";
+import {
+    FORMATTING_RULES, FINAL_CHECKS, BUILTIN_BAN_LIST, FICTION_NOTE,
+    LORE_OPEN, LORE_CLOSE, PERSONA_OPEN, PERSONA_CLOSE, HISTORY_OPEN, HISTORY_CLOSE,
+} from "../src/prompts/presetFrame.js";
 
 const addonText = id => addons.find(a => a.id === id)?.content || "";
 const blockText = id => blocks.find(b => b.id === id)?.content || "";
@@ -60,6 +64,7 @@ const GATE = {
     onomato: gate(p => !!(p.onomatopoeia && p.onomatopoeia.enabled), "Onomatopoeia", "Language & Add-ons"),
     dice:    gate(p => (p.addons || []).includes("dice")
                     || (p.addons || []).includes("dice_all"), "Dice", "Add-ons"),
+    banBuiltIn: gate(p => p.banListBuiltIn !== false, "Built-in list", "Banned Phrases"),
 
     // The one gate keyed on the ENGINE rather than a switch the reader flips.
     // Every engine gets the "never write for {{user}}" rule except the Co-writer
@@ -120,6 +125,10 @@ export const MEGUMIN_SLOT_REGISTRY = [
       advanced: true, hint: "A fake reply from the model, agreeing that it read the rules." },
     { key: "A2", trigger: "[[AI2]]", structural: true, hidden: true, label: "Model Acknowledgement 2", scope: "engine", group: "engine",
       advanced: true, hint: "The second fake acknowledgement." },
+    { key: "contentRules", trigger: "[[content]]", label: "Content Rules", scope: "engine", group: "engine",
+      hint: "What the story may show and how plainly. Only V11 has one; other presets send nothing here." },
+    { key: "reminderChecks", trigger: "[[reminder_checks]]", label: "This Preset's Final Checks", scope: "engine", group: "engine",
+      hint: "Checks only this preset adds to the final reminder, one per line. They are numbered for you." },
 
     // ── Reasoning ────────────────────────────────────────────────────────────
     { key: "cot", trigger: "[[COT]]", label: "Chain of Thought", scope: "engine", group: "reasoning",
@@ -158,8 +167,28 @@ export const MEGUMIN_SLOT_REGISTRY = [
       ] },
     { key: "userControl", trigger: "[[user]]", label: "Never Write For {{user}}", scope: "shared", group: "systems",
       gate: GATE.notCoWriter,
-      hint: "Sent on every engine except the Co-writer variants, which are built to write {{user}}. It lands in the preset's numbered final reminder list, so keep it written as a numbered line.",
+      hint: "Sent on every engine except the Co-writer variants, which are built to write {{user}}. The last line of the final reminder. Older presets number that list by hand, so keep it written as a numbered line; on V11 the number is counted for you.",
       fallback: () => "5. The response does not speak, think, feel, or act for {{user}}, and it shows everything {{user}} reached for." },
+    { key: "finalChecks", trigger: "[[final_checks]]", label: "Final Checks", scope: "shared", group: "systems",
+      hint: "The checks at the top of the final reminder, one per line. They are numbered for you.",
+      fallback: () => FINAL_CHECKS },
+    { key: "fictionNote", trigger: "[[fiction]]", label: "Answer Inside the Story", scope: "shared", group: "systems",
+      hint: "Sent after the final reminder: when {{user}} tries something the world wouldn't allow, the story answers it.",
+      fallback: () => FICTION_NOTE },
+
+    // ── Where each part of the prompt starts and ends ────────────────────────
+    { key: "loreOpen", trigger: "[[lore_open]]", label: "Character Sheet: start", scope: "shared", group: "frame",
+      hint: "Sent before the character card and world info.", fallback: () => LORE_OPEN },
+    { key: "loreClose", trigger: "[[lore_close]]", label: "Character Sheet: end", scope: "shared", group: "frame",
+      hint: "Sent after the character card, world info, story plan and NPC list.", fallback: () => LORE_CLOSE },
+    { key: "personaOpen", trigger: "[[persona_open]]", label: "Your Persona: start", scope: "shared", group: "frame",
+      hint: "Sent before your persona.", fallback: () => PERSONA_OPEN },
+    { key: "personaClose", trigger: "[[persona_close]]", label: "Your Persona: end", scope: "shared", group: "frame",
+      hint: "Sent after your persona.", fallback: () => PERSONA_CLOSE },
+    { key: "historyOpen", trigger: "[[history_open]]", label: "Chat History: start", scope: "shared", group: "frame",
+      hint: "Sent before the memory and the chat.", fallback: () => HISTORY_OPEN },
+    { key: "historyClose", trigger: "[[history_close]]", label: "Chat History: end", scope: "shared", group: "frame",
+      hint: "The very last message before the reply.", fallback: () => HISTORY_CLOSE },
     { key: "direct", trigger: "[[Direct]]", label: "Direct Language", scope: "shared", group: "systems",
       gate: GATE.addon("direct"), hint: "Blunt anatomical wording instead of euphemism.",
       fallback: () => addonText("direct") },
@@ -176,8 +205,15 @@ export const MEGUMIN_SLOT_REGISTRY = [
       gate: GATE.dnratio, hint: "How much of a reply should be speech versus description.",
       fallback: () => "Ratio: Maintain a balance of 50% Dialogue and 50% Narration." },
     { key: "banlist", trigger: "[[banlist]]", label: "Ban List (your additions)", scope: "shared", group: "format",
-      hint: "Added to the end of the built-in ban list. The built-in part lives in the preset and is not edited here.",
+      hint: "Your banned phrases from the Banned Phrases tab, sent under the built-in list.",
       fallback: () => "" },
+    { key: "banlistBuiltIn", trigger: "[[banlist_builtin]]", label: "Ban List (built-in)", scope: "shared", group: "format",
+      gate: GATE.banBuiltIn,
+      hint: "The phrases and habits the story never uses. Can be switched off in the Banned Phrases tab.",
+      fallback: () => BUILTIN_BAN_LIST },
+    { key: "formattingRules", trigger: "[[formatting_rules]]", label: "Formatting Rules", scope: "shared", group: "format",
+      hint: "The lines under FORMATTING RULES: don't repeat the last two turns, and open each reply differently.",
+      fallback: () => FORMATTING_RULES },
 
     // ── Shared fragments that happen to be output blocks ─────────────────────
     { key: "info", trigger: "[[infoblock]]", carrier: "blocks", label: "World State Block", scope: "shared", group: "blocks",
@@ -221,6 +257,16 @@ export const MEGUMIN_SLOT_REGISTRY = [
       hint: "How to keep the notebook's hidden truths. Empty while the notebook is off or paused." },
     { key: null, trigger: "[[blocks]]", label: "Output Blocks", scope: "auto", group: "live", where: "Blocks",
       hint: "The whole <Blocks> envelope, assembled from the blocks you switched on." },
+    // Plan 017: a section and its header in one slot (src/engine/presetSections.js).
+    // Made of the slots above, so edit those; these only put them together.
+    { key: null, trigger: "[[thinking]]", label: "Thinking Steps", scope: "auto", group: "live", where: "Preset & Thinking",
+      gate: GATE.think, hint: "The \"your thinking steps\" heading and the Thinking Tags. With thinking off, the heading goes too." },
+    { key: null, trigger: "[[formatting]]", label: "Formatting Rules section", scope: "auto", group: "live", where: "Writing Style",
+      hint: "The FORMATTING RULES heading with the ratio, colours, formatting rules, direct language and tags under it." },
+    { key: null, trigger: "[[banned]]", label: "Ban List section", scope: "auto", group: "live", where: "Banned Phrases",
+      hint: "The built-in list and your phrases together. Nothing is sent when both are off or empty." },
+    { key: null, trigger: "[[reminder]]", label: "Final Reminder", scope: "auto", group: "live", where: "Preset & Thinking",
+      hint: "The final checks, numbered: the shared ones, the ban list one while a ban list is sent, the preset's own, and Never Write For {{user}}." },
     { key: null, trigger: "[[long-Memory]]", label: "Long-term Memory", scope: "auto", group: "live", where: "Memory",
       hint: "Archived summaries pulled from the vault for this turn." },
     { key: null, trigger: "[[Short-memory]]", label: "Short-term Memory", scope: "auto", group: "live", where: "Memory",
@@ -349,6 +395,7 @@ export const SLOT_GROUPS = [
     { id: "systems", label: "Systems" },
     { id: "format", label: "Formatting" },
     { id: "blocks", label: "Output Blocks" },
+    { id: "frame", label: "Where Each Part Starts and Ends", hint: "The tags around the character sheet, your persona and the chat history." },
     { id: "global", label: "Built From Your Settings" },
     { id: "live", label: "Filled In Automatically" },
 ];
