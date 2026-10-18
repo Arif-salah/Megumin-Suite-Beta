@@ -87,6 +87,73 @@ test("prompt D's notes carry the clerk's comment, not the story model's", () => 
     assert.match(d.user, /<!-- Where the story stood before the latest exchange\. -->/);
 });
 
+// Reported: the story model wrote "+ Resha Helios", then Chomusuke took over
+// and wrote "Resha.Outfit: …", which made a second character "Resha".
+test("a short name finds the one character whose full name starts with it", () => {
+    let s = apply(U("+ Resha Helios\nResha Helios.Outfit: silver robe"));
+    s = apply(U("Resha.Outfit: travel cloak\nResha.Mood: wary"), s);
+    assert.deepEqual(Object.values(s.cast).map(c => c.name), ["Resha Helios"]);
+    const r = findCast(s, "Resha");
+    assert.equal(r, findCast(s, "Resha Helios"));
+    assert.equal(r.fields.outfit, "travel cloak");
+    assert.equal(castDisplayName(r), 'Resha Helios "Resha"');
+});
+
+test("the full name finds the character first known by the short one", () => {
+    let s = apply(U("+ Resha\nResha.Outfit: robe"));
+    s = apply(U("Resha Helios.Mood: calm"), s);
+    assert.equal(Object.keys(s.cast).length, 1);
+    assert.equal(findCast(s, "Resha Helios").fields.outfit, "robe");
+    assert.equal(findCast(s, "Resha").fields.mood, "calm");
+});
+
+test("names are not merged when it could be someone else", () => {
+    // Two people fit "Resha": no guess, a new character.
+    let s = apply(U("+ Resha Helios\n+ Resha Vorn\nResha.Mood: calm"));
+    assert.equal(Object.keys(s.cast).length, 3);
+    // Sharing a title is not being the same person.
+    s = apply(U("+ Lady Mira\n+ Lady Resha"));
+    assert.equal(Object.keys(s.cast).length, 2);
+    // Half a word is not a name.
+    s = apply(U("+ Annabelle\n+ Anna"));
+    assert.equal(Object.keys(s.cast).length, 2);
+});
+
+// The card asks about a character a reply brought in with no "+" line; the
+// user can say they are someone already known ("Emma" is "Uncle Emma").
+test("a reply's newcomers with no + line are listed for the card", () => {
+    let s = apply(U("+ Uncle Emma\nUncle Emma.Outfit: coat"));
+    const step = applyWorldChanges(s, parseWorldBlocks(U("Emma.Mood: tired\n+ Bob\nBob.Mood: ok")), { userNames: ["Kazuma"] });
+    assert.deepEqual(step.unannounced, ["Emma"]); // Bob had his + line
+});
+
+test("'same person' folds the newcomer into the known character", () => {
+    const ctx = seq => ({ seq, userNames: ["Kazuma"] });
+    let s = applyWorldChanges(emptyWorld(), parseWorldBlocks(U("+ Uncle Emma\nUncle Emma.Outfit: coat\nUncle Emma.Mood: calm")), ctx(1)).state;
+    s = applyWorldChanges(s, parseWorldBlocks(U("Emma.Mood: tired\nEmma.Position: by the fire")), ctx(2)).state;
+    assert.equal(Object.keys(s.cast).length, 2);
+    const res = applyWorldChanges(s, { kind: "delta", changes: [{ type: "merge", who: "Emma", into: "Uncle Emma" }] }, ctx(3));
+    s = res.state;
+    assert.deepEqual(Object.values(s.cast).map(c => c.name), ["Uncle Emma"]);
+    const e = findCast(s, "Emma");
+    assert.equal(e.name, "Uncle Emma");
+    assert.equal(e.fields.outfit, "coat");          // only Uncle Emma had it
+    assert.equal(e.fields.mood, "tired");           // Emma was seen last: hers wins
+    assert.equal(e.fields.position, "by the fire");
+    assert.equal(castDisplayName(e), 'Uncle Emma "Emma"');
+    assert.deepEqual(res.applied, [{ label: "Uncle Emma · Also called", before: "", after: "Emma" }]);
+    // Later lines for "Emma" land on Uncle Emma.
+    s = apply(U("Emma.Mood: happy"), s);
+    assert.equal(Object.keys(s.cast).length, 1);
+    assert.equal(findCast(s, "Uncle Emma").fields.mood, "happy");
+});
+
+test("'same person' with a name that is gone or the same character changes nothing", () => {
+    const s = apply(U("+ Uncle Emma"));
+    assert.equal(applyWorldChanges(s, { kind: "delta", changes: [{ type: "merge", who: "Nobody", into: "Uncle Emma" }] }).applied.length, 0);
+    assert.equal(applyWorldChanges(s, { kind: "delta", changes: [{ type: "merge", who: "Uncle Emma", into: "Uncle Emma" }] }).applied.length, 0);
+});
+
 // ── Chats already on file get the fix on load ──────────────────────────
 
 test("reparseStale fixes entries parsed by the old parser (the reported chat)", () => {

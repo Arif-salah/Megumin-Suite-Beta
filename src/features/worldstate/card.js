@@ -8,7 +8,7 @@
 // a reply off is visible immediately.
 // ────────────────────────────────────────────────────────────────────────────
 
-import { worldCardInfo, worldSetEntryDisabled, worldSettings } from "../../state/index.js";
+import { worldCardInfo, worldSetEntryDisabled, worldSettings, worldSameCharacter } from "../../state/index.js";
 
 const esc = v => String(v == null ? "" : v)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -18,6 +18,43 @@ const SHOW_AT_MOST = 12;
 // Strips the reader opened, by journal entry id, so a card redraw (a swipe, a
 // background update) does not fold one shut while it is being read.
 const openStrips = new Set();
+
+// "New character" answers, by journal entry id + name: not asked again this session.
+const keptApart = new Set();
+
+// A character the reply brought in with no "+" line may be someone already
+// known under another name ("Emma" for "Uncle Emma"). Asked outside the fold,
+// so it is seen without opening anything.
+function newcomerRow(entryId, n, onChanged) {
+    const row = document.createElement("div");
+    row.className = "meg-wsnew";
+    row.innerHTML = `
+        <span class="meg-wsnew-text"><i class="fa-solid fa-user-plus"></i> <b>${esc(n.name)}</b> is new in this reply. Same person as</span>
+        <select class="meg-wsnew-pick" title="Pick who ${esc(n.name)} is">
+            <option value="">someone already in the story?</option>
+            ${n.others.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join("")}
+        </select>
+        <button type="button" class="meg-wsdiff-btn meg-wsnew-same" disabled title="${esc(n.name)} becomes another name for the character you picked, and their details are joined. Undo it in the editor's History.">
+            <i class="fa-solid fa-link"></i> Same person</button>
+        <button type="button" class="meg-wsdiff-btn meg-wsnew-apart" title="Keep ${esc(n.name)} as a separate character and stop asking">
+            New character</button>`;
+    const pick = row.querySelector(".meg-wsnew-pick");
+    const same = row.querySelector(".meg-wsnew-same");
+    pick.addEventListener("change", () => { same.disabled = !pick.value; });
+    same.addEventListener("click", () => {
+        if (!pick.value) return;
+        if (worldSameCharacter(n.name, pick.value)) {
+            toastr.success(`${n.name} is now ${pick.value}.`, "World State", { timeOut: 3000 });
+            if (onChanged) onChanged();
+        }
+    });
+    row.querySelector(".meg-wsnew-apart").addEventListener("click", () => {
+        keptApart.add(entryId + "|" + n.name);
+        row.remove();
+    });
+    row.addEventListener("click", e => e.stopPropagation());
+    return row;
+}
 
 function changeRow(a) {
     const [who, field] = a.label.includes(" · ") ? a.label.split(" · ") : ["", a.label];
@@ -41,6 +78,7 @@ function changeRow(a) {
 export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
     if (!paneEl || typeof msgIndex !== "number") return;
     paneEl.querySelector(".meg-wsdiff")?.remove();
+    paneEl.querySelectorAll(".meg-wsnew").forEach(el => el.remove());
     if (!worldSettings().showChanges) return;
 
     const info = worldCardInfo(msgIndex);
@@ -125,4 +163,14 @@ export function worldDecoratePane(paneEl, msgIndex, hooks = {}) {
     strip.addEventListener("click", e => e.stopPropagation());
 
     paneEl.prepend(strip);
+
+    if (!disabled && entryId) {
+        let after = strip;
+        for (const n of info.newcomers || []) {
+            if (keptApart.has(entryId + "|" + n.name)) continue;
+            const row = newcomerRow(entryId, n, hooks.onChanged);
+            after.after(row);
+            after = row;
+        }
+    }
 }

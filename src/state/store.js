@@ -391,7 +391,7 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
         for (const e of activeEntries(moduleId)) {
             const res = mod.apply(state, e.parsed, { seq: e.seq, userNames });
             state = res.state;
-            steps.push({ seq: e.seq, entry: e, state, applied: res.applied, notes: res.notes });
+            steps.push({ seq: e.seq, entry: e, state, applied: res.applied, notes: res.notes, unannounced: res.unannounced || [] });
         }
         const tl = { base, baseSeq: r.checkpoint.seq, steps };
         memo.set(moduleId, { key, timeline: tl });

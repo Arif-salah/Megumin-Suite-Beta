@@ -4021,6 +4021,26 @@
 .meg-wsdiff-issue { margin: 3px 0 0 16px; color: var(--text-muted); word-break: break-word; }
 .meg-wsdiff-issue code { font-size: .68rem; background: rgba(255,255,255,.05); padding: 1px 4px; border-radius: 3px; }
 .meg-wsdiff-issue.note { font-style: italic; }
+/* "Emma is new in this reply. Same person as [Uncle Emma] [Same person]" */
+.meg-wsnew {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    background: rgba(0,0,0,.22);
+    border: 1px solid rgba(255,255,255,.07);
+    border-left: 3px solid #38bdf8;
+    border-radius: 8px;
+    padding: 6px 9px;
+    margin: -4px 0 10px;
+    font-size: .72rem;
+}
+.meg-wsnew-text { color: var(--text-muted); display: inline-flex; align-items: center; gap: 5px; }
+.meg-wsnew-text b { color: var(--gold); }
+.meg-wsnew-pick {
+    background: rgba(0,0,0,.3); color: var(--text-color);
+    border: 1px solid rgba(255,255,255,.12); border-radius: 6px;
+    font-size: .7rem; padding: 2px 6px; max-width: 100%;
+}
+.meg-wsnew-same:disabled { opacity: .45; cursor: default; }
+.meg-wsnew-same:not(:disabled):hover { color: #38bdf8; border-color: rgba(56,189,248,.45); }
 /* ── World State editor (popup) ─────────────────────────────────────────── */
 .meg-wsed { text-align: left; display: flex; flex-direction: column; gap: 12px; }
 .meg-wsed-top { display: flex; flex-direction: column; gap: 6px; }
