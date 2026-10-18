@@ -11,6 +11,7 @@ import { generateQuietPrompt, eventSource, event_types, extension_settings, isGe
 import { extensionName, TARGET_PRESET_NAME } from "../core/constants.js";
 import { localProfile } from "../core/state.js";
 import { setActiveBanListChat, setActiveGenerationOrder } from "../core/activeRequests.js";
+import { warnChomusuke } from "./chomusukeNotice.js";
 
 /**
  * Returns available SillyTavern Connection Profiles.
@@ -135,7 +136,10 @@ export async function applyConnectionProfileById(profileId, timeoutMs = 10000) {
  * 
  * @param {"memory"|"storyPlan"|"npc"|"banList"|"imageGen"|"styleGen"|"worldState"|"test"} featureKey
  * @param {() => Promise<any>} task
- * @param {{ force?: boolean }} [options]
+ * @param {{ force?: boolean, jobs?: string[] }} [options]  jobs: what a failure
+ *        message names (a combined call covers several); default [featureKey].
+ *        A failure on the worker is shown here and comes back as null, so a
+ *        caller that gets null has nothing more to tell the user.
  * @returns {Promise<any>}
  */
 // ── Worker session ───────────────────────────────────────────────────────
@@ -151,7 +155,7 @@ export function chomusukeSessionPromise() {
     return workerSession;
 }
 
-export async function runWithChomusuke(featureKey, task, { force = false } = {}) {
+export async function runWithChomusuke(featureKey, task, { force = false, jobs = null } = {}) {
     const chomusuke = localProfile?.chomusuke;
     const isEnabled = Boolean(chomusuke?.enabled) || force;
     const workerProfileId = chomusuke?.profileId;
@@ -179,7 +183,7 @@ export async function runWithChomusuke(featureKey, task, { force = false } = {})
     const turn = workerQueue.then(async () => {
         clearTimeout(watchdog);
         runningWorkerJob = featureKey;
-        try { return await runOnWorker(featureKey, task, chomusuke, workerProfileId); }
+        try { return await runOnWorker(featureKey, task, chomusuke, workerProfileId, jobs || [featureKey]); }
         finally { runningWorkerJob = null; }
     });
     workerQueue = turn.catch(() => {});
@@ -195,7 +199,7 @@ export function chomusukeJobRunning() {
 
 let workerQueue = Promise.resolve();
 
-async function runOnWorker(featureKey, task, chomusuke, workerProfileId) {
+async function runOnWorker(featureKey, task, chomusuke, workerProfileId, jobs) {
     // Traffic guard: wait if SillyTavern is currently generating in the main chat
     let waitLoops = 0;
     while (typeof isGenerating === "function" && isGenerating() && waitLoops < 60) {
@@ -231,9 +235,7 @@ async function runOnWorker(featureKey, task, chomusuke, workerProfileId) {
         return result;
     } catch (e) {
         console.error(`[${extensionName}] Chomusuke worker execution failed for "${featureKey}":`, e);
-        if (typeof toastr !== "undefined") {
-            toastr.error(`Chomusuke (Worker LLM) failed: ${e?.message || e}. Primary connection restored.`, "Megumin Suite", { timeOut: 7000 });
-        }
+        warnChomusuke("failed", jobs, { error: e, switchedBack: true });
         return null;
     } finally {
         if (switchedToWorker) {

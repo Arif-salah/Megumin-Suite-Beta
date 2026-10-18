@@ -13,6 +13,7 @@ import { getContext, saveChat, updateMessageBlock } from "../../st.js";
 import { localProfile } from "../../core/state.js";
 import { setActiveImageGenRequest } from "../../core/activeRequests.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
+import { warnChomusuke, answerKind } from "../../engine/chomusukeNotice.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { igGenerateWithComfy } from "./comfy.js";
 import { insertAtSlot } from "./slot.js";
@@ -104,16 +105,19 @@ export async function igAutoImageForReply(messageId, type, writePrompt, prepare 
     await new Promise(r => setTimeout(r, 0));
 
     let prompt = "";
+    let raw = null;
+    let failure = null;
     try {
         const conditional = (ig.triggerMode || "always") === "conditional";
         if (prepare) await prepare();
-        const raw = await runWithChomusuke("imageGen", () => writePrompt({ extraInstruction: conditional ? ONLY_IF_PHOTO : "" }));
+        raw = await runWithChomusuke("imageGen", () => writePrompt({ extraInstruction: conditional ? ONLY_IF_PHOTO : "" }));
         prompt = String(raw || "");
         const tag = prompt.match(/<img[^>]*?prompt=(["']?)([\s\S]*?)(?:\1\s*\/?>|\1\s*>|\1\s+[a-zA-Z]+=| \/>|>|$)/i);
         if (tag) prompt = tag[2];
         prompt = prompt.trim();
     } catch (e) {
         console.error("[Megumin-Suite] Automatic image prompt failed", e);
+        failure = e;
     } finally {
         setActiveImageGenRequest(null);
     }
@@ -121,6 +125,9 @@ export async function igAutoImageForReply(messageId, type, writePrompt, prepare 
     // Nothing to draw (NONE, an empty answer, or a failure): take the placeholder out.
     if (!prompt || /^none\.?$/i.test(prompt)) {
         if (inline) await removePlaceholder(id);
+        // NONE is an answer. null without an error: the worker said so already.
+        if (failure) warnChomusuke("failed", ["imageGen"], { error: failure });
+        else if (!prompt && raw !== null) warnChomusuke(answerKind(raw), ["imageGen"]);
         return;
     }
 

@@ -12,6 +12,7 @@ import { extensionName } from "../core/constants.js";
 import { engineKeepsNotebook } from "../core/engines.js";
 import { hardcodedLogic } from "../../data/database.js";
 import { runWithChomusuke } from "../engine/tasks.js";
+import { warnChomusuke, answerKind } from "../engine/chomusukeNotice.js";
 import { setActiveWorldExtractRequest } from "../core/activeRequests.js";
 import { localProfile } from "../core/state.js";
 import { createStateStore } from "./store.js";
@@ -20,7 +21,7 @@ import { bondsModule, sheetModule, chatterModule, trackerModule, cyoaModule } fr
 import { renderWorkerNotes, cleanWorkerAnswer, blockTextIn } from "./modules/stats/worker.js";
 import { pickBondsFor } from "./modules/stats/model.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
-import { presentCast } from "./modules/world/model.js";
+import { presentCast, findCast } from "./modules/world/model.js";
 import { notebookModule } from "./modules/notebook/index.js";
 import {
     notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler
@@ -191,7 +192,7 @@ export function worldCardInfo(msgIndex) {
     if (!entry) {
         // Side model: a reply not read yet (or being read right now).
         return sideModel
-            ? { entry: null, pending, unread: true, sideModel, applied: [], notes: [], skipped: [], missing: false, disabled: false, noChanges: false }
+            ? { entry: null, pending, unread: true, sideModel, applied: [], notes: [], skipped: [], newcomers: [], missing: false, disabled: false, noChanges: false }
             : null;
     }
     const step = entry.disabled ? null : stateStore.getStep("world", uid);
@@ -200,6 +201,7 @@ export function worldCardInfo(msgIndex) {
         applied: (step?.applied || []).map(a => ({ ...a, label: sub(a.label) })),
         notes: step?.notes || [],
         skipped: entry.parsed?.skipped || [],
+        newcomers: newcomersOf(step),
         missing: Boolean(entry.missing),
         disabled: Boolean(entry.disabled),
         noChanges: Boolean(entry.parsed?.noChanges),
@@ -207,6 +209,23 @@ export function worldCardInfo(msgIndex) {
         sideModel,
         unread: false
     };
+}
+
+// Characters a reply brought in with no "+" line who are still on their own
+// now, each with the other characters they might be ("Emma" → "Uncle Emma").
+function newcomersOf(step) {
+    if (!step || !step.unannounced || !step.unannounced.length) return [];
+    const now = getWorldState();
+    const cast = Object.values(now.cast || {});
+    return step.unannounced
+        .filter(name => findCast(now, name)?.name === name)
+        .map(name => ({ name, others: cast.map(c => c.name).filter(n => n !== name) }))
+        .filter(n => n.others.length);
+}
+
+/** The user says `name` is `into`: one character from now on. */
+export function worldSameCharacter(name, into) {
+    return worldEdit([{ type: "merge", who: name, into }]);
 }
 
 /** A manual edit from the editor. Returns the entry, or null with no chat open. */
@@ -328,6 +347,7 @@ export function worldExtractMessage(index, { force = false } = {}) {
     const run = async () => {
         let out = null;
         let req = null;
+        let failure = null;
         try {
             // Built when its turn comes, so a queued read sees the entries that
             // landed before it.
@@ -351,6 +371,7 @@ export function worldExtractMessage(index, { force = false } = {}) {
             });
         } catch (e) {
             console.error("[Megumin-Suite] World State side-model read failed", e);
+            failure = e;
         } finally {
             setActiveWorldExtractRequest(null);
             pendingExtract.delete(key);
@@ -372,7 +393,9 @@ export function worldExtractMessage(index, { force = false } = {}) {
         const parsed = cleaned ? worldModule.parse(cleaned) : null;
         stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe, parsed: parsed || null, raw: cleaned });
         if (!parsed) {
-            toastr.warning("Chomusuke gave no usable World State update for that reply. Use Read again on its card.", "Megumin Suite");
+            // null without an error: the worker failed and has said so already.
+            if (failure) warnChomusuke("failed", ["worldState"], { error: failure });
+            else if (out !== null) warnChomusuke(answerKind(out), ["worldState"]);
         } else if (parsed.skipped.length) {
             console.debug(`[Megumin-Suite] World State (side model): lines not understood in message ${at}:`, parsed.skipped);
         }
@@ -451,13 +474,12 @@ export function worldFinishExternalRead(token, raw, prefill = "<World_Update>\n"
     return { ok: true, dropped: false };
 }
 
-/** No usable update and no fallback: record it as missing (the card offers Read again). */
+/** No usable update and no fallback: record it as missing (the card offers Read again). The caller tells the user. */
 export function worldRecordMissing(token) {
     pendingExtract.delete(token.key);
     const at = findTokenMessage(token);
     if (at < 0) return;
     stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe: token.swipe, parsed: null });
-    toastr.warning("Chomusuke gave no usable World State update for that reply. Use Read again on its card.", "Megumin Suite");
     stateChangedHook();
 }
 

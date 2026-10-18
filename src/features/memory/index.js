@@ -28,6 +28,7 @@ import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { downloadJsonFile } from "../../utils/download.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
+import { warnChomusuke } from "../../engine/chomusukeNotice.js";
 import { suiteEnabled } from "../../core/power.js";
 import { memGetCachedKeywords, memExtractKeywords, memStringHash } from "./keywords.js";
 import {
@@ -958,6 +959,7 @@ export async function memProcessPendingChunks(isAuto = false) {
     let changesMade = false;
     const newlyAddedBypassedVaultChunks = [];
     let bypassedCount = 0;
+    let emptySummaries = 0;
 
     try {
         const totalChunks = chunksToProcess.length;
@@ -1026,8 +1028,13 @@ export async function memProcessPendingChunks(isAuto = false) {
                 });
                 changesMade = true;
                 chunksSinceLastSave++;
+            } else {
+                emptySummaries++;
             }
         }
+
+        // Once for the run, not per chunk. Those messages stay in the chat as they are.
+        if (emptySummaries > 0) warnChomusuke("empty", ["memory"]);
 
         // Show single summary toast for vault bypass instead of per-chunk spam
         if (bypassedCount > 0) {

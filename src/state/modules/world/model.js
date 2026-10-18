@@ -83,10 +83,19 @@ function isPcName(state, who, ctx) {
     return (ctx.userNames || []).some(n => n && nameKey(n) === k);
 }
 
+// "resha" starts "resha helios" in whole words (either way round). Not
+// "lady mira" and "lady resha": neither is the start of the other.
+function namePrefixOf(a, b) {
+    const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+    return short.length > 2 && short !== long && long.startsWith(short + " ");
+}
+
 /**
  * The cast key a name refers to: the character's own name first, then any
- * nickname they carry ('Matthew "Matt"' is found by "Matt" too). Unknown names
- * map to their own key, so a new character is created under it.
+ * nickname they carry ('Matthew "Matt"' is found by "Matt" too), then the
+ * one character whose name is the start of this one or starts with it
+ * ("Resha" is "Resha Helios", when no one else fits). Unknown names map to
+ * their own key, so a new character is created under it.
  */
 export function resolveCastKey(state, name) {
     const k = nameKey(name);
@@ -94,7 +103,9 @@ export function resolveCastKey(state, name) {
     for (const [key, c] of Object.entries(state.cast)) {
         if ((c.aliases || []).some(a => nameKey(a) === k)) return key;
     }
-    return k;
+    const hits = Object.entries(state.cast)
+        .filter(([, c]) => [c.name, ...(c.aliases || [])].some(n => namePrefixOf(nameKey(n), k)));
+    return hits.length === 1 ? hits[0][0] : k;
 }
 
 // Gives a character their nicknames. If one of those nicknames already has a
@@ -126,7 +137,14 @@ function castEntry(state, name, seq, createPresent) {
         state.cast[k] = { name, present: createPresent, fields: {}, offscreen: "", lastSeenSeq: seq };
         return { entry: state.cast[k], created: true };
     }
-    return { entry: state.cast[k], created: false };
+    // Found under another spelling ("Resha" for "Resha Helios"): kept as a
+    // nickname, so the notes show both and the model keeps to one person.
+    const entry = state.cast[k];
+    const nk = nameKey(name);
+    if (nk && nk !== nameKey(entry.name) && !(entry.aliases || []).some(a => nameKey(a) === nk)) {
+        entry.aliases = [...(entry.aliases || []), String(name).trim()];
+    }
+    return { entry, created: false };
 }
 
 // Longest known cast name that starts the text: "Wiz restocking her shop" → Wiz.
@@ -145,14 +163,17 @@ function matchCastPrefix(state, text) {
  * @param {object} prev     world state (not mutated)
  * @param {{kind: string, changes: object[]}} parsed
  * @param {{seq?: number, userNames?: string[]}} [ctx]
- * @returns {{ state: object, applied: Array<{label: string, before: string, after: string}>, notes: string[] }}
+ * @returns {{ state: object, applied: Array<{label: string, before: string, after: string}>, notes: string[], unannounced: string[] }}
+ *   unannounced: characters this reply created with no "+" line (the card
+ *   asks whether one of them is someone already known)
  */
 export function applyWorldChanges(prev, parsed, ctx = {}) {
     const state = structuredClone(prev || emptyWorld());
     const applied = [];
     const notes = [];
+    const unannounced = [];
     const seq = typeof ctx.seq === "number" ? ctx.seq : 0;
-    if (!parsed || !Array.isArray(parsed.changes)) return { state, applied, notes };
+    if (!parsed || !Array.isArray(parsed.changes)) return { state, applied, notes, unannounced };
 
     const note = (label, before, after) => {
         if (before !== after) applied.push({ label, before: before || "", after: after || "" });
@@ -223,6 +244,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                     // presence stays exactly as it was
                 } else if (created) {
                     notes.push(`${entry.name} had no "+ ${entry.name}" line; treated as entering the scene.`);
+                    unannounced.push(entry.name);
                     note(`${entry.name} entered`, "", "present");
                 } else if (!entry.present) {
                     entry.present = true;
@@ -270,6 +292,30 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                     delete state.cast[k];
                     note(`${gone} removed`, "known", "");
                 }
+                break;
+            }
+            case "merge": {
+                // Editor/card only: "Emma" is "Uncle Emma". The first becomes a
+                // nickname of the second; for each detail the one seen last wins.
+                const fromKey = resolveCastKey(state, ch.who);
+                const toKey = resolveCastKey(state, ch.into);
+                const from = state.cast[fromKey];
+                const to = state.cast[toKey];
+                if (!from || !to || from === to) break;
+                const fromIsNewer = (from.lastSeenSeq || 0) >= (to.lastSeenSeq || 0);
+                to.fields = fromIsNewer ? { ...to.fields, ...from.fields } : { ...from.fields, ...to.fields };
+                if (fromIsNewer) {
+                    to.present = from.present;
+                    to.offscreen = from.offscreen || "";
+                }
+                to.lastSeenSeq = Math.max(to.lastSeenSeq || 0, from.lastSeenSeq || 0);
+                to.aliases = to.aliases || [];
+                for (const n of [from.name, ...(from.aliases || [])]) {
+                    const nk = nameKey(n);
+                    if (nk && nk !== nameKey(to.name) && !to.aliases.some(a => nameKey(a) === nk)) to.aliases.push(n);
+                }
+                delete state.cast[fromKey];
+                note(`${to.name} · Also called`, "", from.name);
                 break;
             }
             case "offscreen": {
@@ -351,7 +397,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
         note(`${LIST_LABEL[key]}s`, before, deduped.join(" · "));
     }
 
-    return { state, applied, notes };
+    return { state, applied, notes, unannounced };
 }
 
 /** Everyone currently in the scene, in insertion order. */

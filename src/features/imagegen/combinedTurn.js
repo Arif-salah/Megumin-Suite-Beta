@@ -22,6 +22,7 @@ import { getContext, generateQuietPrompt, substituteParams } from "../../st.js";
 import { localProfile } from "../../core/state.js";
 import { setActiveImageGenRequest } from "../../core/activeRequests.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
+import { warnChomusuke, answerKind } from "../../engine/chomusukeNotice.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
 import {
     worldEnabled, worldUpdateMode, worldBeginExternalRead, worldReadInputs,
@@ -118,6 +119,8 @@ export async function runCombinedTurn(messageId, type, plan) {
     let staleBefore = [];
     let missingLooks = [];
     let raw = "";
+    let failure = null;
+    const parts = [token && "worldState", bToken && "blocks", nToken && "notebook", wantImage && "imageGen"].filter(Boolean);
     try {
         raw = await runWithChomusuke(wantImage ? "imageGen" : token ? "worldState" : bToken ? "blocks" : "notebook", async () => {
             // Built when this job has the worker, so it sees whatever landed before it.
@@ -169,11 +172,22 @@ export async function runCombinedTurn(messageId, type, plan) {
             } finally {
                 setActiveImageGenRequest(null);
             }
-        });
+        }, { jobs: parts });
     } catch (e) {
         console.error("[Megumin-Suite] Combined Chomusuke call failed", e);
+        failure = e;
     }
+    // null without an error: the worker failed and has said so already.
+    const alreadyTold = raw === null && !failure;
     raw = String(raw || "");
+    // The parts that came back unusable and are not read again on their own:
+    // one warning names them all (a read that falls back warns for itself).
+    const missing = [];
+    const tell = () => {
+        if (alreadyTold || !missing.length) return;
+        if (failure) warnChomusuke("failed", missing, { error: failure });
+        else warnChomusuke(answerKind(raw), missing);
+    };
     if (!raw.trim() && missingLooks.length) releaseLookAttempts(getContext()?.chatId, missingLooks);
     // With a World prefill the answer starts inside the World block.
     const full = built && built.prefill && !/<World_(State|Update)\b/i.test(raw) ? built.prefill + raw : raw;
@@ -184,7 +198,7 @@ export async function runCombinedTurn(messageId, type, plan) {
         const world = worldFinishExternalRead(token, raw, built ? built.prefill : "<World_Update>\n");
         if (!world.ok && !world.dropped) {
             if (combineSettings().worldFallback) worldExtractMessage(index, { force: true });
-            else worldRecordMissing(token);
+            else { worldRecordMissing(token); missing.push("worldState"); }
         }
         dropped = world.dropped;
     }
@@ -194,7 +208,7 @@ export async function runCombinedTurn(messageId, type, plan) {
         const res = blocksFinishRead(bToken, full);
         if (!res.ok && !res.dropped) {
             if (combineSettings().worldFallback) blocksReadForReply(index, { force: true });
-            else toastr.warning("Chomusuke wrote no usable blocks for that reply. Use Read again on its card.", "Megumin Suite");
+            else missing.push("blocks");
         }
         dropped = dropped || res.dropped;
         meguminScheduleBlocksRefresh();
@@ -206,13 +220,13 @@ export async function runCombinedTurn(messageId, type, plan) {
         if (!res.ok && !res.dropped) {
             notebookRecordMissing(nToken);
             if (combineSettings().worldFallback) notebookReadForReply(index, { force: true });
-            else toastr.warning("Chomusuke gave no usable notebook lines for that reply. Use Read again on its card.", "Megumin Suite");
+            else missing.push("notebook");
         }
         dropped = dropped || res.dropped;
         meguminScheduleBlocksRefresh();
     }
 
-    if (!wantImage) return true;
+    if (!wantImage) { tell(); return true; }
     const anyToken = token || bToken || nToken;
     if (dropped || getContext()?.chatId !== (anyToken ? anyToken.chatId : getContext()?.chatId)) {
         if (inline) await removePlaceholder(id);
@@ -235,8 +249,12 @@ export async function runCombinedTurn(messageId, type, plan) {
     const prompt = unwrapImgTag(engine === "v2" ? cleanModelPrompt(rawPrompt) : rawPrompt);
     if (!prompt || /^none\.?$/i.test(prompt)) {
         if (inline) await removePlaceholder(id);
+        // NONE is an answer; no image prompt at all is not.
+        if (!prompt) missing.push("imageGen");
+        tell();
         return true;
     }
+    tell();
     toastr.info("Sending to ComfyUI...", "Megumin Suite");
     igGenerateWithComfy(prompt, { message, index, mode: inline ? "inline" : "new_msg", isInlineAuto: true, placeholderId: id });
     return true;

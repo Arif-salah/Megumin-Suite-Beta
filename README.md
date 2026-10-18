@@ -9,6 +9,28 @@ README on the stable branch.
 
 ---
 
+## 2026-10-18
+
+> Chomusuke tells you when something goes wrong, and World State stops
+> splitting one character into two.
+
+### Chomusuke tells you when something goes wrong
+
+- **A popup when Chomusuke's answer is no good.** After a reply, if Chomusuke's model fails, sends back nothing, or answers in the wrong format, you're told which one and what to do: check its connection in the Chomusuke tab, use **Read again** on the card, or pick a stronger model.
+- **Covers every job that runs on its own:** World State, Blocks, The Notebook, automatic images, the memory summary and the Story Director.
+- **One popup per reply with Combine calls on**, naming everything that failed, instead of three.
+
+### World State keeps one character as one
+
+- **A short name finds the full one.** The story says "Resha Helios", Chomusuke later writes just "Resha": it's still one character, and "Resha" is kept as her nickname. It only does this when exactly one character fits, so "Lady Mira" and "Lady Resha", or "Anna" and "Annabelle", stay apart.
+- **"Same person as…" on the card.** When a reply brings in a character it never introduced (like "Emma" when the story already has "Uncle Emma"), the World State card asks if they're someone already in the story. Pick the name and press **Same person** to merge them, or **New character** to keep them apart. Undo it from the editor's History.
+
+### Fixes
+
+- **Opening a new chat no longer makes Chomusuke write blocks for the greeting.** It only runs after real replies.
+
+---
+
 ## 2026-10-17 — V11 Тайна
 
 > A worker of your own called Chomusuke, a World State that remembers properly,

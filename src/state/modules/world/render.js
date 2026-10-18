@@ -295,6 +295,7 @@ export function describeWorldChange(ch, pcLabel = "{{user}}") {
         case "leave": return `${who(ch.who)} left${ch.where ? `: ${ch.where}` : ""}`;
         case "offscreen": return `${ch.who ? who(ch.who) + " " : ""}off-screen: ${ch.value}`;
         case "forget": return `${who(ch.who)} removed`;
+        case "merge": return `${who(ch.who)} is ${who(ch.into)}`;
         case "pcname": return `Player character: ${ch.name}`;
         case "list": {
             const n = LIST_NAME[ch.list] || ch.list;
