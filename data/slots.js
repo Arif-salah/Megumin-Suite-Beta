@@ -21,8 +21,7 @@
 import { addons, blocks, models, modes } from "./database.js";
 import { isCoWriterEngine } from "../src/core/engines.js";
 import {
-    FORMATTING_RULES, FINAL_CHECKS, BUILTIN_BAN_LIST, FICTION_NOTE,
-    LORE_OPEN, LORE_CLOSE, PERSONA_OPEN, PERSONA_CLOSE, HISTORY_OPEN, HISTORY_CLOSE,
+    FORMATTING_RULES, FINAL_CHECKS, BUILTIN_BAN_LIST,
 } from "../src/prompts/presetFrame.js";
 
 const addonText = id => addons.find(a => a.id === id)?.content || "";
@@ -172,23 +171,6 @@ export const MEGUMIN_SLOT_REGISTRY = [
     { key: "finalChecks", trigger: "[[final_checks]]", label: "Final Checks", scope: "shared", group: "systems",
       hint: "The checks at the top of the final reminder, one per line. They are numbered for you.",
       fallback: () => FINAL_CHECKS },
-    { key: "fictionNote", trigger: "[[fiction]]", label: "Answer Inside the Story", scope: "shared", group: "systems",
-      hint: "Sent after the final reminder: when {{user}} tries something the world wouldn't allow, the story answers it.",
-      fallback: () => FICTION_NOTE },
-
-    // ── Where each part of the prompt starts and ends ────────────────────────
-    { key: "loreOpen", trigger: "[[lore_open]]", label: "Character Sheet: start", scope: "shared", group: "frame",
-      hint: "Sent before the character card and world info.", fallback: () => LORE_OPEN },
-    { key: "loreClose", trigger: "[[lore_close]]", label: "Character Sheet: end", scope: "shared", group: "frame",
-      hint: "Sent after the character card, world info, story plan and NPC list.", fallback: () => LORE_CLOSE },
-    { key: "personaOpen", trigger: "[[persona_open]]", label: "Your Persona: start", scope: "shared", group: "frame",
-      hint: "Sent before your persona.", fallback: () => PERSONA_OPEN },
-    { key: "personaClose", trigger: "[[persona_close]]", label: "Your Persona: end", scope: "shared", group: "frame",
-      hint: "Sent after your persona.", fallback: () => PERSONA_CLOSE },
-    { key: "historyOpen", trigger: "[[history_open]]", label: "Chat History: start", scope: "shared", group: "frame",
-      hint: "Sent before the memory and the chat.", fallback: () => HISTORY_OPEN },
-    { key: "historyClose", trigger: "[[history_close]]", label: "Chat History: end", scope: "shared", group: "frame",
-      hint: "The very last message before the reply.", fallback: () => HISTORY_CLOSE },
     { key: "direct", trigger: "[[Direct]]", label: "Direct Language", scope: "shared", group: "systems",
       gate: GATE.addon("direct"), hint: "Blunt anatomical wording instead of euphemism.",
       fallback: () => addonText("direct") },
@@ -395,7 +377,6 @@ export const SLOT_GROUPS = [
     { id: "systems", label: "Systems" },
     { id: "format", label: "Formatting" },
     { id: "blocks", label: "Output Blocks" },
-    { id: "frame", label: "Where Each Part Starts and Ends", hint: "The tags around the character sheet, your persona and the chat history." },
     { id: "global", label: "Built From Your Settings" },
     { id: "live", label: "Filled In Automatically" },
 ];

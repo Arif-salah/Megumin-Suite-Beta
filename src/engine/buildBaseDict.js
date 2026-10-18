@@ -764,8 +764,7 @@ export function buildBaseDict(isTokenCount = false) {
         checks: slotText("[[final_checks]]"), banned: !!banned,
         presetChecks: slotText("[[reminder_checks]]"), userLine: dict["[[user]]"],
     });
-    ["[[content]]", "[[fiction]]", "[[lore_open]]", "[[lore_close]]", "[[persona_open]]",
-        "[[persona_close]]", "[[history_open]]", "[[history_close]]"].forEach(t => { dict[t] = slotText(t); });
+    dict["[[content]]"] = slotText("[[content]]");
 
     // --- MASTER BLOCK ENVELOPE ---
     // Built from the same per-block values the legacy path uses, so engine

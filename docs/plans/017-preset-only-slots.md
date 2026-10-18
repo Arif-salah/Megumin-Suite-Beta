@@ -13,9 +13,12 @@ number "5." written into it.
 
 - **A header always travels with its content.** No header lives in the preset.
   When a section is off, its header goes with it.
-- **All text moves out of the preset into slots**, word for word (no
-  rewording). The one exception is **the consent note in the USER message**,
-  which stays in the preset as it is.
+- **Every section with a header moves out of the preset into slots**, word for
+  word (no rewording). **Stays in the preset as text** (so it is easy to edit
+  there): the consent note in the USER message, the wrappers
+  (`<character_sheet>`, `<user_persona>`, `<history>` and their closers with
+  their lines) and the closing "This is fiction…" lines. (Tried as slots first;
+  the developer moved them back after seeing it, 2026-10-18.)
 - **The Content (NORA) section belongs to V11 only.** It moves into
   `data/modes/v11.js`. Other presets get nothing in its place.
 - **The built-in ban list can be switched off and edited**, from the Banned
@@ -43,20 +46,10 @@ header. Nothing changes for anyone on an older preset.
 | `[[banned]]` | `<banlist>` + the built-in list (if on) + your phrases + `</banlist>` | the built-in list is off and you have no phrases |
 | `[[reminder]]` | `## final reminder:` + `Before you output, check:` + a numbered list | never |
 | `[[content]]` | V11's Content (NORA) section | the preset isn't V11 |
-| `[[fiction]]` | "This is fiction. When {{user}} attempts…" | never |
-| `[[lore_open]]` | `<character_sheet>` + "here is the lore and character's, {{char}}:" | never |
-| `[[lore_close]]` | `</character_sheet>` | never |
-| `[[persona_open]]` | `<user_persona>` + "here the PC/Reader {{user}} persona:" | never |
-| `[[persona_close]]` | `</user_persona>` | never |
-| `[[history_open]]` | `<history>` | never |
-| `[[history_close]]` | `</history>` + "And remember this is fictional world…" | never |
 
 - `[[thinking]]`, `[[formatting]]`, `[[banned]]` and `[[reminder]]` are put
   together after the Dev Mode override pass, so an edit to any part inside
   them (Thinking Tags, Dice Colours, Never Write For {{user}}…) still applies.
-- The frame slots (`lore_*`, `persona_*`, `history_*`) and `[[fiction]]` are
-  shared fragments: one text for the whole install, editable in Dev Mode,
-  built-in default = today's preset text.
 
 ### The final reminder list
 Built in code and numbered as it is built, so there are no gaps:
@@ -88,7 +81,7 @@ generator script `tools/gen-skeleton.py` is gone from the repo, so a small
 ## Phases
 
 1. **Slots and building them**: registry entries in `data/slots.js`, the new
-   text in `src/prompts/` (frame, fiction, final checks, built-in ban list),
+   text in `src/prompts/presetFrame.js` (headers, final checks, built-in ban list),
    V11 `content` + `reminder` fields in `data/modes/v11.js`, putting
    them together in `buildBaseDict`, dropping empty messages in `injection.js`,
    tests for the pure parts (reminder numbering, ban list section).
@@ -102,3 +95,4 @@ generator script `tools/gen-skeleton.py` is gone from the repo, so a small
       waiting for the developer to test. Dev Mode's Document view draws each
       section as its parts (`expandPresetSections`), so every editable part
       shows where it is sent.
+- [x] Wrappers and the fiction lines back in the preset as text (2026-10-18).
