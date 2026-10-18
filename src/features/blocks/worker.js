@@ -13,6 +13,7 @@
 
 import { getContext, generateQuietPrompt, substituteParams } from "../../st.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
+import { warnChomusuke, answerKind } from "../../engine/chomusukeNotice.js";
 import { setActiveWorldExtractRequest } from "../../core/activeRequests.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
 import { buildBaseDict } from "../../engine/buildBaseDict.js";
@@ -90,14 +91,14 @@ export function blocksReadForReply(index, { force = false } = {}) {
             });
         } catch (e) {
             console.error("[Megumin-Suite] Blocks read failed", e);
+            warnChomusuke("failed", ["blocks"], { error: e });
             blocksAbandonRead(token);
             meguminScheduleBlocksRefresh();
             return false;
         }
         const res = blocksFinishRead(token, raw);
-        if (!res.ok && !res.dropped) {
-            toastr.warning("Chomusuke wrote no usable blocks for that reply. Use Read again on its card.", "Megumin Suite");
-        }
+        // null: the worker failed and has said so already.
+        if (!res.ok && !res.dropped && raw !== null) warnChomusuke(answerKind(raw), ["blocks"]);
         meguminScheduleBlocksRefresh();
         return res.ok;
     };

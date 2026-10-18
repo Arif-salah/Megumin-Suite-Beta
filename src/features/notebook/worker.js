@@ -11,6 +11,7 @@
 
 import { generateQuietPrompt, substituteParams } from "../../st.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
+import { warnChomusuke, answerKind } from "../../engine/chomusukeNotice.js";
 import { setActiveWorldExtractRequest } from "../../core/activeRequests.js";
 import {
     notebookViaChomusuke, notebookBeginRead, notebookReadNotes, notebookFinishRead, notebookRecordMissing, notebookAbandonRead
@@ -54,6 +55,7 @@ export function notebookReadForReply(index, { force = false } = {}) {
             });
         } catch (e) {
             console.error("[Megumin-Suite] Notebook read failed", e);
+            warnChomusuke("failed", ["notebook"], { error: e });
             notebookAbandonRead(token);
             meguminScheduleBlocksRefresh();
             return false;
@@ -61,7 +63,8 @@ export function notebookReadForReply(index, { force = false } = {}) {
         const res = notebookFinishRead(token, raw);
         if (!res.ok && !res.dropped) {
             notebookRecordMissing(token);
-            toastr.warning("Chomusuke gave no usable notebook lines for that reply. Use Read again on its card.", "Megumin Suite");
+            // null: the worker failed and has said so already.
+            if (raw !== null) warnChomusuke(answerKind(raw), ["notebook"]);
         }
         meguminScheduleBlocksRefresh();
         return res.ok;

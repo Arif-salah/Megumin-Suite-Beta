@@ -87,6 +87,7 @@ import {
 } from "./src/features/blocks/registry.js";
 import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex } from "./src/engine/chatText.js";
 import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise } from "./src/engine/tasks.js";
+import { warnChomusuke, answerKind } from "./src/engine/chomusukeNotice.js";
 import { escapeHtmlAttr } from "./src/utils/html.js";
 import { downloadJsonFile } from "./src/utils/download.js";
 import { showKazumaProgress } from "./src/ui/progress.js";
@@ -639,8 +640,14 @@ jQuery(async () => {
                                                 $("#sd_btn_evolve").prop("disabled", false);
                                             }
                                             toastr.success("Narrative Directive Evolved silently!", "Story Director");
+                                        } else if (output !== null) {
+                                            // null: the worker failed and has said so already.
+                                            warnChomusuke(answerKind(output), ["storyPlan"]);
                                         }
-                                    } catch (e) { console.error("[Megumin Suite] Story Director auto-evolve failed", e); }
+                                    } catch (e) {
+                                        console.error("[Megumin Suite] Story Director auto-evolve failed", e);
+                                        warnChomusuke("failed", ["storyPlan"], { error: e });
+                                    }
                                 }, 2000); // Delay to let UI settle
                             }
                         }

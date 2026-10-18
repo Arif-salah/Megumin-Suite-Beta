@@ -12,6 +12,7 @@ import { extensionName } from "../core/constants.js";
 import { engineKeepsNotebook } from "../core/engines.js";
 import { hardcodedLogic } from "../../data/database.js";
 import { runWithChomusuke } from "../engine/tasks.js";
+import { warnChomusuke, answerKind } from "../engine/chomusukeNotice.js";
 import { setActiveWorldExtractRequest } from "../core/activeRequests.js";
 import { localProfile } from "../core/state.js";
 import { createStateStore } from "./store.js";
@@ -328,6 +329,7 @@ export function worldExtractMessage(index, { force = false } = {}) {
     const run = async () => {
         let out = null;
         let req = null;
+        let failure = null;
         try {
             // Built when its turn comes, so a queued read sees the entries that
             // landed before it.
@@ -351,6 +353,7 @@ export function worldExtractMessage(index, { force = false } = {}) {
             });
         } catch (e) {
             console.error("[Megumin-Suite] World State side-model read failed", e);
+            failure = e;
         } finally {
             setActiveWorldExtractRequest(null);
             pendingExtract.delete(key);
@@ -372,7 +375,9 @@ export function worldExtractMessage(index, { force = false } = {}) {
         const parsed = cleaned ? worldModule.parse(cleaned) : null;
         stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe, parsed: parsed || null, raw: cleaned });
         if (!parsed) {
-            toastr.warning("Chomusuke gave no usable World State update for that reply. Use Read again on its card.", "Megumin Suite");
+            // null without an error: the worker failed and has said so already.
+            if (failure) warnChomusuke("failed", ["worldState"], { error: failure });
+            else if (out !== null) warnChomusuke(answerKind(out), ["worldState"]);
         } else if (parsed.skipped.length) {
             console.debug(`[Megumin-Suite] World State (side model): lines not understood in message ${at}:`, parsed.skipped);
         }
@@ -451,13 +456,12 @@ export function worldFinishExternalRead(token, raw, prefill = "<World_Update>\n"
     return { ok: true, dropped: false };
 }
 
-/** No usable update and no fallback: record it as missing (the card offers Read again). */
+/** No usable update and no fallback: record it as missing (the card offers Read again). The caller tells the user. */
 export function worldRecordMissing(token) {
     pendingExtract.delete(token.key);
     const at = findTokenMessage(token);
     if (at < 0) return;
     stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe: token.swipe, parsed: null });
-    toastr.warning("Chomusuke gave no usable World State update for that reply. Use Read again on its card.", "Megumin Suite");
     stateChangedHook();
 }
 
