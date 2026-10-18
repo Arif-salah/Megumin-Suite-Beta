@@ -22,7 +22,7 @@ import { meguminBlockById, meguminBlockTemplateBody } from "./registry.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
 
 const sub = t => { try { return substituteParams(t); } catch (e) { return t; } };
-export const NOT_A_REPLY = new Set(["command", "impersonate", "quiet"]);
+export const NOT_A_REPLY = new Set(["first_message", "command", "impersonate", "quiet"]);
 
 // The latest exchange: the user turn(s) just before the reply, then the reply.
 export function exchangeText(index, replyText) {
