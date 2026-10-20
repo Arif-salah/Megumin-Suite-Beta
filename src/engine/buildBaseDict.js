@@ -301,7 +301,7 @@ export function buildBaseDict(isTokenCount = false) {
     // would otherwise mean editing the engine to add a number.
     //
     // Plan 018: the V11 preset sends the rules up top as [[dice_rules]], the
-    // numbers pointed to in <this_turn>, and the same numbers on their own line.
+    // numbers pointed to in <turn_notes>, and the same numbers on their own line.
     let diceRollsLine = "";
     dict["[[dice_rules]]"] = "";
     (localProfile.addons || []).forEach(aId => {
@@ -410,7 +410,7 @@ export function buildBaseDict(isTokenCount = false) {
     }
 
     // Plan 018: the V11 preset's image rules go up top whenever the story model
-    // writes the images ([[img_rules]]), and <this_turn> asks on the turns one
+    // writes the images ([[img_rules]]), and <turn_notes> asks on the turns one
     // is due (imageTurn).
     dict["[[img_rules]]"] = "";
     let imageTurn = "";
@@ -479,9 +479,9 @@ export function buildBaseDict(isTokenCount = false) {
             const v2Inline = imageV2InlineInstruction({ conditionalText, imageCount: imageCountStr });
 
             // The split. The characters' tags (Classic) and the cast (V2)
-            // change with the scene, so they ride in <this_turn>. A custom
+            // change with the scene, so they ride in <turn_notes>. A custom
             // template without the opening sentence can't be split: it is
-            // sent whole in <this_turn>, on the turns an image is due.
+            // sent whole in <turn_notes>, on the turns an image is due.
             let turnExtra = "";
             const v2Split = imageV2InlineSplit({ conditionalText });
             if (v2Split) {

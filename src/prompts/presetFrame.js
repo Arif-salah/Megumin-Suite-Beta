@@ -28,19 +28,19 @@ export const FINAL_CHECKS = "Characters know only what they have seen, heard, or
 // Only listed while the ban list is sent.
 export const BANLIST_CHECK = "Nothing in the response is on the banlist.";
 
-// ── Plan 018: rules up top, what changes each turn in <this_turn> ──────────
+// ── Plan 018: rules up top, what changes each turn in <turn_notes> ──────────
 // The V11 preset sends every rule in its top part, the same each turn, so it
-// caches. These lines point the rules at <this_turn>, which carries the
+// caches. These lines point the rules at <turn_notes>, which carries the
 // numbers and asks at the end. Older presets keep the old combined wording.
 
-export const BLOCK_RULES_LEAD = "These rules say how to fill the blocks <this_turn> asks for. Follow them; never write them out.";
+export const BLOCK_RULES_LEAD = "These rules say how to fill the blocks <turn_notes> asks for. Follow them; never write them out.";
 
-// Takes the place of [[dice_rolls]] in the dice rules: "this turn's rolls are listed in <this_turn>."
-export const DICE_ROLLS_POINTER = "listed in <this_turn>";
+// Takes the place of [[dice_rolls]] in the dice rules: "this turn's rolls are listed in <turn_notes>."
+export const DICE_ROLLS_POINTER = "listed in <turn_notes>";
 
 // The Classic image rules' opening sentence, old and new.
 export const IMAGE_ASK_OLD = "Within your response, insert {{imageCount}} of this image tag:";
-export const IMAGE_ASK_NEW = "When <this_turn> asks for an image, insert this image tag within your response:";
+export const IMAGE_ASK_NEW = "When <turn_notes> asks for an image, insert this image tag within your response:";
 
 export const diceTurnLine = rolls => `Dice rolls: ${rolls.join(", ")}`;
 

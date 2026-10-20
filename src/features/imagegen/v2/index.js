@@ -178,7 +178,7 @@ export function v2InlineInstruction({ conditionalText = "", imageCount = 1 } = {
     }));
 }
 
-/** The V11 preset's split of the same instruction: rules up top, the cast in <this_turn>. */
+/** The V11 preset's split of the same instruction: rules up top, the cast in <turn_notes>. */
 export function v2InlineSplit({ conditionalText = "" } = {}) {
     const cfg = v2Settings();
     const out = renderV2InlineSplit({

@@ -96,7 +96,7 @@ export const IMAGE_V2_PROMPTS = {
     manualTaskWithExtras: "The image shows the moment <Last_Message> ends on. <Earlier_Story> is only there so you understand it: draw nothing that has already ended (someone who put an item away no longer holds it). Write the image prompt for that moment.",
 
     inlineHead: "### IMAGE\n{{conditionalText}}Within your response, insert {{imageCount}} image tag(s) like this: <img prompt=\"...\"> at the moment the image shows.",
-    // Plan 018: the V11 preset's rules up top; <this_turn> says when an image is due.
-    inlineHeadSplit: "### IMAGE\n{{conditionalText}}When <this_turn> asks for an image, insert the image tag like this: <img prompt=\"...\"> at the moment the image shows.",
+    // Plan 018: the V11 preset's rules up top; <turn_notes> says when an image is due.
+    inlineHeadSplit: "### IMAGE\n{{conditionalText}}When <turn_notes> asks for an image, insert the image tag like this: <img prompt=\"...\"> at the moment the image shows.",
     inlineTail: "Inside prompt=\"...\", never use double quotes."
 };

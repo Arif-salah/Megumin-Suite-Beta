@@ -135,7 +135,7 @@ export function renderV2InlineInstruction({ conditionalText = "", imageCount = 1
 /**
  * The same instruction split for the V11 preset (plan 018): the rules, the
  * same every turn, and what changes with the scene (the cast, the previous
- * prompt), which goes in <this_turn>.
+ * prompt), which goes in <turn_notes>.
  * @returns {{ rules: string, turn: string }}
  */
 export function renderV2InlineSplit({ conditionalText = "", castList = "", rules = "", method = "placeholders", previous = "" } = {}) {

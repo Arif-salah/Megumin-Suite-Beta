@@ -63,12 +63,12 @@ developer's approval before it is written, one at a time.
 | | character sheet, persona, consent note, `<history>` (memory), chat | no NPC list, no story plan |
 | Bottom, depth 1 | `</history>` (100), Current info (101: `[[infoblockcurrent]]` `[[npc list]]` `[[storyplan_now]]`), Content (102), Story settings (103), Thinking (104), This turn (105: `[[this_turn]]` `[[formatting]]` `[[reminder]]`…) | |
 
-- `<this_turn>` holds only what is new each turn: `Dice rolls: 14, 3, 19`, the
+- `<turn_notes>` holds only what is new each turn: `Dice rolls: 14, 3, 19`, the
   image line on turns one is due (with the V2 cast and previous prompt, or the
   Classic character tags), and the `<Blocks>` skeleton.
 - Reworded (approved): the dice rules say "this turn's rolls are listed in
-  <this_turn>"; the image rules open "When <this_turn> asks for an image…";
-  the block rules open "These rules say how to fill the blocks <this_turn>
+  <turn_notes>"; the image rules open "When <turn_notes> asks for an image…";
+  the block rules open "These rules say how to fill the blocks <turn_notes>
   asks for." In "only when a photo is taken" mode the line is "Image: up to 1
   image tag this turn, only if a character is taking or sharing a picture
   right now."

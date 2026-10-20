@@ -222,7 +222,7 @@ export function meguminBlockTemplateBody(b, dict) {
 
 // The envelope in its two halves: the rules (World State, Notebook) and the
 // skeleton's parts. Read once per build: the V11 preset sends the rules up top
-// and the skeleton in <this_turn> (plan 018), older presets get both together.
+// and the skeleton in <turn_notes> (plan 018), older presets get both together.
 export function blocksEnvelopeParts(dict) {
     const active = meguminActiveBlocks();
     // Plan 010: the Author's Notebook is not a block in the stack; it rides in
