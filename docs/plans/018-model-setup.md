@@ -86,4 +86,6 @@ developer's approval before it is written, one at a time.
 
 - [x] Phase 1 built 2026-10-20 (249 tests pass, import check clean). The V11
       Universal preset has the new layout; `data/skeleton.js` regenerated.
-      Waiting for the developer to test.
+      Tested by the developer ("all good"). The per-turn part is called
+      `<turn_notes>` (renamed from `<this_turn>`, which could read as the
+      whole reply).
