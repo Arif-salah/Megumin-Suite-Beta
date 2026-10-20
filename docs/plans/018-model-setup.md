@@ -89,3 +89,10 @@ developer's approval before it is written, one at a time.
       Tested by the developer ("all good"). The per-turn part is called
       `<turn_notes>` (renamed from `<this_turn>`, which could read as the
       whole reply).
+- [ ] Phase 2 built 2026-10-20, waiting for the developer's review: every V11
+      text is in `src/prompts/v11Rules.js`; old vs new in
+      `Desktop/prompt/V11 rules review.md`. Top part: `<block_rules>` (a `##`
+      heading per block), `<npc_rules>`, `<dice_rules>`, `<image_rules>`, and
+      the add-ons each in their own tag (`[[addon_rules]]`). A text the user
+      edited is kept as written. Older presets unchanged (checked slot by slot
+      with everything on).
