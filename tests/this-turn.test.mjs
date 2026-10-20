@@ -5,8 +5,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { thisTurnSection } from "../src/engine/presetSections.js";
 import {
-    DICE_ROLLS_POINTER, IMAGE_ASK_OLD, IMAGE_ASK_NEW, diceTurnLine, imageTurnLine, bondsRulesSplit,
+    DICE_ROLLS_POINTER, IMAGE_ASK_OLD, IMAGE_ASK_NEW, diceTurnLine, imageTurnLine,
 } from "../src/prompts/presetFrame.js";
+import {
+    bondsRulesSplit, sheetRulesSplit, shortRulesHeading, wrapBlockRules, wrapImageRules, wrapAddon,
+    npcUpdateRulesSplit, npcPersistenceRuleSplit, npcKnownNames, wrapNpcRules, sameText, andList,
+    DICE_RULES_PLAYER, DICE_RULES_EVERYONE, ADDON_RULES_SPLIT,
+} from "../src/prompts/v11Rules.js";
 import { addons } from "../data/addons.js";
 import { imageGenPrompts } from "../src/prompts/imageGen.js";
 import { IMAGE_V2_PROMPTS } from "../src/prompts/imageGenV2.js";
@@ -61,7 +66,7 @@ test("the Bonds rules up top follow the block's fields", () => {
         { label: "Desire", type: "meter", start: 0 },
     ];
     assert.equal(bondsRulesSplit(romance),
-        "## Bonds rules\nOne line for each named character in the scene, and for anyone whose numbers changed in it. " +
+        "## Bonds\nOne line for each named character in the scene, and for anyone whose numbers changed in it. " +
         "Start every number from <Bonds_Now> in <Current_Info>. A number moves only when something in this scene moved it: " +
         "write the change and its reason in brackets, like (-6 he apologised and she heard pity), or (=) when nothing moved it. " +
         "Affection, Trust and Desire move by 10 at most in one reply, unless the scene plainly earns more. " +
@@ -71,5 +76,71 @@ test("the Bonds rules up top follow the block's fields", () => {
     assert.ok(one.includes("Trust moves by 10 at most"));
     assert.ok(one.includes("starts at Trust 30, Gold 0."));
     assert.equal(bondsRulesSplit([{ label: "Mood", type: "text" }]),
-        "## Bonds rules\nOne line for each named character in the scene, and for anyone whose numbers changed in it. Bonds are feelings only: leave out clothes, posture and place.");
+        "## Bonds\nOne line for each named character in the scene, and for anyone whose numbers changed in it. Bonds are feelings only: leave out clothes, posture and place.");
+});
+
+test("the Character Sheet rules follow its fields too", () => {
+    const rpg = [
+        { label: "HP", type: "meter", start: 100 }, { label: "Mana", type: "meter", start: 100 },
+        { label: "Gold", type: "number", start: 0 }, { label: "Inventory", type: "list" },
+    ];
+    const t = sheetRulesSplit(rpg);
+    assert.ok(t.startsWith("## Character Sheet\nThe sheet is {{user}}'s. Start every number from <Character_Sheet_Now>"));
+    assert.ok(t.includes("HP and Mana move by 10 at most"));
+    assert.ok(t.includes("it starts at HP 100, Mana 100, Gold 0."));
+    assert.equal(sheetRulesSplit([{ label: "Inventory", type: "list" }]),
+        "## Character Sheet\nThe sheet is {{user}}'s. Inventory and skills change only when the story changes them; nothing comes back or gets equipped on its own.");
+});
+
+test("<block_rules> wraps the rules, with headings that are just the block's name", () => {
+    assert.equal(shortRulesHeading("## World State rules\nIn <World_State>, record..."), "## World State\nIn <World_State>, record...");
+    assert.equal(shortRulesHeading("## Author's Notebook rules\nThis story keeps"), "## Author's Notebook\nThis story keeps");
+    assert.equal(shortRulesHeading("## Bonds\nOne line"), "## Bonds\nOne line");
+    assert.equal(wrapBlockRules(["## A\na", "## B\nb"]),
+        "<block_rules>\nThese rules say how to fill the blocks <turn_notes> asks for. Follow them; never write them out.\n\n## A\na\n\n## B\nb\n</block_rules>");
+});
+
+test("the dice rules: the V11 wording keeps the numbers in <turn_notes> and the line format", () => {
+    for (const t of [DICE_RULES_PLAYER, DICE_RULES_EVERYONE]) {
+        assert.ok(t.startsWith("<dice_rules>\n") && t.endsWith("\n</dice_rules>"));
+        assert.ok(t.includes("This turn's rolls are listed in <turn_notes>. Take them in order, one per attempt."));
+        assert.ok(!t.includes("[[dice_rolls]]"));
+    }
+    assert.ok(DICE_RULES_PLAYER.includes("<Dice>🎲 attempt — d20+N vs DC → roll+N = total · verdict</Dice>"));
+    assert.ok(DICE_RULES_EVERYONE.includes("<Dice>🎲 who does what — d20+N vs DC → roll+N = total · verdict</Dice>"));
+});
+
+test("the image rules lose their old heading inside <image_rules>", () => {
+    assert.equal(wrapImageRules("### IMAGE GENERATION:\nWhen <turn_notes> asks for an image..."), "<image_rules>\nWhen <turn_notes> asks for an image...\n</image_rules>");
+    assert.equal(wrapImageRules("### IMAGE\nWhen <turn_notes>..."), "<image_rules>\nWhen <turn_notes>...\n</image_rules>");
+    assert.equal(wrapImageRules(""), "");
+});
+
+test("the NPC rules are built from the bank's fields", () => {
+    const t = npcUpdateRulesSplit({
+        updatable: ["Role", "Agenda", "Secrets"], single: ["Role", "Agenda"], multi: ["Secrets"],
+        locked: ["Appearance", "Voice"], template: "<NPC_Update name=\"x\">\n</NPC_Update>",
+    });
+    assert.ok(t.startsWith("## Changes to known characters\n"));
+    assert.ok(t.includes("Fields that can change: Role, Agenda and Secrets."));
+    assert.ok(t.includes("Role and Agenda hold one value: use ~."));
+    assert.ok(t.includes("Secrets holds a list: use +, - or ~."));
+    assert.ok(t.includes("Appearance and Voice are written once and never change."));
+    assert.ok(t.endsWith("<NPC_Update name=\"x\">\n</NPC_Update>"));
+    assert.equal(npcUpdateRulesSplit({ updatable: [], single: [], multi: [], locked: [], template: "" }), "");
+    assert.ok(npcPersistenceRuleSplit(["Role", "Voice"]).startsWith("Role and Voice describe this person's life"));
+    assert.equal(npcPersistenceRuleSplit([]), "");
+    assert.equal(npcKnownNames(["Mira", "Theo"]), "These characters already have a dossier or need none: Mira, Theo.");
+    assert.equal(npcKnownNames([]), "");
+    assert.equal(wrapNpcRules(["", "a"]), "<npc_rules>\na\n</npc_rules>");
+    assert.equal(wrapNpcRules([""]), "");
+});
+
+test("add-ons: your own text keeps its words and gets a tag", () => {
+    assert.equal(wrapAddon("death", "[DEATH SYSTEM]\nmine"), "<death>\n[DEATH SYSTEM]\nmine\n</death>");
+    assert.equal(wrapAddon("render", "<render>\nx\n</render>"), "<render>\nx\n</render>");
+    assert.equal(wrapAddon("death", "  "), "");
+    assert.ok(sameText("a  b\n c", "a b c"));
+    assert.equal(andList(["A"]), "A");
+    for (const [k, v] of Object.entries(ADDON_RULES_SPLIT)) assert.match(v, /^<([a-z]+)>\n[\s\S]+\n<\/\1>$/, k);
 });

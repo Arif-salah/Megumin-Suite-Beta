@@ -32,8 +32,7 @@ export const BANLIST_CHECK = "Nothing in the response is on the banlist.";
 // The V11 preset sends every rule in its top part, the same each turn, so it
 // caches. These lines point the rules at <turn_notes>, which carries the
 // numbers and asks at the end. Older presets keep the old combined wording.
-
-export const BLOCK_RULES_LEAD = "These rules say how to fill the blocks <turn_notes> asks for. Follow them; never write them out.";
+// The rules themselves, in V11's style, are in v11Rules.js.
 
 // Takes the place of [[dice_rolls]] in the dice rules: "this turn's rolls are listed in <turn_notes>."
 export const DICE_ROLLS_POINTER = "listed in <turn_notes>";
@@ -41,31 +40,6 @@ export const DICE_ROLLS_POINTER = "listed in <turn_notes>";
 // The Classic image rules' opening sentence, old and new.
 export const IMAGE_ASK_OLD = "Within your response, insert {{imageCount}} of this image tag:";
 export const IMAGE_ASK_NEW = "When <turn_notes> asks for an image, insert this image tag within your response:";
-
-// The <Blocks> skeleton's opening, in V11's style. The rules each block used to
-// carry inside the skeleton are up top, so it is only the lines to fill in.
-export const BLOCKS_HEAD_SPLIT = "After the story, write one <Blocks> section holding the blocks below, in this order. Each block is its own plain tag, closed before the next one opens, never wrapped in <details>. Leave a block out when its rules say so this turn, and add no tags of your own.";
-
-// "Affection, Trust and Desire"
-const andList = items => items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
-
-/**
- * The Bonds rules for the V11 preset's top part, from the block's fields: a
- * field the user adds gets its starting value, and a meter gets the cap.
- * @param {Array<{label: string, type: string, start?: number}>} fields
- */
-export function bondsRulesSplit(fields) {
-    const tracked = fields.filter(f => f.type === "meter" || f.type === "number");
-    const meters = fields.filter(f => f.type === "meter").map(f => f.label);
-    const lines = ["One line for each named character in the scene, and for anyone whose numbers changed in it."];
-    if (tracked.length) {
-        lines.push("Start every number from <Bonds_Now> in <Current_Info>. A number moves only when something in this scene moved it: write the change and its reason in brackets, like (-6 he apologised and she heard pity), or (=) when nothing moved it.");
-        if (meters.length) lines.push(`${andList(meters)} ${meters.length === 1 ? "moves" : "move"} by 10 at most in one reply, unless the scene plainly earns more.`);
-        lines.push(`Someone with no numbers yet starts at ${tracked.map(f => `${f.label} ${f.start !== undefined ? f.start : 0}`).join(", ")}.`);
-    }
-    lines.push("Bonds are feelings only: leave out clothes, posture and place.");
-    return `## Bonds rules\n${lines.join(" ")}`;
-}
 
 export const diceTurnLine = rolls => `Dice rolls: ${rolls.join(", ")}`;
 

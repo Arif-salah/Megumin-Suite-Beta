@@ -21,13 +21,17 @@ import { blocksEnvelopeParts, buildBlocksEnvelope, blockRulesText, blocksSkeleto
 import { buildConfigBlock } from "../features/storyconfig/config.js";
 import { npcBuildTextFromData } from "../features/npc/data.js";
 import { imageInjectionNpcTags, imageV2InlineInstruction, imageV2InlineSplit, imageViaChomusuke } from "../features/imagegen/index.js";
-import { npcBuildDossierPrompt, npcBuildUpdatePrompt } from "../features/npc/fields.js";
+import { npcBuildDossierPrompt, npcBuildUpdatePrompt, npcBuildDossierPromptSplit, npcBuildUpdatePromptSplit } from "../features/npc/fields.js";
 import { memGetCachedKeywords } from "../features/memory/keywords.js";
 import { memGetRelevantVaultEntries } from "../features/memory/index.js";
 import { meguminRollD20s } from "../utils/dice.js";
 import { meguminOverridableSlots, meguminSlotIsLive, meguminModuleTrigger, meguminSlotByTrigger } from "../../data/slots.js";
 import { thinkingSection, formattingSection, bannedSection, reminderSection, thisTurnSection } from "./presetSections.js";
 import { DICE_ROLLS_POINTER, IMAGE_ASK_OLD, IMAGE_ASK_NEW, diceTurnLine, imageTurnLine } from "../prompts/presetFrame.js";
+import {
+    DICE_RULES_PLAYER, DICE_RULES_EVERYONE, wrapImageRules, wrapNpcRules, npcKnownNames,
+    ADDON_RULES_SPLIT, wrapAddon, sameText,
+} from "../prompts/v11Rules.js";
 import { resolveSlot } from "../core/sharedFragments.js";
 import { worldPromptBlock, statsPromptParts, notebookPromptBlock, notebookCurrentPhase } from "../state/index.js";
 import { NOTEBOOK_CRAFT } from "../prompts/notebook.js";
@@ -142,11 +146,13 @@ export function buildBaseDict(isTokenCount = false) {
         dict["[[DNRATIO]]"] = "";
     }
 
+    let onoBuiltin = "";
     if (localProfile.onomatopoeia && localProfile.onomatopoeia.enabled) {
         let onoRule = `- Narration must utilize onomatopoeia. Use precise, context-specific phonetic representations for physical interactions (e.g., the click of a latch, the thud of a heavy object, the soughing of wind) rather than abstract descriptions of sound.`;
         if (localProfile.onomatopoeia.useStyling) {
             onoRule += `\nAll onomatopoeic words must animated and colored using HTML and CSS. The selected style tag and color must objectively correspond to the physical nature or movement of the sound produced; for example, a repetitive friction sound such as "shush-shush" must utilize a sliding animation tag to represent the physical action.`;
         }
+        onoBuiltin = onoRule;
         dict["[[onomato]]"] = onoRule;
     } else {
         dict["[[onomato]]"] = "";
@@ -308,7 +314,11 @@ export function buildBaseDict(isTokenCount = false) {
         const item = hardcodedLogic.addons.find(a => a.id === aId);
         if (!item || !item.rolls || !dict[item.trigger]) return;
         const rolls = meguminRollD20s(item.rolls);
-        dict["[[dice_rules]]"] = dict[item.trigger].replace("[[dice_rolls]]", DICE_ROLLS_POINTER);
+        // The V11 wording while the rules are the built-in ones; your own
+        // rules are kept, pointed at <turn_notes>.
+        dict["[[dice_rules]]"] = sameText(dict[item.trigger], item.content)
+            ? (aId === "dice_all" ? DICE_RULES_EVERYONE : DICE_RULES_PLAYER)
+            : dict[item.trigger].replace("[[dice_rolls]]", DICE_ROLLS_POINTER);
         diceRollsLine = diceTurnLine(rolls);
         dict[item.trigger] = dict[item.trigger].replace("[[dice_rolls]]", rolls.join(", "));
     });
@@ -465,8 +475,8 @@ export function buildBaseDict(isTokenCount = false) {
             let npcTagsStr = imageInjectionNpcTags(); // <-- GET THE TAGS (Classic or V2)
             const imageCountStr = ig.imageCount || 1; 
 
-            const fill = (tmpl, npcTags) => tmpl
-                .replace('{{conditionalText}}', conditionalText)
+            const fill = (tmpl, npcTags, cond = conditionalText) => tmpl
+                .replace('{{conditionalText}}', cond)
                 .replace('{{imageCount}}', imageCountStr)
                 .replace('{{templateRules}}', rules)
                 .replace('{{promptExtra}}', extraSection)
@@ -482,13 +492,15 @@ export function buildBaseDict(isTokenCount = false) {
             // change with the scene, so they ride in <turn_notes>. A custom
             // template without the opening sentence can't be split: it is
             // sent whole in <turn_notes>, on the turns an image is due.
+            // The "only when a photo is taken" warning is left out of the rules:
+            // the line in <turn_notes> says it, on the turns it applies.
             let turnExtra = "";
-            const v2Split = imageV2InlineSplit({ conditionalText });
+            const v2Split = imageV2InlineSplit({ conditionalText: "" });
             if (v2Split) {
-                dict["[[img_rules]]"] = v2Split.rules;
+                dict["[[img_rules]]"] = wrapImageRules(v2Split.rules);
                 turnExtra = v2Split.turn;
             } else if (template.includes(IMAGE_ASK_OLD)) {
-                dict["[[img_rules]]"] = fill(template.replace(IMAGE_ASK_OLD, IMAGE_ASK_NEW), "").replace(/\n{3,}/g, "\n\n").trim();
+                dict["[[img_rules]]"] = wrapImageRules(fill(template.replace(IMAGE_ASK_OLD, IMAGE_ASK_NEW), "", "").replace(/\n{3,}/g, "\n\n"));
                 turnExtra = npcTagsStr;
             }
             if (shouldInject) {
@@ -632,6 +644,8 @@ export function buildBaseDict(isTokenCount = false) {
     dict["[[npc_dossier2]]"] = "";
     dict["[[npc list]]"] = "";
     dict["[[npc_updates]]"] = "";
+    // [[npc_rules]] (plan 018): the V11 preset's <npc_rules>, dossier and updates.
+    const npcRulesParts = [];
 
     if (localProfile.npcBank && localProfile.npcBank.enabled) {
         
@@ -675,6 +689,11 @@ export function buildBaseDict(isTokenCount = false) {
             // asked for here without a prompt edit.
             dict["[[npc_dossier]]"] = npcBuildDossierPrompt(nbPrompts.dossierRules || DEFAULT_PROMPTS.npcBank.dossierRules) + knownNamesText;
             dict["[[npc_dossier2]]"] = "[NPC Dossier block here]";
+
+            // Plan 018: the V11 preset's wording, while the rules are the built-in ones.
+            npcRulesParts.push(sameText(nbPrompts.dossierRules || DEFAULT_PROMPTS.npcBank.dossierRules, DEFAULT_PROMPTS.npcBank.dossierRules)
+                ? [npcBuildDossierPromptSplit(), npcKnownNames(ignoredArr)].filter(Boolean).join("\n\n")
+                : dict["[[npc_dossier]]"].trim());
         }
 
         // --- Update rules ---
@@ -685,6 +704,7 @@ export function buildBaseDict(isTokenCount = false) {
         if (localProfile.npcBank.npcs && localProfile.npcBank.npcs.length > 0) {
             const updatePrompt = npcBuildUpdatePrompt();
             dict["[[npc_updates]]"] = updatePrompt;
+            npcRulesParts.push(npcBuildUpdatePromptSplit());
 
             // AND appended to [[npc_dossier]], which is the only one of the two
             // that existing presets actually contain.
@@ -831,6 +851,22 @@ export function buildBaseDict(isTokenCount = false) {
     // [[block_rules]] goes up top with [[npc_dossier]], [[dice_rules]] and
     // [[img_rules]]; [[this_turn]] goes last, with only what is new this turn.
     dict["[[block_rules]]"] = blockRulesText(envelope);
+    dict["[[npc_rules]]"] = wrapNpcRules(npcRulesParts);
+
+    // The add-ons, each in its own tag. A built-in text gets its V11 wording;
+    // one you edited is kept as you wrote it.
+    const addonBuiltin = id => (hardcodedLogic.addons.find(a => a.id === id) || {}).content;
+    dict["[[addon_rules]]"] = [
+        ["[[onomato]]", "sound", onoBuiltin, (localProfile.onomatopoeia || {}).useStyling ? ADDON_RULES_SPLIT.onomatoStyled : ADDON_RULES_SPLIT.onomato],
+        ["[[death]]", "death", addonBuiltin("death"), ADDON_RULES_SPLIT.death],
+        ["[[combat]]", "combat", addonBuiltin("combat"), ADDON_RULES_SPLIT.combat],
+        ["[[npc_events]]", "arrivals", addonBuiltin("npc_events"), ADDON_RULES_SPLIT.npc_events],
+        ["[[html]]", "render", addonBuiltin("html"), null],
+    ].map(([trigger, tag, builtin, v11]) => {
+        const now = dict[trigger];
+        if (!now || !String(now).trim()) return "";
+        return v11 && sameText(now, builtin) ? v11 : wrapAddon(tag, now);
+    }).filter(Boolean).join("\n\n");
     dict["[[this_turn]]"] = thisTurnSection({
         dice: diceRollsLine,
         image: imageTurn,

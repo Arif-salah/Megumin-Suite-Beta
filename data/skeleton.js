@@ -22,9 +22,9 @@ export const SKELETON_SOURCE = "Megumin Suite V11 Universal.json";
 export const SKELETON = [
     {"id": "main", "name": "Main Prompt", "role": "system", "marker": false, "enabled": true, "content": "[[prompt1]] [[main]] [[prompt2]]\n[[pronouns]]\n[[control]]\n[[OOC]]\n\n[[prompt3]]"},
     {"id": "8fe3941c-a18d-4000-b6f1-695e6fe1136f", "name": "Main 2", "role": "system", "marker": false, "enabled": true, "content": "[[prompt4]]\n\n[[prompt5]]\n\n[[prompt6]]\n[[aiprompt]]\n\n[[notebook]]"},
-    {"id": "megumin-addon-rules", "name": "Add-on rules", "role": "system", "marker": false, "enabled": true, "content": "[[onomato]]\n\n[[death]]\n\n[[combat]]\n\n[[npc_events]]\n\n[[html]]\n\n[[storyplan_rules]]"},
+    {"id": "megumin-addon-rules", "name": "Add-on rules", "role": "system", "marker": false, "enabled": true, "content": "[[addon_rules]]\n\n[[storyplan_rules]]"},
     {"id": "megumin-banlist", "name": "Ban list", "role": "system", "marker": false, "enabled": true, "content": "[[banned]]"},
-    {"id": "megumin-block-rules", "name": "Block rules", "role": "system", "marker": false, "enabled": true, "content": "[[block_rules]]\n\n[[npc_dossier]]\n\n[[dice_rules]]\n\n[[img_rules]]"},
+    {"id": "megumin-block-rules", "name": "Block rules", "role": "system", "marker": false, "enabled": true, "content": "[[block_rules]]\n\n[[npc_rules]]\n\n[[dice_rules]]\n\n[[img_rules]]"},
     {"id": "c77668b9-29be-456c-a9d3-c0a1e0c9d55f", "name": "Add Your Custom prompt here", "role": "system", "marker": false, "enabled": false, "content": ""},
     {"id": "a5a70637-5396-44bf-9af0-484866e75b7e", "name": "<lore>", "role": "system", "marker": false, "enabled": true, "content": "<character_sheet>\nhere is the lore and character's, {{char}}:"},
     {"id": "worldInfoBefore", "name": "World Info (before)", "role": "system", "marker": true, "enabled": true, "content": ""},
