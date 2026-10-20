@@ -644,7 +644,7 @@ export function buildBaseDict(isTokenCount = false) {
     dict["[[npc_dossier2]]"] = "";
     dict["[[npc list]]"] = "";
     dict["[[npc_updates]]"] = "";
-    // [[npc_rules]] (plan 018): the V11 preset's <npc_rules>, dossier and updates.
+    // [[npc_rules]] (plan 018): the V11 preset's <npc_dossier_rules>, dossier and updates.
     const npcRulesParts = [];
 
     if (localProfile.npcBank && localProfile.npcBank.enabled) {
@@ -854,13 +854,13 @@ export function buildBaseDict(isTokenCount = false) {
     dict["[[npc_rules]]"] = wrapNpcRules(npcRulesParts);
 
     // The add-ons, each in its own tag. A built-in text gets its V11 wording;
-    // one you edited is kept as you wrote it.
+    // one you edited is kept as you wrote it. Organic NPCs & Events is V6's
+    // and stays out.
     const addonBuiltin = id => (hardcodedLogic.addons.find(a => a.id === id) || {}).content;
     dict["[[addon_rules]]"] = [
         ["[[onomato]]", "sound", onoBuiltin, (localProfile.onomatopoeia || {}).useStyling ? ADDON_RULES_SPLIT.onomatoStyled : ADDON_RULES_SPLIT.onomato],
         ["[[death]]", "death", addonBuiltin("death"), ADDON_RULES_SPLIT.death],
         ["[[combat]]", "combat", addonBuiltin("combat"), ADDON_RULES_SPLIT.combat],
-        ["[[npc_events]]", "arrivals", addonBuiltin("npc_events"), ADDON_RULES_SPLIT.npc_events],
         ["[[html]]", "render", addonBuiltin("html"), null],
     ].map(([trigger, tag, builtin, v11]) => {
         const now = dict[trigger];

@@ -71,7 +71,7 @@ Example, a father alone: "What a disappointment of a son... I miss my wife. She'
 
 export const CHATTER_SKELETON = "[Name]: [what they really think, or say behind {{user}}'s back]";
 
-export const CHOICES_RULES = `## Choices
+export const CHOICES_RULES = `## CYOA
 Four things {{user}} could do next, each a few words long and each heading somewhere different.`;
 
 export const TRACKER_RULES = `## Story Tracker
@@ -87,11 +87,11 @@ simmering_threads: [2-3 background tensions you are keeping warm]
 hidden_state: [NPC secrets and motives that {{user}} does not know yet]
 next_beat: [What sub-event or NPC action you intend to steer toward next]`;
 
-// The two NPC lines in the skeleton point at <npc_rules>.
-export const NEW_NPC_SLOT = `<New_NPC name="[Full Name]">\n[A dossier goes here when this reply brings in a character who earns one, following <npc_rules>. Leave this tag out otherwise.]\n</New_NPC>`;
-export const NPC_UPDATE_SLOT = `<NPC_Update name="[Exact name as it appears in the NPC bank]">\n[The changed lines go here when this scene changed something on file, following <npc_rules>. Leave this tag out otherwise.]\n</NPC_Update>`;
+// The two NPC lines in the skeleton point at <npc_dossier_rules>.
+export const NEW_NPC_SLOT = `<New_NPC name="[Full Name]">\n[A dossier goes here when this reply brings in a character who earns one, following <npc_dossier_rules>. Leave this tag out otherwise.]\n</New_NPC>`;
+export const NPC_UPDATE_SLOT = `<NPC_Update name="[Exact name as it appears in the NPC bank]">\n[The changed lines go here when this scene changed something on file, following <npc_dossier_rules>. Leave this tag out otherwise.]\n</NPC_Update>`;
 
-// ── <npc_rules> ─────────────────────────────────────────────────────────────
+// ── <npc_dossier_rules> ─────────────────────────────────────────────────────────────
 
 // {{template}} and {{persistenceRule}} are filled from the NPC Bank's fields.
 export const NPC_DOSSIER_RULES = `## New characters
@@ -144,7 +144,7 @@ export function npcUpdateRulesSplit({ updatable, single, multi, locked, template
 
 export const wrapNpcRules = parts => {
     const body = parts.filter(p => String(p || "").trim()).join("\n\n");
-    return body ? `<npc_rules>\n${body}\n</npc_rules>` : "";
+    return body ? `<npc_dossier_rules>\n${body}\n</npc_dossier_rules>` : "";
 };
 
 // ── <dice_rules> ────────────────────────────────────────────────────────────
@@ -210,13 +210,6 @@ Fights follow physical reality. Size, skill, numbers, weapons and preparation de
 A fight goes one exchange at a time, and each action has a clear cause, cost and result, with no steps skipped. Every strike, miss, wound and hesitation counts, and injury, tiredness, fear and pain weigh on what comes after.
 A fight ends when it would really end: a death, a retreat, a capture, or someone who can't go on. Winning has to be earned, and surviving has to make sense.
 </combat>`,
-
-    npc_events: `<arrivals>
-New people and events grow out of what is already happening, or are hinted at first.
-Before someone arrives or something shifts, the scene gives a sign the senses can catch: footsteps further off, the light changing, a new noise in the background.
-Every event follows from the world as it stands or from something already done, and every new person has their own reason to be in that place at that time.
-People come into a scene through the place itself: through a door, down a street, into earshot.
-</arrivals>`,
 
     onomato: `<sound>
 The narration uses sound words for physical things, exact to what makes each one: the click of a latch, the thud of something heavy, the hiss of wind.

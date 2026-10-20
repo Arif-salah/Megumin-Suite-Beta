@@ -132,7 +132,7 @@ test("the NPC rules are built from the bank's fields", () => {
     assert.equal(npcPersistenceRuleSplit([]), "");
     assert.equal(npcKnownNames(["Mira", "Theo"]), "These characters already have a dossier or need none: Mira, Theo.");
     assert.equal(npcKnownNames([]), "");
-    assert.equal(wrapNpcRules(["", "a"]), "<npc_rules>\na\n</npc_rules>");
+    assert.equal(wrapNpcRules(["", "a"]), "<npc_dossier_rules>\na\n</npc_dossier_rules>");
     assert.equal(wrapNpcRules([""]), "");
 });
 
