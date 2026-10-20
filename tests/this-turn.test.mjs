@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { thisTurnSection } from "../src/engine/presetSections.js";
 import {
-    DICE_ROLLS_POINTER, IMAGE_ASK_OLD, IMAGE_ASK_NEW, diceTurnLine, imageTurnLine,
+    DICE_ROLLS_POINTER, IMAGE_ASK_OLD, IMAGE_ASK_NEW, diceTurnLine, imageTurnLine, bondsRulesSplit,
 } from "../src/prompts/presetFrame.js";
 import { addons } from "../data/addons.js";
 import { imageGenPrompts } from "../src/prompts/imageGen.js";
@@ -51,4 +51,25 @@ test("V2's split keeps the rules up top and the cast and previous prompt for <tu
     assert.ok(!out.rules.includes("<Cast>"));
     assert.equal(out.turn, "<Cast>\nAnna\n</Cast>\n<Previous_Image_Prompt>\n1girl\n</Previous_Image_Prompt>");
     assert.equal(renderV2InlineSplit({ castList: "<Cast></Cast>", method: "placeholders", previous: "x" }).turn, "<Cast></Cast>");
+});
+
+test("the Bonds rules up top follow the block's fields", () => {
+    const romance = [
+        { label: "Mood", type: "text" },
+        { label: "Affection", type: "meter", start: 20 },
+        { label: "Trust", type: "meter", start: 30 },
+        { label: "Desire", type: "meter", start: 0 },
+    ];
+    assert.equal(bondsRulesSplit(romance),
+        "## Bonds rules\nOne line for each named character in the scene, and for anyone whose numbers changed in it. " +
+        "Start every number from <Bonds_Now> in <Current_Info>. A number moves only when something in this scene moved it: " +
+        "write the change and its reason in brackets, like (-6 he apologised and she heard pity), or (=) when nothing moved it. " +
+        "Affection, Trust and Desire move by 10 at most in one reply, unless the scene plainly earns more. " +
+        "Someone with no numbers yet starts at Affection 20, Trust 30, Desire 0. " +
+        "Bonds are feelings only: leave out clothes, posture and place.");
+    const one = bondsRulesSplit([{ label: "Trust", type: "meter", start: 30 }, { label: "Gold", type: "number" }]);
+    assert.ok(one.includes("Trust moves by 10 at most"));
+    assert.ok(one.includes("starts at Trust 30, Gold 0."));
+    assert.equal(bondsRulesSplit([{ label: "Mood", type: "text" }]),
+        "## Bonds rules\nOne line for each named character in the scene, and for anyone whose numbers changed in it. Bonds are feelings only: leave out clothes, posture and place.");
 });

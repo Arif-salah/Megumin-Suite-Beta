@@ -14,7 +14,7 @@ import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
 import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest } from "../../state/index.js";
 import { NOTEBOOK_TAGS } from "../../state/modules/notebook/parse.js";
-import { BLOCK_RULES_LEAD } from "../../prompts/presetFrame.js";
+import { BLOCK_RULES_LEAD, BLOCKS_HEAD_SPLIT, bondsRulesSplit } from "../../prompts/presetFrame.js";
 
 // -------------------------------------------------------------
 // BLOCK REGISTRY — one definition per block the <Blocks> envelope can carry
@@ -102,7 +102,10 @@ export const MEGUMIN_BLOCK_REGISTRY = [
         visibility: "open", builtin: true,
         // Generated from the field list rather than read from a dict tag, so
         // adding a field changes what the model is asked for.
-        build: () => meguminBuildBondsTemplate()
+        build: () => meguminBuildBondsTemplate(),
+        // Plan 018: the V11 preset sends these rules up top and only the line
+        // to fill in the skeleton.
+        buildSplit: () => meguminBuildBondsSplit()
     },
     {
         id: "sheet", tag: "Character_Sheet", label: "Character Sheet",
@@ -229,10 +232,14 @@ export function blocksEnvelopeParts(dict) {
     // the envelope whenever it is on, even with no other block.
     let notebook = null;
     try { notebook = notebookBlockRequest(); } catch (e) { console.warn("[Megumin Suite] Notebook: could not build its request.", e); }
-    if (!active.length && !notebook) return { rules: [], parts: [] };
+    if (!active.length && !notebook) return { rules: [], parts: [], splitRules: [], splitParts: [] };
 
     const parts = [];
     const rules = [];   // per-block rules, written above <Blocks>
+    // Plan 018: the V11 preset's copy. A block with `buildSplit` sends its rules
+    // up top and only its lines to fill in the skeleton; the rest are the same.
+    const splitParts = [];
+    const splitRules = [];
     active.forEach(b => {
         // A lead block is written before the prose, so it is deliberately not in
         // the envelope at all — the envelope is the last thing in the reply, and
@@ -245,6 +252,7 @@ export function blocksEnvelopeParts(dict) {
         if (b.slot) {
             if (typeof b.slotRequires === "function" && !b.slotRequires(dict)) return;
             parts.push(b.slot);
+            splitParts.push(b.slot);
             return;
         }
 
@@ -257,6 +265,8 @@ export function blocksEnvelopeParts(dict) {
             if (!req) return;
             rules.push(req.rules);
             parts.push(req.template);
+            splitRules.push(req.rules);
+            splitParts.push(req.template);
             return;
         }
 
@@ -267,15 +277,25 @@ export function blocksEnvelopeParts(dict) {
         if (!body) return;
 
         parts.push(`<${b.tag}>\n${body}\n</${b.tag}>`);
+
+        const split = typeof b.buildSplit === "function" ? b.buildSplit() : null;
+        if (split && split.body) {
+            if (split.rules) splitRules.push(split.rules);
+            splitParts.push(`<${b.tag}>\n${split.body}\n</${b.tag}>`);
+        } else {
+            splitParts.push(`<${b.tag}>\n${body}\n</${b.tag}>`);
+        }
     });
 
     if (notebook) {
         rules.push(notebook.rules);
         parts.push(notebook.template);
+        splitRules.push(notebook.rules);
+        splitParts.push(notebook.template);
     }
 
     // No skeleton, no rules: rules for blocks that aren't asked for mean nothing.
-    return parts.length ? { rules, parts } : { rules: [], parts: [] };
+    return parts.length ? { rules, parts, splitRules, splitParts } : { rules: [], parts: [], splitRules: [], splitParts: [] };
 }
 
 // The rules come FIRST and the "output" line sits right above the skeleton.
@@ -291,8 +311,16 @@ export function buildBlocksEnvelope(env) {
 
 /** [[block_rules]] (plan 018): the rules alone, for the V11 preset's top part. */
 export function blockRulesText(env) {
-    if (!env.parts.length || !env.rules.length) return "";
-    return `${BLOCK_RULES_LEAD}\n\n${env.rules.join("\n\n")}`;
+    const rules = env.splitRules || [];
+    if (!(env.splitParts || []).length || !rules.length) return "";
+    return `${BLOCK_RULES_LEAD}\n\n${rules.join("\n\n")}`;
+}
+
+/** The V11 preset's skeleton: V11's opening and only the lines to fill in. */
+export function blocksSkeletonSplit(env) {
+    const parts = env.splitParts || [];
+    if (!parts.length) return "";
+    return `${BLOCKS_HEAD_SPLIT}\n\n<Blocks>\n${parts.join("\n")}\n</Blocks>`;
 }
 
 /** The output line and the <Blocks> skeleton, without the rules. */
@@ -426,6 +454,17 @@ export function meguminBuildBondsTemplate() {
         "",
         `[NPC Name]: ${line}`
     ].filter(Boolean).join("\n");
+}
+
+// The same block split for the V11 preset (plan 018): the rules go up top, the
+// skeleton keeps only the line to fill in.
+export function meguminBuildBondsSplit() {
+    const fields = meguminStatFields("bonds");
+    if (!fields.length) return null;
+    return {
+        rules: bondsRulesSplit(fields),
+        body: `[NPC Name]: ${fields.map(meguminStatFieldSpec).join(" | ")}`
+    };
 }
 
 // The Character Sheet template: {{user}} only, so nothing repeats.

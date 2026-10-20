@@ -17,7 +17,7 @@ import {
 import { DEFAULT_PROMPTS } from "../prompts/index.js";
 import { hardcodedLogic } from "../../data/database.js";
 import { applyEnhancedDialogue } from "../../data/modes/v10.js";
-import { blocksEnvelopeParts, buildBlocksEnvelope, blockRulesText, blocksSkeleton } from "../features/blocks/registry.js";
+import { blocksEnvelopeParts, buildBlocksEnvelope, blockRulesText, blocksSkeletonSplit } from "../features/blocks/registry.js";
 import { buildConfigBlock } from "../features/storyconfig/config.js";
 import { npcBuildTextFromData } from "../features/npc/data.js";
 import { imageInjectionNpcTags, imageV2InlineInstruction, imageV2InlineSplit, imageViaChomusuke } from "../features/imagegen/index.js";
@@ -834,7 +834,7 @@ export function buildBaseDict(isTokenCount = false) {
     dict["[[this_turn]]"] = thisTurnSection({
         dice: diceRollsLine,
         image: imageTurn,
-        blocks: blocksSkeleton(envelope),
+        blocks: blocksSkeletonSplit(envelope),
     });
 
     return dict;
