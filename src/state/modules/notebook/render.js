@@ -22,7 +22,7 @@ export function renderNotebookSetup() {
         "## Author's Notebook rules",
         "This story keeps an author's notebook, and it is empty, so you write it this turn.",
         "",
-        "Write your reply as usual. In <Blocks>, write the Notebook block with two or three truths, built from the character sheet, the setting, and the story so far. Write each one in this form:",
+        "Write your reply as usual. In <Blocks>, write the Notebook block with two or three truths, built from the character sheet, the setting, and the story so far. A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader. Write each one in this form:",
         "",
         "T1",
         "Truth: what is actually true, in a few plain sentences, with enough detail that every later clue and the reveal itself can be written from it.",
@@ -80,7 +80,8 @@ export function renderNotebookUpdateRules({ newOnly = false } = {}) {
         "",
         ...lines,
         "",
-        "A truth never changes once written. It gains clues and comes out."
+        "A truth never changes once written. It gains clues and comes out.",
+        "A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader."
     ].join("\n");
 }
 

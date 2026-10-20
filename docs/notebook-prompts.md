@@ -1,6 +1,6 @@
 # Notebook prompts: every text the Author's Notebook sends to a model
 
-Generated from the code on 2026-10-17, so every text below is exactly what is sent today.
+Generated from the code on 2026-10-17 (the "A truth is about the world…" line added by hand on 2026-10-20), so every text below is exactly what is sent today.
 
 **How to use this file:** edit the text inside the ```text blocks directly, or write notes under a block (start them with `NOTE:`). Keep the `{{placeholders}}` unless you mean to drop them: the code fills them in. When you're done, send the file back and I'll move the changes into the code.
 
@@ -40,7 +40,7 @@ _Code: `src/state/modules/notebook/render.js → renderNotebookSetup`_
 ## Author's Notebook rules
 This story keeps an author's notebook, and it is empty, so you write it this turn.
 
-Write your reply as usual. In <Blocks>, write the Notebook block with two or three truths, built from the character sheet, the setting, and the story so far. Write each one in this form:
+Write your reply as usual. In <Blocks>, write the Notebook block with two or three truths, built from the character sheet, the setting, and the story so far. A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader. Write each one in this form:
 
 T1
 Truth: what is actually true, in a few plain sentences, with enough detail that every later clue and the reveal itself can be written from it.
@@ -91,6 +91,7 @@ Truth-: T1      it came out this turn, to everyone it was hidden from
 Truth+: T3      a new truth, only while fewer than 3 are live, followed by its lines in the notebook's form
 
 A truth never changes once written. It gains clues and comes out.
+A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader.
 ```
 
 Template line in the blocks request:
@@ -111,6 +112,7 @@ In <Blocks>, write the Notebook_Update block only if the notebook changed this t
 Truth+: T3      a new truth, only while fewer than 3 are live, followed by its lines in the notebook's form
 
 A truth never changes once written. It gains clues and comes out.
+A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader.
 ```
 
 Template line in the blocks request:
