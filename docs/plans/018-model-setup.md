@@ -52,6 +52,38 @@ developer's approval before it is written, one at a time.
    notebook goes to it and the reply has none.
 5. **The Model Setup tab.**
 
+## Phase 1: the layout (agreed 2026-10-20)
+
+| Part | Message | Slots |
+|---|---|---|
+| Top, same every turn | Main Prompt, Main 2 | the engine's text |
+| | Add-on rules | `[[onomato]]` `[[death]]` `[[combat]]` `[[npc_events]]` `[[html]]` `[[storyplan_rules]]` (the Story Director's unrestricted content rule) |
+| | Ban list | `[[banned]]` |
+| | Block rules | `[[block_rules]]` (World State, Notebook) `[[npc_dossier]]` `[[dice_rules]]` `[[img_rules]]` |
+| | character sheet, persona, consent note, `<history>` (memory), chat | no NPC list, no story plan |
+| Bottom, depth 1 | `</history>` (100), Current info (101: `[[infoblockcurrent]]` `[[npc list]]` `[[storyplan_now]]`), Content (102), Story settings (103), Thinking (104), This turn (105: `[[this_turn]]` `[[formatting]]` `[[reminder]]`…) | |
+
+- `<this_turn>` holds only what is new each turn: `Dice rolls: 14, 3, 19`, the
+  image line on turns one is due (with the V2 cast and previous prompt, or the
+  Classic character tags), and the `<Blocks>` skeleton.
+- Reworded (approved): the dice rules say "this turn's rolls are listed in
+  <this_turn>"; the image rules open "When <this_turn> asks for an image…";
+  the block rules open "These rules say how to fill the blocks <this_turn>
+  asks for." In "only when a photo is taken" mode the line is "Image: up to 1
+  image tag this turn, only if a character is taking or sharing a picture
+  right now."
+- **Only the rules in use go up top**: World State's first-reply rules or its
+  update rules, the Notebook's setup or its update rules. The cache breaks
+  once when they switch, then holds.
+- **The NPC dossier stays up top as before**, OOC trigger included: it breaks
+  the cache only on the turns you ask for one, and you choose those.
+- **Memory stays in `<history>`.** Moved down it would confuse the model about
+  what happened; the Memory tab already says it isn't cache friendly.
+- Older presets get every old slot exactly as before (checked by building
+  both versions and comparing every slot, V10 and V11).
+
 ## Progress
 
-- [ ] Phase 1: change list sent 2026-10-20
+- [x] Phase 1 built 2026-10-20 (249 tests pass, import check clean). The V11
+      Universal preset has the new layout; `data/skeleton.js` regenerated.
+      Waiting for the developer to test.

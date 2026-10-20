@@ -58,6 +58,18 @@ export function reminderSection({ checks, banned, presetChecks, userLine } = {})
     return `${REMINDER_HEADER}\n${lines.map((l, i) => `${i + 1}. ${l}`).join("\n")}`;
 }
 
+/**
+ * [[this_turn]] (plan 018): only what is new this turn, in one <this_turn>,
+ * or "" when nothing is. The rules these answer are in the preset's top part.
+ * @param {{ dice?: string, image?: string, blocks?: string }} parts
+ *   dice — the rolls line; image — the ask line and what goes with it (cast,
+ *   previous prompt, character tags); blocks — the <Blocks> skeleton
+ */
+export function thisTurnSection({ dice, image, blocks } = {}) {
+    const parts = filled([dice, image, blocks]);
+    return parts.length ? `<this_turn>\n${parts.join("\n\n")}\n</this_turn>` : "";
+}
+
 // What each section is made of, for Dev Mode's Document view: it draws the
 // preset with these spelled out, so the parts you can edit show up where they
 // are sent.

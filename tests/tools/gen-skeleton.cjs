@@ -39,8 +39,8 @@ const out = `// ─────────────────────�
 //
 // Dev Mode's Document view draws this top to bottom, so the reader sees where a
 // [[slot]] actually lands rather than an invented running order. That matters
-// more than it sounds: [[MVU]] and [[thinking]] live in "Output RULES", which is
-// sent AFTER the chat history.
+// more than it sounds: [[thinking]] and [[this_turn]] live in "Thinking" and
+// "This turn", which are sent AFTER the chat history.
 //
 // Cards with marker:true are SillyTavern's own (chat history, world info,
 // character description). We neither own nor fill those, so the editor renders

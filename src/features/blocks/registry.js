@@ -14,6 +14,7 @@ import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
 import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest } from "../../state/index.js";
 import { NOTEBOOK_TAGS } from "../../state/modules/notebook/parse.js";
+import { BLOCK_RULES_LEAD } from "../../prompts/presetFrame.js";
 
 // -------------------------------------------------------------
 // BLOCK REGISTRY — one definition per block the <Blocks> envelope can carry
@@ -219,13 +220,16 @@ export function meguminBlockTemplateBody(b, dict) {
     );
 }
 
-export function buildBlocksEnvelope(dict) {
+// The envelope in its two halves: the rules (World State, Notebook) and the
+// skeleton's parts. Read once per build: the V11 preset sends the rules up top
+// and the skeleton in <this_turn> (plan 018), older presets get both together.
+export function blocksEnvelopeParts(dict) {
     const active = meguminActiveBlocks();
     // Plan 010: the Author's Notebook is not a block in the stack; it rides in
     // the envelope whenever it is on, even with no other block.
     let notebook = null;
     try { notebook = notebookBlockRequest(); } catch (e) { console.warn("[Megumin Suite] Notebook: could not build its request.", e); }
-    if (!active.length && !notebook) return "";
+    if (!active.length && !notebook) return { rules: [], parts: [] };
 
     const parts = [];
     const rules = [];   // per-block rules, written above <Blocks>
@@ -270,20 +274,35 @@ export function buildBlocksEnvelope(dict) {
         parts.push(notebook.template);
     }
 
-    if (!parts.length) return "";
+    // No skeleton, no rules: rules for blocks that aren't asked for mean nothing.
+    return parts.length ? { rules, parts } : { rules: [], parts: [] };
+}
 
-    // The rules come FIRST and the "output" line sits right above the skeleton.
-    // Placed between the two, the rules read as part of what to write: the model
-    // echoed them into its reply. They are headings, never tags, for the same reason.
-    const rulesText = rules.length
-        ? `These rules say how to fill the blocks below. Follow them; never write them out.\n\n${rules.join("\n\n")}\n\n`
+// The rules come FIRST and the "output" line sits right above the skeleton.
+// Placed between the two, the rules read as part of what to write: the model
+// echoed them into its reply. They are headings, never tags, for the same reason.
+export function buildBlocksEnvelope(env) {
+    if (!env.parts.length) return "";
+    const rulesText = env.rules.length
+        ? `These rules say how to fill the blocks below. Follow them; never write them out.\n\n${env.rules.join("\n\n")}\n\n`
         : "";
+    return `${rulesText}${blocksSkeleton(env)}`;
+}
+
+/** [[block_rules]] (plan 018): the rules alone, for the V11 preset's top part. */
+export function blockRulesText(env) {
+    if (!env.parts.length || !env.rules.length) return "";
+    return `${BLOCK_RULES_LEAD}\n\n${env.rules.join("\n\n")}`;
+}
+
+/** The output line and the <Blocks> skeleton, without the rules. */
+export function blocksSkeleton(env) {
+    if (!env.parts.length) return "";
     const header = [
         "## At the end of your response, output exactly one <Blocks> section.",
         "Put every block inside it, in this order, each in its own tag. A block whose rules say to leave it out this turn is left out. Do not add tags that are not listed. Do not nest blocks inside each other. Close every tag you open. Never wrap a block in <details> or <summary>; write each block as its plain tag."
     ].join("\n");
-
-    return `${rulesText}${header}\n\n<Blocks>\n${parts.join("\n")}\n</Blocks>`;
+    return `${header}\n\n<Blocks>\n${env.parts.join("\n")}\n</Blocks>`;
 }
 
 //

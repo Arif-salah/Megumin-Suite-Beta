@@ -132,6 +132,20 @@ export function renderV2InlineInstruction({ conditionalText = "", imageCount = 1
     return [head, castList, method === "reference" ? previousBlock(previous) : "", rules, P.inlineTail].filter(Boolean).join("\n");
 }
 
+/**
+ * The same instruction split for the V11 preset (plan 018): the rules, the
+ * same every turn, and what changes with the scene (the cast, the previous
+ * prompt), which goes in <this_turn>.
+ * @returns {{ rules: string, turn: string }}
+ */
+export function renderV2InlineSplit({ conditionalText = "", castList = "", rules = "", method = "placeholders", previous = "" } = {}) {
+    const head = P.inlineHeadSplit.replace("{{conditionalText}}", conditionalText || "");
+    return {
+        rules: [head, rules, P.inlineTail].filter(Boolean).join("\n"),
+        turn: [castList, method === "reference" ? previousBlock(previous) : ""].filter(Boolean).join("\n"),
+    };
+}
+
 // ── One call, several answers ────────────────────────────────────────────
 // The image call can also bring the outfit tags that went stale and the looks
 // that are missing, so an image never costs more than one background call.

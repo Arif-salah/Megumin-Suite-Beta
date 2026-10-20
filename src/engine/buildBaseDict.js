@@ -17,16 +17,17 @@ import {
 import { DEFAULT_PROMPTS } from "../prompts/index.js";
 import { hardcodedLogic } from "../../data/database.js";
 import { applyEnhancedDialogue } from "../../data/modes/v10.js";
-import { buildBlocksEnvelope } from "../features/blocks/registry.js";
+import { blocksEnvelopeParts, buildBlocksEnvelope, blockRulesText, blocksSkeleton } from "../features/blocks/registry.js";
 import { buildConfigBlock } from "../features/storyconfig/config.js";
 import { npcBuildTextFromData } from "../features/npc/data.js";
-import { imageInjectionNpcTags, imageV2InlineInstruction, imageViaChomusuke } from "../features/imagegen/index.js";
+import { imageInjectionNpcTags, imageV2InlineInstruction, imageV2InlineSplit, imageViaChomusuke } from "../features/imagegen/index.js";
 import { npcBuildDossierPrompt, npcBuildUpdatePrompt } from "../features/npc/fields.js";
 import { memGetCachedKeywords } from "../features/memory/keywords.js";
 import { memGetRelevantVaultEntries } from "../features/memory/index.js";
 import { meguminRollD20s } from "../utils/dice.js";
 import { meguminOverridableSlots, meguminSlotIsLive, meguminModuleTrigger, meguminSlotByTrigger } from "../../data/slots.js";
-import { thinkingSection, formattingSection, bannedSection, reminderSection } from "./presetSections.js";
+import { thinkingSection, formattingSection, bannedSection, reminderSection, thisTurnSection } from "./presetSections.js";
+import { DICE_ROLLS_POINTER, IMAGE_ASK_OLD, IMAGE_ASK_NEW, diceTurnLine, imageTurnLine } from "../prompts/presetFrame.js";
 import { resolveSlot } from "../core/sharedFragments.js";
 import { worldPromptBlock, statsPromptParts, notebookPromptBlock, notebookCurrentPhase } from "../state/index.js";
 import { NOTEBOOK_CRAFT } from "../prompts/notebook.js";
@@ -298,11 +299,18 @@ export function buildBaseDict(isTokenCount = false) {
     // a loop over what the add-ons ask for rather than a branch per add-on: the
     // player-only and everyone variants want three and six, and a third variant
     // would otherwise mean editing the engine to add a number.
+    //
+    // Plan 018: the V11 preset sends the rules up top as [[dice_rules]], the
+    // numbers pointed to in <this_turn>, and the same numbers on their own line.
+    let diceRollsLine = "";
+    dict["[[dice_rules]]"] = "";
     (localProfile.addons || []).forEach(aId => {
         const item = hardcodedLogic.addons.find(a => a.id === aId);
         if (!item || !item.rolls || !dict[item.trigger]) return;
-        dict[item.trigger] = dict[item.trigger]
-            .replace("[[dice_rolls]]", meguminRollD20s(item.rolls).join(", "));
+        const rolls = meguminRollD20s(item.rolls);
+        dict["[[dice_rules]]"] = dict[item.trigger].replace("[[dice_rolls]]", DICE_ROLLS_POINTER);
+        diceRollsLine = diceTurnLine(rolls);
+        dict[item.trigger] = dict[item.trigger].replace("[[dice_rolls]]", rolls.join(", "));
     });
 
     // Wipe main persona for V6, V7, V8, and V9
@@ -363,25 +371,31 @@ export function buildBaseDict(isTokenCount = false) {
     if (localProfile.storyPlan && localProfile.storyPlan.enabled) {
         const planText = localProfile.storyPlan.currentPlan;
         const spCustom = localProfile.storyPlan.customPromptsEnabled ? localProfile.storyPlan.customPrompts : null;
-        let finalInjection = "";
-        
+        let unrestricted = "";
+        let plan = "";
+
         if (localProfile.storyPlan.unrestrictedContent) {
-            const unresBlock = (spCustom && spCustom.unrestrictedBlock) || DEFAULT_PROMPTS.storyPlan.unrestrictedBlock;
-            finalInjection += unresBlock + "\n\n";
+            unrestricted = (spCustom && spCustom.unrestrictedBlock) || DEFAULT_PROMPTS.storyPlan.unrestrictedBlock;
         }
 
         if (planText && planText.trim() !== "") {
             const template = (spCustom && spCustom.injectionTemplate) || DEFAULT_PROMPTS.storyPlan.injectionTemplate;
-            finalInjection += template.replace('{{planText}}', planText);
+            plan = template.replace('{{planText}}', planText);
         }
 
-        dict["[[storyplan]]"] = finalInjection.trim();
+        dict["[[storyplan]]"] = [unrestricted, plan].filter(Boolean).join("\n\n").trim();
+        // Plan 018: the V11 preset sends the fixed rule up top and the plan,
+        // which changes, after the chat.
+        dict["[[storyplan_rules]]"] = unrestricted.trim();
+        dict["[[storyplan_now]]"] = plan.trim();
 
         // The refined tracker block you asked for
         const trackerTemplate = (spCustom && spCustom.trackerTemplate) || DEFAULT_PROMPTS.storyPlan.trackerTemplate;
         dict["[[storytracker]]"] = trackerTemplate;
     } else {
         dict["[[storyplan]]"] = "";
+        dict["[[storyplan_rules]]"] = "";
+        dict["[[storyplan_now]]"] = "";
         dict["[[storytracker]]"] = "";
     }
 
@@ -395,6 +409,11 @@ export function buildBaseDict(isTokenCount = false) {
         dict["[[banlist]]"] = "";
     }
 
+    // Plan 018: the V11 preset's image rules go up top whenever the story model
+    // writes the images ([[img_rules]]), and <this_turn> asks on the turns one
+    // is due (imageTurn).
+    dict["[[img_rules]]"] = "";
+    let imageTurn = "";
     if (localProfile.imageGen && localProfile.imageGen.enabled) {
         const ig = localProfile.imageGen;
         let shouldInject = false;
@@ -415,8 +434,9 @@ export function buildBaseDict(isTokenCount = false) {
         // Chomusuke writes the automatic images after the reply (imagegen/auto.js),
         // so the story model is not asked for an <img> tag at all.
         if (imageViaChomusuke()) shouldInject = false;
+        const storyModelDraws = ["always", "frequency", "conditional"].includes(mode) && !imageViaChomusuke();
 
-        if (shouldInject) {
+        if (shouldInject || storyModelDraws) {
             const customIg = localProfile.imageGen.customPromptsEnabled ? (localProfile.imageGen.customPrompts || {}) : {};
             const defIg = DEFAULT_PROMPTS.imageGen;
             
@@ -445,21 +465,46 @@ export function buildBaseDict(isTokenCount = false) {
             let npcTagsStr = imageInjectionNpcTags(); // <-- GET THE TAGS (Classic or V2)
             const imageCountStr = ig.imageCount || 1; 
 
-            dict["[[img1]]"] = template
+            const fill = (tmpl, npcTags) => tmpl
                 .replace('{{conditionalText}}', conditionalText)
                 .replace('{{imageCount}}', imageCountStr)
                 .replace('{{templateRules}}', rules)
                 .replace('{{promptExtra}}', extraSection)
                 .replace('{{directLanguage}}', directLangStr)
-                .replace('{{npcImageTags}}', npcTagsStr) // <-- INJECT THEM
+                .replace('{{npcImageTags}}', npcTags)
                 .replace('{{templateExamples}}', examples);
-            
+            const img1 = fill(template, npcTagsStr);
+
             // Image Gen V2 has its own, shorter instruction (@Name, cast list).
             const v2Inline = imageV2InlineInstruction({ conditionalText, imageCount: imageCountStr });
-            if (v2Inline) dict["[[img1]]"] = v2Inline;
 
-            // Set the new value for img2 dynamically based on the count!
-            dict["[[img2]]"] = ` and the ${imageCountStr} image tag`;
+            // The split. The characters' tags (Classic) and the cast (V2)
+            // change with the scene, so they ride in <this_turn>. A custom
+            // template without the opening sentence can't be split: it is
+            // sent whole in <this_turn>, on the turns an image is due.
+            let turnExtra = "";
+            const v2Split = imageV2InlineSplit({ conditionalText });
+            if (v2Split) {
+                dict["[[img_rules]]"] = v2Split.rules;
+                turnExtra = v2Split.turn;
+            } else if (template.includes(IMAGE_ASK_OLD)) {
+                dict["[[img_rules]]"] = fill(template.replace(IMAGE_ASK_OLD, IMAGE_ASK_NEW), "").replace(/\n{3,}/g, "\n\n").trim();
+                turnExtra = npcTagsStr;
+            }
+            if (shouldInject) {
+                imageTurn = dict["[[img_rules]]"]
+                    ? [imageTurnLine(imageCountStr, mode === "conditional"), turnExtra].filter(s => String(s || "").trim()).join("\n")
+                    : (v2Inline || img1);
+            }
+
+            if (shouldInject) {
+                dict["[[img1]]"] = v2Inline || img1;
+                // Set the new value for img2 dynamically based on the count!
+                dict["[[img2]]"] = ` and the ${imageCountStr} image tag`;
+            } else {
+                dict["[[img1]]"] = "";
+                dict["[[img2]]"] = "";
+            }
         } else {
             dict["[[img1]]"] = "";
             dict["[[img2]]"] = "";
@@ -779,7 +824,18 @@ export function buildBaseDict(isTokenCount = false) {
     // <New_NPC> slot could never appear in the envelope no matter what the bank
     // was doing. Anything that populates a tag a block reads must run before
     // this line.
-    dict["[[blocks]]"] = buildBlocksEnvelope(dict);
+    const envelope = blocksEnvelopeParts(dict);
+    dict["[[blocks]]"] = buildBlocksEnvelope(envelope);
+
+    // --- PLAN 018: the V11 preset's two halves ---
+    // [[block_rules]] goes up top with [[npc_dossier]], [[dice_rules]] and
+    // [[img_rules]]; [[this_turn]] goes last, with only what is new this turn.
+    dict["[[block_rules]]"] = blockRulesText(envelope);
+    dict["[[this_turn]]"] = thisTurnSection({
+        dice: diceRollsLine,
+        image: imageTurn,
+        blocks: blocksSkeleton(envelope),
+    });
 
     return dict;
 }
