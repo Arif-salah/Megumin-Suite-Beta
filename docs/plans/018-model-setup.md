@@ -99,3 +99,12 @@ developer's approval before it is written, one at a time.
       Review round 1: the Choices heading is `## CYOA` (the block's tag), the
       NPC tag is `<npc_dossier_rules>`, and Organic NPCs & Events (V6 only)
       is left out of V11's add-ons.
+- [ ] Phase 3 built 2026-10-21, waiting for the developer's test. "V11 Inside"
+      style (`dir_v11_inside`): the head rule moved out of `<narration>`. New
+      slot `[[style]]`, the picked style as written, never wiped (falls back to
+      V11 Default); the test presets say "You narrate as [[style]]" (one voice)
+      or "JULIA is: [[style]]" (room), so the Writing Style tab reaches them.
+      One-voice versions name no narrator but the model: "Your narration…",
+      "Your notebook…", "You tell this story out loud." (`tools/one-voice.cjs`
+      on the Desktop, step 5). The built-in V11 engine is unchanged until
+      phase 4.

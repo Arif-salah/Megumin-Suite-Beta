@@ -111,6 +111,11 @@ export function buildBaseDict(isTokenCount = false) {
             dict["[[aiprompt]]"] = povInjectionStr + localProfile.aiRule;
         }
     }
+    // [[style]] (plan 018): the style you picked, as written, for a preset that
+    // carries its own text ("You narrate as [[style]]"). Unlike [[aiprompt]] it
+    // is never wiped, and with no style picked it falls back to V11 Default.
+    dict["[[style]]"] = String(localProfile.aiRule || "").trim()
+        || (hardcodedLogic.directStyles.find(s => s.id === "dir_v11") || {}).rule || "";
     localProfile.addons.forEach(aId => {
         const item = hardcodedLogic.addons.find(a => a.id === aId);
         if (item) dict[item.trigger] = item.content;
