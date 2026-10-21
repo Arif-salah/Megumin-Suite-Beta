@@ -15,6 +15,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { parseNotebook, storyProse } from "./parse.js";
+import { NOTEBOOK_TRUTH_FORM } from "./render.js";
 
 export const NOTEBOOK_WORKER_SYSTEM =
     "You keep the author's notebook of an ongoing story: the truths it is hiding, the clues it plants, and who finds what out. " +
@@ -54,6 +55,75 @@ export function renderNotebookWorkerPrompt(a) {
         `# Answer with this block and nothing else\n${task.template}`
     ].filter(s => String(s || "").trim()).join("\n\n");
     return { system: NOTEBOOK_WORKER_SYSTEM, user };
+}
+
+// ── The setup, when the reply wrote none (plan 018) ──
+// The story model is still asked for the setup as usual. When the Notebook
+// route is on and the reply came back without a <Notebook>, Chomusuke writes
+// the two or three truths after it, filed under the reply like a read.
+
+// The read's opening without "You note only what the exchange shows": here
+// it has to come up with the truths.
+export const NOTEBOOK_SETUP_SYSTEM =
+    "You keep the author's notebook of an ongoing story: the truths it is hiding, the clues it plants, and who finds what out. " +
+    "You never continue the story and never explain.";
+
+/** The setup task, for the separate call and the combined one. */
+export function renderNotebookSetupTask() {
+    const rules = [
+        "<Notebook_Setup_Rules>",
+        "The story keeps a notebook of the truths it holds back about the world, its past, or the people in it. It is empty, so write it now: a <Notebook> block with two or three truths, built from the character sheet, the setting, and the story so far.",
+        "",
+        "A good truth comes from the setting and the sheet, and once it comes out it changes how earlier scenes read. A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader. Nothing in the story so far has given it away.",
+        "",
+        "Write each one in this form:",
+        "",
+        ...NOTEBOOK_TRUTH_FORM,
+        "</Notebook_Setup_Rules>"
+    ].join("\n");
+    return { rules, template: "<Notebook>\n[two or three truths, each in the form above]\n</Notebook>", tag: "Notebook" };
+}
+
+/**
+ * The separate setup call.
+ * @param {{ sheet?: string, earlier?: string, exchange: string }} a  sheet: the character card
+ * @returns {{ system: string, user: string }}
+ */
+export function renderNotebookSetupWorkerPrompt(a) {
+    const task = renderNotebookSetupTask();
+    const user = [
+        String(a.sheet || "").trim() ? `<Character_Sheet>\n${String(a.sheet).trim()}\n</Character_Sheet>` : "",
+        String(a.earlier || "").trim() ? `<Earlier_Story>\n${String(a.earlier).trim()}\n</Earlier_Story>` : "",
+        `<Latest_Exchange>\n${String(a.exchange || "").trim()}\n</Latest_Exchange>`,
+        `# Task\n${task.rules}`,
+        `# Answer with this block and nothing else\n${task.template}`
+    ].filter(s => String(s || "").trim()).join("\n\n");
+    return { system: NOTEBOOK_SETUP_SYSTEM, user };
+}
+
+/** Did the reply write truths of its own (a <Notebook>)? Then there is no setup to write. */
+export function replyWroteTruths(replyText) {
+    const parsed = parseNotebook(replyText);
+    return Boolean(parsed && parsed.ops.some(o => o.op === "entry"));
+}
+
+/**
+ * Chomusuke's setup answer as the block to keep: its <Notebook>, when it holds
+ * at least one truth. Null otherwise.
+ * @returns {null | { block: string, count: number }}
+ */
+export function notebookSetupAnswerBlock(raw) {
+    const text = String(raw || "")
+        .replace(/<think\b[^>]*>[\s\S]*?(<\/think\s*>|$)/gi, "")
+        .replace(/```[a-z]*\n?|```/gi, "")
+        .replace(/<(Notebook_Setup_Rules|Author_Notebook)\b[^>]*>[\s\S]*?(<\/\1\s*>|$)/gi, "");
+    const m = text.match(/<Notebook>[\s\S]*?(?:<\/Notebook\s*>|$)/i);
+    if (!m) return null;
+    const body = m[0].replace(/^<Notebook>/i, "").replace(/<\/Notebook\s*>$/i, "").trim();
+    const block = `<Notebook>\n${body}\n</Notebook>`;
+    const parsed = parseNotebook(block, { prose: "" });
+    const count = parsed ? parsed.ops.filter(o => o.op === "entry").length : 0;
+    return count ? { block, count } : null;
 }
 
 const READ_OPS = new Set(["clue", "learned", "out"]);

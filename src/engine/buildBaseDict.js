@@ -30,9 +30,10 @@ import { thinkingSection, formattingSection, bannedSection, reminderSection, thi
 import { DICE_ROLLS_POINTER, IMAGE_ASK_OLD, IMAGE_ASK_NEW, diceTurnLine, imageTurnLine } from "../prompts/presetFrame.js";
 import {
     DICE_RULES_PLAYER, DICE_RULES_EVERYONE, wrapImageRules, wrapNpcRules, npcKnownNames,
-    ADDON_RULES_SPLIT, wrapAddon, sameText,
+    ADDON_RULES_SPLIT, wrapAddon, sameText, wrapRepetition, languageLine, BAN_ADDITIONS,
 } from "../prompts/v11Rules.js";
-import { resolveSlot } from "../core/sharedFragments.js";
+import { V11_BAN_LIST, SHORT_BAN_LIST } from "../../data/modes/v11taina.js";
+import { resolveSlot, getSharedFragment } from "../core/sharedFragments.js";
 import { worldPromptBlock, statsPromptParts, notebookPromptBlock, notebookCurrentPhase } from "../state/index.js";
 import { NOTEBOOK_CRAFT } from "../prompts/notebook.js";
 import { meguminCleanChatHistoryText } from "./chatText.js";
@@ -48,6 +49,8 @@ export function buildBaseDict(isTokenCount = false) {
     // Everything V8/V9 does, V10 does too. The one exception is the Lean/Full render
     // split below, which asks engineUsesRenderLimits() instead.
     const isModern = isModernEngine(activeEngine);
+    // Plan 018: V11 Тайна's words around the turn. "v11" or undefined.
+    const frame = activeEngine && activeEngine.turnFrame === "v11" ? "v11" : undefined;
 
     if (engineUsesRenderLimits(activeEngine)) {
         const v9l = localProfile.v9Limits || {};
@@ -69,7 +72,10 @@ export function buildBaseDict(isTokenCount = false) {
     const targetLang = (localProfile.userLanguage && localProfile.userLanguage.trim() !== "")
         ? localProfile.userLanguage.toUpperCase()
         : "ENGLISH";
-    dict["[[Language]]"] = `[LANGUAGE RULE]\nALL OUTPUT EXCEPT THINKING MUST BE IN ${targetLang} ONLY.`;
+    // V11 Тайна: after a blank line, as in its versions (the preset has one newline there).
+    dict["[[Language]]"] = frame
+        ? "\n" + languageLine(targetLang)
+        : `[LANGUAGE RULE]\nALL OUTPUT EXCEPT THINKING MUST BE IN ${targetLang} ONLY.`;
 
     if (localProfile.userPronouns === "male") dict["[[pronouns]]"] = `{{user}} is male. Always portray and address him as such.`;
     else if (localProfile.userPronouns === "female") dict["[[pronouns]]"] = `{{user}} is female. Always portray and address her as such.`;
@@ -79,7 +85,9 @@ export function buildBaseDict(isTokenCount = false) {
     dict["[[count]]"] = "";
 
     // Story Config (<config> block). Empty when the config is off or every field is on Default.
-    dict["[[config]]"] = buildConfigBlock(localProfile.storyConfig);
+    dict["[[config]]"] = buildConfigBlock(localProfile.storyConfig, { frame });
+    // V11 Тайна: <repetition> rides in the same message, after the settings.
+    if (frame) dict["[[config]]"] = [dict["[[config]]"], wrapRepetition(activeEngine.repetition)].filter(Boolean).join("\n\n");
 
     // 2. STANDARD STAGE SELECTIONS (Stage 2, 4, 5, 6)
 
@@ -280,7 +288,8 @@ export function buildBaseDict(isTokenCount = false) {
         // V8/V9 Dynamic Injection & Stripping
         if (isModern) {
             // 1. Inject [[aiprompt]] directly into the engine prompts (like p6) where the tag exists
-            const aiPromptVal = dict["[[aiprompt]]"] || "";
+            // V11 Тайна's text always names its narrator: V11 Default when no style is picked.
+            const aiPromptVal = dict["[[aiprompt]]"] || (frame ? dict["[[style]]"] : "") || "";
             for (let i = 1; i <= 6; i++) {
                 if (dict[`[[prompt${i}]]`] && dict[`[[prompt${i}]]`].includes("[[aiprompt]]")) {
                     dict[`[[prompt${i}]]`] = dict[`[[prompt${i}]]`].split("[[aiprompt]]").join(aiPromptVal);
@@ -418,7 +427,9 @@ export function buildBaseDict(isTokenCount = false) {
     if (localProfile.banList && localProfile.banList.length > 0) {
         const banStr = localProfile.banList.map(b => `- ${b}`).join("\n");
         const banCustom = localProfile.banListCustomPromptsEnabled ? localProfile.banListCustomPrompts : null;
-        const template = (banCustom && banCustom.injectionTemplate) || DEFAULT_PROMPTS.banList.injectionTemplate;
+        let template = (banCustom && banCustom.injectionTemplate) || DEFAULT_PROMPTS.banList.injectionTemplate;
+        // V11 Тайна: no old-style header inside its <banlist>, unless you wrote your own.
+        if (frame && sameText(template, DEFAULT_PROMPTS.banList.injectionTemplate)) template = BAN_ADDITIONS;
         dict["[[banlist]]"] = template.replace('{{banItems}}', banStr);
     } else {
         dict["[[banlist]]"] = "";
@@ -561,6 +572,11 @@ export function buildBaseDict(isTokenCount = false) {
             });
         }
     });
+    // An engine that places [[pronouns]] in its own text (V11 Тайна, inside
+    // <reader>) has it filled there; the preset's copy stays empty.
+    if (activeEngine && [1, 2, 3, 4, 5, 6].some(i => String(activeEngine[`p${i}`] || "").includes("[[pronouns]]"))) {
+        dict["[[pronouns]]"] = "";
+    }
 
     // --- CURRENT WORLD STATE (continuity notes) ---
     // Injected into [[infoblockcurrent]] above [[blocks]] once the story has a
@@ -823,16 +839,23 @@ export function buildBaseDict(isTokenCount = false) {
         if (!slot || !meguminSlotIsLive(slot, localProfile)) return "";
         return resolveSlot(slot, activeEngine).value || "";
     };
-    const banned = bannedSection({ builtIn: slotText("[[banlist_builtin]]"), additions: dict["[[banlist]]"] });
-    dict["[[thinking]]"] = thinkingSection(dict["[[THINK]]"]);
+    // The built-in ban list (plan 018): the short list when you picked it; on
+    // V11 Тайна the full list in its own wording (your edit of it, if any).
+    let builtInBan = slotText("[[banlist_builtin]]");
+    if (builtInBan) {
+        if (localProfile.banListShort) builtInBan = SHORT_BAN_LIST;
+        else if (frame) builtInBan = getSharedFragment("banlistBuiltInV11") || V11_BAN_LIST;
+    }
+    const banned = bannedSection({ builtIn: builtInBan, additions: dict["[[banlist]]"], frame });
+    dict["[[thinking]]"] = thinkingSection(dict["[[THINK]]"], { frame });
     dict["[[formatting]]"] = formattingSection({
         dnratio: dict["[[DNRATIO]]"], color: dict["[[COLOR]]"], rules: slotText("[[formatting_rules]]"),
-        direct: dict["[[Direct]]"], dn: dict["[[DN]]"],
+        direct: dict["[[Direct]]"], dn: dict["[[DN]]"], frame,
     });
     dict["[[banned]]"] = banned;
     dict["[[reminder]]"] = reminderSection({
         checks: slotText("[[final_checks]]"), banned: !!banned,
-        presetChecks: slotText("[[reminder_checks]]"), userLine: dict["[[user]]"],
+        presetChecks: slotText("[[reminder_checks]]"), userLine: dict["[[user]]"], frame,
     });
     dict["[[content]]"] = slotText("[[content]]");
 

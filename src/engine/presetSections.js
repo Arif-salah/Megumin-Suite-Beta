@@ -13,25 +13,32 @@
 import {
     THINKING_HEADER, FORMATTING_HEADER, REMINDER_HEADER, BANLIST_CHECK,
 } from "../prompts/presetFrame.js";
+import { wrapFormatting, wrapFinalCheck } from "../prompts/v11Rules.js";
+
+// frame "v11" (plan 018): an engine with the V11 Тайна turn frame. Its thinking
+// brings its own <think> tags, and formatting and the checks are tags.
 
 const filled = parts => parts.map(p => String(p || "").trim()).filter(Boolean);
 
 /** [[thinking]]: the header and the thinking, or "" when thinking is off. */
-export function thinkingSection(think) {
+export function thinkingSection(think, { frame } = {}) {
     const body = String(think || "").trim();
-    return body ? `${THINKING_HEADER}\n${body}` : "";
+    if (!body) return "";
+    return frame === "v11" ? body : `${THINKING_HEADER}\n${body}`;
 }
 
 /** [[formatting]]: the header, then each part that is on, in the preset's old order. */
-export function formattingSection({ dnratio, color, rules, direct, dn } = {}) {
+export function formattingSection({ dnratio, color, rules, direct, dn, frame } = {}) {
+    // V11 Тайна: no formatting rules line, its <repetition> says it.
+    if (frame === "v11") return wrapFormatting(filled([dnratio, color, direct, dn]));
     const parts = filled([dnratio, color, rules, direct, dn]);
     return parts.length ? `${FORMATTING_HEADER}\n\n${parts.join("\n")}` : "";
 }
 
 /** [[banned]]: the built-in list and your phrases in one <banlist>, or "" when both are empty. */
-export function bannedSection({ builtIn, additions } = {}) {
+export function bannedSection({ builtIn, additions, frame } = {}) {
     const parts = filled([builtIn, additions]);
-    return parts.length ? `<banlist>\n${parts.join("\n")}\n</banlist>` : "";
+    return parts.length ? `<banlist>\n${parts.join(frame === "v11" ? "\n\n" : "\n")}\n</banlist>` : "";
 }
 
 // One check per line. A number the text already carries is dropped: the
@@ -47,13 +54,14 @@ function checkLines(text) {
  * check that is off leaves no gap. The ban list check is listed only while the
  * ban list is sent.
  */
-export function reminderSection({ checks, banned, presetChecks, userLine } = {}) {
+export function reminderSection({ checks, banned, presetChecks, userLine, frame } = {}) {
     const lines = [
         ...checkLines(checks),
         ...(banned ? [BANLIST_CHECK] : []),
         ...checkLines(presetChecks),
         ...checkLines(userLine),
     ];
+    if (frame === "v11") return wrapFinalCheck(lines);
     if (!lines.length) return "";
     return `${REMINDER_HEADER}\n${lines.map((l, i) => `${i + 1}. ${l}`).join("\n")}`;
 }

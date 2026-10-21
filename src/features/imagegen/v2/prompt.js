@@ -305,7 +305,7 @@ export function renderCombinedPrompt(a) {
             notebook ? notebook.task.template : ""
         ].filter(Boolean).join("\n")
     ].filter(s => String(s || "").trim()).join("\n\n");
-    return { system: combinedSystem({ world: Boolean(world), image, blocks: Boolean(blocks), notebook: Boolean(notebook) }), user, prefill: world ? `<${tag}>\n` : "" };
+    return { system: combinedSystem({ world: Boolean(world), image, blocks: Boolean(blocks), notebook: notebook ? (notebook.setup ? "setup" : "read") : false }), user, prefill: world ? `<${tag}>\n` : "" };
 }
 
 // The system line for whatever the call does. World State + image keeps the
@@ -315,10 +315,14 @@ function combinedSystem({ world, image, blocks, notebook = false }) {
     const jobs = [];
     if (world) jobs.push("note what it changed in the world");
     if (blocks) jobs.push("keep the story's running notes (how the characters feel about {{user}}, {{user}}'s condition and belongings, their private thoughts, the choices open next)");
-    if (notebook) jobs.push("keep the author's notebook (the clues it shows, who finds out a hidden truth, what comes out)");
+    if (notebook === "setup") jobs.push("start the author's notebook (two or three truths the story keeps hidden)");
+    else if (notebook) jobs.push("keep the author's notebook (the clues it shows, who finds out a hidden truth, what comes out)");
     if (image) jobs.push("write an image prompt for the moment it ends on");
     const last = jobs.pop();
     const list = jobs.length ? `${jobs.join(", ")} and ${last}` : last;
+    // The notebook's truths are the one thing it makes up: no fact-rule for them.
     return `You follow an ongoing roleplay. You read the latest exchange and ${list}. ` +
-        "You never continue the story, never explain, and never add facts the exchange does not state or clearly show.";
+        (notebook === "setup"
+            ? "You never continue the story and never explain. Apart from the notebook's truths, you never add facts the exchange does not state or clearly show."
+            : "You never continue the story, never explain, and never add facts the exchange does not state or clearly show.");
 }

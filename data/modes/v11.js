@@ -1,4 +1,6 @@
-// V11 engine: the writers' room.
+// V11 engine: the writers' room, as first released. Listed as "V11 Тайна
+// Preview" since plan 018: V11 Тайна (one voice) and its Writers' Room are
+// in v11taina.js.
 //
 // Five roles (NORA, ANVIL, OPUS, JULIA, MIKI) talk the turn over in the thinking,
 // and the reader gets one voice. The text is the developer's, word for word from
@@ -20,7 +22,7 @@
 // presets no longer get a Content section written for V11.
 
 const V11 = {
-    id: "v11-room", label: "V11 Тайна", color: "#0ea5e9", isNew: true, isV11: true, isCoreClone: true, recommended: true,
+    id: "v11-room", label: "V11 Тайна Preview", color: "#38bdf8", isV11: true, isCoreClone: true,
     notebook: true,
     p1: `You are a writers' room of five, writing an ongoing story with {{user}}. The room talks things over in your thinking. The reader sees only the finished turn, told in one voice, with no trace of the team in it.
 

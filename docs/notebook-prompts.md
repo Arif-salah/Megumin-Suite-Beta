@@ -13,7 +13,7 @@ Parts marked **(example: built from made-up data)** only show how the pieces fit
 - **Notebook off:** nothing. `[[notebook]]` is empty. (It is always on for a preset that keeps one, V11.)
 - **Setup** (on, no live truth yet): N2 goes in the blocks request; the reply writes a `<Notebook>` block.
 - **Running** (at least one live truth): N3 goes in `<Current_Info>`, N4 in the blocks request.
-- **Chomusuke route on** (Chomusuke tab → The Notebook): the story model gets N5 instead of N4, and Chomusuke reads each reply with N6 (or N7 inside the combined call).
+- **Chomusuke route on** (Chomusuke tab → The Notebook): the story model gets N5 instead of N4, and Chomusuke reads each reply with N6 (or N7 inside the combined call). When the notebook is empty and a reply wrote none, Chomusuke writes it with N8.
 - **N1** fills `[[notebook]]` while the notebook is on, for engines that carry that placeholder. V11 has its own text and doesn't use it.
 
 ## N1. The craft text, `[[notebook]]`
@@ -219,4 +219,52 @@ A clue counts only when the exchange shows it on the page. Use the truths' own i
 <Notebook_Update>
 [change lines, or No changes]
 </Notebook_Update>
+```
+
+## N8. Chomusuke writes the setup the reply left out (plan 018), on its own call
+_Code: `src/state/modules/notebook/worker.js → NOTEBOOK_SETUP_SYSTEM, renderNotebookSetupTask, renderNotebookSetupWorkerPrompt`_
+
+With the Notebook route on, when the notebook has no live truth and the reply wrote no `<Notebook>`. The story model still gets N2 as usual. Inside the combined call the same task goes in as one of the tasks, and the system line says "start the author's notebook (two or three truths the story keeps hidden)" and "Apart from the notebook's truths, you never add facts the exchange does not state or clearly show."
+
+**System**
+
+```text
+You keep the author's notebook of an ongoing story: the truths it is hiding, the clues it plants, and who finds what out. You never continue the story and never explain.
+```
+
+**User (example: placeholders in braces)**
+
+```text
+<Character_Sheet>
+{{the character card: description, personality, scenario}}
+</Character_Sheet>
+
+<Earlier_Story>
+{{up to four earlier messages}}
+</Earlier_Story>
+
+<Latest_Exchange>
+{{the latest exchange}}
+</Latest_Exchange>
+
+# Task
+<Notebook_Setup_Rules>
+The story keeps a notebook of the truths it holds back about the world, its past, or the people in it. It is empty, so write it now: a <Notebook> block with two or three truths, built from the character sheet, the setting, and the story so far.
+
+A good truth comes from the setting and the sheet, and once it comes out it changes how earlier scenes read. A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader. Nothing in the story so far has given it away.
+
+Write each one in this form:
+
+T1
+Truth: what is actually true, in a few plain sentences, with enough detail that every later clue and the reveal itself can be written from it.
+Hidden from: who doesn't know it. Name the characters, and add "the reader" if the story hasn't shown it on the page.
+Comes out when: what has to happen in the story for it to come out.
+What it changes: who acts differently once it's out, and how.
+Clue ideas: two or three small things the story could show that point at it and could also mean something else.
+</Notebook_Setup_Rules>
+
+# Answer with this block and nothing else
+<Notebook>
+[two or three truths, each in the form above]
+</Notebook>
 ```

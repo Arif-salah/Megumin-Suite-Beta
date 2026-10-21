@@ -231,3 +231,36 @@ export const wrapAddon = (tag, text) => {
 
 // Same text, ignoring spacing: is this still the built-in default?
 export const sameText = (a, b) => String(a || "").replace(/\s+/g, " ").trim() === String(b || "").replace(/\s+/g, " ").trim();
+
+// ── The V11 Тайна turn frame (plan 018, phase 4) ────────────────────────────
+// Only for an engine with turnFrame "v11" (V11 Тайна and its Writers' Room).
+// The words around the turn, as the tested versions have them; the Preview
+// and older engines keep the old ones.
+
+export const STORY_SETTINGS_PREAMBLE = "These settings hold for the whole story. Where one contradicts anything above, the setting wins.";
+
+export const storySettingsBlock = lines => lines.length
+    ? `<story_settings>\n${STORY_SETTINGS_PREAMBLE}\n${lines.join("\n")}\n</story_settings>`
+    : "";
+
+export const wrapRepetition = text => {
+    const body = String(text || "").trim();
+    return body ? `<repetition>\n${body}\n</repetition>` : "";
+};
+
+export const FINAL_CHECK_HEAD = "Before you output, check:";
+
+export const wrapFinalCheck = lines => lines.length
+    ? `<final_check>\n${FINAL_CHECK_HEAD}\n${lines.map((l, i) => `${i + 1}. ${l}`).join("\n")}\n</final_check>`
+    : "";
+
+export const wrapFormatting = parts => parts.length ? `<formatting>\n${parts.join("\n")}\n</formatting>` : "";
+
+// "ENGLISH" → "Write the response in English."
+export const languageLine = lang => {
+    const l = String(lang || "english").trim().toLowerCase();
+    return `Write the response in ${l.charAt(0).toUpperCase() + l.slice(1)}.`;
+};
+
+// Your banned phrases, after the built-in list inside <banlist>.
+export const BAN_ADDITIONS = "Also avoid these:\n{{banItems}}";

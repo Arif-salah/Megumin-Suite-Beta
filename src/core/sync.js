@@ -29,7 +29,7 @@ export const TAB_SYNC_KEYS = {
     "Blocks": ["blockStack", "statBlocks", "blocks", "hideBlocksFromAI"],
     "Story Director": ["storyPlan"],
     "The Notebook": ["notebook"],
-    "Banned Phrases": ["banList", "banListBuiltIn", "banListBackend", "banListCustomPromptsEnabled", "banListCustomPrompts"],
+    "Banned Phrases": ["banList", "banListBuiltIn", "banListShort", "banListBackend", "banListCustomPromptsEnabled", "banListCustomPrompts"],
     "Images": ["imageGen"],
     "NPC Bank": ["npcBank"],
     "Memory": ["memoryCore"],

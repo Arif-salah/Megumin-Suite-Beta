@@ -284,7 +284,7 @@
             "enabled": true,
             "marker": false,
             "role": "system",
-            "content": "<think>\nBefore you write, work the turn out in your thinking, in this order. All thinking is in English.\n1. Read {{user}}'s turn and the history: what was said, what was done, where everyone is, and what each character knows. {{user}}'s turn is settled. Plan everyone else.\n2. Decide what each of the other characters in the scene wants right now and what each one does this turn.\n3. Decide what this turn adds to the story, where the tension curve stands, whether a truth in the notebook gets a clue or comes out, and how the turn ends.\n4. Write the turn.\n5. Check the draft against these instructions and the banlist, and rewrites any line that breaks one.\n</think>",
+            "content": "<think>\nBefore you write, work the turn out in your thinking, in this order. All thinking is in English.\n1. Read {{user}}'s turn and the history: what was said, what was done, where everyone is, and what each character knows. {{user}}'s turn is settled. Plan everyone else.\n2. Decide what each of the other characters in the scene wants right now and what each one does this turn.\n3. Decide what this turn adds to the story, where the tension curve stands, whether a truth in the notebook gets a clue or comes out, and how the turn ends.\n4. Write the turn.\n5. Check the draft against these instructions and the banlist, and rewrite any line that breaks one.\n</think>",
             "injection_position": 1,
             "injection_depth": 1,
             "injection_order": 104,

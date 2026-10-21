@@ -9,31 +9,45 @@ import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { getCleanedChatHistory } from "../../engine/chatText.js";
 import { analyzeSlopDirectly, analyzeSlopWithPreset, runWithChomusuke } from "../../engine/tasks.js";
-import { Popup, POPUP_TYPE } from "../../st.js";
-import { switchRow } from "../../ui/controls.js";
+import { Popup, POPUP_TYPE, extension_settings } from "../../st.js";
+import { switchRow, segmented } from "../../ui/controls.js";
 import { getSharedFragment, setSharedFragment } from "../../core/sharedFragments.js";
 import { BUILTIN_BAN_LIST } from "../../prompts/presetFrame.js";
+import { V11_BAN_LIST } from "../../../data/modes/v11taina.js";
+import { hardcodedLogic } from "../../../data/database.js";
+import { extensionName } from "../../core/constants.js";
+
+// V11 Тайна sends the full list in its own wording, kept and edited apart from
+// the one older presets send (plan 018).
+function fullList() {
+    const all = [...hardcodedLogic.modes, ...((extension_settings[extensionName] || {}).customModes || [])];
+    const engine = all.find(m => m.id === localProfile.mode);
+    return engine && engine.turnFrame === "v11"
+        ? { key: "banlistBuiltInV11", original: V11_BAN_LIST, name: engine.label }
+        : { key: "banlistBuiltIn", original: BUILTIN_BAN_LIST, name: "" };
+}
 
 // The built-in list in a popup. Saving the original text back stores nothing,
 // so a later update to the original still reaches this install.
 async function editBuiltInList() {
+    const list = fullList();
     const $root = $(`
         <div style="text-align:left;">
-            <h3 style="margin-top:0;">Built-in list</h3>
+            <h3 style="margin-top:0;">Built-in list${list.name ? ` (${list.name})` : ""}</h3>
             <div style="opacity:0.75; font-size:0.85rem; margin-bottom:8px;">The same list in every chat. Switch it off in the Banned Phrases tab.</div>
             <textarea class="ps-modern-input" rows="18" style="width:100%; font-family:monospace; font-size:0.8rem;"></textarea>
             <button type="button" class="ps-modern-btn secondary bl-reset" style="margin-top:8px; padding: 4px 10px; font-size: 0.75rem;"><i class="fa-solid fa-rotate-left"></i> Put back the original list</button>
         </div>
     `);
     const $text = $root.find("textarea");
-    $text.val(getSharedFragment("banlistBuiltIn") || BUILTIN_BAN_LIST);
-    $root.find(".bl-reset").on("click", () => $text.val(BUILTIN_BAN_LIST));
+    $text.val(getSharedFragment(list.key) || list.original);
+    $root.find(".bl-reset").on("click", () => $text.val(list.original));
 
     const saved = await new Popup($root, POPUP_TYPE.CONFIRM, "", { okButton: "Save", cancelButton: "Cancel", wide: true, large: true, allowVerticalScrolling: true }).show();
     if (!saved) return;
     const value = String($text.val() || "");
-    const original = value.replace(/\r\n/g, "\n").trim() === BUILTIN_BAN_LIST.trim();
-    setSharedFragment("banlistBuiltIn", original ? "" : value);
+    const original = value.replace(/\r\n/g, "\n").trim() === list.original.trim();
+    setSharedFragment(list.key, original ? "" : value);
     if (!original && value.trim() === "") toastr.info("The built-in list is empty now, so the original list will be used. To send none, switch it off instead.");
     else toastr.success(original ? "Built-in list set back to the original." : "Built-in list saved.");
 }
@@ -60,7 +74,19 @@ export function renderBanList(c) {
             saveProfileToMemory();
         },
     }));
-    const $editBuiltIn = $(`<button class="ps-modern-btn secondary" style="margin-top:10px; padding: 6px 12px; font-size: 0.78rem;"><i class="fa-solid fa-pen"></i> Edit the built-in list</button>`);
+    // Plan 018: the short list, for models that redraft over a long one.
+    const $which = $(`<div style="margin-top:10px;"><div class="set-desc" style="margin-bottom:6px;">Which list: the short one keeps five habits and drops the word list. GLM, DeepSeek and models like them redraft for ages over a long list.</div></div>`);
+    const $editBuiltIn = $(`<button class="ps-modern-btn secondary" style="margin-top:10px; padding: 6px 12px; font-size: 0.78rem;"><i class="fa-solid fa-pen"></i> Edit the full list</button>`);
+    $which.append(segmented([
+        { id: "full", label: "Full list" },
+        { id: "short", label: "Short list" }
+    ], localProfile.banListShort ? "short" : "full", id => {
+        localProfile.banListShort = id === "short";
+        saveProfileToMemory();
+        $editBuiltIn.toggle(!localProfile.banListShort);
+    }));
+    $builtIn.append($which);
+    $editBuiltIn.toggle(!localProfile.banListShort);
     $editBuiltIn.on("click", editBuiltInList);
     $builtIn.append($editBuiltIn);
     c.append($builtIn);
