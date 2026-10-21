@@ -83,7 +83,7 @@ export function pickEngine(p, id) {
 const STORY_MODEL = { blocks: "story", worldState: "story", notebook: "story" };
 
 // Chomusuke is optional on the models that write the blocks themselves.
-const CHOMUSUKE_OPTIONAL = { tone: "gold", chomusuke: true, text: "<b>Chomusuke is off here.</b> You can turn it on below for the Blocks, World State and the Notebook. It does them better than the story model." };
+const CHOMUSUKE_OPTIONAL = { tone: "gold", chomusuke: true, text: "<b>Chomusuke is off here.</b> You can turn it on below to save tokens." };
 
 export const LOADOUTS = [
     {

@@ -170,8 +170,7 @@ chat.
   prompt off on Gemini 4, turn it on for 3.1 / 2.5 Pro, and turn the prefill
   on only if replies get refused.
 - **Chomusuke optional** on Gemini Pro, Claude and Big open models: a note
-  that it is off there and does the blocks, World State and the Notebook
-  better when turned on.
+  that it is off there and can be turned on to save tokens.
 - **Fast models:** a red note that DeepSeek leaves the blocks out and
   Chomusuke has to be on for them; with Chomusuke not set up, a button to its
   setup. "Use this loadout" still applies everything.
