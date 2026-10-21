@@ -7,6 +7,7 @@
 
 import { meguminCotForMode } from "../../../data/cot/index.js";
 import { directStyles } from "../../../data/directStyles.js";
+import { styleAfterPicking } from "../../core/engines.js";
 
 export const V11_STYLE_IDS = ["dir_v11", "dir_v11_inside"];
 
@@ -73,8 +74,9 @@ export function pickEngine(p, id) {
     const cot = meguminCotForMode(id, "english");
     if (cot) p.model = cot;
     const builtIn = directStyles.some(s => s.id === p.activeStyleId);
-    if (!p.activeStyleId || (builtIn && !V11_STYLE_IDS.includes(p.activeStyleId))) {
-        const ds = directStyles.find(s => s.id === "dir_v11");
+    const styleId = styleAfterPicking({ id }, p.activeStyleId, builtIn);
+    const ds = styleId && directStyles.find(s => s.id === styleId);
+    if (ds) {
         p.activeStyleId = ds.id;
         p.aiRule = ds.rule;
     }

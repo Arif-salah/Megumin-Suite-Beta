@@ -10,6 +10,7 @@ import {
 import { modes } from "../data/modes/index.js";
 import { modes_v11taina } from "../data/modes/v11taina.js";
 import { meguminCotForMode } from "../data/cot/index.js";
+import { styleAfterPicking } from "../src/core/engines.js";
 
 // Story Config keeps the sentence; the page reads its label. A stand-in for the two.
 const SENTENCE = { [LENGTH_FLEXIBLE]: "flexible — up to 700", [LENGTH_SHORT]: "usually 250–350 words, longer only while a fight or sex scene is under way" };
@@ -90,6 +91,19 @@ test("a V11 style or your own style is kept", () => {
         assert.equal(p.activeStyleId, id);
         assert.equal(p.aiRule, "mine");
     }
+});
+
+test("picking an engine: same generation keeps the style, another generation's built-in one moves over", () => {
+    const pick = (m, id) => styleAfterPicking(m, id, id !== "my-own-style");
+    assert.equal(pick({ id: "v11-writers-room" }, "dir_v11_inside"), null);
+    assert.equal(pick({ id: "v11-voice" }, "dir_v11"), null);
+    assert.equal(pick({ id: "v11-voice" }, "dir_v10_ukiyo"), "dir_v11");
+    assert.equal(pick({ id: "v10-ukiyo" }, "dir_v11_inside"), "dir_v10_ukiyo");
+    assert.equal(pick({ id: "v11-voice" }, ""), "dir_v11");
+    assert.equal(pick({ id: "v11-voice" }, "my-own-style"), null);
+    const p = { ...profile(), activeStyleId: "dir_v10_ukiyo", aiRule: "old" };
+    pickEngine(p, "v11-deepseek");
+    assert.equal(p.activeStyleId, "dir_v11");
 });
 
 test("Changed from the loadout: only the rows that differ, only for the loadout in use", () => {

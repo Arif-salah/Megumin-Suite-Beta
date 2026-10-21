@@ -206,7 +206,7 @@ function settingRow(s, l, isChanged, draft, rerender) {
         $sel.on("change", () => { if ($sel.val()) set($sel.val()); });
         $ctl.append($sel);
     } else if (s.key === "banList") {
-        $ctl.append(segmented([{ id: "full", label: "Full list" }, { id: "short", label: "Short list" }, { id: "off", label: "Off" }], value, set));
+        $ctl.append(segmented([{ id: "full", label: "Full list" }, { id: "short", label: "Short list" }, { id: "off", label: "Only your phrases" }], value, set));
     } else {
         $ctl.append(segmented([{ id: "story", label: "Story model" }, { id: "chomusuke", label: "Chomusuke" }], value, set));
     }
@@ -223,7 +223,7 @@ function engineLabel(id) {
 function describe(key, v) {
     if (key === "mode") return engineLabel(v);
     if (key === "thinking" || key === "html") return v ? "on" : "off";
-    if (key === "banList") return { full: "the full list", short: "the short list", off: "off" }[v];
+    if (key === "banList") return { full: "the full list", short: "the short list", off: "only your phrases" }[v];
     if (key === "length") return v;
     return v === "chomusuke" ? "Chomusuke" : "the story model";
 }

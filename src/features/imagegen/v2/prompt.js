@@ -14,7 +14,7 @@ import { renderBlocksTasks } from "../../../state/modules/stats/worker.js";
 
 // Every section a combined answer can carry besides the image prompt (plan 009
 // adds the blocks Chomusuke writes), so none of them leaks into the prompt.
-const SECTION_TAGS = ["Outfit_Tags", "Character_Visual", "World_Update", "World_State", "Bonds", "Character_Sheet", "NPC_Inner_Chatter", "CYOA", "Notebook_Update"];
+const SECTION_TAGS = ["Outfit_Tags", "Character_Visual", "World_Update", "World_State", "Bonds", "Character_Sheet", "NPC_Inner_Chatter", "CYOA", "Notebook_Update", "Notebook"];
 const ANY_SECTION = SECTION_TAGS.join("|");
 
 export const V2_STYLES = ["tags", "natural"];

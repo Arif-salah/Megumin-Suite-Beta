@@ -13,7 +13,7 @@
 import {
     THINKING_HEADER, FORMATTING_HEADER, REMINDER_HEADER, BANLIST_CHECK,
 } from "../prompts/presetFrame.js";
-import { wrapFormatting, wrapFinalCheck } from "../prompts/v11Rules.js";
+import { wrapFormatting, wrapFinalCheck, FINAL_CHECK_HEAD } from "../prompts/v11Rules.js";
 
 // frame "v11" (plan 018): an engine with the V11 Тайна turn frame. Its thinking
 // brings its own <think> tags, and formatting and the checks are tags.
@@ -88,9 +88,17 @@ export const PRESET_SECTION_PARTS = {
     "[[reminder]]": `${REMINDER_HEADER}\n[[final_checks]]\n[[reminder_checks]]\n[[user]]`,
 };
 
-export function expandPresetSections(text) {
+// The same, for an engine with the V11 Тайна turn frame: its tags, no headers.
+export const PRESET_SECTION_PARTS_V11 = {
+    "[[thinking]]": "[[THINK]]",
+    "[[formatting]]": "<formatting>\n[[DNRATIO]]\n[[COLOR]]\n[[Direct]]\n[[DN]]\n</formatting>",
+    "[[banned]]": "<banlist>\n[[banlist_builtin]]\n\n[[banlist]]\n</banlist>",
+    "[[reminder]]": `<final_check>\n${FINAL_CHECK_HEAD}\n[[final_checks]]\n[[reminder_checks]]\n[[user]]\n</final_check>`,
+};
+
+export function expandPresetSections(text, { frame } = {}) {
     let out = String(text || "");
-    Object.entries(PRESET_SECTION_PARTS).forEach(([tag, parts]) => {
+    Object.entries(frame === "v11" ? PRESET_SECTION_PARTS_V11 : PRESET_SECTION_PARTS).forEach(([tag, parts]) => {
         out = out.split(tag).join(parts);
     });
     return out;

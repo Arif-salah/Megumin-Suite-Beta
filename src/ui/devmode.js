@@ -113,6 +113,7 @@ const session = {
 // The preset as drawn: a section slot ([[thinking]], [[reminder]]...) is shown
 // as the parts it is made of, so each editable part sits where it is sent.
 const SKELETON = PRESET_SKELETON.map(card => ({ ...card, content: expandPresetSections(card.content) }));
+const SKELETON_V11 = PRESET_SKELETON.map(card => ({ ...card, content: expandPresetSections(card.content, { frame: "v11" }) }));
 
 const CHAT_HISTORY_INDEX = SKELETON.findIndex(c => c.id === "chatHistory");
 
@@ -842,7 +843,8 @@ function renderEngineDocument(c, modeData, rerender) {
     }
     const drawn = new Set();
 
-    SKELETON.forEach(card => {
+    // V11 Тайна sends its own tags around the turn (plan 018), so draw those.
+    (modeData && modeData.turnFrame === "v11" ? SKELETON_V11 : SKELETON).forEach(card => {
         if (card.marker) {
             $doc.append(`
                 <div class="dev-card dev-card-st">

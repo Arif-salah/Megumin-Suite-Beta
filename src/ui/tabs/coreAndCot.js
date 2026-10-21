@@ -10,7 +10,7 @@
 import { extension_settings } from "../../st.js";
 import { extensionName } from "../../core/constants.js";
 import { localProfile } from "../../core/state.js";
-import { lockedStyleIdFor, isV7Engine, isV10Engine } from "../../core/engines.js";
+import { styleAfterPicking, isV7Engine, isV10Engine } from "../../core/engines.js";
 import { saveProfileToMemory } from "../../core/profile.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { hardcodedLogic } from "../../../data/database.js";
@@ -268,8 +268,11 @@ export function renderCoreAndCot(c) {
 function pickPreset(m) {
     localProfile.mode = m.id;
     // Same mapping the Writing Style tab uses when it finds a locked preset with
-    // no style set. One list, so the two cannot disagree.
-    const lockedStyle = lockedStyleIdFor(m);
+    // no style set. One list, so the two cannot disagree. Your own style, or a
+    // style of the same generation (V11 Inside between the V11 engines), is
+    // kept, as Model Setup does.
+    const isBuiltIn = hardcodedLogic.directStyles.some(x => x.id === localProfile.activeStyleId);
+    const lockedStyle = styleAfterPicking(m, localProfile.activeStyleId, isBuiltIn);
     if (lockedStyle) {
         localProfile.activeStyleId = lockedStyle;
         const ds = hardcodedLogic.directStyles.find(x => x.id === lockedStyle);
