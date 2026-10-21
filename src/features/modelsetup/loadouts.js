@@ -24,7 +24,7 @@ export const SETTINGS = [
         write: (p, id) => pickEngine(p, id)
     },
     {
-        key: "thinking", label: "Thinking", tab: "preset", page: "thinking",
+        key: "thinking", label: "Custom thinking", tab: "preset", page: "thinking",
         read: p => p.cotEnabled !== false,
         write: (p, on) => { p.cotEnabled = Boolean(on); }
     },
@@ -90,7 +90,7 @@ export const LOADOUTS = [
         id: "gemini-pro", name: "Gemini Pro", icon: "fa-gem", models: "Gemini 3.1 Pro, 2.5 Pro, Gemini 4",
         why: "What Megumin was built for. Gemini writes best with its own thinking, the full ban list and the length left flexible.",
         notes: [
-            { tone: "gold", text: "<b>Gemini 4:</b> keep thinking off. <b>Gemini 3.1 Pro and 2.5 Pro:</b> turn thinking on. Turn the prefill on only if you get refusals." },
+            { tone: "gold", text: "<b>Gemini 4:</b> keep custom thinking off. <b>Gemini 3.1 Pro and 2.5 Pro:</b> turn custom thinking on. Turn the prefill on only if you get refusals." },
             CHOMUSUKE_OPTIONAL
         ],
         settings: { mode: "v11-voice", thinking: false, length: LENGTH_FLEXIBLE, banList: "full", ...STORY_MODEL }
@@ -103,7 +103,7 @@ export const LOADOUTS = [
     },
     {
         id: "big-open", name: "Big open models", icon: "fa-dragon", models: "GLM 5.3, GLM 5.3 Flash",
-        why: "GLM writes plainer dialogue with thinking off, and the short ban list keeps it from redrafting. Immersive HTML leaks into its replies, so it stays off.",
+        why: "GLM writes plainer dialogue with custom thinking off, and the short ban list keeps it from redrafting. Immersive HTML leaks into its replies, so it stays off.",
         notes: [
             { tone: "gold", text: "<b>GLM 5.3 Flash</b> can forget a block now and then. If it does, let Chomusuke write the blocks." },
             CHOMUSUKE_OPTIONAL
