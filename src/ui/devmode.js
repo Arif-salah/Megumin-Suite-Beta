@@ -997,7 +997,7 @@ function renderEngineEditor(c) {
         setDevEngineDirty(false);
         session.engine = null;
         session.expanded.clear();
-        if (returnTo === "tab") { $(".ps-sidebar").show(); fireRefreshHook(REFRESH.SWITCH_TAB, 0); }
+        if (returnTo === "tab") { $(".ps-sidebar").show(); fireRefreshHook(REFRESH.SWITCH_TAB, "preset"); }
         else renderDevMode("engines");
     });
 
@@ -1013,7 +1013,7 @@ function renderEngineEditor(c) {
         session.engine.isNew = false;
         saveSettingsDebounced();
         toastr.success("Engine saved.");
-        if (returnTo === "tab") { $(".ps-sidebar").show(); fireRefreshHook(REFRESH.SWITCH_TAB, 0); }
+        if (returnTo === "tab") { $(".ps-sidebar").show(); fireRefreshHook(REFRESH.SWITCH_TAB, "preset"); }
         else renderDevMode("engines");
     });
 }

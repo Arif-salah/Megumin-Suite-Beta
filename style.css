@@ -5337,28 +5337,37 @@
 .ptx-cot .ecard-desc { font-size: .84rem !important; line-height: 1.55 !important; color: #c4c4cc !important; }
 .ptx-guide-btn { width: auto !important; margin: 0 !important; flex: 0 0 auto; white-space: nowrap; font-size: .8rem; }
 
-/* Model guide popup (src/ui/modelGuide.js). */
-.mgd { display: flex; flex-direction: column; gap: 12px; text-align: left; }
-/* The picture hangs over the popup's bottom-right corner; the text keeps clear
-   of it with room on the right of the last rows. */
-.mgd-popup .mgd-pic { position: absolute; right: -46px; bottom: -28px; width: 170px; height: auto; z-index: 2; pointer-events: none; user-select: none; filter: drop-shadow(0 8px 18px rgba(0,0,0,.5)); }
-.mgd-popup .mgd-practices { padding-right: 120px; }
+/* Model Setup (plan 018, phase 5: src/features/modelsetup/ui.js). The Chomusuke
+   setup steps below (.chx-steps, .mgd-note) are shared with the Chomusuke tab. */
+.msx-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important; }
+.msx-model .ecard-title i { color: #a855f7; margin-right: 4px; }
+.msx-note { margin: 0 !important; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.msx-note span { flex: 1 1 240px; }
+.msx-link, .msx-open { width: auto !important; margin: 0 !important; flex: 0 0 auto; white-space: nowrap; font-size: .74rem; color: var(--gold, #f59e0b) !important; border-color: rgba(245,158,11,.3) !important; }
+.msx-open-solo { align-self: flex-start; }
+.msx-rows { display: flex; flex-direction: column; }
+.msx-row { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr) auto; align-items: center; gap: 8px 14px; padding: 10px 0; border-top: 1px solid var(--border-color); }
+.msx-row:first-child { border-top: 0; }
+.msx-row-label { font-size: .84rem; font-weight: 600; color: var(--text-main); display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.msx-changed { font-size: .66rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: rgba(245,158,11,.14); color: #fbbf24; cursor: help; }
+.msx-row-control { min-width: 0; }
+.msx-row-control .igx-seg { margin: 0; }
+.msx-row-control .mtab-toggle-row { margin: 0; padding: 4px 0; border: 0; background: transparent; }
+.msx-select { width: 100%; max-width: 360px; margin: 0 !important; }
+.msx-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--border-color); }
+.msx-foot .mtab-toggle-row { flex: 1 1 260px; margin: 0; }
+.msx-use { width: auto !important; margin: 0 !important; padding: 8px 18px !important; font-weight: 700; color: #fff !important; background: linear-gradient(135deg, #0ea5e9, #a855f7) !important; border: 0 !important; }
+.msx-help { border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 14px; }
+.msx-help + .msx-help { margin-top: 8px; }
+.msx-help summary { cursor: pointer; font-weight: 700; font-size: .86rem; display: flex; align-items: center; gap: 8px; }
+.msx-help summary i { color: #a855f7; }
+.msx-help[open] summary { margin-bottom: 10px; }
+.msx-help .msx-note { margin-bottom: 10px !important; }
+.msx-habits { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: .82rem; line-height: 1.5; color: #d4d4d8; }
 @media (max-width: 600px) {
-    .mgd-popup .mgd-pic { width: 96px; right: -8px; bottom: -14px; }
-    .mgd-popup .mgd-practices { padding-right: 70px; }
+    .msx-row { grid-template-columns: 1fr; }
+    .msx-open { justify-self: start; }
 }
-.mgd-head h3 { margin: 0 0 4px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
-.mgd-head h3 i { color: var(--gold, #f59e0b); }
-.mgd-head p { margin: 0; font-size: .82rem; color: var(--text-muted); }
-.mgd-models { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-.mgd-model { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(255,255,255,.03); }
-.mgd-model-title { font-weight: 700; font-size: .9rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.mgd-model-title i { color: #a855f7; }
-.mgd-model-title span { font-weight: 500; font-size: .74rem; color: var(--text-muted); }
-.mgd ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: .82rem; line-height: 1.5; color: #d4d4d8; }
-.mgd-action { width: auto !important; margin: 4px 0 0 !important; align-self: flex-start; font-size: .76rem; color: var(--gold, #f59e0b) !important; border-color: rgba(245,158,11,.3) !important; }
-.mgd-sub { margin: 6px 0 0; font-size: .9rem; display: flex; align-items: center; gap: 8px; }
-.mgd-sub i { color: #a855f7; }
 .mgd ol.mgd-steps, .chx-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; font-size: .82rem; line-height: 1.5; color: #d4d4d8; text-align: left; }
 .chx-how { flex-direction: column; gap: 10px; }
 .mgd-note { margin: 0 !important; font-size: .8rem; text-align: left; }

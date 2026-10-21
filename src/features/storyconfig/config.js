@@ -281,7 +281,7 @@ export function getAllConfigPresets() {
 // A value matching nothing is returned untouched. That is either already current or
 // something the reader typed into the Custom... box, and overwriting the second would
 // throw away their words to fix a problem they do not have.
-function upgradeConfigValue(field, raw) {
+export function upgradeConfigValue(field, raw) {
     const v = String(raw == null ? "" : raw).trim();
     if (!v || !field.options) return v;
     const opts = field.options.map(o => typeof o === "string" ? { label: o, value: o } : o);

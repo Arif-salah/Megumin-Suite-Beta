@@ -47,7 +47,8 @@ export function meguminCotForMode(modeId, lang = "english") {
     // The uncapped variant is the default either way -- the Thinking Cap is a
     // remedy for a model that over-thinks, not something to hand everyone.
     // V11 Тайна and its Writers' Room each have their own; "v11-room" is the Preview.
-    else if (modeId === "v11-voice") prefix = "cot-v11-voice";
+    // V11 Тайна DeepSeek thinks like V11 Тайна.
+    else if (modeId === "v11-voice" || modeId === "v11-deepseek") prefix = "cot-v11-voice";
     else if (modeId === "v11-writers-room") prefix = "cot-v11-wr";
     else if (modeId.includes("v11")) prefix = "cot-v11";
     else if (modeId.includes("v10-shura")) prefix = "cot-v10-shura";

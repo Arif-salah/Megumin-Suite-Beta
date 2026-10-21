@@ -145,6 +145,49 @@ differs, and only in the pov line. The new engines built in full with no
 slot left. The notebook fallback run with the real state bridge on a fake
 chat.
 
+## Phase 5: the Model Setup tab (agreed 2026-10-21)
+
+- **First tab, "Model Setup".** Cards per model; clicking one shows its
+  settings, "Use this loadout" applies them. Dimmed "coming soon": Gemini
+  Flash, Overthinkers, Local.
+- **Every character by default.** "Use this loadout" writes only the
+  loadout's own settings into every character (and the default for new
+  ones). It does not turn on any tab's Global sync, which would also copy
+  genre, language, blocks and the whole Chomusuke tab. A switch "Only this
+  character" keeps it to the one on screen.
+- **Length** is the one Story Config field a loadout writes; genre, pov and
+  the rest stay with each story.
+- **Each row is the real setting**, with a button to its tab and "Changed
+  from the loadout" when it differs from the loadout last used here. A
+  change on the page follows that tab's Global sync, as it would in the tab.
+- **A loadout never turns a module on or off** (Images, World State, NPC
+  Bank…). It only says who writes the blocks, World State and the Notebook
+  when they are on.
+- **Writing style** picker: V11 Default, V11 Inside, button to Writing Style.
+  A loadout keeps a V11 style or a style of your own; it only replaces
+  another generation's built-in style.
+- **Notes, no prefill machinery:** Gemini's card says the Thinking prompt and
+  the prefill make no difference on Gemini 4, and that on 3.1 / 2.5 Pro the
+  Thinking prompt (which brings the prefill) helps when replies get cut off.
+- **Fast models:** a red note that DeepSeek leaves the blocks out, so
+  Chomusuke has to write them; with Chomusuke not set up, a button to its
+  setup. "Use this loadout" still applies everything.
+- **V11 Тайна DeepSeek** (`v11-deepseek`), Fast models' engine: V11 Тайна
+  with one line back in `<reader>` from the preset DeepSeek was tested with:
+  "The reader plays {{user}}. {{char}} and every other person, place, and
+  event in the story are yours to write and to move." The new opening stays.
+  Built from `V11 Fast models.md` (`tools/fast.cjs`, then
+  `build-engines.cjs`). Thinking: CoT V11 Тайна.
+- The Model guide popup is gone; its button opens this tab. The Chomusuke
+  setup steps and the good habits move onto the page.
+
+| Loadout | Engine | Thinking prompt | Length | Ban list | HTML | Blocks, World State, Notebook |
+|---|---|---|---|---|---|---|
+| Gemini Pro | V11 Тайна | off | flexible | full | as is | story model |
+| Claude | V11 Тайна | off | flexible | full | as is | story model |
+| Big open models | V11 Тайна | off | 250–350, longer for fights and sex | short | off | story model |
+| Fast models | V11 Тайна DeepSeek | off | 250–350, longer for fights and sex | short | off | Chomusuke |
+
 ## Progress
 
 - [x] Phase 1 built 2026-10-20 (249 tests pass, import check clean). The V11
@@ -175,3 +218,10 @@ chat.
 - [ ] Phase 4 built 2026-10-21 (265 tests pass, import check clean); the
       developer tests it with the Model Setup page (phase 5). What was done is
       in "Phase 4: what was built" above.
+- [ ] Phase 5 built 2026-10-21 (273 tests pass, import check clean), waiting
+      for the developer's test with phases 3 and 4. Page:
+      `src/features/modelsetup/` (`loadouts.js` pure and tested, `ui.js`).
+      "Use this loadout" checked with SillyTavern stubbed: every character
+      (and the default for new ones) or only this one; genre kept; a profile
+      from before Chomusuke gets the routes with Chomusuke off. Dev Mode's
+      "back to the tab" now opens Preset & Thinking (it was tab 0).

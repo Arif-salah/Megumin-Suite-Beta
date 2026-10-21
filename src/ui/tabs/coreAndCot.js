@@ -19,7 +19,6 @@ import { meguminCotForMode } from "../../../data/cot/index.js";
 import { buildStoryConfigSection } from "../../features/storyconfig/ui.js";
 import { countActiveConfigFields } from "../../features/storyconfig/config.js";
 import { card as pageCard, segmented, switchRow, field, esc } from "../controls.js";
-import { openModelGuide } from "../modelGuide.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enhanced Dialogue — the switch drawn inside a preset card.
@@ -88,6 +87,7 @@ const DESCRIPTIONS = {
     "v8-lite": "A streamlined, highly efficient version of Obsidian. Retains the core rules of psychology, dialogue, and momentum with a much lighter token footprint.",
     "v8-fusion": "The absolute pinnacle of the Megumin Suite. A hybrid engine mixing V8 Obsidian's deep psychology with V6 Dream Team's specialist writer room framework.",
     "v11-voice": "One storyteller writes the whole turn, plainly and with a voice of its own. Characters play their sheets at full strength, the world goes on without you, and a notebook keeps the story's hidden truths until they come out. The base for every model.",
+    "v11-deepseek": "V11 Тайна with one more line for DeepSeek, which tends to treat the character as the player and leave them doing nothing: the character and everyone else in the story are the AI's to write and to move. Use it with Chomusuke writing the blocks, since DeepSeek leaves them out.",
     "v11-writers-room": "V11 Тайна written by a room of five: a director, a psychologist, a story architect, a storyteller and a dialogue writer talk the turn over in the thinking before it is written.",
     "v11-room": "The first V11 release, kept as it was. A writers' room of five: a director who keeps continuity and checks every draft, a psychologist for what each character wants, a story architect who keeps the author's notebook of hidden truths, a storyteller for the narration, and a dialogue writer for the voices. The reader gets one voice. Turns the Author's Notebook on by itself.",
     "v10-core": "The storyteller. Ukiyo is the looser of the two — a teller with a temperament, spinning the world and its history, following whatever in the scene is most alive. It trades a little polish for invention: the prose wanders, reaches for an image, and occasionally overreaches. Pick it for atmosphere, momentum and a world that feels told rather than composed. Neither V10 is a downgrade of the other — run a few scenes on each and keep the one that sounds like the story you want to read.",
@@ -167,7 +167,7 @@ function parseCot(model) {
 // The frameworks made for a preset; null = any (older and your own presets).
 function cotTypesFor(mode) {
     const m = String(mode || "");
-    if (m === "v11-voice") return ["v11-voice"];
+    if (m === "v11-voice" || m === "v11-deepseek") return ["v11-voice"];
     if (m === "v11-writers-room") return ["v11-wr"];
     if (m.includes("v11")) return ["v11", "v11-cap"];
     if (m.includes("v10")) return ["v10-ukiyo", "v10-ukiyo-cap", "v10-shura", "v10-shura-cap"];
@@ -195,6 +195,11 @@ let currentPage = "preset";
 let presetFilter = null;
 let showAllCot = false;
 let advancedOpen = false;
+
+/** Which page the tab opens on next (Model Setup's buttons land on the right one). */
+export function setPresetPage(id) {
+    if (["preset", "thinking", "config"].includes(id)) currentPage = id;
+}
 
 export function renderCoreAndCot(c) {
     c.empty();
@@ -227,7 +232,7 @@ export function renderCoreAndCot(c) {
                 <div class="mtab-header-icon" style="background: linear-gradient(135deg, #f59e0b, #a855f7);"><i class="fa-solid fa-server"></i></div>
                 <div><h2>Preset & Thinking</h2><p>Choose the preset, how it thinks before it writes, and the story's standing settings.</p></div>
             </div>
-            <button type="button" class="menu_button ptx-guide-btn" title="Which settings fit the model you use"><i class="fa-solid fa-compass"></i> Model guide</button>
+            <button type="button" class="menu_button ptx-guide-btn" title="Open Model Setup: the settings tested for the model you use"><i class="fa-solid fa-compass"></i> Model Setup</button>
         </div>
         <div class="igx-chips ptx-summary">
             <span class="igx-chip ok"><i class="fa-solid fa-server"></i> ${esc(active ? active.label : localProfile.mode)}</span>
@@ -236,20 +241,7 @@ export function renderCoreAndCot(c) {
         </div>
     `);
 
-    // The guide's "Pick the Thinking Cap" picks the cap made for this preset
-    // (Shura's for Shura, Ukiyo's otherwise); none when the preset has no cap.
-    const caps = (cotTypesFor(localProfile.mode) || []).filter(t => t.endsWith("-cap"));
-    const capType = caps.find(t => t === `${cot.type}-cap`) || caps[0];
-    c.find(".ptx-guide-btn").on("click", () => openModelGuide({
-        onPickCap: capType ? () => {
-            localProfile.model = cotModelId(capType, "english");
-            localProfile.cotEnabled = true;
-            saveProfileToMemory();
-            currentPage = "thinking";
-            rerender();
-            toastr.success(`Thinking set to ${COT_TYPES.find(t => t.id === capType).label}.`, "Megumin Suite");
-        } : undefined
-    }));
+    c.find(".ptx-guide-btn").on("click", () => fireRefreshHook(REFRESH.SWITCH_TAB, "setup"));
 
     const pages = [
         { id: "preset", label: "Preset", icon: "fa-server" },

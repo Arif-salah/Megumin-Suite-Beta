@@ -19,8 +19,8 @@ import { parseNotebook } from "../src/state/modules/notebook/parse.js";
 const voice = modes_v11taina.find(m => m.id === "v11-voice");
 const room = modes_v11taina.find(m => m.id === "v11-writers-room");
 
-test("the list: V11 Тайна first and recommended, then the Writers' Room, then the Preview", () => {
-    assert.deepEqual(modes.slice(0, 3).map(m => m.id), ["v11-voice", "v11-writers-room", "v11-room"]);
+test("the list: V11 Тайна first and recommended, then the Writers' Room and DeepSeek, then the Preview", () => {
+    assert.deepEqual(modes.slice(0, 4).map(m => m.id), ["v11-voice", "v11-writers-room", "v11-deepseek", "v11-room"]);
     assert.equal(voice.label, "V11 Тайна");
     assert.equal(room.label, "V11 Тайна · Writers' Room");
     assert.equal(modes_v11[0].label, "V11 Тайна Preview");
