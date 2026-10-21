@@ -147,9 +147,11 @@ chat.
 
 ## Phase 5: the Model Setup tab (agreed 2026-10-21)
 
-- **First tab, "Model Setup".** Cards per model; clicking one shows its
-  settings, "Use this loadout" applies them. Dimmed "coming soon": Gemini
-  Flash, Overthinkers, Local.
+### What we agreed
+
+- **First tab, "Model Setup".** The panel opens on it. A card per model;
+  clicking one shows its settings, "Use this loadout" applies them. Dimmed
+  "Coming soon" cards: Gemini Flash, Overthinkers, Local.
 - **Every character by default.** "Use this loadout" writes only the
   loadout's own settings into every character (and the default for new
   ones). It does not turn on any tab's Global sync, which would also copy
@@ -157,41 +159,97 @@ chat.
   character" keeps it to the one on screen.
 - **Length** is the one Story Config field a loadout writes; genre, pov and
   the rest stay with each story.
-- **Each row is the real setting**, with a button to its tab and "Changed
-  from the loadout" when it differs from the loadout last used here. A
-  change on the page follows that tab's Global sync, as it would in the tab.
 - **A loadout never turns a module on or off** (Images, World State, NPC
   Bank…). It only says who writes the blocks, World State and the Notebook
   when they are on.
-- **A loadout not in use** shows its own settings ("Not in use yet"); a
-  change there only changes what Use this loadout sets, and shows as changed
-  afterwards. The loadout in use shows the real settings, and a change saves.
-- **Writing style** picker: V11 Default, V11 Inside, button to Writing Style.
-  A loadout keeps a V11 style or a style of your own; it only replaces
-  another generation's built-in style.
-- **Notes, no prefill machinery:** Gemini's card says to keep the Thinking
-  prompt off on Gemini 4, turn it on for 3.1 / 2.5 Pro, and turn the prefill
-  on only if replies get refused.
-- **Chomusuke optional** on Gemini Pro, Claude and Big open models: a note
-  that it is off there and can be turned on to save tokens.
-- **Fast models:** a red note that DeepSeek leaves the blocks out and
-  Chomusuke has to be on for them; with Chomusuke not set up, a button to its
-  setup. "Use this loadout" still applies everything.
+- **The prefill is a note only**, no prefill machinery.
+- **Writing style:** a loadout keeps a V11 style or a style of your own; it
+  only replaces another generation's built-in style (with V11 Default).
 - **V11 Тайна DeepSeek** (`v11-deepseek`), Fast models' engine: V11 Тайна
   with one line back in `<reader>` from the preset DeepSeek was tested with:
   "The reader plays {{user}}. {{char}} and every other person, place, and
   event in the story are yours to write and to move." The new opening stays.
   Built from `V11 Fast models.md` (`tools/fast.cjs`, then
-  `build-engines.cjs`). Thinking: CoT V11 Тайна.
-- The Model guide popup is gone; its button opens this tab. The Chomusuke
-  setup steps and the good habits move onto the page.
+  `build-engines.cjs`). Thinking: CoT V11 Тайна. Listed after the Writers'
+  Room.
+- **The Model guide popup is gone.** Its button in Preset & Thinking is now
+  "Model Setup" and opens this tab. The Chomusuke setup steps and the good
+  habits move onto the page.
 
-| Loadout | Engine | Thinking prompt | Length | Ban list | HTML | Blocks, World State, Notebook |
-|---|---|---|---|---|---|---|
-| Gemini Pro | V11 Тайна | off | flexible | full | as is | story model |
-| Claude | V11 Тайна | off | flexible | full | as is | story model |
-| Big open models | V11 Тайна | off | 250–350, longer for fights and sex | short | off | story model |
-| Fast models | V11 Тайна DeepSeek | on | 250–350, longer for fights and sex | short | off | Chomusuke |
+### The loadouts
+
+| Loadout | Models | Engine | Custom thinking | Length | Ban list | HTML | Blocks, World State, Notebook |
+|---|---|---|---|---|---|---|---|
+| Gemini Pro | Gemini 3.1 Pro, 2.5 Pro, Gemini 4 | V11 Тайна | off | flexible | full | as is | story model |
+| Claude | Claude Opus 5.5 | V11 Тайна | off | flexible | full | as is | story model |
+| Big open models | GLM 5.3, GLM 5.3 Flash | V11 Тайна | off | 250–350, longer for fights and sex | short | off | story model |
+| Fast models | DeepSeek | V11 Тайна DeepSeek | on | 250–350, longer for fights and sex | short | off | Chomusuke |
+
+Notes on the cards:
+
+- **Gemini Pro:** "Gemini 4: keep custom thinking off. Gemini 3.1 Pro and
+  2.5 Pro: turn custom thinking on. Turn the prefill on only if you get
+  refusals."
+- **Gemini Pro, Claude, Big open models:** "Chomusuke is off here. You can
+  turn it on below to save tokens." (The note doesn't list what Chomusuke
+  does, since it does more than these rows.)
+- **Big open models:** GLM 5.3 Flash can forget a block now and then; if it
+  does, let Chomusuke write the blocks.
+- **Fast models**, red: "DeepSeek leaves the blocks out. Chomusuke has to be
+  on for them." "Use this loadout" still applies everything.
+- A Chomusuke note gets a "Set up Chomusuke" button while Chomusuke isn't
+  connected.
+
+### What was built
+
+The page, top to bottom:
+
+1. **Pick your model:** the four cards, an "In use" badge on the one this
+   character uses, the three "Coming soon" cards.
+2. **The picked loadout:** why it was picked, its notes, then one row per
+   setting: Preset (the V11 engines), Custom thinking, Length, Ban list (Full
+   / Short / Off), Immersive HTML (GLM and DeepSeek only), and Story model /
+   Chomusuke for the Blocks, World State and the Notebook. Each row has a
+   button to its tab.
+   - **Not in use yet:** the rows show the loadout's own settings, under
+     "Not in use yet. These are the settings Use this loadout will set."
+     A change there only changes what Use this loadout sets (kept while
+     SillyTavern is open).
+   - **In use:** the rows show the real settings, the same ones their tabs
+     show, and a change saves (following that tab's Global sync, as it would
+     in the tab). A row that differs from the loadout gets "Changed from the
+     loadout".
+   - Footer: the "Only this character" switch and "Use this loadout". The
+     toast says "<name> is in use on every character" or "on this character".
+3. **Writing style:** V11 Default / V11 Inside tiles and a Writing Style
+   button.
+4. **Help:** "Set up Chomusuke" and "Good habits", folded.
+
+Files:
+
+- `src/features/modelsetup/loadouts.js` (pure, tested): the loadouts, the
+  coming-soon cards, one read/write per setting, `applyLoadout` (takes the
+  loadout's settings or the page's changed copy; a profile saved before
+  Chomusuke gets its routes with Chomusuke off), `changedFromLoadout`.
+- `src/features/modelsetup/ui.js`: the page. "Use this loadout" refuses
+  when the panel still shows the previous chat's settings.
+- `src/ui/tabs.js`: the new first tab; its Global button says "A loadout
+  goes to every character unless you turn on Only this character."
+- `src/ui/modelGuide.js` keeps only the Chomusuke setup text.
+- `data/modes/v11taina.js`, `data/cot/index.js`, `src/ui/tabs/coreAndCot.js`:
+  V11 Тайна DeepSeek and its description.
+- `src/ui/devmode.js`: "back to the tab" opens Preset & Thinking (it was
+  tab 0, now Model Setup).
+- `tests/model-setup.test.mjs` (9 tests).
+
+### Review round 1 (2026-10-21)
+
+- The Gemini note says when to use custom thinking and the prefill.
+- Gemini Pro, Claude and Big open models leave Chomusuke off, with the
+  "save tokens" note. Fast models turns custom thinking on.
+- The Nvidia NIM note is gone.
+- A loadout not in use shows its own settings (it showed the character's).
+- The setting is called "Custom thinking" everywhere on the page.
 
 ## Progress
 
@@ -223,10 +281,9 @@ chat.
 - [ ] Phase 4 built 2026-10-21 (265 tests pass, import check clean); the
       developer tests it with the Model Setup page (phase 5). What was done is
       in "Phase 4: what was built" above.
-- [ ] Phase 5 built 2026-10-21 (273 tests pass, import check clean), waiting
-      for the developer's test with phases 3 and 4. Page:
-      `src/features/modelsetup/` (`loadouts.js` pure and tested, `ui.js`).
-      "Use this loadout" checked with SillyTavern stubbed: every character
-      (and the default for new ones) or only this one; genre kept; a profile
-      from before Chomusuke gets the routes with Chomusuke off. Dev Mode's
-      "back to the tab" now opens Preset & Thinking (it was tab 0).
+- [ ] Phase 5 built 2026-10-21, review round 1 done the same day (274 tests
+      pass, import check clean); waiting for the developer's test with phases
+      3 and 4. "Use this loadout" checked with SillyTavern stubbed: every
+      character (and the default for new ones) or only this one; genre kept;
+      a profile from before Chomusuke gets the routes with Chomusuke off; a
+      loadout used from "Not in use yet" shows no row as changed.
