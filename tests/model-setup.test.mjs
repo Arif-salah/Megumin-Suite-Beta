@@ -31,7 +31,7 @@ test("four loadouts to use, three coming soon, each on an engine that exists", (
     for (const l of LOADOUTS) {
         assert.ok(modes.some(m => m.id === l.settings.mode), l.id);
         for (const key of Object.keys(l.settings)) assert.ok(settingFor(key), `${l.id}: ${key}`);
-        assert.equal(l.settings.thinking, false, "every tested loadout uses the model's own thinking");
+        assert.equal(l.settings.thinking, l.id === "fast", "only DeepSeek uses the Thinking prompt");
         assert.doesNotMatch(l.why + l.notes.map(n => n.text).join(""), /\{\{|\[\[/, "no macros in what the user reads");
     }
 });
@@ -49,6 +49,11 @@ test("the loadouts set what loadouts.md says", () => {
     for (const f of ["blocks", "worldState", "notebook"]) assert.equal(s("fast")[f], "chomusuke");
     assert.ok(loadoutById("fast").notes.some(n => n.tone === "red" && n.chomusuke));
     assert.match(loadoutById("gemini-pro").notes[0].text, /Gemini 4/);
+    for (const id of ["gemini-pro", "claude", "big-open"]) {
+        assert.equal(loadoutById(id).settings.blocks, "story", id);
+        assert.ok(loadoutById(id).notes.some(n => n.chomusuke && /off here/.test(n.text)), id);
+    }
+    assert.doesNotMatch(loadoutById("fast").notes.map(n => n.text).join(""), /NIM/);
 });
 
 test("using a loadout writes only its own settings", () => {
@@ -56,7 +61,7 @@ test("using a loadout writes only its own settings", () => {
     applyLoadout(p, loadoutById("fast"), ctx);
     assert.equal(p.mode, "v11-deepseek");
     assert.equal(p.model, meguminCotForMode("v11-deepseek"));
-    assert.equal(p.cotEnabled, false);
+    assert.equal(p.cotEnabled, true);
     assert.equal(p.storyConfig.length, SENTENCE[LENGTH_SHORT]);
     assert.equal(p.storyConfig.genre, "horror", "the story's own settings stay");
     assert.match(p.storyConfig.pov, /^second person/);

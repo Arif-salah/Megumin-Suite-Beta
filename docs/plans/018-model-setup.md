@@ -166,11 +166,14 @@ chat.
 - **Writing style** picker: V11 Default, V11 Inside, button to Writing Style.
   A loadout keeps a V11 style or a style of your own; it only replaces
   another generation's built-in style.
-- **Notes, no prefill machinery:** Gemini's card says the Thinking prompt and
-  the prefill make no difference on Gemini 4, and that on 3.1 / 2.5 Pro the
-  Thinking prompt (which brings the prefill) helps when replies get cut off.
-- **Fast models:** a red note that DeepSeek leaves the blocks out, so
-  Chomusuke has to write them; with Chomusuke not set up, a button to its
+- **Notes, no prefill machinery:** Gemini's card says to keep the Thinking
+  prompt off on Gemini 4, turn it on for 3.1 / 2.5 Pro, and turn the prefill
+  on only if replies get refused.
+- **Chomusuke optional** on Gemini Pro, Claude and Big open models: a note
+  that it is off there and does the blocks, World State and the Notebook
+  better when turned on.
+- **Fast models:** a red note that DeepSeek leaves the blocks out and
+  Chomusuke has to be on for them; with Chomusuke not set up, a button to its
   setup. "Use this loadout" still applies everything.
 - **V11 Тайна DeepSeek** (`v11-deepseek`), Fast models' engine: V11 Тайна
   with one line back in `<reader>` from the preset DeepSeek was tested with:
@@ -186,7 +189,7 @@ chat.
 | Gemini Pro | V11 Тайна | off | flexible | full | as is | story model |
 | Claude | V11 Тайна | off | flexible | full | as is | story model |
 | Big open models | V11 Тайна | off | 250–350, longer for fights and sex | short | off | story model |
-| Fast models | V11 Тайна DeepSeek | off | 250–350, longer for fights and sex | short | off | Chomusuke |
+| Fast models | V11 Тайна DeepSeek | on | 250–350, longer for fights and sex | short | off | Chomusuke |
 
 ## Progress
 

@@ -82,26 +82,31 @@ export function pickEngine(p, id) {
 
 const STORY_MODEL = { blocks: "story", worldState: "story", notebook: "story" };
 
+// Chomusuke is optional on the models that write the blocks themselves.
+const CHOMUSUKE_OPTIONAL = { tone: "gold", chomusuke: true, text: "<b>Chomusuke is off here.</b> You can turn it on below for the Blocks, World State and the Notebook. It does them better than the story model." };
+
 export const LOADOUTS = [
     {
         id: "gemini-pro", name: "Gemini Pro", icon: "fa-gem", models: "Gemini 3.1 Pro, 2.5 Pro, Gemini 4",
         why: "What Megumin was built for. Gemini writes best with its own thinking, the full ban list and the length left flexible.",
         notes: [
-            { tone: "gold", text: "<b>Gemini 4:</b> the Thinking prompt and the prefill make no difference, so both stay off. <b>Gemini 3.1 Pro and 2.5 Pro:</b> if replies start getting cut off, turn the Thinking prompt on. It brings the prefill with it." }
+            { tone: "gold", text: "<b>Gemini 4:</b> keep the Thinking prompt off. <b>Gemini 3.1 Pro and 2.5 Pro:</b> turn the Thinking prompt on. Turn the prefill on only if you get refusals." },
+            CHOMUSUKE_OPTIONAL
         ],
         settings: { mode: "v11-voice", thinking: false, length: LENGTH_FLEXIBLE, banList: "full", ...STORY_MODEL }
     },
     {
         id: "claude", name: "Claude", icon: "fa-feather", models: "Claude Opus 5.5",
         why: "The best prose of any model tested. Claude keeps its thinking to itself: asked to write it out, replies can get blocked after the first message.",
-        notes: [],
+        notes: [CHOMUSUKE_OPTIONAL],
         settings: { mode: "v11-voice", thinking: false, length: LENGTH_FLEXIBLE, banList: "full", ...STORY_MODEL }
     },
     {
         id: "big-open", name: "Big open models", icon: "fa-dragon", models: "GLM 5.3, GLM 5.3 Flash",
         why: "GLM's own thinking writes plainer dialogue than the Thinking prompt, and the short ban list keeps it from redrafting. Immersive HTML leaks into its replies, so it stays off.",
         notes: [
-            { tone: "gold", text: "<b>GLM 5.3 Flash</b> can forget a block now and then. If it does, let Chomusuke write the blocks." }
+            { tone: "gold", text: "<b>GLM 5.3 Flash</b> can forget a block now and then. If it does, let Chomusuke write the blocks." },
+            CHOMUSUKE_OPTIONAL
         ],
         settings: { mode: "v11-voice", thinking: false, length: LENGTH_SHORT, banList: "short", html: false, ...STORY_MODEL }
     },
@@ -109,10 +114,9 @@ export const LOADOUTS = [
         id: "fast", name: "Fast models", icon: "fa-bolt", models: "DeepSeek",
         why: "Fast and cheap, and good at the story. V11 Тайна DeepSeek has one more line, so it doesn't treat the character as the player.",
         notes: [
-            { tone: "red", chomusuke: true, text: "<b>DeepSeek leaves the blocks out.</b> Chomusuke has to write them, along with World State and the Notebook." },
-            { tone: "gold", text: "<b>On Nvidia NIM</b> DeepSeek sends empty replies without the prefill. Turn the Thinking prompt on there: it brings the prefill with it." }
+            { tone: "red", chomusuke: true, text: "<b>DeepSeek leaves the blocks out.</b> Chomusuke has to be on for them." }
         ],
-        settings: { mode: "v11-deepseek", thinking: false, length: LENGTH_SHORT, banList: "short", html: false, blocks: "chomusuke", worldState: "chomusuke", notebook: "chomusuke" }
+        settings: { mode: "v11-deepseek", thinking: true, length: LENGTH_SHORT, banList: "short", html: false, blocks: "chomusuke", worldState: "chomusuke", notebook: "chomusuke" }
     }
 ];
 
