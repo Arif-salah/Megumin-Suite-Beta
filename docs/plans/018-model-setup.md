@@ -163,6 +163,9 @@ chat.
 - **A loadout never turns a module on or off** (Images, World State, NPC
   Bank…). It only says who writes the blocks, World State and the Notebook
   when they are on.
+- **A loadout not in use** shows its own settings ("Not in use yet"); a
+  change there only changes what Use this loadout sets, and shows as changed
+  afterwards. The loadout in use shows the real settings, and a change saves.
 - **Writing style** picker: V11 Default, V11 Inside, button to Writing Style.
   A loadout keeps a V11 style or a style of your own; it only replaces
   another generation's built-in style.

@@ -74,6 +74,15 @@ test("using a loadout writes only its own settings", () => {
     assert.deepEqual(changedFromLoadout(p, loadoutById("fast"), ctx), []);
 });
 
+test("a loadout changed on the page before using it: its changes go in, and show as changed", () => {
+    const p = profile();
+    const l = loadoutById("gemini-pro");
+    applyLoadout(p, l, ctx, { ...l.settings, banList: "short" });
+    assert.equal(p.banListShort, true);
+    assert.equal(p.cotEnabled, false);
+    assert.deepEqual(changedFromLoadout(p, l, ctx), ["banList"]);
+});
+
 test("a V11 style or your own style is kept", () => {
     for (const id of ["dir_v11_inside", "my-own-style"]) {
         const p = { ...profile(), activeStyleId: id, aiRule: "mine" };

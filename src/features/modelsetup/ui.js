@@ -1,8 +1,10 @@
 // ────────────────────────────────────────────────────────────────────────────
 // Model Setup (plan 018, phase 5): the first tab. Pick your model, see the
 // settings tested for it, and "Use this loadout" applies them, to every
-// character unless you keep it to this one. Each row is the real setting (the
-// same one its own tab shows), so changing it here is changing it there.
+// character unless you keep it to this one. A loadout not in use shows its own
+// settings, and a change there only changes what Use this loadout will set.
+// The loadout in use shows the real settings (the same ones their tabs show),
+// so changing one here is changing it there.
 // Replaces the Model guide popup.
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -44,6 +46,8 @@ const GOOD_HABITS = [
 // Page state, kept while SillyTavern is open.
 let picked = null;
 let onlyThisCharacter = false;
+// A loadout's settings as changed on the page before using it, by loadout id.
+const drafts = {};
 
 const lengthField = () => storyConfigFields.find(f => f.key === "length");
 
@@ -136,7 +140,11 @@ export function renderModelSetup(c) {
 
 function loadoutCard(l, rerender) {
     const $card = card(`<span><i class="fa-solid ${l.icon}"></i> ${esc(l.name)}</span>`, esc(l.why));
-    const changed = changedFromLoadout(localProfile, l, CTX);
+    // Not in use: the rows show the loadout's own settings, as a draft.
+    const draft = localProfile.loadout === l.id ? null : (drafts[l.id] = drafts[l.id] || { ...l.settings });
+    const changed = draft
+        ? Object.keys(l.settings).filter(k => draft[k] !== l.settings[k])
+        : changedFromLoadout(localProfile, l, CTX);
 
     l.notes.forEach(n => {
         const $n = $(`<div class="mtab-callout ${n.tone} msx-note"><i class="fa-solid ${n.tone === "red" ? "fa-triangle-exclamation" : "fa-lightbulb"}"></i><span>${n.text}</span></div>`);
@@ -148,8 +156,10 @@ function loadoutCard(l, rerender) {
         $card.append($n);
     });
 
+    if (draft) $card.append(`<div class="mtab-callout msx-note"><i class="fa-solid fa-eye"></i><span><b>Not in use yet.</b> These are the settings Use this loadout will set. Change any of them first if you like.</span></div>`);
+
     const $rows = $(`<div class="msx-rows"></div>`);
-    Object.keys(l.settings).forEach(key => $rows.append(settingRow(settingFor(key), l, changed.includes(key), rerender)));
+    Object.keys(l.settings).forEach(key => $rows.append(settingRow(settingFor(key), l, changed.includes(key), draft, rerender)));
     $card.append($rows);
 
     const $foot = $(`<div class="msx-foot"></div>`);
@@ -160,14 +170,14 @@ function loadoutCard(l, rerender) {
         onChange: on => { onlyThisCharacter = on; rerender(); }
     }));
     const $use = $(`<button type="button" class="menu_button msx-use"><i class="fa-solid fa-check"></i> Use this loadout</button>`);
-    $use.on("click", () => useLoadout(l, rerender));
+    $use.on("click", () => useLoadout(l, draft, rerender));
     $foot.append($use);
     $card.append($foot);
     return $card;
 }
 
-function settingRow(s, l, isChanged, rerender) {
-    const value = s.read(localProfile, CTX);
+function settingRow(s, l, isChanged, draft, rerender) {
+    const value = draft ? draft[s.key] : s.read(localProfile, CTX);
     const $row = $(`
         <div class="msx-row">
             <div class="msx-row-label">${esc(s.label)}${isChanged ? ` <span class="msx-changed" title="The loadout sets ${esc(describe(s.key, l.settings[s.key]))}.">Changed from the loadout</span>` : ""}</div>
@@ -176,7 +186,9 @@ function settingRow(s, l, isChanged, rerender) {
         </div>
     `);
     $row.find(".msx-open").on("click", () => openTab(s.tab, s.page));
-    const set = v => { s.write(localProfile, v, CTX); saveFor(s.tab); rerender(); };
+    const set = draft
+        ? v => { draft[s.key] = v; rerender(); }
+        : v => { s.write(localProfile, v, CTX); saveFor(s.tab); rerender(); };
     const $ctl = $row.find(".msx-row-control");
 
     if (s.key === "mode") {
@@ -216,7 +228,8 @@ function describe(key, v) {
     return v === "chomusuke" ? "Chomusuke" : "the story model";
 }
 
-function useLoadout(l, rerender) {
+function useLoadout(l, draft, rerender) {
+    const settings = draft || l.settings;
     // Same guard as Global sync: the page must belong to the chat that's open,
     // or this character's settings land on another one.
     const liveKey = getCharacterKey() || "default";
@@ -229,10 +242,11 @@ function useLoadout(l, rerender) {
         // with no connection, plus the loadout's routes.
         const chomusukeTemplate = { ...JSON.parse(JSON.stringify(localProfile.chomusuke || {})), enabled: false, profileId: "", primaryProfileId: "" };
         const ctx = { ...CTX, chomusukeTemplate };
-        Object.values(extension_settings[extensionName].profiles || {}).forEach(p => applyLoadout(p, l, ctx));
+        Object.values(extension_settings[extensionName].profiles || {}).forEach(p => applyLoadout(p, l, ctx, settings));
         saveSettingsDebounced();
     }
-    applyLoadout(localProfile, l, CTX);
+    applyLoadout(localProfile, l, CTX, settings);
+    delete drafts[l.id];
     saveProfileToMemory();
     fireRefreshHook(REFRESH.TOKEN_COUNT);
     toastr.success(`${l.name} is in use ${onlyThisCharacter ? "on this character" : "on every character"}.`, "Megumin Suite");

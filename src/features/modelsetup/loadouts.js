@@ -128,11 +128,13 @@ export const COMING_SOON = [
 
 export const loadoutById = id => LOADOUTS.find(l => l.id === id);
 
-/** Writes a loadout's settings into one profile. Containers a profile lacks
- *  are made; `chomusukeTemplate` fills a profile saved before Chomusuke. */
-export function applyLoadout(p, loadout, ctx) {
+/** Writes a loadout's settings into one profile (or `settings`, the
+ *  loadout's settings as changed on the page before using it). Containers a
+ *  profile lacks are made; `chomusukeTemplate` fills a profile saved before
+ *  Chomusuke. */
+export function applyLoadout(p, loadout, ctx, settings = loadout.settings) {
     if (!p.chomusuke) p.chomusuke = JSON.parse(JSON.stringify(ctx.chomusukeTemplate || { enabled: false, profileId: "", features: {} }));
-    for (const [key, value] of Object.entries(loadout.settings)) settingFor(key).write(p, value, ctx);
+    for (const [key, value] of Object.entries(settings)) settingFor(key).write(p, value, ctx);
     p.loadout = loadout.id;
 }
 
