@@ -5151,6 +5151,11 @@
 .meg-bonds-val { font-variant-numeric: tabular-nums; color: var(--text-main, #e2e8f0); }
 .meg-bonds-empty { font-size: .8rem; color: var(--text-muted, #94a3b8); font-style: italic; padding: 12px 0; }
 .meg-bonds-tools { gap: 6px; }
+/* Buttons inside the chat card. SillyTavern sizes .menu_button to min-content
+   and the message text breaks words anywhere, so a label could wrap one letter
+   per line. They size to their label and wrap as a whole instead. */
+.meg-blocks .menu_button { width: auto; flex: 0 0 auto; max-width: 100%; overflow-wrap: normal; word-break: normal; white-space: nowrap; }
+.meg-bonds-tools { flex-wrap: wrap; align-items: center; }
 .meg-sted .meg-wsed-title .meg-sted-search { margin-left: auto; max-width: 220px; }
 
 /* ── Chomusuke tab: the blocks the Blocks route takes (plan 009) ── */
