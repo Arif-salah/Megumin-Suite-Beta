@@ -2,7 +2,8 @@
 // Chomusuke — the helper model.
 //
 // Runs background jobs on a second connection profile (SillyTavern Connection
-// Profiles), so the story model never pauses or reloads presets.
+// Profiles), so the story model never pauses or reloads presets, or on the
+// current connection ("Use my current connection": no switching).
 //
 // One page (plan 015): the on switch and the worker connection, then the jobs
 // grouped by what they cost: "After every reply" (a call on every reply, with
@@ -15,6 +16,7 @@ import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import {
     getSillyTavernConnectionProfiles,
     runWithChomusuke,
+    CURRENT_CONNECTION,
 } from "../../engine/tasks.js";
 import { generateQuietPrompt } from "../../st.js";
 import { worldEnabled, notebookEnabled } from "../../state/index.js";
@@ -118,6 +120,7 @@ export function renderChomusuke(c) {
     const cfg = ensureConfig();
     const redraw = () => renderChomusuke(c);
     const profiles = getSillyTavernConnectionProfiles();
+    const onCurrent = cfg.profileId === CURRENT_CONNECTION;
     const worker = profiles.find(p => p.id === cfg.profileId);
     const running = Boolean(cfg.enabled && cfg.profileId);
 
@@ -139,22 +142,25 @@ export function renderChomusuke(c) {
     c.append($head);
 
     // ── Connection ──
-    const conn = card("Worker connection", "The connection profile Chomusuke uses. A fast, cheap model works well: Claude Haiku, Gemini Flash, or a local 7B/8B.");
+    const conn = card("Worker connection", "The connection Chomusuke uses. Chomusuke works best with <b>GLM 5.3 Flash</b>.");
     if (!profiles.length) {
         conn.append(`<div class="igx-banner red"><i class="fa-solid fa-triangle-exclamation"></i>
-            <span>No connection profiles yet. Make one in SillyTavern's connection settings first: the steps are below.</span></div>`);
-    } else {
-        const $line = $(`<div class="igx-inline chx-conn">
-            <select id="chomusuke_worker_profile" class="ps-modern-input">
-                <option value="">Pick a connection profile…</option>
-                ${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === cfg.profileId ? "selected" : ""}>${esc(p.name)} (${p.mode === "cc" ? "Chat" : "Text"})</option>`).join("")}
-            </select>
-            <button type="button" id="btn_test_chomusuke" class="menu_button igx-btn"><i class="fa-solid fa-vial"></i> Test</button>
-        </div>`);
-        conn.append($line);
-        conn.append(`<div id="chomusuke_test_status" class="igx-note">${running ? `Ready on <b>${esc(worker ? worker.name : "your worker")}</b>.` : cfg.enabled ? "Pick a connection profile to start." : "Chomusuke is off: every job below uses your story model."}</div>`);
-
-        // Advanced: where to go back to after a job.
+            <span>No connection profiles yet. Chomusuke can use your current connection, or you can make a profile for it: the steps are below.</span></div>`);
+    }
+    const $line = $(`<div class="igx-inline chx-conn">
+        <select id="chomusuke_worker_profile" class="ps-modern-input">
+            <option value="">Pick a connection…</option>
+            <option value="${CURRENT_CONNECTION}" ${onCurrent ? "selected" : ""}>Use my current connection</option>
+            ${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === cfg.profileId ? "selected" : ""}>${esc(p.name)} (${p.mode === "cc" ? "Chat" : "Text"})</option>`).join("")}
+        </select>
+        <button type="button" id="btn_test_chomusuke" class="menu_button igx-btn"><i class="fa-solid fa-vial"></i> Test</button>
+    </div>`);
+    conn.append($line);
+    conn.append(`<div id="chomusuke_test_status" class="igx-note">${running
+        ? (onCurrent ? "Ready on <b>your current connection</b>: the same model as the story, with no switching." : `Ready on <b>${esc(worker ? worker.name : "your worker")}</b>.`)
+        : cfg.enabled ? "Pick a connection to start." : "Chomusuke is off: every job below uses your story model."}</div>`);
+    // Advanced: where to go back to after a job. Nothing to go back to on the current connection.
+    if (profiles.length && !onCurrent) {
         const $fold = $(`<button type="button" class="igx-fold"><i class="fa-solid fa-chevron-${advancedOpen ? "down" : "right"}"></i> Advanced</button>`);
         const $box = $(`<div class="igx-stack" style="display:${advancedOpen ? "flex" : "none"};">
             <div class="igx-field">
@@ -270,7 +276,7 @@ export function renderChomusuke(c) {
     c.find("#btn_test_chomusuke").on("click", async function () {
         const $btn = $(this);
         const $status = c.find("#chomusuke_test_status");
-        if (!cfg.profileId) { toastr.warning("Pick a connection profile first.", "Chomusuke"); return; }
+        if (!cfg.profileId) { toastr.warning("Pick a connection first.", "Chomusuke"); return; }
         $btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Testing…`);
         $status.text("Connecting to the worker…");
         try {
@@ -278,11 +284,12 @@ export function renderChomusuke(c) {
                 const r = await generateQuietPrompt({ prompt: "Reply with the single word: OK", quietPrompt: "Reply with the single word: OK" });
                 return typeof r === "string" ? r.trim() : "";
             }, { force: true });
+            const back = cfg.profileId === CURRENT_CONNECTION ? "" : " Your story connection is back.";
             if (reply) {
-                $status.html(`<span class="chx-ok"><i class="fa-solid fa-circle-check"></i> It works: the worker answered, and your story connection is back.</span>`);
-                toastr.success("Chomusuke answered. Your story connection is back.", "Chomusuke");
+                $status.html(`<span class="chx-ok"><i class="fa-solid fa-circle-check"></i> It works: Chomusuke answered.${back}</span>`);
+                toastr.success(`Chomusuke answered.${back}`, "Chomusuke");
             } else {
-                $status.html(`<span class="chx-bad"><i class="fa-solid fa-circle-xmark"></i> The worker sent no text back. Your story connection is back.</span>`);
+                $status.html(`<span class="chx-bad"><i class="fa-solid fa-circle-xmark"></i> Chomusuke sent no text back.${back}</span>`);
             }
         } catch (err) {
             $status.html(`<span class="chx-bad"><i class="fa-solid fa-circle-xmark"></i> The test failed: ${esc(err.message || err)}</span>`);

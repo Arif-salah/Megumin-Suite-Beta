@@ -19,6 +19,7 @@ import {
 } from "../core/activeRequests.js";
 import { DEFAULT_PROMPTS } from "../prompts/index.js";
 import { meguminEnginePrompts } from "../prompts/meguminEngine.js";
+import { IMAGE_V2_PROMPTS } from "../prompts/imageGenV2.js";
 import { sdGenreLabel } from "../features/storyplan/ui.js";
 import { memEnsureSemanticQueryFresh } from "../features/memory/vectordb.js";
 import { npcBuildDossierPrompt } from "../features/npc/fields.js";
@@ -295,6 +296,7 @@ async function buildPromptInjection(data, type) {
                 .replace('{{styleStr}}', activeNpcPfpRequest.styleStr)
                 .replace('{{perspStr}}', activeNpcPfpRequest.perspStr)
                 .replace('{{extraStr}}', activeNpcPfpRequest.extraStr)
+                + `\n\n${IMAGE_V2_PROMPTS.inEnglish}`
         });
         messages.push({
             "role": "system",

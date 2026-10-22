@@ -13,6 +13,10 @@ import { localProfile } from "../core/state.js";
 import { setActiveBanListChat, setActiveGenerationOrder } from "../core/activeRequests.js";
 import { warnChomusuke } from "./chomusukeNotice.js";
 
+// Chomusuke's connection when it should use whatever the story uses: its jobs
+// run one at a time as usual, with no switching.
+export const CURRENT_CONNECTION = "__current__";
+
 /**
  * Returns available SillyTavern Connection Profiles.
  * @returns {Array<{id: string, name: string, mode?: string}>}
@@ -209,7 +213,7 @@ async function runOnWorker(featureKey, task, chomusuke, workerProfileId, jobs) {
 
     const currentProfileId = getCurrentConnectionProfileId();
     const originalProfileId = chomusuke.primaryProfileId || currentProfileId;
-    const needsSwitch = workerProfileId !== currentProfileId;
+    const needsSwitch = workerProfileId !== CURRENT_CONNECTION && workerProfileId !== currentProfileId;
 
     if (!needsSwitch) {
         // Worker profile is already active in SillyTavern

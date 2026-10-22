@@ -14,8 +14,8 @@ export const CHOMUSUKE_SETUP_NOTE = "<b>Before you start:</b> when you save a pr
 export const CHOMUSUKE_SETUP_STEPS = [
     "Open SillyTavern's <b>API Connections</b> panel (the plug icon in the top bar).",
     "Connect your story model as usual. Then, at the top of the panel under <b>Connection Profile</b>, click <b>Create a new connection profile</b> (the page with a +), name it <b>Story</b> and save. Keep this profile picked while you play.",
-    "Want Chomusuke on the same model (DeepSeek, local models)? You're done here: pick <b>Story</b> in step 5.",
-    "For another model: in the same panel, connect the model Chomusuke should use (API, key, model, Connect), create a new connection profile again and name it <b>Chomusuke</b>. Then pick your <b>Story</b> profile again.",
-    "In the <b>Chomusuke</b> tab, turn Chomusuke on, pick the profile under <b>Worker connection</b> and press <b>Test</b>.",
+    "Want Chomusuke on the same model as the story? You're done here: pick <b>Use my current connection</b> in step 5.",
+    "For another model: in the same panel, connect the model Chomusuke should use (API, key, model, Connect), create a new connection profile again and name it <b>Chomusuke</b>. Then pick your <b>Story</b> profile again. Chomusuke works best with <b>GLM 5.3 Flash</b>.",
+    "In the <b>Chomusuke</b> tab, turn Chomusuke on, pick the connection under <b>Worker connection</b> and press <b>Test</b>.",
     "Turn on the jobs you want it to do, for example <b>Blocks</b> with World State."
 ];

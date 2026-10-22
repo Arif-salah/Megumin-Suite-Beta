@@ -7,6 +7,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { stripCountTags, dedupeTags, splitTags } from "./resolve.js";
+import { IMAGE_V2_PROMPTS } from "../../../prompts/imageGenV2.js";
 
 // ── Prompts (background task calls; they describe their own job, never an extension) ──
 
@@ -36,6 +37,7 @@ export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [
         "- Leave out small face details the image model draws on its own (nose, lips, eyelashes, face shape, smooth skin), unless one is what makes them recognisable.",
         "- Never include: clothing or accessories they can take off, expressions, poses, actions, the place, count tags (1girl, 1boy, solo) or quality tags.",
         "Only what the text states or clearly shows; do not invent features.",
+        IMAGE_V2_PROMPTS.tagsInEnglish,
         "If a character has a nickname, write the name as: Name \"Nickname\".",
         "",
         "Output one block per character and nothing else:",
@@ -212,6 +214,7 @@ export function renderOutfitTagsPrompt(items) {
         "- Plain over detailed: \"white bra\", not \"lace-trimmed bra, front bow, white trim, drawstring\". Name a print only when it is simple, and put it in the garment's own tag: \"white cat print bra\", not \"white bra, cat print bra\".",
         "- Keep the state of dress when the text says it (open jacket, sleeves rolled up, barefoot, towel).",
         "- Only clothing and accessories: no hair, body, expression, pose, count tags or quality tags. Add nothing the text does not say.",
+        `- ${IMAGE_V2_PROMPTS.tagsInEnglish}`,
         "",
         ...items.map(i => `${i.name}: ${i.outfit}`),
         "",

@@ -92,6 +92,11 @@ export const IMAGE_V2_PROMPTS = {
         natural: "- 2 to 4 plain sentences: each character's appearance and clothing as in <Cast>, what they are doing, the place, the light, and how the shot is framed."
     },
 
+    // Image models read English: a story told in French still gets English
+    // prompts and tags. Blocks and World State keep the story's language.
+    inEnglish: "Write the image prompt in English, whatever language the story is told in.",
+    tagsInEnglish: "Write the tags in English, whatever language the story is told in.",
+
     manualTask: "The image shows the moment <Last_Message> ends on. <Earlier_Story> is only there so you understand it: draw nothing that has already ended (someone who put an item away no longer holds it). Write the image prompt for that moment. Output only the prompt, nothing else.",
     manualTaskWithExtras: "The image shows the moment <Last_Message> ends on. <Earlier_Story> is only there so you understand it: draw nothing that has already ended (someone who put an item away no longer holds it). Write the image prompt for that moment.",
 

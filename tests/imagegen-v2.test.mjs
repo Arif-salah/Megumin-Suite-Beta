@@ -464,3 +464,15 @@ test("rules: characters in focus (3 by default; 2, 4 or all)", () => {
         assert.match(all, /Every named character in the moment gets a (line|sentence) of their own/);
     }
 });
+
+test("image prompts and tags are asked for in English, whatever the story's language", async () => {
+    const { renderV2ExtraTasks } = await import("../src/features/imagegen/v2/prompt.js");
+    const { renderLookScanPrompt, renderOutfitTagsPrompt } = await import("../src/features/imagegen/v2/looksCore.js");
+    for (const style of ["tags", "natural"]) {
+        for (const method of ["placeholders", "reference"]) assert.match(renderV2Rules({ style, method }), /Write the image prompt in English/);
+    }
+    assert.match(renderV2ExtraTasks({ outfits: [{ name: "Mira", outfit: "robe rouge" }] }), /Write the tags in English/);
+    assert.equal(renderV2ExtraTasks({}), "", "nothing extra, no line");
+    assert.match(renderLookScanPrompt({ source: "x" }), /Write the tags in English/);
+    assert.match(renderOutfitTagsPrompt([{ name: "Mira", outfit: "robe rouge" }]), /Write the tags in English/);
+});

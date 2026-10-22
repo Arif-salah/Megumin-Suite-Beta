@@ -85,7 +85,7 @@ import {
     STAT_FIELD_PACKS,
     STAT_FIELD_TYPES,
 } from "./src/features/blocks/registry.js";
-import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex } from "./src/engine/chatText.js";
+import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex, cleanAIOutput } from "./src/engine/chatText.js";
 import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise } from "./src/engine/tasks.js";
 import { warnChomusuke, answerKind } from "./src/engine/chomusukeNotice.js";
 import { escapeHtmlAttr } from "./src/utils/html.js";
@@ -506,14 +506,20 @@ jQuery(async () => {
                 // Master switch off: nothing below runs (no reads, images, director, memory, NPC bank).
                 if (!suiteEnabled()) return;
 
+                // An empty reply (or one with only its thinking) has nothing for
+                // Chomusuke to read: no read, no blocks, no image for it.
+                const replyNow = (getContext().chat || [])[typeof receivedId === "number" ? receivedId : (getContext().chat || []).length - 1];
+                const emptyReply = Boolean(replyNow && !replyNow.is_user && !replyNow.is_system
+                    && !cleanAIOutput(String(replyNow.mes || "").replace(/<!--[\s\S]*?-->/g, "")).trim());
+
                 // --- WORLD STATE ---
                 // First, so everything below (image gen included) sees this
                 // reply's outfits.
                 // Chomusuke "Combine calls": on an image turn, one call reads World
                 // State AND writes the image prompt (no separate read below).
-                const combinedTurn = combinedTurnWanted(receivedId, receivedType);
+                const combinedTurn = emptyReply ? null : combinedTurnWanted(receivedId, receivedType);
                 try {
-                    if (stateOnMessageReceived(receivedId, receivedType, { skipSideRead: Boolean(combinedTurn && combinedTurn.world) })) meguminScheduleBlocksRefresh();
+                    if (stateOnMessageReceived(receivedId, receivedType, { skipSideRead: emptyReply || Boolean(combinedTurn && combinedTurn.world) })) meguminScheduleBlocksRefresh();
                     // Image Gen V2: a character who just arrived gets a look.
                     v2LooksForArrivals();
                 } catch (e) {
@@ -525,7 +531,7 @@ jQuery(async () => {
                 // for: Chomusuke reads the reply and writes them. Queued after the
                 // World State read. Does nothing unless the Blocks route is on.
                 // (A combined call below does it instead when Combine calls is on.)
-                if (!BLOCKS_NOT_A_REPLY.has(receivedType) && !(combinedTurn && combinedTurn.blocks)) {
+                if (!emptyReply && !BLOCKS_NOT_A_REPLY.has(receivedType) && !(combinedTurn && combinedTurn.blocks)) {
                     const chatNow = getContext().chat || [];
                     const blocksIndex = typeof receivedId === "number" ? receivedId : chatNow.length - 1;
                     blocksReadForReply(blocksIndex, { force: receivedType === "continue" })
@@ -535,7 +541,7 @@ jQuery(async () => {
                 // --- NOTEBOOK BY CHOMUSUKE (plan 010) ---
                 // Clues, who learned what, what came out. Does nothing unless the
                 // Notebook route is on and the notebook has live truths.
-                if (!BLOCKS_NOT_A_REPLY.has(receivedType) && !(combinedTurn && combinedTurn.notebook)) {
+                if (!emptyReply && !BLOCKS_NOT_A_REPLY.has(receivedType) && !(combinedTurn && combinedTurn.notebook)) {
                     const chatNow = getContext().chat || [];
                     const nbIndex = typeof receivedId === "number" ? receivedId : chatNow.length - 1;
                     notebookReadForReply(nbIndex, { force: receivedType === "continue" })
@@ -545,7 +551,7 @@ jQuery(async () => {
                 // --- AUTOMATIC IMAGE BY CHOMUSUKE ---
                 // After World State, so its read is queued first and the image
                 // uses the newest outfits. Does nothing unless Chomusuke writes images.
-                (combinedTurn
+                if (!emptyReply) (combinedTurn
                     ? runCombinedTurn(receivedId, receivedType, combinedTurn)
                     : igAutoImageForReply(receivedId, receivedType, generateImagePromptText, prepareImagePrompt))
                     .catch(e => console.error("[Megumin-Suite] Automatic image failed", e));

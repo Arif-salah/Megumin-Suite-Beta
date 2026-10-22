@@ -88,7 +88,7 @@ export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", 
     const guide = focusRule(method === "reference"
         ? [P.reference.head, P.reference[style] || P.reference.tags].join("\n")
         : (P.style[style] || P.style.tags), String(focus));
-    const parts = [guide, P.shot[shot] || P.shot.cinematic];
+    const parts = [guide, P.shot[shot] || P.shot.cinematic, P.inEnglish];
     if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
     // A blank line, so the shot line never reads as part of the example above it.
     return parts.join("\n\n");
@@ -167,6 +167,7 @@ export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = fa
         parts.push(`- Outfit tags ${who}: main garments only, 3 to 6 booru tags, one tag per garment with its colour, material and print ("oversized pink sweater", "white cat print bra"; never two tags for one garment), plus one standout accessory; plain over detailed; keep the state of dress; clothing only, nothing the text does not say.`);
         parts.push(...outfits.map(o => `  ${o.name}: ${o.outfit}`));
     }
+    if (outfits.length || followUpdate || looks.length) parts.push(`- ${P.tagsInEnglish}`);
     if (looks.length) {
         parts.push(`- Appearance of ${looks.join(", ")} as 8 to 12 booru tags each, from the story and <Character_Sheets>: always start with sex (male or female) and an age tag (young adult, adult, mature female, mature male, old woman, old man; never a number like "30s"), then hair, eye colour, skin, build, permanent features. A feminine-looking man gets "otoko no ko, flat chest"; a masculine-looking woman gets "tomboy". One tag per thing, never two that fight (petite with tall), only real booru tags ("mole under eye", not "moles"), no small face details (nose, lips, eyelashes). No clothing, expressions, poses or count tags. Skip anyone the text does not describe.`);
     }
