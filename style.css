@@ -5350,6 +5350,8 @@
 .msx-row:first-child { border-top: 0; }
 .msx-row-label { font-size: .84rem; font-weight: 600; color: var(--text-main); display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .msx-changed { font-size: .66rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: rgba(245,158,11,.14); color: #fbbf24; cursor: help; }
+.msx-desc { font-size: .7rem; font-weight: 400; color: var(--text-muted); line-height: 1.4; }
+.msx-mixed { font-size: .66rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: rgba(168,85,247,.14); color: #c4b5fd; }
 .msx-row-control { min-width: 0; }
 .msx-row-control .igx-seg { margin: 0; }
 .msx-row-control .mtab-toggle-row { margin: 0; padding: 4px 0; border: 0; background: transparent; }

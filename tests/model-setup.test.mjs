@@ -44,14 +44,15 @@ test("the loadouts set what loadouts.md says", () => {
     assert.equal(s("gemini-pro").html, undefined, "HTML left as it is");
     assert.equal(s("big-open").banList, "short");
     assert.equal(s("big-open").html, false);
-    assert.equal(s("big-open").blocks, "story");
+    assert.equal(s("big-open").chomusuke, "story");
     assert.equal(s("fast").mode, "v11-deepseek");
     assert.equal(s("fast").length, LENGTH_SHORT);
-    for (const f of ["blocks", "worldState", "notebook"]) assert.equal(s("fast")[f], "chomusuke");
-    assert.ok(loadoutById("fast").notes.some(n => n.tone === "red" && n.chomusuke));
+    assert.equal(s("fast").chomusuke, "chomusuke");
+    assert.ok(loadoutById("fast").notes.some(n => n.tone === "red" && n.chomusuke && /image tags/.test(n.text)));
+    for (const id of ["claude", "big-open"]) assert.ok(loadoutById(id).notes.some(n => /Keep the prefill off/.test(n.text)), id);
     assert.match(loadoutById("gemini-pro").notes[0].text, /Gemini 4/);
     for (const id of ["gemini-pro", "claude", "big-open"]) {
-        assert.equal(loadoutById(id).settings.blocks, "story", id);
+        assert.equal(loadoutById(id).settings.chomusuke, "story", id);
         assert.ok(loadoutById(id).notes.some(n => n.chomusuke && /off here/.test(n.text)), id);
     }
     assert.doesNotMatch(loadoutById("fast").notes.map(n => n.text).join(""), /NIM/);
@@ -68,7 +69,8 @@ test("using a loadout writes only its own settings", () => {
     assert.match(p.storyConfig.pov, /^second person/);
     assert.equal(p.banListShort, true);
     assert.deepEqual(p.addons, ["dice"]);
-    assert.deepEqual(p.chomusuke.features, { memory: true, blocks: true, worldState: true, notebook: true });
+    assert.deepEqual(p.chomusuke.features, { memory: true, blocks: true, worldState: true, notebook: true, imageGen: true });
+    assert.deepEqual(p.chomusuke.blockRoutes, { bonds: true, sheet: true, chatter: true, cyoa: true });
     assert.equal(p.chomusuke.profileId, "p1", "the connection stays");
     assert.equal(p.activeStyleId, "dir_v11", "another generation's style becomes V11 Default");
     assert.equal(p.loadout, "fast");
@@ -117,14 +119,28 @@ test("Changed from the loadout: only the rows that differ, only for the loadout 
     assert.deepEqual(changedFromLoadout(p, loadoutById("claude"), ctx), [], "another loadout");
 });
 
-test("a profile saved before Chomusuke gets the template, switched off", () => {
+test("the other characters get the loadout without Chomusuke, which is one setup for all", () => {
     const p = profile();
     delete p.chomusuke;
     delete p.storyConfig;
-    applyLoadout(p, loadoutById("fast"), { ...ctx, chomusukeTemplate: { enabled: false, profileId: "", features: { memory: true } } });
-    assert.equal(p.chomusuke.enabled, false);
-    assert.equal(p.chomusuke.features.blocks, true);
+    applyLoadout(p, loadoutById("fast"), ctx, undefined, { skipGlobal: true });
+    assert.equal(p.chomusuke, undefined);
+    assert.equal(p.mode, "v11-deepseek");
     assert.deepEqual(p.storyConfig, { length: SENTENCE[LENGTH_SHORT] });
+});
+
+test("the Chomusuke row: on, off, or split in the Chomusuke tab", () => {
+    const c = settingFor("chomusuke");
+    const p = profile();
+    assert.equal(c.read(p, ctx), "mixed", "memory's route doesn't count, the image route is on unless switched off");
+    c.write(p, "chomusuke", ctx);
+    assert.equal(c.read(p, ctx), "chomusuke");
+    p.chomusuke.blockRoutes.cyoa = false;
+    assert.equal(c.read(p, ctx), "mixed");
+    c.write(p, "story", ctx);
+    assert.equal(c.read(p, ctx), "story");
+    assert.equal(p.chomusuke.features.memory, true, "the occasional jobs stay");
+    assert.equal(p.chomusuke.profileId, "p1");
 });
 
 test("the ban list row: full, short, off", () => {
@@ -136,7 +152,7 @@ test("the ban list row: full, short, off", () => {
     assert.deepEqual([p.banListBuiltIn, p.banListShort, b.read(p, ctx)], [true, true, "short"]);
     b.write(p, "full", ctx);
     assert.equal(b.read(p, ctx), "full");
-    assert.equal(SETTINGS.length, 8);
+    assert.equal(SETTINGS.length, 6);
 });
 
 test("V11 Тайна DeepSeek: V11 Тайна with one line back in <reader>, and its thinking", () => {

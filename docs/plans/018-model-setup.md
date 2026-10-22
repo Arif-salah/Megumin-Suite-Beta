@@ -251,6 +251,32 @@ Files:
 - A loadout not in use shows its own settings (it showed the character's).
 - The setting is called "Custom thinking" everywhere on the page.
 
+### Review round 2 (2026-10-22)
+
+- Picking a preset keeps V11 Inside between V11 presets and keeps your own
+  style; a V10 style becomes V11 Default (`styleAfterPicking`, the Preset tab
+  and Model Setup alike).
+- A `<Notebook>` in a combined Chomusuke answer never reaches the image prompt.
+- The ban list row says "Only your phrases"; Dev Mode's Document view shows
+  V11 Тайна's own tags.
+- **Chomusuke is one setup for every character** (`extension_settings.chomusuke`;
+  the profile on screen holds that object, saves write it back, the profiles
+  keep no copy). Moved over once from the character on screen if Chomusuke is
+  connected there, else the first character it is connected on. Its tab is
+  "stored globally already".
+- Model Setup has one **Chomusuke** row (Off | On) instead of Blocks, World
+  State and The Notebook: On sends the blocks (all four), World State, the
+  notebook and the image prompts to Chomusuke, Off gives them back to the story
+  model. Split in the Chomusuke tab, the row says so. Fast models sets it On;
+  its red note: "DeepSeek needs Chomusuke. It leaves out everything after the
+  story…".
+- Claude and Big open models: "Keep the prefill off." notes.
+- Global sync wins: with Only this character on, a touched tab set to Global
+  still goes to every character (the toast names it), and a preset that
+  changes the style follows the Writing Style tab's Global.
+- Not changed, the developer's call: re-importing the preset goes in the post
+  and the README; DeepSeek's own quirks stay as they are.
+
 ## Progress
 
 - [x] Phase 1 built 2026-10-20 (249 tests pass, import check clean). The V11
@@ -287,3 +313,5 @@ Files:
       character (and the default for new ones) or only this one; genre kept;
       a profile from before Chomusuke gets the routes with Chomusuke off; a
       loadout used from "Not in use yet" shows no row as changed.
+      Review round 2 done 2026-10-22 (276 tests pass, import check clean):
+      see "Review round 2" above.
