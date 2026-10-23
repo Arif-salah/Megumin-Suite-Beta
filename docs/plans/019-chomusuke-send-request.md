@@ -80,7 +80,7 @@ on an empty list, and sends them with `sendRequest` instead of
   Settings Preset and Regex Preset" note, the "Go back to after each job"
   setting (`primaryProfileId`), the connection waits and the 400 ms settle.
   The note and "Go back to" show only while the fallback is on.
-- **Reply length:** `sendRequest` needs a number. We send the response length
+- **Reply length:** `sendRequest` needs a number. Agreed: we send the response length
   of the profile's preset; a profile with no preset gets the story's. To
   check in phase 1: whether the preset's own length overrides ours anyway.
 
