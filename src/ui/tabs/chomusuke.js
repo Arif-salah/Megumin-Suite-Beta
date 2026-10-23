@@ -148,7 +148,7 @@ export function renderChomusuke(c) {
             <span>No connection profiles yet. Chomusuke can use your current connection, or you can make a profile for it: the steps are below.</span></div>`);
     }
     conn.append(`<div class="igx-banner"><i class="fa-solid fa-shield-halved"></i>
-        <span>Chomusuke has no jailbreak. A censored model like Gemini can refuse its jobs on an adult story and send back nothing. Use an uncensored or less censored model, like <b>GLM 5.3 Flash</b> or <b>DeepSeek 4.1 Flash</b>.</span></div>`);
+        <span>Chomusuke has no jailbreak. A censored model like Gemini can refuse its jobs on an NSFW story and send back nothing. Use an uncensored or less censored model, like <b>GLM 5.3 Flash</b> <i class="fa-solid fa-star" style="color: #fbbf24;" title="Recommended"></i> (recommended) or <b>DeepSeek 4.1 Flash</b>.</span></div>`);
     const $line = $(`<div class="igx-inline chx-conn">
         <select id="chomusuke_worker_profile" class="ps-modern-input">
             <option value="">Pick a connection…</option>
