@@ -7,11 +7,13 @@
 // it back, so a background task can use a different preset than the roleplay.
 // ──────────────────────────────────────────────────────────────────────────────
 
-import { generateQuietPrompt, eventSource, event_types, extension_settings, isGenerating, getContext, online_status, waitUntilCondition } from "../st.js";
+import { generateQuietPrompt, eventSource, event_types, extension_settings, isGenerating, getContext, online_status, waitUntilCondition, setQuietRoute } from "../st.js";
 import { extensionName, TARGET_PRESET_NAME } from "../core/constants.js";
 import { localProfile } from "../core/state.js";
 import { setActiveBanListChat, setActiveGenerationOrder } from "../core/activeRequests.js";
 import { warnChomusuke } from "./chomusukeNotice.js";
+import { workerRoute, requestError, storyWaitsFor } from "./workerRequest.js";
+import { canSendToProfile, sendToProfile } from "./workerSend.js";
 
 // Chomusuke's connection when it should use whatever the story uses: its jobs
 // run one at a time as usual, with no switching.
@@ -147,16 +149,54 @@ export async function applyConnectionProfileById(profileId, timeoutMs = 10000) {
  * @returns {Promise<any>}
  */
 // ── Worker session ───────────────────────────────────────────────────────
-// From the moment the worker profile is switched IN until the main profile is
-// switched back, SillyTavern's active connection is the worker. SillyTavern
-// swaps Send for Stop while the worker is generating, but not while the profile
-// is switching either way, so a message sent in those gaps would go to the
-// worker. The session promise lets the send guard (index.js) wait it out.
+// Switching (the fallback): from the moment the worker profile is switched IN
+// until the main profile is switched back, SillyTavern's active connection is
+// the worker. SillyTavern swaps Send for Stop while the worker is generating,
+// but not while the profile is switching either way, so a message sent in
+// those gaps would go to the worker. The session promise lets the send guard
+// (index.js) wait it out.
 let workerSession = null;
 
-/** Resolves when the current Chomusuke run has switched back; null when none is running. */
+// Sending to the profile: the story's connection never moves, but a message
+// sent while Chomusuke still reads the last reply (World State, Blocks, the
+// Notebook) waits for it, so the next prompt's Current Info has its result.
+let readsPending = 0;
+let readsDone = null;
+let endReads = null;
+function holdReplies() {
+    if (readsPending++ === 0) readsDone = new Promise(r => { endReads = r; });
+}
+function releaseReplies() {
+    if (--readsPending > 0) return;
+    readsPending = 0;
+    readsDone = null;
+    if (endReads) endReads();
+}
+
+/** Resolves when the message you sent can go; null when nothing holds it. */
 export function chomusukeSessionPromise() {
-    return workerSession;
+    const waits = [workerSession, readsDone].filter(Boolean);
+    return waits.length ? Promise.all(waits) : null;
+}
+
+// True while the send guard holds your message. The story is not writing yet,
+// so a queued Chomusuke job must not wait for it.
+let replyHeld = false;
+export function setReplyHeld(v) { replyHeld = Boolean(v); }
+
+// The profile a Chomusuke job is sending to right now (the background prompt
+// log names it), or null.
+let profileNow = null;
+export function chomusukeProfileNow() { return profileNow; }
+
+/** How a job would go out now: "current", "profile" or "switch" (workerRequest.js). */
+function routeFor(workerProfileId) {
+    return workerRoute({
+        profileId: workerProfileId === CURRENT_CONNECTION ? "" : workerProfileId,
+        currentId: getCurrentConnectionProfileId(),
+        hasService: canSendToProfile(),
+        fallback: extension_settings[extensionName]?.globalSettings?.chomusukeSwitchConnection === true,
+    });
 }
 
 export async function runWithChomusuke(featureKey, task, { force = false, jobs = null } = {}) {
@@ -179,6 +219,9 @@ export async function runWithChomusuke(featureKey, task, { force = false, jobs =
     // Never call runWithChomusuke from INSIDE a task it is running: the inner
     // call queues behind the outer one and both wait forever. Do that work
     // before starting the outer job. The watchdog below names a stuck queue.
+    const jobList = jobs || [featureKey];
+    const holds = routeFor(workerProfileId) === "profile" && storyWaitsFor(jobList);
+    if (holds) holdReplies();
     const waitingSince = Date.now();
     const ahead = runningWorkerJob;
     const watchdog = setTimeout(() => {
@@ -187,8 +230,11 @@ export async function runWithChomusuke(featureKey, task, { force = false, jobs =
     const turn = workerQueue.then(async () => {
         clearTimeout(watchdog);
         runningWorkerJob = featureKey;
-        try { return await runOnWorker(featureKey, task, chomusuke, workerProfileId, jobs || [featureKey]); }
-        finally { runningWorkerJob = null; }
+        try { return await runOnWorker(featureKey, task, chomusuke, workerProfileId, jobList); }
+        finally {
+            runningWorkerJob = null;
+            if (holds) releaseReplies();
+        }
     });
     workerQueue = turn.catch(() => {});
     return turn;
@@ -204,21 +250,24 @@ export function chomusukeJobRunning() {
 let workerQueue = Promise.resolve();
 
 async function runOnWorker(featureKey, task, chomusuke, workerProfileId, jobs) {
-    // Traffic guard: wait if SillyTavern is currently generating in the main chat
+    // Traffic guard: wait while the story model is writing, so the job reads
+    // the finished reply. Not for a message the send guard is holding: that
+    // one waits for us.
     let waitLoops = 0;
-    while (typeof isGenerating === "function" && isGenerating() && waitLoops < 60) {
+    while (typeof isGenerating === "function" && isGenerating() && !replyHeld && waitLoops < 60) {
         await new Promise(r => setTimeout(r, 500));
         waitLoops++;
     }
 
-    const currentProfileId = getCurrentConnectionProfileId();
-    const originalProfileId = chomusuke.primaryProfileId || currentProfileId;
-    const needsSwitch = workerProfileId !== CURRENT_CONNECTION && workerProfileId !== currentProfileId;
-
-    if (!needsSwitch) {
-        // Worker profile is already active in SillyTavern
+    const route = routeFor(workerProfileId);
+    if (route === "current") {
+        // The story's own connection, or the worker profile is already active.
         return await task();
     }
+    if (route === "profile") return await runOnProfile(featureKey, task, workerProfileId, jobs);
+
+    const currentProfileId = getCurrentConnectionProfileId();
+    const originalProfileId = chomusuke.primaryProfileId || currentProfileId;
 
     let switchedToWorker = false;
     let endSession;
@@ -251,6 +300,34 @@ async function runOnWorker(featureKey, task, chomusuke, workerProfileId, jobs) {
         }
         if (workerSession === session) workerSession = null;
         endSession();
+    }
+}
+
+// The job's quiet prompts go to the profile with sendRequest. A quiet prompt
+// sent by anything else while the job runs goes there too, as it did while
+// the connection was switched.
+async function runOnProfile(featureKey, task, workerProfileId, jobs) {
+    let sendError = null;
+    profileNow = workerProfileId;
+    setQuietRoute(async text => {
+        try { return await sendToProfile(workerProfileId, text); }
+        catch (e) { sendError = e; throw e; }
+    });
+    try {
+        const result = await task();
+        if (result === undefined || result === null) {
+            throw sendError || new Error("Worker model returned no output.");
+        }
+        return result;
+    } catch (e) {
+        console.error(`[${extensionName}] Chomusuke failed for "${featureKey}" on its profile:`, e);
+        // Most jobs catch their own errors and return null: the API's words
+        // are in sendError then.
+        warnChomusuke("failed", jobs, { error: requestError(sendError || e) });
+        return null;
+    } finally {
+        setQuietRoute(null);
+        profileNow = null;
     }
 }
 

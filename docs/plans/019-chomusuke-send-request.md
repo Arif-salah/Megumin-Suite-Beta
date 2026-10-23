@@ -147,7 +147,22 @@ Every job, the new way and then with the fallback switch on:
 
 ## Progress
 
-- [ ] Phase 1: the new send path
+- [x] Phase 1: the new send path (2026-10-23, waits for the developer's test)
+  - `src/engine/workerRequest.js` (pure, `tests/worker-request.test.mjs`) and
+    `src/engine/workerSend.js` (builds the job's messages with the prompt
+    handler on an empty list, sends them with `sendRequest`).
+  - `st.js`: `setQuietRoute`; `tasks.js`: `routeFor` → `runOnProfile`, the
+    old switching kept for the fallback (Settings: "Switch my connection for
+    each Chomusuke job", `globalSettings.chomusukeSwitchConnection`).
+  - Macros: nothing to add. The prompt handler ran after SillyTavern's own
+    macro pass before too, so the job's messages go out as they did.
+  - The send guard waits for World State, Blocks and Notebook reads (and a
+    combined call that has one); the traffic guard doesn't wait for a reply
+    the guard is holding.
+  - The background prompt log names Chomusuke's profile; a cancel in the
+    preview no longer stops the story's generation.
+  - Errors show the API's own words (`requestError` unwraps
+    "API request failed").
 - [ ] Phase 2: clean-up and the Chomusuke tab
 - [ ] Phase 3: stopping a job
 - [ ] Phase 4: docs

@@ -124,6 +124,16 @@ export function renderGlobalSettings(c) {
         </div>
     `);
 
+    $content.append(`
+        <div class="mtab-toggle-row ${gs.chomusukeSwitchConnection ? 'active' : ''}" id="gs_toggle_chomusuke_switch" style="cursor: pointer; ${gs.chomusukeSwitchConnection ? 'border-color: #38bdf8;' : ''}">
+            <div class="toggle-info">
+                <div class="toggle-label"><i class="fa-solid fa-right-left" style="color: #38bdf8;"></i> Switch my connection for each Chomusuke job</div>
+                <div class="toggle-desc">Chomusuke sends its jobs straight to its own connection, and your story connection never changes. Turn this on only if Chomusuke's jobs fail that way: SillyTavern then switches to Chomusuke's connection for each job and back, the way older versions did.</div>
+            </div>
+            <div class="ps-switch" style="${gs.chomusukeSwitchConnection ? 'background: #38bdf8;' : ''}"></div>
+        </div>
+    `);
+
     if (gs.loreInTasks === undefined) gs.loreInTasks = true;
     $content.append(`
         <div class="mtab-toggle-row ${gs.loreInTasks ? 'active' : ''}" id="gs_toggle_lore_tasks" style="cursor: pointer; ${gs.loreInTasks ? 'border-color: #a855f7;' : ''}">
@@ -223,6 +233,7 @@ export function renderGlobalSettings(c) {
     $content.find("#gs_bg_log").on("click", () => openBackgroundLog());
     wireToggle("#gs_toggle_utility_prefill", "enableUtilityPrefill", "#10b981");
     wireToggle("#gs_toggle_lore_tasks", "loreInTasks", "#a855f7");
+    wireToggle("#gs_toggle_chomusuke_switch", "chomusukeSwitchConnection", "#38bdf8");
 
     $content.find("#gs_save_mode").on("change", function () {
         // getCharacterKey() reads saveMode, so changing it moves where a save lands. Get any

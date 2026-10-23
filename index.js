@@ -86,7 +86,7 @@ import {
     STAT_FIELD_TYPES,
 } from "./src/features/blocks/registry.js";
 import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex, cleanAIOutput } from "./src/engine/chatText.js";
-import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise } from "./src/engine/tasks.js";
+import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise, setReplyHeld } from "./src/engine/tasks.js";
 import { warnChomusuke, answerKind } from "./src/engine/chomusukeNotice.js";
 import { escapeHtmlAttr } from "./src/utils/html.js";
 import { downloadJsonFile } from "./src/utils/download.js";
@@ -465,21 +465,26 @@ jQuery(async () => {
             // …and a character who just arrived gets a look (Image Gen V2).
             setWorldStateChangedHook(() => { meguminScheduleBlocksRefresh(); v2LooksForArrivals(); });
             // Send guard: SillyTavern waits for this handler before it talks to
-            // the API, so a reply sent while Chomusuke has the worker profile
-            // switched in (switching in or back, when Send is still live) waits
-            // for the main profile to return. Background (quiet) generations and
-            // token-count dry runs pass straight through; 30s cap so a stuck
-            // worker can never block the chat.
+            // the API. A reply sent while Chomusuke still reads the last reply
+            // (World State, Blocks, the Notebook) waits for it, so its Current
+            // Info is up to date; on the switching fallback, a reply sent while
+            // the worker profile is switched in waits for the main profile to
+            // return. Background (quiet) generations and token-count dry runs
+            // pass straight through; 30s cap so a stuck worker can never block
+            // the chat.
             eventSource.on(event_types.GENERATION_STARTED, async (genType, _params, dryRun) => {
                 if (dryRun || genType === "quiet") return;
                 const session = chomusukeSessionPromise();
                 if (!session) return;
-                toastr.info("Waiting a moment for Chomusuke to hand the connection back…", "Megumin Suite", { timeOut: 3000 });
-                const gaveUp = await Promise.race([
-                    session.then(() => false),
-                    new Promise(r => setTimeout(() => r(true), 30000))
-                ]);
-                if (gaveUp) console.warn("[Megumin-Suite] Send guard: Chomusuke still busy after 30s; sending anyway.");
+                toastr.info("Waiting a moment for Chomusuke to finish reading the last reply…", "Megumin Suite", { timeOut: 3000 });
+                setReplyHeld(true);
+                try {
+                    const gaveUp = await Promise.race([
+                        session.then(() => false),
+                        new Promise(r => setTimeout(() => r(true), 30000))
+                    ]);
+                    if (gaveUp) console.warn("[Megumin-Suite] Send guard: Chomusuke still busy after 30s; sending anyway.");
+                } finally { setReplyHeld(false); }
             });
             eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
                 if (stateOnSwiped(mesId)) meguminScheduleBlocksRefresh();
