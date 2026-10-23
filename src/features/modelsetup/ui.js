@@ -19,7 +19,8 @@ import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { hardcodedLogic } from "../../../data/database.js";
 import { storyConfigFields, upgradeConfigValue } from "../storyconfig/config.js";
 import { setPresetPage } from "../../ui/tabs/coreAndCot.js";
-import { CHOMUSUKE_SETUP_NOTE, CHOMUSUKE_SETUP_STEPS } from "../../ui/modelGuide.js";
+import { chomusukeSetupHtml } from "../../ui/modelGuide.js";
+import { chomusukeSwitches } from "../../engine/tasks.js";
 import { card, segmented, switchRow, esc } from "../../ui/controls.js";
 import {
     LOADOUTS, COMING_SOON, V11_STYLE_IDS, loadoutById, settingFor, applyLoadout, changedFromLoadout
@@ -311,8 +312,7 @@ function helpCard() {
     $card.append(`
         <details class="msx-help">
             <summary><i class="fa-solid fa-cat"></i> Set up Chomusuke</summary>
-            <div class="mtab-callout gold msx-note"><i class="fa-solid fa-triangle-exclamation"></i><span>${CHOMUSUKE_SETUP_NOTE}</span></div>
-            <ol class="chx-steps">${CHOMUSUKE_SETUP_STEPS.map(s => `<li>${s}</li>`).join("")}</ol>
+            ${chomusukeSetupHtml(chomusukeSwitches(), "msx-note")}
         </details>
         <details class="msx-help">
             <summary><i class="fa-solid fa-seedling"></i> Good habits</summary>

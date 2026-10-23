@@ -189,13 +189,18 @@ export function setReplyHeld(v) { replyHeld = Boolean(v); }
 let profileNow = null;
 export function chomusukeProfileNow() { return profileNow; }
 
+/** Is the connection switched for each job (the Settings fallback, or an old SillyTavern)? */
+export function chomusukeSwitches() {
+    return !canSendToProfile() || extension_settings[extensionName]?.globalSettings?.chomusukeSwitchConnection === true;
+}
+
 /** How a job would go out now: "current", "profile" or "switch" (workerRequest.js). */
 function routeFor(workerProfileId) {
     return workerRoute({
         profileId: workerProfileId === CURRENT_CONNECTION ? "" : workerProfileId,
         currentId: getCurrentConnectionProfileId(),
         hasService: canSendToProfile(),
-        fallback: extension_settings[extensionName]?.globalSettings?.chomusukeSwitchConnection === true,
+        fallback: chomusukeSwitches(),
     });
 }
 

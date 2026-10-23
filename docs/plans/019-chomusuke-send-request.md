@@ -147,7 +147,7 @@ Every job, the new way and then with the fallback switch on:
 
 ## Progress
 
-- [x] Phase 1: the new send path (2026-10-23, waits for the developer's test)
+- [x] Phase 1: the new send path (2026-10-23; the developer: "all good")
   - `src/engine/workerRequest.js` (pure, `tests/worker-request.test.mjs`) and
     `src/engine/workerSend.js` (builds the job's messages with the prompt
     handler on an empty list, sends them with `sendRequest`).
@@ -163,6 +163,17 @@ Every job, the new way and then with the fallback switch on:
     preview no longer stops the story's generation.
   - Errors show the API's own words (`requestError` unwraps
     "API request failed").
-- [ ] Phase 2: clean-up and the Chomusuke tab
+- [x] Phase 2: clean-up and the Chomusuke tab (2026-10-23, waits for the developer's test)
+  - Chat Completion profiles only in the list; a Text Completion profile
+    already picked gets a red banner.
+  - Setup steps: one Chomusuke profile, no Story profile
+    (`CHOMUSUKE_SETUP_STEPS`); with switching, the old steps and the presets
+    note (`CHOMUSUKE_SWITCH_STEPS`, `chomusukeSetupHtml(switching)`), on the
+    Chomusuke tab and Model Setup. "Go back to" only with switching.
+  - The line at the bottom: "Chomusuke sends its jobs straight to its
+    connection. Your story connection never changes." Test drops "your story
+    connection is back" unless it switched.
+  - Also in: the no-jailbreak note (GLM 5.3 Flash starred), a streamed
+    answer read to the end, a console line for each send.
 - [ ] Phase 3: stopping a job
 - [ ] Phase 4: docs
