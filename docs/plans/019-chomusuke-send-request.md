@@ -30,9 +30,11 @@ const res = await ctx.ConnectionManagerRequestService.sendRequest(
 ```
 
 It takes the profile's API, model, key, URL, proxy and prompt
-post-processing, applies the profile's preset (samplers), and for a Text
-Completion profile builds the prompt with the profile's instruct template.
-SillyTavern's own connection never changes.
+post-processing and applies the profile's preset (samplers). SillyTavern's
+own connection never changes.
+
+We only support Chat Completion, so Chomusuke only uses Chat Completion
+profiles.
 
 ## Why it fits our code
 
@@ -48,20 +50,36 @@ profile, the wrapper builds the same messages by calling the prompt handler
 on an empty list, and sends them with `sendRequest` instead of
 `generateQuietPrompt`. The jobs themselves don't change.
 
-## What we agree on (to confirm with the developer)
+## What we agreed (2026-10-23)
 
-- **The new way is the only way** when SillyTavern has
-  `ConnectionManagerRequestService` (every current version). On an older
-  SillyTavern without it, Chomusuke keeps switching as today.
+- **The new way is the default** when SillyTavern has
+  `ConnectionManagerRequestService` (every current version).
+- **The old switching stays as a fallback**, with a switch in the Settings
+  tab, off by default: "Switch my connection for each Chomusuke job". Its
+  description says to turn it on only if Chomusuke's jobs fail the new way.
+  An older SillyTavern without `sendRequest` uses it on its own.
+- **Chat Completion only.** The profile list on the Chomusuke tab shows Chat
+  Completion profiles only.
 - **"Use my current connection" stays as it is**: a quiet prompt on the live
   connection, no profile involved (the live settings may not be saved in
   any profile).
 - **Jobs still run one at a time** (the queue stays: the order matters, a
-  World State read before the image that uses its outfits). They no longer
-  wait for the story model to finish: the worker is a separate request.
-- **What goes away** once the new way is in: the "uncheck Settings Preset and
-  Regex Preset" note, the "Go back to after each job" setting
-  (`primaryProfileId`), the mid-switch send guard, the connection waits.
+  World State read before the image that uses its outfits).
+- **The waits for the story stay**, because they are about what Chomusuke
+  reads, not about the connection:
+  - A job waits while the story model is writing (`isGenerating`), so it
+    reads the finished reply, never half of it. This matters most for the
+    jobs you start by hand (image button, NPC scan…) in the middle of a reply.
+  - A message you send while Chomusuke is still reading the last reply
+    waits for it (the send guard, 30 s cap), so the next prompt's Current
+    Info has this turn's World State, blocks and notebook. Today the guard
+    only covers the switch; with the new way it covers the after-reply jobs
+    (World State, Blocks, Notebook, the combined call). A job you started by
+    hand doesn't hold your message.
+- **What goes away on the new way** (kept for the fallback): the "uncheck
+  Settings Preset and Regex Preset" note, the "Go back to after each job"
+  setting (`primaryProfileId`), the connection waits and the 400 ms settle.
+  The note and "Go back to" show only while the fallback is on.
 - **Reply length:** `sendRequest` needs a number. We send the response length
   of the profile's preset; a profile with no preset gets the story's. To
   check in phase 1: whether the preset's own length overrides ours anyway.
@@ -70,7 +88,8 @@ on an empty list, and sends them with `sendRequest` instead of
 
 1. **The new send path.**
    - A pure module `src/engine/workerRequest.js` (tested): which route a
-     call takes (`profile` | `current` | `switch` for old SillyTavern),
+     call takes (`profile` | `current` | `switch` for the fallback and
+     old SillyTavern),
      the messages to send (the handler's list, or one user message for a
      plain prompt like Test's "Reply with the single word: OK"), macros
      filled in (`{{user}}`, `{{char}}`: the quiet prompt path filled some of
@@ -78,7 +97,10 @@ on an empty list, and sends them with `sendRequest` instead of
      background log), and the text out of the answer (`content`; reasoning
      comes back apart and is dropped, as `<think>` is today).
    - `src/st.js`: the wrapper asks a route set by `tasks.js` while a worker
-     job runs; `runOnWorker` sets the route instead of switching.
+     job runs; `runOnWorker` sets the route instead of switching (it still
+     switches on the fallback).
+   - The Settings tab switch for the fallback (global, like Chomusuke).
+   - The send guard waits for the after-reply jobs instead of the switch.
    - The background prompt preview and log (plan 013) keep working: they
      hook into the prompt handler, which still builds the messages. The log
      names the worker profile, not the live connection
@@ -87,12 +109,12 @@ on an empty list, and sends them with `sendRequest` instead of
      found, rate limit). `warnChomusuke("failed")` shows it, instead of
      "failed to establish connection".
 2. **Clean-up and the Chomusuke tab.**
-   - Remove the switching guards from the new path; keep them only for the
-     old-SillyTavern fallback.
-   - Chomusuke tab: drop "Go back to after each job" and the Settings
-     Preset / Regex Preset note; the setup steps get simpler (a profile for
-     Chomusuke, no Story profile needed). Test says "Chomusuke answered"
-     with no "your story connection is back".
+   - The switching guards run only on the fallback.
+   - Chomusuke tab: "Go back to after each job" and the Settings Preset /
+     Regex Preset note show only with the fallback on; the profile list
+     shows Chat Completion profiles only; the setup steps get simpler (a
+     profile for Chomusuke, no Story profile needed). Test says "Chomusuke
+     answered" with no "your story connection is back" on the new way.
    - One line on the tab saying what changed, in the user's terms: "Chomusuke
      sends its jobs straight to its connection. Your story connection never
      changes."
@@ -104,7 +126,7 @@ on an empty list, and sends them with `sendRequest` instead of
 
 ## What to test (developer, in SillyTavern)
 
-Every job, on a Chat Completion profile and on a Text Completion profile:
+Every job, the new way and then with the fallback switch on:
 
 - After every reply: World State read, Blocks, Notebook read and setup, the
   combined call, the automatic image (V2 and Classic).
@@ -113,22 +135,15 @@ Every job, on a Chat Completion profile and on a Text Completion profile:
   generator, the Test button.
 - A worker profile **with** Settings Preset and Regex Preset ticked: no
   reload, the story's preset and regex stay.
-- The story model and Chomusuke at the same time: send a message while
-  Chomusuke is still writing the blocks of the last reply.
+- Send a message while Chomusuke is still writing the blocks of the last
+  reply: it waits, and the next prompt's Current Info has them.
+- Press the image button while the story is still writing: the job waits
+  for the reply to finish.
 - Prefill on (Settings) with a Claude worker; a reasoning worker (GLM 5.3
   Flash with thinking): only the answer comes back.
 - A worker with a wrong key: the warning shows the API's message, the story
   connection is untouched.
 - Connection Manager disabled: Chomusuke says it needs it, nothing breaks.
-
-## Open questions
-
-- A Text Completion worker: today the marker prompt goes through
-  `CHAT_COMPLETION_PROMPT_READY`, which only fires for Chat Completion. Check
-  whether Text Completion workers ever worked; with `sendRequest` they get
-  the messages through the profile's instruct template.
-- Keep the old switching as a hidden fallback setting for one release, in
-  case a provider misbehaves through `sendRequest`?
 
 ## Progress
 
