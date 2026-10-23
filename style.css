@@ -3287,6 +3287,24 @@
 .meg-blocks-collapse:hover { background: rgba(255,255,255,.05); color: var(--text-main, #e8e8e8); }
 .meg-blocks-collapse i { transition: transform .2s ease; display: inline-block; }
 .meg-blocks.meg-blocks-shut .meg-blocks-collapse i { transform: rotate(-90deg); }
+
+/* Chomusuke at work (plan 019): on the last message's card, while a job runs */
+.meg-chomu { display: none; }
+body.meg-chomu-busy #chat .mes.last_mes .meg-chomu {
+  display: flex; align-items: center; gap: 8px;
+  margin-left: auto; padding: 0 10px; white-space: nowrap;
+  color: #fda4af; font-size: .72rem; font-weight: 600;
+}
+body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { margin-left: 0; }
+.meg-chomu-cat { color: #f43f5e; animation: meg-chomu-pulse 1.2s ease-in-out infinite; }
+@keyframes meg-chomu-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+.meg-chomu-text { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.meg-chomu-stop {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  padding: 3px 9px; border-radius: 999px; font: inherit; font-size: .68rem;
+  background: rgba(244,63,94,.12); border: 1px solid rgba(244,63,94,.4); color: #fda4af;
+}
+.meg-chomu-stop:hover { background: rgba(244,63,94,.25); color: #fff; }
 /* Nothing open: the strip alone, no empty panel under it */
 .meg-blocks.meg-blocks-shut .meg-blocks-panel { display: none; }
 .meg-blocks.meg-blocks-shut .meg-blocks-tabs { border-bottom: 0; }
@@ -3333,6 +3351,7 @@
   .meg-blocks-tab:has(.meg-blocks-tab-emoji:empty) .meg-blocks-tab-label { display: inline; }
   .meg-blocks-tab-named .meg-blocks-tab-label { max-width: 110px; }
   .meg-blocks-collapse { padding: 10px 13px; }
+  .meg-chomu-text { display: none; }
 }
 
 /* ---- CYOA CHOICES (clickable) ---- */

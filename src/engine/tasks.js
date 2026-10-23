@@ -14,6 +14,7 @@ import { setActiveBanListChat, setActiveGenerationOrder } from "../core/activeRe
 import { warnChomusuke } from "./chomusukeNotice.js";
 import { workerRoute, requestError, storyWaitsFor } from "./workerRequest.js";
 import { canSendToProfile, sendToProfile } from "./workerSend.js";
+import { setChomusukeStatus } from "./chomusukeStatus.js";
 
 // Chomusuke's connection when it should use whatever the story uses: its jobs
 // run one at a time as usual, with no switching.
@@ -189,6 +190,56 @@ export function setReplyHeld(v) { replyHeld = Boolean(v); }
 let profileNow = null;
 export function chomusukeProfileNow() { return profileNow; }
 
+// ── Stopping jobs (phase 3) ──────────────────────────────────────────────
+// Every queued or running job has its own AbortController and the chat it was
+// queued in. Leaving that chat stops it; so does Stop on the indicator. A
+// stopped job that hasn't started never runs; a running one is cut off (the
+// request on its profile, or SillyTavern's quiet generation). Either comes
+// back null with no warning.
+const liveJobs = new Set();
+let runningEntry = null;
+// A read that falls back to a separate read when its answer is unusable would
+// queue a new job straight after a stop: jobs queued this soon after Stop, in
+// the same chat, are dropped too.
+let stoppedAt = 0;
+let stoppedChat = null;
+const STOP_SPILL_MS = 3000;
+
+function publishStatus() {
+    const waiting = [...liveJobs].filter(e => e !== runningEntry && !e.controller.signal.aborted).length;
+    setChomusukeStatus({ running: runningEntry ? { jobs: runningEntry.jobs } : null, waiting });
+}
+
+/**
+ * Stops Chomusuke's jobs: all of them, or those `stop(entry)` picks
+ * (entry: { jobs, chatId }). Returns how many it stopped.
+ */
+export function stopChomusukeJobs(stop = () => true) {
+    let n = 0;
+    for (const e of liveJobs) {
+        if (e.controller.signal.aborted || !stop(e)) continue;
+        e.controller.abort();
+        n++;
+        // A quiet generation (current connection, or switched) is SillyTavern's
+        // own: stop it there. A request to the profile stops on its signal.
+        if (e === runningEntry && e.route && e.route !== "profile") {
+            try { const ctx = getContext(); if (ctx && typeof ctx.stopGeneration === "function") ctx.stopGeneration(); } catch (err) { /* already stopped */ }
+        }
+    }
+    if (n) {
+        stoppedAt = Date.now();
+        stoppedChat = getContext()?.chatId ?? null;
+    }
+    publishStatus();
+    return n;
+}
+
+/** Leaving a chat stops the jobs queued for another one. */
+export function stopJobsForOtherChats() {
+    const chatId = getContext()?.chatId ?? null;
+    return stopChomusukeJobs(e => e.chatId !== chatId);
+}
+
 /** Is the connection switched for each job (the Settings fallback, or an old SillyTavern)? */
 export function chomusukeSwitches() {
     return !canSendToProfile() || extension_settings[extensionName]?.globalSettings?.chomusukeSwitchConnection === true;
@@ -225,6 +276,14 @@ export async function runWithChomusuke(featureKey, task, { force = false, jobs =
     // call queues behind the outer one and both wait forever. Do that work
     // before starting the outer job. The watchdog below names a stuck queue.
     const jobList = jobs || [featureKey];
+    const chatId = getContext()?.chatId ?? null;
+    if (stoppedAt && Date.now() - stoppedAt < STOP_SPILL_MS && chatId === stoppedChat && featureKey !== "test") {
+        console.debug(`[${extensionName}] Chomusuke "${featureKey}" dropped: you stopped Chomusuke a moment ago.`);
+        return null;
+    }
+    const entry = { jobs: jobList, chatId, controller: new AbortController(), route: null };
+    liveJobs.add(entry);
+    publishStatus();
     const holds = routeFor(workerProfileId) === "profile" && storyWaitsFor(jobList);
     if (holds) holdReplies();
     const waitingSince = Date.now();
@@ -234,10 +293,16 @@ export async function runWithChomusuke(featureKey, task, { force = false, jobs =
     }, 90000);
     const turn = workerQueue.then(async () => {
         clearTimeout(watchdog);
-        runningWorkerJob = featureKey;
-        try { return await runOnWorker(featureKey, task, chomusuke, workerProfileId, jobList); }
-        finally {
-            runningWorkerJob = null;
+        try {
+            if (entry.controller.signal.aborted) return null;
+            runningWorkerJob = featureKey;
+            runningEntry = entry;
+            publishStatus();
+            return await runOnWorker(featureKey, task, chomusuke, workerProfileId, jobList, entry);
+        } finally {
+            if (runningEntry === entry) { runningWorkerJob = null; runningEntry = null; }
+            liveJobs.delete(entry);
+            publishStatus();
             if (holds) releaseReplies();
         }
     });
@@ -254,22 +319,27 @@ export function chomusukeJobRunning() {
 
 let workerQueue = Promise.resolve();
 
-async function runOnWorker(featureKey, task, chomusuke, workerProfileId, jobs) {
+async function runOnWorker(featureKey, task, chomusuke, workerProfileId, jobs, entry) {
+    const signal = entry.controller.signal;
     // Traffic guard: wait while the story model is writing, so the job reads
     // the finished reply. Not for a message the send guard is holding: that
     // one waits for us.
     let waitLoops = 0;
-    while (typeof isGenerating === "function" && isGenerating() && !replyHeld && waitLoops < 60) {
+    while (typeof isGenerating === "function" && isGenerating() && !replyHeld && !signal.aborted && waitLoops < 60) {
         await new Promise(r => setTimeout(r, 500));
         waitLoops++;
     }
 
+    if (signal.aborted) return null;
+
     const route = routeFor(workerProfileId);
+    entry.route = route;
     if (route === "current") {
         // The story's own connection, or the worker profile is already active.
-        return await task();
+        const result = await task();
+        return signal.aborted ? null : result;
     }
-    if (route === "profile") return await runOnProfile(featureKey, task, workerProfileId, jobs);
+    if (route === "profile") return await runOnProfile(featureKey, task, workerProfileId, jobs, signal);
 
     const currentProfileId = getCurrentConnectionProfileId();
     const originalProfileId = chomusuke.primaryProfileId || currentProfileId;
@@ -286,12 +356,14 @@ async function runOnWorker(featureKey, task, chomusuke, workerProfileId, jobs) {
         }
 
         const result = await task();
+        if (signal.aborted) return null;
         if (result === undefined || result === null) {
             throw new Error("Worker model returned no output.");
         }
 
         return result;
     } catch (e) {
+        if (signal.aborted) return null;
         console.error(`[${extensionName}] Chomusuke worker execution failed for "${featureKey}":`, e);
         warnChomusuke("failed", jobs, { error: e, switchedBack: true });
         return null;
@@ -311,20 +383,25 @@ async function runOnWorker(featureKey, task, chomusuke, workerProfileId, jobs) {
 // The job's quiet prompts go to the profile with sendRequest. A quiet prompt
 // sent by anything else while the job runs goes there too, as it did while
 // the connection was switched.
-async function runOnProfile(featureKey, task, workerProfileId, jobs) {
+async function runOnProfile(featureKey, task, workerProfileId, jobs, signal) {
     let sendError = null;
     profileNow = workerProfileId;
     setQuietRoute(async text => {
-        try { return await sendToProfile(workerProfileId, text); }
+        try { return await sendToProfile(workerProfileId, text, signal); }
         catch (e) { sendError = e; throw e; }
     });
     try {
         const result = await task();
+        if (signal.aborted) return null;
         if (result === undefined || result === null) {
             throw sendError || new Error("Worker model returned no output.");
         }
         return result;
     } catch (e) {
+        if (signal.aborted) {
+            console.debug(`[${extensionName}] Chomusuke "${featureKey}" was stopped.`);
+            return null;
+        }
         console.error(`[${extensionName}] Chomusuke failed for "${featureKey}" on its profile:`, e);
         // Most jobs catch their own errors and return null: the API's words
         // are in sendError then.

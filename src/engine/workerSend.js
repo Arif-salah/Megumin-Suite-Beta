@@ -34,8 +34,10 @@ function workerReplyLength(ctx, profileId) {
  * Sends one quiet prompt to the profile and returns the answer's text.
  * A prompt cancelled in the background prompt preview sends nothing and
  * comes back empty, as it did on the quiet prompt. Throws the API's error.
+ * `signal`: the job's stop (phase 3); a stopped job sends nothing more.
  */
-export async function sendToProfile(profileId, text) {
+export async function sendToProfile(profileId, text, signal = null) {
+    if (signal && signal.aborted) throw new DOMException("Chomusuke's job was stopped.", "AbortError");
     const ctx = getContext();
     let messages;
     if (isJobMarker(text)) {
@@ -49,7 +51,7 @@ export async function sendToProfile(profileId, text) {
     console.debug(`[Megumin-Suite] Chomusuke → profile ${profileId}: ${messages.length} messages, up to ${maxTokens} tokens.`, messages);
     let res = await ctx.ConnectionManagerRequestService.sendRequest(
         profileId, messages, maxTokens,
-        { stream: false, extractData: true, includePreset: true });
+        { stream: false, extractData: true, includePreset: true, signal });
     // Streamed after all (a preset that forces it): read it to the end.
     if (typeof res === "function") {
         let last = null;

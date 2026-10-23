@@ -86,7 +86,8 @@ import {
     STAT_FIELD_TYPES,
 } from "./src/features/blocks/registry.js";
 import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex, cleanAIOutput } from "./src/engine/chatText.js";
-import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise, setReplyHeld } from "./src/engine/tasks.js";
+import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise, setReplyHeld, stopJobsForOtherChats } from "./src/engine/tasks.js";
+import { initChomusukeIndicator } from "./src/features/blocks/chomusukeIndicator.js";
 import { warnChomusuke, answerKind } from "./src/engine/chomusukeNotice.js";
 import { escapeHtmlAttr } from "./src/utils/html.js";
 import { downloadJsonFile } from "./src/utils/download.js";
@@ -256,6 +257,7 @@ jQuery(async () => {
         migrateUtilityPrefillFlag();
         dropLookResidue();
         initSidePanel({ profileGetter: () => localProfile });
+        initChomusukeIndicator();
         const h = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(h);
         initDraggableButton();
@@ -499,6 +501,8 @@ jQuery(async () => {
             // loaded. Same deferral as initProfile, and dropped if the user has
             // already moved on to another chat.
             eventSource.on(event_types.CHAT_CHANGED, () => {
+                // Chomusuke's jobs for the chat you left: stopped, not run for nothing.
+                stopJobsForOtherChats();
                 const chatAtEvent = getContext().chatId;
                 setTimeout(() => {
                     if (getContext().chatId !== chatAtEvent) return;

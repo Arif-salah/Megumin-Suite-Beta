@@ -175,5 +175,17 @@ Every job, the new way and then with the fallback switch on:
     connection is back" unless it switched.
   - Also in: the no-jailbreak note (GLM 5.3 Flash starred), a streamed
     answer read to the end, a console line for each send.
-- [ ] Phase 3: stopping a job
+- [x] Phase 3: stopping a job (2026-10-23, waits for the developer's test)
+  - Each job has an `AbortController` and the chat it was queued in
+    (`tasks.js`: `liveJobs`, `stopChomusukeJobs`, `stopJobsForOtherChats` on
+    CHAT_CHANGED). A stopped job that hasn't started never runs; a running one
+    is cut off (the profile request on its signal, a quiet generation with
+    `stopGeneration`), and comes back null with no warning. Jobs queued within
+    3 s of Stop in the same chat are dropped (a fallback read would queue one).
+  - The developer asked for an indicator on the blocks bar: "Chomusuke: World
+    State… (1 more waiting)" with a pulsing cat and **Stop**, on the last
+    message's card while a job runs or waits (`engine/chomusukeStatus.js`,
+    pure + `tests/chomusuke-status.test.mjs`; `features/blocks/chomusukeIndicator.js`;
+    the slot in `blocks/render.js`; `body.meg-chomu-busy` in `style.css`). On a
+    phone only the cat and Stop show.
 - [ ] Phase 4: docs
