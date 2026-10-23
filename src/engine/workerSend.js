@@ -45,8 +45,18 @@ export async function sendToProfile(profileId, text) {
     } else {
         messages = plainMessages(text);
     }
-    const res = await ctx.ConnectionManagerRequestService.sendRequest(
-        profileId, messages, workerReplyLength(ctx, profileId),
+    const maxTokens = workerReplyLength(ctx, profileId);
+    console.debug(`[Megumin-Suite] Chomusuke → profile ${profileId}: ${messages.length} messages, up to ${maxTokens} tokens.`, messages);
+    let res = await ctx.ConnectionManagerRequestService.sendRequest(
+        profileId, messages, maxTokens,
         { stream: false, extractData: true, includePreset: true });
-    return answerOf(res);
+    // Streamed after all (a preset that forces it): read it to the end.
+    if (typeof res === "function") {
+        let last = null;
+        for await (const chunk of res()) last = chunk;
+        res = { content: last ? String(last.text || "") : "" };
+    }
+    const answer = answerOf(res);
+    if (!answer.trim()) console.warn("[Megumin-Suite] Chomusuke's profile sent back no text. What came back:", res);
+    return answer;
 }

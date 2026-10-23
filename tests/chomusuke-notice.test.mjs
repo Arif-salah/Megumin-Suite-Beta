@@ -29,6 +29,7 @@ test("each kind says what happened and what to do", () => {
     const empty = chomusukeProblemText("empty", ["blocks", "notebook"]);
     assert.match(empty, /sent back nothing for Blocks and The Notebook/);
     assert.match(empty, /Chomusuke tab/);
+    assert.match(empty, /less censored/);
 
     const format = chomusukeProblemText("format", ["imageGen"]);
     assert.match(format, /not in a format it could use for the image, so nothing changed/);
