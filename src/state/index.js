@@ -29,7 +29,8 @@ import {
 import { liveTruths } from "./modules/notebook/model.js";
 import { parseNotebook } from "./modules/notebook/parse.js";
 import {
-    replyWroteNotebookChanges, notebookAnswerBlock, joinNotebookRead, notebookReadPart, parseNotebookRead
+    replyWroteNotebookChanges, notebookAnswerBlock, joinNotebookRead, notebookReadPart, parseNotebookRead,
+    replyWroteTruths, notebookSetupAnswerBlock
 } from "./modules/notebook/worker.js";
 import {
     renderWorldForPrompt, renderWorldInstructions, renderWorldCard, findReturning, isEmptyWorld, describeWorldChange,
@@ -600,9 +601,10 @@ export function notebookCardInfo(msgIndex) {
         pending,
         read: Boolean(entry && entry.source === "sidemodel"),
         missing: Boolean(entry && entry.source === "sidemodel" && entry.missing),
-        // Only a reply that had live truths before it can be read for them.
+        // A reply with live truths before it is read for them; one with none
+        // gets the setup written, unless it wrote its own truths (plan 018).
         canRead: notebookViaChomusuke() && !pending && typeof msg.extra.megumin_seq === "number"
-            && liveTruths(stateStore.getStateAt("notebook", msg.extra.megumin_seq - 0.5)).length > 0
+            && Boolean(readKindFor(msg.extra.megumin_seq, swipeText(msg, swipe)))
     };
 }
 
@@ -673,10 +675,34 @@ function fileNotebookRead(at, swipe, replyText, block) {
     stateStore.recordMessage(at, { source: "sidemodel", moduleIds: ["notebook"], swipe, parsed, raw: joinNotebookRead(replyText, block) });
 }
 
+// What Chomusuke does for a reply: "read" it against the live truths, write
+// the "setup" when there were none and the reply wrote none (plan 018), or
+// nothing (null).
+function readKindFor(seq, text) {
+    if (text == null) return null;
+    if (liveTruths(stateStore.getStateAt("notebook", seq - 0.5)).length) {
+        return replyWroteNotebookChanges(text) ? null : "read";
+    }
+    return replyWroteTruths(text) ? null : "setup";
+}
+
+/** The same, for a reply by its index, before anything is claimed. */
+export function notebookReadKind(index) {
+    if (!notebookViaChomusuke() || !adapter.getMeta()) return null;
+    const msg = adapter.getChat()[index];
+    if (!msg || msg.is_user || msg.is_system) return null;
+    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    const text = swipeText(msg, swipe);
+    // Not stamped yet: the reply is the newest thing in the chat, so the
+    // notebook as it stands now is the notebook before it.
+    const seq = typeof msg.extra?.megumin_seq === "number" ? msg.extra.megumin_seq : Infinity;
+    return readKindFor(seq, text);
+}
+
 /**
- * Claims one reply for a notebook read. Null when there is nothing to read:
- * route off, paused, no live truth before the reply (it was the setup), or the
- * reply wrote its own clue lines.
+ * Claims one reply for a notebook read. Null when there is nothing to do:
+ * route off, or the reply wrote its own lines (clue lines, or at setup its own
+ * truths). token.kind is "read" or "setup".
  */
 export function notebookBeginRead(index, { force = false } = {}) {
     if (!notebookViaChomusuke() || !adapter.getMeta()) return null;
@@ -687,15 +713,15 @@ export function notebookBeginRead(index, { force = false } = {}) {
     if (st.dirty) adapter.saveChat();
     const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
     const text = swipeText(msg, swipe);
-    if (text == null || replyWroteNotebookChanges(text)) return null;
-    if (!liveTruths(stateStore.getStateAt("notebook", st.seq - 0.5)).length) return null;
+    const kind = readKindFor(st.seq, text);
+    if (!kind) return null;
     const key = st.uid + ":" + swipe;
     if (pendingNotebook.has(key)) return null;
     const e = stateStore.getEntryFor("notebook", st.uid, swipe);
     if (!force && e && e.source === "sidemodel") return null;
     pendingNotebook.add(key);
     stateChangedHook();
-    return { index, uid: st.uid, swipe, seq: st.seq, text, hash: hashText(text), key, chatId: getContext()?.chatId };
+    return { index, uid: st.uid, swipe, seq: st.seq, text, hash: hashText(text), key, chatId: getContext()?.chatId, kind };
 }
 
 /** <Author_Notebook> as it stood before the reply, for the worker. */
@@ -715,7 +741,7 @@ export function notebookFinishRead(token, raw) {
         stateChangedHook();
         return { ok: false, dropped: true };
     }
-    const ans = notebookAnswerBlock(raw);
+    const ans = token.kind === "setup" ? notebookSetupAnswerBlock(raw) : notebookAnswerBlock(raw);
     if (!ans) { stateChangedHook(); return { ok: false, dropped: false }; }
     fileNotebookRead(at, token.swipe, token.text, ans.block);
     stateChangedHook();

@@ -63,3 +63,20 @@ export function lockedStyleIdFor(m) {
     if (isV7Engine(m)) return "dir_v7";
     return null;
 }
+
+// The built-in styles a generation offers. V11 has two: Default and Inside.
+const STYLE_FAMILY = { dir_v11: ["dir_v11", "dir_v11_inside"] };
+
+/**
+ * The style to switch to after picking engine `m`, or null to keep the one in
+ * use: your own style, or a built-in one of the same generation (moving
+ * between the V11 engines keeps V11 Inside). Another generation's built-in
+ * style, or none, becomes the engine's own.
+ * @param {boolean} isBuiltIn  activeStyleId is one of the built-in styles
+ */
+export function styleAfterPicking(m, activeStyleId, isBuiltIn) {
+    const locked = lockedStyleIdFor(m);
+    if (!locked) return null;
+    if (activeStyleId && !isBuiltIn) return null;
+    return (STYLE_FAMILY[locked] || [locked]).includes(activeStyleId) ? null : locked;
+}

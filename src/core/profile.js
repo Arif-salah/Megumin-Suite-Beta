@@ -155,6 +155,8 @@ export function initProfile() {
         userPronouns: "off",
         devOverrides: {},
         banList: [],
+        banListBuiltIn: true,
+        banListShort: false,
         banListBackend: "direct",
         banListCustomPrompts: null,
         banListCustomPromptsEnabled: false,
@@ -349,6 +351,10 @@ export function initProfile() {
         }
     }
 
+    // Chomusuke is one setup for every character (plan 018). The profile on
+    // screen holds the shared object itself, so every change lands in it.
+    linkGlobalChomusuke();
+
     // PATCH missing keys
     Object.keys(defaults).forEach(k => {
         if (localProfile[k] === undefined) localProfile[k] = defaults[k];
@@ -404,6 +410,8 @@ export function initProfile() {
     }
     if (localProfile.npcBank && localProfile.npcBank.scanDepth === undefined) localProfile.npcBank.scanDepth = 60;
     if (localProfile.banListCustomPromptsEnabled === undefined) localProfile.banListCustomPromptsEnabled = false;
+    if (localProfile.banListBuiltIn === undefined) localProfile.banListBuiltIn = true;
+    if (localProfile.banListShort === undefined) localProfile.banListShort = false;
     if (localProfile.imageGen.injectNpcTags === undefined) localProfile.imageGen.injectNpcTags = false;
     // Story Config (replaces the old standalone POV dropdown and the legacy word count)
     if (!localProfile.storyConfig) localProfile.storyConfig = JSON.parse(JSON.stringify(defaults.storyConfig));
@@ -530,6 +538,7 @@ export function initProfile() {
     if (localProfile.chomusuke && (!localProfile.chomusuke.combine || typeof localProfile.chomusuke.combine !== "object")) {
         localProfile.chomusuke.combine = { all: false, worldFallback: false };
     }
+    extension_settings[extensionName].chomusuke = localProfile.chomusuke;
     // "Side model" briefly lived in the Blocks tab's Updates list; that choice
     // is now the Chomusuke World State route.
     if (localProfile.worldState?.updateMode === "sidemodel") {
@@ -887,6 +896,29 @@ export function pruneFutureData() {
     }
 }
 
+// The first time: the setup of the character on screen when Chomusuke is
+// connected there, else of the first character it is connected on, else the
+// one on screen. The per-character copies are dropped.
+function linkGlobalChomusuke() {
+    const store = extension_settings[extensionName];
+    if (!store.chomusuke) {
+        const connected = c => Boolean(c && c.enabled && c.profileId);
+        const source = connected(localProfile.chomusuke) ? localProfile.chomusuke
+            : (Object.values(store.profiles).map(p => p && p.chomusuke).find(connected) || localProfile.chomusuke);
+        if (source) store.chomusuke = JSON.parse(JSON.stringify(source));
+        Object.values(store.profiles).forEach(p => { if (p) delete p.chomusuke; });
+        if (store.globalSyncTabs) delete store.globalSyncTabs["Chomusuke"];
+        saveSettingsDebounced();
+    }
+    if (store.chomusuke) localProfile.chomusuke = store.chomusuke;
+}
+
+// Chomusuke goes to its own store, not into the profile.
+function saveGlobalChomusuke(profileToSave) {
+    if (localProfile.chomusuke) extension_settings[extensionName].chomusuke = localProfile.chomusuke;
+    delete profileToSave.chomusuke;
+}
+
 export function saveProfileToMemory() {
     const key = getCharacterKey() || "default";
 
@@ -1002,6 +1034,7 @@ export function saveProfileToMemory() {
     // Drop prompt text that matches DEFAULT_PROMPTS. Safe on profileToSave because it is
     // already a clone; localProfile keeps the full text the editor is bound to.
     meguminSparsifyProfilePrompts(profileToSave);
+    saveGlobalChomusuke(profileToSave);
 
     extension_settings[extensionName].profiles[key] = profileToSave;
     saveSettingsDebounced();
@@ -1071,6 +1104,7 @@ export function flushProfileSettingsToLoadedKey() {
     }
 
     meguminSparsifyProfilePrompts(profileToSave);
+    saveGlobalChomusuke(profileToSave);
 
     extension_settings[extensionName].profiles[_loadedProfileKey] = profileToSave;
     saveSettingsDebounced();

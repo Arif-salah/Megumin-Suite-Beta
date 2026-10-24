@@ -62,6 +62,12 @@ export {
     waitUntilCondition,
 };
 
+// While a Chomusuke job runs on its own profile (plan 019), tasks.js points
+// every quiet prompt here at it: sendRequest instead of SillyTavern's quiet
+// generation. Null the rest of the time.
+let quietRoute = null;
+export function setQuietRoute(fn) { quietRoute = fn; }
+
 /**
  * Universal wrapper for SillyTavern's generateQuietPrompt.
  * Ensures compatibility whether callers provide { prompt: '...' } or { quietPrompt: '...' }.
@@ -75,6 +81,7 @@ export async function generateQuietPrompt(params = {}) {
         const text = params.quietPrompt ?? params.prompt ?? "";
         params = { ...params, quietPrompt: text, prompt: text };
     }
+    if (quietRoute) return await quietRoute(params.quietPrompt);
     return await stGenerateQuietPrompt(params);
 }
 

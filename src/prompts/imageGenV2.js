@@ -92,9 +92,16 @@ export const IMAGE_V2_PROMPTS = {
         natural: "- 2 to 4 plain sentences: each character's appearance and clothing as in <Cast>, what they are doing, the place, the light, and how the shot is framed."
     },
 
+    // Image models read English: a story told in French still gets English
+    // prompts and tags. Blocks and World State keep the story's language.
+    inEnglish: "Write the image prompt in English, whatever language the story is told in.",
+    tagsInEnglish: "Write the tags in English, whatever language the story is told in.",
+
     manualTask: "The image shows the moment <Last_Message> ends on. <Earlier_Story> is only there so you understand it: draw nothing that has already ended (someone who put an item away no longer holds it). Write the image prompt for that moment. Output only the prompt, nothing else.",
     manualTaskWithExtras: "The image shows the moment <Last_Message> ends on. <Earlier_Story> is only there so you understand it: draw nothing that has already ended (someone who put an item away no longer holds it). Write the image prompt for that moment.",
 
     inlineHead: "### IMAGE\n{{conditionalText}}Within your response, insert {{imageCount}} image tag(s) like this: <img prompt=\"...\"> at the moment the image shows.",
+    // Plan 018: the V11 preset's rules up top; <turn_notes> says when an image is due.
+    inlineHeadSplit: "### IMAGE\n{{conditionalText}}When <turn_notes> asks for an image, insert the image tag like this: <img prompt=\"...\"> at the moment the image shows.",
     inlineTail: "Inside prompt=\"...\", never use double quotes."
 };

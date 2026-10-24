@@ -85,8 +85,9 @@ import {
     STAT_FIELD_PACKS,
     STAT_FIELD_TYPES,
 } from "./src/features/blocks/registry.js";
-import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex } from "./src/engine/chatText.js";
-import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise } from "./src/engine/tasks.js";
+import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex, cleanAIOutput } from "./src/engine/chatText.js";
+import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise, setReplyHeld, stopJobsForOtherChats } from "./src/engine/tasks.js";
+import { initChomusukeIndicator } from "./src/features/blocks/chomusukeIndicator.js";
 import { warnChomusuke, answerKind } from "./src/engine/chomusukeNotice.js";
 import { escapeHtmlAttr } from "./src/utils/html.js";
 import { downloadJsonFile } from "./src/utils/download.js";
@@ -256,6 +257,7 @@ jQuery(async () => {
         migrateUtilityPrefillFlag();
         dropLookResidue();
         initSidePanel({ profileGetter: () => localProfile });
+        initChomusukeIndicator();
         const h = await $.get(`${extensionFolderPath}/example.html`);
         $("body").append(h);
         initDraggableButton();
@@ -465,21 +467,26 @@ jQuery(async () => {
             // …and a character who just arrived gets a look (Image Gen V2).
             setWorldStateChangedHook(() => { meguminScheduleBlocksRefresh(); v2LooksForArrivals(); });
             // Send guard: SillyTavern waits for this handler before it talks to
-            // the API, so a reply sent while Chomusuke has the worker profile
-            // switched in (switching in or back, when Send is still live) waits
-            // for the main profile to return. Background (quiet) generations and
-            // token-count dry runs pass straight through; 30s cap so a stuck
-            // worker can never block the chat.
+            // the API. A reply sent while Chomusuke still reads the last reply
+            // (World State, Blocks, the Notebook) waits for it, so its Current
+            // Info is up to date; on the switching fallback, a reply sent while
+            // the worker profile is switched in waits for the main profile to
+            // return. Background (quiet) generations and token-count dry runs
+            // pass straight through; 30s cap so a stuck worker can never block
+            // the chat.
             eventSource.on(event_types.GENERATION_STARTED, async (genType, _params, dryRun) => {
                 if (dryRun || genType === "quiet") return;
                 const session = chomusukeSessionPromise();
                 if (!session) return;
-                toastr.info("Waiting a moment for Chomusuke to hand the connection back…", "Megumin Suite", { timeOut: 3000 });
-                const gaveUp = await Promise.race([
-                    session.then(() => false),
-                    new Promise(r => setTimeout(() => r(true), 30000))
-                ]);
-                if (gaveUp) console.warn("[Megumin-Suite] Send guard: Chomusuke still busy after 30s; sending anyway.");
+                toastr.info("Waiting a moment for Chomusuke to finish reading the last reply…", "Megumin Suite", { timeOut: 3000 });
+                setReplyHeld(true);
+                try {
+                    const gaveUp = await Promise.race([
+                        session.then(() => false),
+                        new Promise(r => setTimeout(() => r(true), 30000))
+                    ]);
+                    if (gaveUp) console.warn("[Megumin-Suite] Send guard: Chomusuke still busy after 30s; sending anyway.");
+                } finally { setReplyHeld(false); }
             });
             eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
                 if (stateOnSwiped(mesId)) meguminScheduleBlocksRefresh();
@@ -494,6 +501,8 @@ jQuery(async () => {
             // loaded. Same deferral as initProfile, and dropped if the user has
             // already moved on to another chat.
             eventSource.on(event_types.CHAT_CHANGED, () => {
+                // Chomusuke's jobs for the chat you left: stopped, not run for nothing.
+                stopJobsForOtherChats();
                 const chatAtEvent = getContext().chatId;
                 setTimeout(() => {
                     if (getContext().chatId !== chatAtEvent) return;
@@ -506,14 +515,20 @@ jQuery(async () => {
                 // Master switch off: nothing below runs (no reads, images, director, memory, NPC bank).
                 if (!suiteEnabled()) return;
 
+                // An empty reply (or one with only its thinking) has nothing for
+                // Chomusuke to read: no read, no blocks, no image for it.
+                const replyNow = (getContext().chat || [])[typeof receivedId === "number" ? receivedId : (getContext().chat || []).length - 1];
+                const emptyReply = Boolean(replyNow && !replyNow.is_user && !replyNow.is_system
+                    && !cleanAIOutput(String(replyNow.mes || "").replace(/<!--[\s\S]*?-->/g, "")).trim());
+
                 // --- WORLD STATE ---
                 // First, so everything below (image gen included) sees this
                 // reply's outfits.
                 // Chomusuke "Combine calls": on an image turn, one call reads World
                 // State AND writes the image prompt (no separate read below).
-                const combinedTurn = combinedTurnWanted(receivedId, receivedType);
+                const combinedTurn = emptyReply ? null : combinedTurnWanted(receivedId, receivedType);
                 try {
-                    if (stateOnMessageReceived(receivedId, receivedType, { skipSideRead: Boolean(combinedTurn && combinedTurn.world) })) meguminScheduleBlocksRefresh();
+                    if (stateOnMessageReceived(receivedId, receivedType, { skipSideRead: emptyReply || Boolean(combinedTurn && combinedTurn.world) })) meguminScheduleBlocksRefresh();
                     // Image Gen V2: a character who just arrived gets a look.
                     v2LooksForArrivals();
                 } catch (e) {
@@ -525,7 +540,7 @@ jQuery(async () => {
                 // for: Chomusuke reads the reply and writes them. Queued after the
                 // World State read. Does nothing unless the Blocks route is on.
                 // (A combined call below does it instead when Combine calls is on.)
-                if (!BLOCKS_NOT_A_REPLY.has(receivedType) && !(combinedTurn && combinedTurn.blocks)) {
+                if (!emptyReply && !BLOCKS_NOT_A_REPLY.has(receivedType) && !(combinedTurn && combinedTurn.blocks)) {
                     const chatNow = getContext().chat || [];
                     const blocksIndex = typeof receivedId === "number" ? receivedId : chatNow.length - 1;
                     blocksReadForReply(blocksIndex, { force: receivedType === "continue" })
@@ -535,7 +550,7 @@ jQuery(async () => {
                 // --- NOTEBOOK BY CHOMUSUKE (plan 010) ---
                 // Clues, who learned what, what came out. Does nothing unless the
                 // Notebook route is on and the notebook has live truths.
-                if (!BLOCKS_NOT_A_REPLY.has(receivedType) && !(combinedTurn && combinedTurn.notebook)) {
+                if (!emptyReply && !BLOCKS_NOT_A_REPLY.has(receivedType) && !(combinedTurn && combinedTurn.notebook)) {
                     const chatNow = getContext().chat || [];
                     const nbIndex = typeof receivedId === "number" ? receivedId : chatNow.length - 1;
                     notebookReadForReply(nbIndex, { force: receivedType === "continue" })
@@ -545,7 +560,7 @@ jQuery(async () => {
                 // --- AUTOMATIC IMAGE BY CHOMUSUKE ---
                 // After World State, so its read is queued first and the image
                 // uses the newest outfits. Does nothing unless Chomusuke writes images.
-                (combinedTurn
+                if (!emptyReply) (combinedTurn
                     ? runCombinedTurn(receivedId, receivedType, combinedTurn)
                     : igAutoImageForReply(receivedId, receivedType, generateImagePromptText, prepareImagePrompt))
                     .catch(e => console.error("[Megumin-Suite] Automatic image failed", e));

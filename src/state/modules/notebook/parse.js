@@ -208,7 +208,7 @@ export function parseNotebook(text, opts = {}) {
     const prose = opts.prose !== undefined ? opts.prose : storyProse(text);
     // A model that echoes its instructions or the notebook it was given has not
     // written anything: those sections never count.
-    const src = String(text || "").replace(/<(Notebook_Setup|Notebook_Update_Rules|Author_Notebook)\b[^>]*>[\s\S]*?(<\/\1\s*>|$)/gi, "");
+    const src = String(text || "").replace(/<(Notebook_Setup_Rules|Notebook_Setup|Notebook_Update_Rules|Author_Notebook)\b[^>]*>[\s\S]*?(<\/\1\s*>|$)/gi, "");
     const ops = [];
     for (const body of extractTagBodies(src, "Notebook")) ops.push(...readEntries(bodyLines(body)));
     for (const body of extractTagBodies(src, "Notebook_Update")) ops.push(...parseUpdateLines(body, prose));

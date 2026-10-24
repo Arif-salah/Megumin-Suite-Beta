@@ -59,7 +59,7 @@ export function chomusukeProblemText(kind, jobs, { error, switchedBack = false }
             + (switchedBack ? " Your story connection is back." : "");
     }
     if (kind === "empty") {
-        return `Chomusuke's model sent back nothing for ${what}. Check its connection in the Chomusuke tab`
+        return `Chomusuke's model sent back nothing for ${what}. A censored model can refuse an NSFW story without a word: try a less censored one in the Chomusuke tab, or check its connection there`
             + (readAgain ? ", then use Read again on the card." : ".");
     }
     return `Chomusuke answered, but not in a format it could use for ${what}, so nothing changed. `

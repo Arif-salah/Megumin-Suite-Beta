@@ -17,7 +17,7 @@ import {
 } from "../core/activeRequests.js";
 import { extension_settings, getContext, saveSettingsDebounced, Popup, POPUP_TYPE } from "../st.js";
 import { extensionName } from "../core/constants.js";
-import { getCurrentConnectionProfileId, chomusukeJobRunning } from "./tasks.js";
+import { getCurrentConnectionProfileId, chomusukeJobRunning, chomusukeProfileNow } from "./tasks.js";
 import { bgJobLabel, bgJobWanted, messageText, editableText, applyEditedTexts, makeLogEntry, pushLog } from "./bgPromptsCore.js";
 
 const LOG_KEY = "megumin_background_prompts";
@@ -48,7 +48,7 @@ export function backgroundJobNow() {
 
 /** The connection this call goes out on, in the user's words. */
 function connectionLabel() {
-    const id = getCurrentConnectionProfileId();
+    const id = chomusukeProfileNow() || getCurrentConnectionProfileId();
     const profiles = (extension_settings.connectionManager && extension_settings.connectionManager.profiles) || [];
     const p = profiles.find(x => x.id === id);
     const name = p ? p.name : "your current connection";
@@ -136,7 +136,11 @@ export async function reviewBackgroundPrompt(messages, job) {
         addToLog(makeLogEntry({ job, connection, messages, status: "cancelled" }));
         messages.length = 0;
         toastr.info(`${label}: you cancelled the prompt, so nothing was sent.`, "Megumin Suite");
-        try { const ctx = getContext(); if (ctx && typeof ctx.stopGeneration === "function") ctx.stopGeneration(); } catch (e) { /* already stopped */ }
+        // Sent to Chomusuke's profile, nothing is generating to stop (and the
+        // story may be: leave it alone).
+        if (!chomusukeProfileNow()) {
+            try { const ctx = getContext(); if (ctx && typeof ctx.stopGeneration === "function") ctx.stopGeneration(); } catch (e) { /* already stopped */ }
+        }
         return false;
     }
 

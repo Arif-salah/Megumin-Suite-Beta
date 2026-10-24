@@ -8,6 +8,7 @@ import { getContext, generateQuietPrompt, substituteParams } from "../../../st.j
 import { localProfile } from "../../../core/state.js";
 import { setActiveImageGenRequest } from "../../../core/activeRequests.js";
 import { DEFAULT_PROMPTS } from "../../../prompts/index.js";
+import { IMAGE_V2_PROMPTS } from "../../../prompts/imageGenV2.js";
 import { meguminCleanChatHistoryText } from "../../../engine/chatText.js";
 import { getRelevantNpcImageTags } from "../../npc/data.js";
 
@@ -55,6 +56,7 @@ export function classicImageParts({ extraInstruction = "" } = {}) {
     }
 
     if (!ig.includeExamples) examples = "";
+    rules = [rules, IMAGE_V2_PROMPTS.inEnglish].filter(Boolean).join("\n");
 
     let directLangStr = ig.directLanguage ? "**DIRECT LANGUAGE:** Use exact Booru tags only. \"naked\" not \"wearing nothing.\" \"erection\" not \"visible arousal.\"\n\n**NSFW TAG REFERENCE (use when scene is explicit):**\nBody: naked, nude, topless, exposed nipples, small breasts, medium breasts, large breasts, spread legs, ass, erection, veins, veiny penis\nActions: hetero, sex, vaginal, anal, oral, fellatio, after fellatio, paizuri, straddling, riding, missionary, doggystyle, cowgirl position, moaning, open mouth, tongue out, ahegao, clenching teeth\nFluids: cum, cum on body, cum on breasts, cum on face, cum on hair, cum on tongue, cum in mouth, cum inside, ejaculation, facial, saliva, sweat\nState: flushed face, heavy breathing, trembling, crying with eyes open, half-closed eyes, solo focus" : "";
     let npcTagsStr = getRelevantNpcImageTags({ force: true }); // <-- GET THE TAGS (manual: whenever there are any)

@@ -10,7 +10,7 @@
 import { extension_settings } from "../../st.js";
 import { extensionName } from "../../core/constants.js";
 import { localProfile } from "../../core/state.js";
-import { lockedStyleIdFor, isV7Engine, isV10Engine } from "../../core/engines.js";
+import { styleAfterPicking, isV7Engine, isV10Engine } from "../../core/engines.js";
 import { saveProfileToMemory } from "../../core/profile.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { hardcodedLogic } from "../../../data/database.js";
@@ -19,7 +19,6 @@ import { meguminCotForMode } from "../../../data/cot/index.js";
 import { buildStoryConfigSection } from "../../features/storyconfig/ui.js";
 import { countActiveConfigFields } from "../../features/storyconfig/config.js";
 import { card as pageCard, segmented, switchRow, field, esc } from "../controls.js";
-import { openModelGuide } from "../modelGuide.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enhanced Dialogue — the switch drawn inside a preset card.
@@ -87,7 +86,10 @@ const DESCRIPTIONS = {
     "v8-m": "Unmatched in complex human psychology, authentic flawed dialogue, and autonomous, multi-layered story plotting.",
     "v8-lite": "A streamlined, highly efficient version of Obsidian. Retains the core rules of psychology, dialogue, and momentum with a much lighter token footprint.",
     "v8-fusion": "The absolute pinnacle of the Megumin Suite. A hybrid engine mixing V8 Obsidian's deep psychology with V6 Dream Team's specialist writer room framework.",
-    "v11-room": "A writers' room of five: a director who keeps continuity and checks every draft, a psychologist for what each character wants, a story architect who keeps the author's notebook of hidden truths, a storyteller for the narration, and a dialogue writer for the voices. The reader gets one voice. Turns the Author's Notebook on by itself.",
+    "v11-voice": "One storyteller writes the whole turn, plainly and with a voice of its own. Characters play their sheets at full strength, the world goes on without you, and a notebook keeps the story's hidden truths until they come out. The base for every model.",
+    "v11-deepseek": "V11 Тайна with one more line for DeepSeek, which tends to treat the character as the player and leave them doing nothing: the character and everyone else in the story are the AI's to write and to move. Use it with Chomusuke writing the blocks, since DeepSeek leaves them out.",
+    "v11-writers-room": "V11 Тайна written by a room of five: a director, a psychologist, a story architect, a storyteller and a dialogue writer talk the turn over in the thinking before it is written.",
+    "v11-room": "The first V11 release, kept as it was. A writers' room of five: a director who keeps continuity and checks every draft, a psychologist for what each character wants, a story architect who keeps the author's notebook of hidden truths, a storyteller for the narration, and a dialogue writer for the voices. The reader gets one voice. Turns the Author's Notebook on by itself.",
     "v10-core": "The storyteller. Ukiyo is the looser of the two — a teller with a temperament, spinning the world and its history, following whatever in the scene is most alive. It trades a little polish for invention: the prose wanders, reaches for an image, and occasionally overreaches. Pick it for atmosphere, momentum and a world that feels told rather than composed. Neither V10 is a downgrade of the other — run a few scenes on each and keep the one that sounds like the story you want to read.",
     "v10-shura": "The writer. Shura is the stricter of the two — no slop, no AI tells, no line that exists to manage the scene. Every character is the protagonist of their own story, acting from their own values, and none of them is a villain in their own eyes; there is no objective right or wrong for the narration to take sides on. Pick it for prose that reads like a book and a cast that drives the story itself. Neither V10 is a downgrade of the other — run a few scenes on each and keep the one that sounds like the story you want to read.",
     "v10-core-cw": "Ukiyo, with the narrator writing {{user}} as well. It reads how you write — diction, rhythm, how boldly you act — and plays your character in that voice. Anything you write yourself is canon and is never overwritten or corrected. Your history stays yours; only the acting is shared.",
@@ -99,8 +101,10 @@ const DESCRIPTIONS = {
 };
 
 const COT_TYPES = [
-    { id: "v11", label: "CoT V11", desc: "The writers' room works the turn in order: the director reads the history, the psychologist decides what each character does, the story architect picks what is new and whether a hidden truth gets a clue or comes out, the writers draft, and the director checks it against the rules.", isNew: true },
-    { id: "v11-cap", label: "CoT V11 — Thinking Cap", desc: "The same five steps with a hard ceiling on the thinking: one line of notes per step, and the reply is written only once, in the reply. For models that over-think, like DeepSeek, Kimi, GLM and Qwen.", isNew: true },
+    { id: "v11-voice", label: "CoT V11 Тайна", desc: "Five steps in order: read your turn and the history, decide what each other character does, decide what the turn adds and whether a hidden truth gets a clue, write, then check the draft. Made for V11 Тайна.", isNew: true },
+    { id: "v11-wr", label: "CoT V11 Тайна · Writers' Room", desc: "The same five steps, worked by the room: the director reads, the psychologist decides what each other character does, the story architect picks what the turn adds, the storyteller and dialogue writer write, and the director checks.", isNew: true },
+    { id: "v11", label: "CoT V11 Тайна Preview", desc: "The writers' room works the turn in order: the director reads the history, the psychologist decides what each character does, the story architect picks what is new and whether a hidden truth gets a clue or comes out, the writers draft, and the director checks it against the rules.", isNew: true },
+    { id: "v11-cap", label: "CoT V11 Тайна Preview — Thinking Cap", desc: "The same five steps with a hard ceiling on the thinking: one line of notes per step, and the reply is written only once, in the reply. For models that over-think, like DeepSeek, Kimi, GLM and Qwen.", isNew: true },
     { id: "v10-ukiyo", label: "CoT V10 Ukiyo", desc: "The long-form reasoning built for Ukiyo. Thinks like a novelist muttering before a draft — present tense, a little messy, never a plan. No phases, no checklists, no audits.", isNew: true },
     { id: "v10-ukiyo-cap", label: "CoT V10 Ukiyo — Thinking Cap", desc: "The same writer's mind with a hard ceiling on the thinking phase. For models that over-think.", isNew: true },
     { id: "v10-shura", label: "CoT V10 Shura", desc: "Seven rules carried into the writing rather than a plan made before it. Built for V10 Shura, and the lightest of the four.", isNew: true },
@@ -148,6 +152,8 @@ const LATEST = ["V11", "V10"];
 function parseCot(model) {
     const m = String(model || "");
     if (m.startsWith("cot-v11-cap-")) return { type: "v11-cap", lang: "english" };
+    if (m.startsWith("cot-v11-voice-")) return { type: "v11-voice", lang: "english" };
+    if (m.startsWith("cot-v11-wr-")) return { type: "v11-wr", lang: "english" };
     if (m.startsWith("cot-v11-")) return { type: "v11", lang: "english" };
     if (m.startsWith("cot-v10-ukiyo-cap-")) return { type: "v10-ukiyo-cap", lang: "english" };
     if (m.startsWith("cot-v10-shura-cap-")) return { type: "v10-shura-cap", lang: "english" };
@@ -161,6 +167,8 @@ function parseCot(model) {
 // The frameworks made for a preset; null = any (older and your own presets).
 function cotTypesFor(mode) {
     const m = String(mode || "");
+    if (m === "v11-voice" || m === "v11-deepseek") return ["v11-voice"];
+    if (m === "v11-writers-room") return ["v11-wr"];
     if (m.includes("v11")) return ["v11", "v11-cap"];
     if (m.includes("v10")) return ["v10-ukiyo", "v10-ukiyo-cap", "v10-shura", "v10-shura-cap"];
     if (m.includes("v6")) return ["v6", "v6-lite"];
@@ -187,6 +195,11 @@ let currentPage = "preset";
 let presetFilter = null;
 let showAllCot = false;
 let advancedOpen = false;
+
+/** Which page the tab opens on next (Model Setup's buttons land on the right one). */
+export function setPresetPage(id) {
+    if (["preset", "thinking", "config"].includes(id)) currentPage = id;
+}
 
 export function renderCoreAndCot(c) {
     c.empty();
@@ -219,7 +232,7 @@ export function renderCoreAndCot(c) {
                 <div class="mtab-header-icon" style="background: linear-gradient(135deg, #f59e0b, #a855f7);"><i class="fa-solid fa-server"></i></div>
                 <div><h2>Preset & Thinking</h2><p>Choose the preset, how it thinks before it writes, and the story's standing settings.</p></div>
             </div>
-            <button type="button" class="menu_button ptx-guide-btn" title="Which settings fit the model you use"><i class="fa-solid fa-compass"></i> Model guide</button>
+            <button type="button" class="menu_button ptx-guide-btn" title="Open Model Setup: the settings tested for the model you use"><i class="fa-solid fa-compass"></i> Model Setup</button>
         </div>
         <div class="igx-chips ptx-summary">
             <span class="igx-chip ok"><i class="fa-solid fa-server"></i> ${esc(active ? active.label : localProfile.mode)}</span>
@@ -228,20 +241,7 @@ export function renderCoreAndCot(c) {
         </div>
     `);
 
-    // The guide's "Pick the Thinking Cap" picks the cap made for this preset
-    // (Shura's for Shura, Ukiyo's otherwise); none when the preset has no cap.
-    const caps = (cotTypesFor(localProfile.mode) || []).filter(t => t.endsWith("-cap"));
-    const capType = caps.find(t => t === `${cot.type}-cap`) || caps[0];
-    c.find(".ptx-guide-btn").on("click", () => openModelGuide({
-        onPickCap: capType ? () => {
-            localProfile.model = cotModelId(capType, "english");
-            localProfile.cotEnabled = true;
-            saveProfileToMemory();
-            currentPage = "thinking";
-            rerender();
-            toastr.success(`Thinking set to ${COT_TYPES.find(t => t.id === capType).label}.`, "Megumin Suite");
-        } : undefined
-    }));
+    c.find(".ptx-guide-btn").on("click", () => fireRefreshHook(REFRESH.SWITCH_TAB, "setup"));
 
     const pages = [
         { id: "preset", label: "Preset", icon: "fa-server" },
@@ -268,8 +268,11 @@ export function renderCoreAndCot(c) {
 function pickPreset(m) {
     localProfile.mode = m.id;
     // Same mapping the Writing Style tab uses when it finds a locked preset with
-    // no style set. One list, so the two cannot disagree.
-    const lockedStyle = lockedStyleIdFor(m);
+    // no style set. One list, so the two cannot disagree. Your own style, or a
+    // style of the same generation (V11 Inside between the V11 engines), is
+    // kept, as Model Setup does.
+    const isBuiltIn = hardcodedLogic.directStyles.some(x => x.id === localProfile.activeStyleId);
+    const lockedStyle = styleAfterPicking(m, localProfile.activeStyleId, isBuiltIn);
     if (lockedStyle) {
         localProfile.activeStyleId = lockedStyle;
         const ds = hardcodedLogic.directStyles.find(x => x.id === lockedStyle);
@@ -295,7 +298,7 @@ function renderPresetPage(c, { active, activeIsCustom, official, customModes, re
     c.append(`
         <div class="mtab-callout gold" style="margin-bottom: 14px;">
             <i class="fa-solid fa-lightbulb"></i>
-            <span><strong>Pro Tip:</strong> The preset defines the "laws of physics" and pacing of your story. Thinking is the AI's scratchpad before it writes. For the best experience, match V11 Тайна with CoT V11. Picking a preset picks its thinking for you.</span>
+            <span><strong>Pro Tip:</strong> The preset defines the "laws of physics" and pacing of your story. Thinking is the AI's scratchpad before it writes. For the best experience, match V11 Тайна with CoT V11 Тайна. Picking a preset picks its thinking for you.</span>
         </div>
     `);
 

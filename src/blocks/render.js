@@ -25,6 +25,7 @@
 
 import { esc, renderBody } from "./text.js";
 import { BLOCK_TREATMENTS } from "./treatments.js";
+import { chomusukeStatusText, getChomusukeStatus, stopFromIndicator } from "../engine/chomusukeStatus.js";
 
 const CARD_CLASS = "meg-blocks";
 const HIDDEN_ATTR = "data-meg-blocks-hidden";
@@ -422,6 +423,24 @@ export function buildBlocksCard(blocks, opts = {}) {
         panel.appendChild(pane);
         panels.push(pane);
     });
+
+    // Chomusuke at work (plan 019): shown on the last message's card only
+    // while a job runs (body.meg-chomu-busy, features/blocks/chomusukeIndicator.js).
+    if (!opts.preview) {
+        const ind = doc.createElement("span");
+        ind.className = "meg-chomu";
+        // Only the cat and Stop show; what it is doing is in the tooltip.
+        const now = chomusukeStatusText(getChomusukeStatus());
+        ind.title = now ? `Chomusuke: ${now}` : "Chomusuke is working…";
+        ind.innerHTML = `<i class="fa-solid fa-cat meg-chomu-cat"></i><button type="button" class="meg-chomu-stop" title="Stop Chomusuke's jobs"><i class="fa-solid fa-stop"></i> Stop</button>`;
+        ind.addEventListener("click", e => e.stopPropagation());
+        ind.querySelector(".meg-chomu-stop").addEventListener("click", e => {
+            e.stopPropagation();
+            e.preventDefault();
+            stopFromIndicator();
+        });
+        tabs.appendChild(ind);
+    }
 
     // Collapse control sits at the end of the strip, where the drawing put it.
     const chev = doc.createElement("button");

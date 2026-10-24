@@ -29,10 +29,10 @@ import {
     worldFinishExternalRead, worldRecordMissing, worldExtractMessage,
     routedBlockIds, blocksBeginRead, blocksReadNotes, blocksFinishRead,
     notebookViaChomusuke, notebookBeginRead, notebookReadNotes, notebookFinishRead, notebookRecordMissing,
-    notebookCurrentPhase
+    notebookReadKind
 } from "../../state/index.js";
-import { notebookReadForReply } from "../notebook/worker.js";
-import { renderNotebookClerkTask, replyWroteNotebookChanges } from "../../state/modules/notebook/worker.js";
+import { notebookReadForReply, notebookSheetText } from "../notebook/worker.js";
+import { renderNotebookClerkTask, renderNotebookSetupTask } from "../../state/modules/notebook/worker.js";
 import { blocksTasksFor, blocksReadForReply, exchangeText } from "../blocks/worker.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { statsModuleParses } from "../../state/index.js";
@@ -76,8 +76,8 @@ export function combinedTurnWanted(messageId, type) {
     const world = worldEnabled() && worldUpdateMode() === "sidemodel" && !worldModule.parse(text);
     const image = Boolean(ig && ig.enabled && imageViaChomusuke() && dueNow(ig, chat));
     const blocks = routedBlockIds().some(id => !statsModuleParses(id, text));
-    // Live truths to read against (the notebook was running for this reply).
-    const notebook = notebookViaChomusuke() && notebookCurrentPhase() === "running" && !replyWroteNotebookChanges(text);
+    // Live truths to read against, or (plan 018) the setup the reply didn't write.
+    const notebook = Boolean(notebookReadKind(index));
     const plan = { world, image, blocks, notebook };
     return (world + image + blocks + notebook) >= 2 ? plan : null;
 }
@@ -134,7 +134,10 @@ export async function runCombinedTurn(messageId, type, plan) {
                 image: wantImage,
                 onlyIfPhoto: (ig.triggerMode || "always") === "conditional",
                 blocks: bToken ? { notes: blocksReadNotes(bToken, exchange), tasks: blocksTasksFor(bToken.ids) } : null,
-                notebook: nToken ? { notes: notebookReadNotes(nToken), task: renderNotebookClerkTask() } : null
+                notebook: !nToken ? null
+                    : nToken.kind === "setup"
+                        ? { notes: `<Character_Sheet>\n${notebookSheetText()}\n</Character_Sheet>`, task: renderNotebookSetupTask(), setup: true }
+                        : { notes: notebookReadNotes(nToken), task: renderNotebookClerkTask() }
             };
             if (!wantImage) {
                 built = renderCombinedPrompt(common);

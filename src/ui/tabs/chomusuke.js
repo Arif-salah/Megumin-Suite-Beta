@@ -2,7 +2,9 @@
 // Chomusuke — the helper model.
 //
 // Runs background jobs on a second connection profile (SillyTavern Connection
-// Profiles), so the story model never pauses or reloads presets.
+// Profiles), sent straight to it so the story's connection never changes
+// (plan 019; switched for each job only with the Settings fallback on), or on
+// the current connection ("Use my current connection").
 //
 // One page (plan 015): the on switch and the worker connection, then the jobs
 // grouped by what they cost: "After every reply" (a call on every reply, with
@@ -15,11 +17,14 @@ import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import {
     getSillyTavernConnectionProfiles,
     runWithChomusuke,
+    CURRENT_CONNECTION,
+    chomusukeSwitches,
 } from "../../engine/tasks.js";
+import { isChatProfile } from "../../engine/workerRequest.js";
 import { generateQuietPrompt } from "../../st.js";
 import { worldEnabled, notebookEnabled } from "../../state/index.js";
 import { card, switchRow, esc } from "../controls.js";
-import { CHOMUSUKE_SETUP_STEPS, CHOMUSUKE_SETUP_NOTE } from "../modelGuide.js";
+import { chomusukeSetupHtml } from "../modelGuide.js";
 
 // Folds stay as they were across redraws.
 let advancedOpen = false;
@@ -117,8 +122,13 @@ export function renderChomusuke(c) {
     c.empty();
     const cfg = ensureConfig();
     const redraw = () => renderChomusuke(c);
-    const profiles = getSillyTavernConnectionProfiles();
+    // Chat Completion only: we don't support Text Completion.
+    const allProfiles = getSillyTavernConnectionProfiles();
+    const profiles = allProfiles.filter(isChatProfile);
+    const switching = chomusukeSwitches();
+    const onCurrent = cfg.profileId === CURRENT_CONNECTION;
     const worker = profiles.find(p => p.id === cfg.profileId);
+    const textWorker = allProfiles.find(p => p.id === cfg.profileId && !isChatProfile(p));
     const running = Boolean(cfg.enabled && cfg.profileId);
 
     // ── Title + on/off ──
@@ -139,22 +149,32 @@ export function renderChomusuke(c) {
     c.append($head);
 
     // ── Connection ──
-    const conn = card("Worker connection", "The connection profile Chomusuke uses. A fast, cheap model works well: Claude Haiku, Gemini Flash, or a local 7B/8B.");
+    const conn = card("Worker connection", "The connection Chomusuke uses. Chomusuke works best with <b>GLM 5.3 Flash</b>.");
     if (!profiles.length) {
         conn.append(`<div class="igx-banner red"><i class="fa-solid fa-triangle-exclamation"></i>
-            <span>No connection profiles yet. Make one in SillyTavern's connection settings first: the steps are below.</span></div>`);
-    } else {
-        const $line = $(`<div class="igx-inline chx-conn">
-            <select id="chomusuke_worker_profile" class="ps-modern-input">
-                <option value="">Pick a connection profile…</option>
-                ${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === cfg.profileId ? "selected" : ""}>${esc(p.name)} (${p.mode === "cc" ? "Chat" : "Text"})</option>`).join("")}
-            </select>
-            <button type="button" id="btn_test_chomusuke" class="menu_button igx-btn"><i class="fa-solid fa-vial"></i> Test</button>
-        </div>`);
-        conn.append($line);
-        conn.append(`<div id="chomusuke_test_status" class="igx-note">${running ? `Ready on <b>${esc(worker ? worker.name : "your worker")}</b>.` : cfg.enabled ? "Pick a connection profile to start." : "Chomusuke is off: every job below uses your story model."}</div>`);
-
-        // Advanced: where to go back to after a job.
+            <span>No Chat Completion profiles yet. Chomusuke can use your current connection, or you can make a profile for it: the steps are below.</span></div>`);
+    }
+    if (textWorker) {
+        conn.append(`<div class="igx-banner red"><i class="fa-solid fa-triangle-exclamation"></i>
+            <span><b>${esc(textWorker.name)}</b> is a Text Completion profile. Chomusuke only works with Chat Completion: pick another connection.</span></div>`);
+    }
+    conn.append(`<div class="igx-banner"><i class="fa-solid fa-shield-halved"></i>
+        <span>Chomusuke has no jailbreak. A censored model like Gemini can refuse its jobs on an NSFW story and send back nothing. Use an uncensored or less censored model, like <b>GLM 5.3 Flash</b> <i class="fa-solid fa-star" style="color: #fbbf24;" title="Recommended"></i> (recommended) or <b>DeepSeek 4.1 Flash</b>.</span></div>`);
+    const $line = $(`<div class="igx-inline chx-conn">
+        <select id="chomusuke_worker_profile" class="ps-modern-input">
+            <option value="">Pick a connection…</option>
+            <option value="${CURRENT_CONNECTION}" ${onCurrent ? "selected" : ""}>Use my current connection</option>
+            ${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === cfg.profileId ? "selected" : ""}>${esc(p.name)}</option>`).join("")}
+        </select>
+        <button type="button" id="btn_test_chomusuke" class="menu_button igx-btn"><i class="fa-solid fa-vial"></i> Test</button>
+    </div>`);
+    conn.append($line);
+    conn.append(`<div id="chomusuke_test_status" class="igx-note">${running
+        ? (onCurrent ? "Ready on <b>your current connection</b>: the same model as the story, with no switching." : `Ready on <b>${esc(worker ? worker.name : "your worker")}</b>.`)
+        : cfg.enabled ? "Pick a connection to start." : "Chomusuke is off: every job below uses your story model."}</div>`);
+    // Advanced: where to go back to after a job. Only when the connection is
+    // switched for each job; nothing to go back to on the current connection.
+    if (switching && profiles.length && !onCurrent) {
         const $fold = $(`<button type="button" class="igx-fold"><i class="fa-solid fa-chevron-${advancedOpen ? "down" : "right"}"></i> Advanced</button>`);
         const $box = $(`<div class="igx-stack" style="display:${advancedOpen ? "flex" : "none"};">
             <div class="igx-field">
@@ -177,8 +197,7 @@ export function renderChomusuke(c) {
     const open = setupOpen === null ? !profiles.length : setupOpen;
     const $howFold = $(`<button type="button" class="igx-fold"><i class="fa-solid fa-chevron-${open ? "down" : "right"}"></i> How do I make a connection profile?</button>`);
     const $how = $(`<div class="chx-how" style="display:${open ? "flex" : "none"};">
-        <div class="mtab-callout gold mgd-note"><i class="fa-solid fa-triangle-exclamation"></i><span>${CHOMUSUKE_SETUP_NOTE}</span></div>
-        <ol class="chx-steps">${CHOMUSUKE_SETUP_STEPS.map(s => `<li>${s}</li>`).join("")}</ol>
+        ${chomusukeSetupHtml(switching)}
     </div>`);
     $howFold.on("click", () => {
         setupOpen = $how.css("display") === "none";
@@ -258,7 +277,9 @@ export function renderChomusuke(c) {
     occ.append($grid);
     c.append(occ);
 
-    c.append(`<div class="igx-note chx-how"><i class="fa-solid fa-cat"></i> When a job starts, Chomusuke switches to the worker connection, does the job quietly, then switches back. If anything goes wrong, your story connection is put back straight away.</div>`);
+    c.append(switching
+        ? `<div class="igx-note chx-how"><i class="fa-solid fa-cat"></i> When a job starts, Chomusuke switches to the worker connection, does the job quietly, then switches back. If anything goes wrong, your story connection is put back straight away. (Settings: "Switch my connection for each Chomusuke job" is on.)</div>`
+        : `<div class="igx-note chx-how"><i class="fa-solid fa-cat"></i> Chomusuke sends its jobs straight to its connection. Your story connection never changes.</div>`);
 
     // ── Wiring ──
     c.find(".chx-off").on("click", function (e) {
@@ -270,7 +291,7 @@ export function renderChomusuke(c) {
     c.find("#btn_test_chomusuke").on("click", async function () {
         const $btn = $(this);
         const $status = c.find("#chomusuke_test_status");
-        if (!cfg.profileId) { toastr.warning("Pick a connection profile first.", "Chomusuke"); return; }
+        if (!cfg.profileId) { toastr.warning("Pick a connection first.", "Chomusuke"); return; }
         $btn.prop("disabled", true).html(`<i class="fa-solid fa-spinner fa-spin"></i> Testing…`);
         $status.text("Connecting to the worker…");
         try {
@@ -278,11 +299,12 @@ export function renderChomusuke(c) {
                 const r = await generateQuietPrompt({ prompt: "Reply with the single word: OK", quietPrompt: "Reply with the single word: OK" });
                 return typeof r === "string" ? r.trim() : "";
             }, { force: true });
+            const back = switching && cfg.profileId !== CURRENT_CONNECTION ? " Your story connection is back." : "";
             if (reply) {
-                $status.html(`<span class="chx-ok"><i class="fa-solid fa-circle-check"></i> It works: the worker answered, and your story connection is back.</span>`);
-                toastr.success("Chomusuke answered. Your story connection is back.", "Chomusuke");
+                $status.html(`<span class="chx-ok"><i class="fa-solid fa-circle-check"></i> It works: Chomusuke answered.${back}</span>`);
+                toastr.success(`Chomusuke answered.${back}`, "Chomusuke");
             } else {
-                $status.html(`<span class="chx-bad"><i class="fa-solid fa-circle-xmark"></i> The worker sent no text back. Your story connection is back.</span>`);
+                $status.html(`<span class="chx-bad"><i class="fa-solid fa-circle-xmark"></i> Chomusuke sent no text back.${back}</span>`);
             }
         } catch (err) {
             $status.html(`<span class="chx-bad"><i class="fa-solid fa-circle-xmark"></i> The test failed: ${esc(err.message || err)}</span>`);

@@ -20,6 +20,9 @@
 
 import { addons, blocks, models, modes } from "./database.js";
 import { isCoWriterEngine } from "../src/core/engines.js";
+import {
+    FORMATTING_RULES, FINAL_CHECKS, BUILTIN_BAN_LIST,
+} from "../src/prompts/presetFrame.js";
 
 const addonText = id => addons.find(a => a.id === id)?.content || "";
 const blockText = id => blocks.find(b => b.id === id)?.content || "";
@@ -60,6 +63,7 @@ const GATE = {
     onomato: gate(p => !!(p.onomatopoeia && p.onomatopoeia.enabled), "Onomatopoeia", "Language & Add-ons"),
     dice:    gate(p => (p.addons || []).includes("dice")
                     || (p.addons || []).includes("dice_all"), "Dice", "Add-ons"),
+    banBuiltIn: gate(p => p.banListBuiltIn !== false, "Built-in list", "Banned Phrases"),
 
     // The one gate keyed on the ENGINE rather than a switch the reader flips.
     // Every engine gets the "never write for {{user}}" rule except the Co-writer
@@ -120,6 +124,10 @@ export const MEGUMIN_SLOT_REGISTRY = [
       advanced: true, hint: "A fake reply from the model, agreeing that it read the rules." },
     { key: "A2", trigger: "[[AI2]]", structural: true, hidden: true, label: "Model Acknowledgement 2", scope: "engine", group: "engine",
       advanced: true, hint: "The second fake acknowledgement." },
+    { key: "contentRules", trigger: "[[content]]", label: "Content Rules", scope: "engine", group: "engine",
+      hint: "What the story may show and how plainly. Only V11 has one; other presets send nothing here." },
+    { key: "reminderChecks", trigger: "[[reminder_checks]]", label: "This Preset's Final Checks", scope: "engine", group: "engine",
+      hint: "Checks only this preset adds to the final reminder, one per line. They are numbered for you." },
 
     // ── Reasoning ────────────────────────────────────────────────────────────
     { key: "cot", trigger: "[[COT]]", label: "Chain of Thought", scope: "engine", group: "reasoning",
@@ -158,8 +166,11 @@ export const MEGUMIN_SLOT_REGISTRY = [
       ] },
     { key: "userControl", trigger: "[[user]]", label: "Never Write For {{user}}", scope: "shared", group: "systems",
       gate: GATE.notCoWriter,
-      hint: "Sent on every engine except the Co-writer variants, which are built to write {{user}}. It lands in the preset's numbered final reminder list, so keep it written as a numbered line.",
+      hint: "Sent on every engine except the Co-writer variants, which are built to write {{user}}. The last line of the final reminder. Older presets number that list by hand, so keep it written as a numbered line; on V11 the number is counted for you.",
       fallback: () => "5. The response does not speak, think, feel, or act for {{user}}, and it shows everything {{user}} reached for." },
+    { key: "finalChecks", trigger: "[[final_checks]]", label: "Final Checks", scope: "shared", group: "systems",
+      hint: "The checks at the top of the final reminder, one per line. They are numbered for you.",
+      fallback: () => FINAL_CHECKS },
     { key: "direct", trigger: "[[Direct]]", label: "Direct Language", scope: "shared", group: "systems",
       gate: GATE.addon("direct"), hint: "Blunt anatomical wording instead of euphemism.",
       fallback: () => addonText("direct") },
@@ -176,8 +187,15 @@ export const MEGUMIN_SLOT_REGISTRY = [
       gate: GATE.dnratio, hint: "How much of a reply should be speech versus description.",
       fallback: () => "Ratio: Maintain a balance of 50% Dialogue and 50% Narration." },
     { key: "banlist", trigger: "[[banlist]]", label: "Ban List (your additions)", scope: "shared", group: "format",
-      hint: "Added to the end of the built-in ban list. The built-in part lives in the preset and is not edited here.",
+      hint: "Your banned phrases from the Banned Phrases tab, sent under the built-in list.",
       fallback: () => "" },
+    { key: "banlistBuiltIn", trigger: "[[banlist_builtin]]", label: "Ban List (built-in)", scope: "shared", group: "format",
+      gate: GATE.banBuiltIn,
+      hint: "The phrases and habits the story never uses. Can be switched off in the Banned Phrases tab.",
+      fallback: () => BUILTIN_BAN_LIST },
+    { key: "formattingRules", trigger: "[[formatting_rules]]", label: "Formatting Rules", scope: "shared", group: "format",
+      hint: "The lines under FORMATTING RULES: don't repeat the last two turns, and open each reply differently.",
+      fallback: () => FORMATTING_RULES },
 
     // ── Shared fragments that happen to be output blocks ─────────────────────
     { key: "info", trigger: "[[infoblock]]", carrier: "blocks", label: "World State Block", scope: "shared", group: "blocks",
@@ -221,6 +239,34 @@ export const MEGUMIN_SLOT_REGISTRY = [
       hint: "How to keep the notebook's hidden truths. Empty while the notebook is off or paused." },
     { key: null, trigger: "[[blocks]]", label: "Output Blocks", scope: "auto", group: "live", where: "Blocks",
       hint: "The whole <Blocks> envelope, assembled from the blocks you switched on." },
+    // Plan 017: a section and its header in one slot (src/engine/presetSections.js).
+    // Made of the slots above, so edit those; these only put them together.
+    { key: null, trigger: "[[thinking]]", label: "Thinking Steps", scope: "auto", group: "live", where: "Preset & Thinking",
+      gate: GATE.think, hint: "The \"your thinking steps\" heading and the Thinking Tags. With thinking off, the heading goes too." },
+    { key: null, trigger: "[[formatting]]", label: "Formatting Rules section", scope: "auto", group: "live", where: "Writing Style",
+      hint: "The FORMATTING RULES heading with the ratio, colours, formatting rules, direct language and tags under it." },
+    { key: null, trigger: "[[banned]]", label: "Ban List section", scope: "auto", group: "live", where: "Banned Phrases",
+      hint: "The built-in list and your phrases together. Nothing is sent when both are off or empty." },
+    { key: null, trigger: "[[reminder]]", label: "Final Reminder", scope: "auto", group: "live", where: "Preset & Thinking",
+      hint: "The final checks, numbered: the shared ones, the ban list one while a ban list is sent, the preset's own, and Never Write For {{user}}." },
+    // Plan 018: the V11 preset sends the rules once, up top, and only what is
+    // new each turn at the end. Older presets use the combined slots above.
+    { key: null, trigger: "[[block_rules]]", label: "Block Rules", scope: "auto", group: "live", where: "Blocks",
+      hint: "How to fill World State and the Notebook, sent up top. The blocks to write this turn are in This Turn." },
+    { key: null, trigger: "[[dice_rules]]", label: "Dice Rules", scope: "auto", group: "live", where: "Language & Add-ons",
+      gate: GATE.addon("dice"), hint: "The Dice rules without this turn's numbers. Edit them in Dice; the numbers are in This Turn." },
+    { key: null, trigger: "[[img_rules]]", label: "Image Rules (top)", scope: "auto", group: "live", where: "Images",
+      hint: "How to write an image tag, sent up top. This Turn says when one is due, with the characters in the scene." },
+    { key: null, trigger: "[[npc_rules]]", label: "NPC Rules (top)", scope: "auto", group: "live", where: "NPC Bank",
+      hint: "How to write a new character's dossier and update a known one, sent up top. Built from the NPC Bank's fields." },
+    { key: null, trigger: "[[addon_rules]]", label: "Add-on Rules", scope: "auto", group: "live", where: "Language & Add-ons",
+      hint: "The add-ons you switched on (Death, Combat, Organic NPCs, Immersive HTML, Onomatopoeia), each in its own section, sent up top." },
+    { key: null, trigger: "[[storyplan_rules]]", label: "Story Director: Unrestricted Content", scope: "auto", group: "live", where: "Story Director",
+      gate: GATE.plan, hint: "The Story Director's unrestricted content rule, sent up top." },
+    { key: null, trigger: "[[storyplan_now]]", label: "Story Director: Current Plan", scope: "auto", group: "live", where: "Story Director",
+      gate: GATE.plan, hint: "The Story Director's current plan, sent after the chat." },
+    { key: null, trigger: "[[this_turn]]", label: "This Turn", scope: "auto", group: "live", where: "Blocks",
+      hint: "Only what is new this turn: the dice numbers, the image when one is due, and the blocks to write." },
     { key: null, trigger: "[[long-Memory]]", label: "Long-term Memory", scope: "auto", group: "live", where: "Memory",
       hint: "Archived summaries pulled from the vault for this turn." },
     { key: null, trigger: "[[Short-memory]]", label: "Short-term Memory", scope: "auto", group: "live", where: "Memory",
@@ -239,6 +285,9 @@ export const MEGUMIN_SLOT_REGISTRY = [
     { key: null, trigger: "[[aiprompt]]", label: "Narration Style", scope: "auto", group: "live",
       where: "Writing Style",
       hint: "Your writing style, wrapped differently depending on the engine generation." },
+    { key: null, trigger: "[[style]]", label: "Writing Style (as written)", scope: "auto", group: "live",
+      where: "Writing Style",
+      hint: "The style you picked, exactly as written, for presets that say \"You narrate as [[style]]\". Falls back to V11 Default." },
     { key: null, trigger: "[[OOC]]", label: "OOC Protocol", scope: "auto", group: "live", where: "Persona",
       hint: "Out-of-character directives. Blanked on V8 and V9." },
     { key: null, trigger: "[[control]]", label: "Control Protocol", scope: "auto", group: "live", where: "Persona",

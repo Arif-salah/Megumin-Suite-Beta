@@ -16,11 +16,19 @@ import { setActiveWorldExtractRequest } from "../../core/activeRequests.js";
 import {
     notebookViaChomusuke, notebookBeginRead, notebookReadNotes, notebookFinishRead, notebookRecordMissing, notebookAbandonRead
 } from "../../state/index.js";
-import { renderNotebookWorkerPrompt } from "../../state/modules/notebook/worker.js";
+import { renderNotebookWorkerPrompt, renderNotebookSetupWorkerPrompt } from "../../state/modules/notebook/worker.js";
 import { exchangeText, earlierText } from "../blocks/worker.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 
 const sub = t => { try { return substituteParams(t); } catch (e) { return t; } };
+
+/** The character card, for writing the notebook's truths (plan 018). */
+export function notebookSheetText() {
+    return ["{{description}}", "{{personality}}", "{{scenario}}"]
+        .map(m => String(sub(m) || "").trim())
+        .filter(s => s && !/^\{\{\w+\}\}$/.test(s))
+        .join("\n\n");
+}
 
 let queue = Promise.resolve();
 
@@ -41,11 +49,17 @@ export function notebookReadForReply(index, { force = false } = {}) {
         try {
             raw = await runWithChomusuke("notebook", async () => {
                 // Built when this job has the worker, so it sees whatever landed before it.
-                const built = renderNotebookWorkerPrompt({
-                    notes: notebookReadNotes(token),
-                    earlier: earlierText(token.index),
-                    exchange: exchangeText(token.index, token.text)
-                });
+                const built = token.kind === "setup"
+                    ? renderNotebookSetupWorkerPrompt({
+                        sheet: notebookSheetText(),
+                        earlier: earlierText(token.index),
+                        exchange: exchangeText(token.index, token.text)
+                    })
+                    : renderNotebookWorkerPrompt({
+                        notes: notebookReadNotes(token),
+                        earlier: earlierText(token.index),
+                        exchange: exchangeText(token.index, token.text)
+                    });
                 setActiveWorldExtractRequest({ system: sub(built.system), user: sub(built.user), job: "notebook" });
                 try {
                     return await generateQuietPrompt({ prompt: "___PS_WORLD_EXTRACT___", quietPrompt: "___PS_WORLD_EXTRACT___" });

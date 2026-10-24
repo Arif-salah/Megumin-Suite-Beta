@@ -9,6 +9,70 @@ README on the stable branch.
 
 ---
 
+## 2026-10-24
+
+> A Model Setup tab that sets everything up for your model, three new V11 Тайна
+> presets, and a Chomusuke that leaves your story connection alone.
+
+### Model Setup: the settings tested for your model
+
+- **A new first tab, Model Setup.** Pick your model and you get the settings tested for it: the preset, custom thinking, the length, the ban list, Immersive HTML and Chomusuke. Press **Use this loadout** and they're set.
+- **Four loadouts so far:** Gemini Pro (Gemini 3.1 Pro, 2.5 Pro, Gemini 4), Claude (Opus 5.5), Big open models (GLM 5.3, GLM 5.3 Flash) and Fast models (DeepSeek). Gemini Flash, Overthinkers (Kimi K3, Xiaomi MiMo V2.6) and Local (Gemma 4 31B, Qwen 3.8 27B) are coming later.
+- **Each loadout tells you what to watch for.** On Gemini 4, keep custom thinking off; on Gemini 3.1 Pro and 2.5 Pro, turn it on. Claude and GLM want the prefill off. DeepSeek needs Chomusuke, because it leaves out the blocks, World State, the notebook and the image tags.
+- **Change a setting before you use it.** The page lists what the loadout will set. Changing one there only changes what **Use this loadout** writes.
+- **Every character, or only this one.** A loadout goes to all your characters unless you tick **Only this character**. A tab set to Global still reaches every character either way.
+- **One Chomusuke row** (Off or On) sends every block and job to Chomusuke at once.
+- **The Model guide button** on Preset & Thinking opens this tab now.
+
+### V11 Тайна: three versions and a new style
+
+- **New in the preset list:** V11 Тайна (one voice), V11 Тайна · Writers' Room, and V11 Тайна DeepSeek, which has one more line so DeepSeek stops treating the character as the player. The first V11 is now called V11 Тайна Preview.
+- **A new writing style, V11 Inside.** Switching between V11 presets keeps V11 Inside, or your own style if you wrote one.
+- **The rules go once, at the top.** Blocks, Bonds, characters, dice, images and add-ons each have their own section at the top of the prompt. The end carries only what's new this turn (the dice numbers, the image ask, the blocks to fill in), so the top stays the same from turn to turn and caches.
+- **The V11 preset is all slots.** Turn a section off and its heading goes with it. The character sheet, persona and history tags and the closing fiction lines sit in the preset as plain text, so you can edit them there.
+- **A short ban list.** Banned Phrases offers Full or Short, and you can switch off or edit the built-in list.
+- **A new length: 250 to 350 words, longer for fights and sex.** The Big open models and Fast models loadouts use it.
+- **The point-of-view setting** only tells the model what your character is called.
+
+### The Notebook
+
+- **Its truths are about the world and the other characters.** Your own character's past and reasons stay yours, on every preset.
+- **Chomusuke writes the first truths** when a reply leaves them out (with the Notebook route on).
+- **The truths stay out of the image prompt.**
+
+### Chomusuke sends its jobs straight to its connection
+
+- **Your story connection never changes.** Chomusuke used to switch SillyTavern over to its profile for each job and back afterwards. Now each job goes straight to Chomusuke's own profile. Nothing switches, the chat never reloads, and you don't need a Story profile.
+- **Setup takes one profile.** Connect the model Chomusuke should use, save a connection profile named **Chomusuke**, and connect your story model again. Then pick the profile in the Chomusuke tab and press **Test**. You can stop unchecking Settings Preset and Regex Preset.
+- **Or use the story's model.** Pick **Use my current connection** and Chomusuke needs no profile at all.
+- **One setup for every character.** Chomusuke's connection and jobs are the same whichever character you're on.
+- **Its reply length comes from its profile's preset**, or from your story's when the profile has none.
+- **It still waits for the story.** Chomusuke reads a reply once the reply is finished. If you send a message while it's still reading World State, Blocks or the Notebook, your message waits up to 30 seconds so the next reply sees them.
+- **Errors show the API's own message:** a wrong key, a model that doesn't exist, a rate limit.
+- **Chat Completion only.** The list shows only Chat Completion profiles, and a Text Completion profile you picked earlier gets a red note.
+- **The old switching is still there** as **Switch my connection for each Chomusuke job** in Settings. Turn it on and the Story profile steps and the presets note come back with it.
+
+### See what Chomusuke is doing, and stop it
+
+- **A cat on the blocks bar.** While Chomusuke has a job running or waiting, a pulsing cat and a **Stop** button sit on the last message's blocks bar. Hover the cat to see the job, for example "Chomusuke: World State… (1 more waiting)".
+- **Stop** cancels the running job and the ones waiting, with no warning popup.
+- **Leaving a chat stops the jobs queued for it.**
+
+### Pick a model that won't refuse
+
+- **Chomusuke has no jailbreak.** The Chomusuke tab says so: a censored model like Gemini can refuse an NSFW story and send back nothing. Use an uncensored or less censored model, like **GLM 5.3 Flash** ★ (recommended) or **DeepSeek 4.1 Flash**.
+- **An empty answer comes with a hint.** The popup says a censored model may have refused and suggests a less censored one.
+- **Chomusuke skips empty replies.** A reply with nothing in it gets no read, no blocks and no image.
+- **Image prompts and tags are always in English**, whatever language the story is in.
+
+### Fixes
+
+- Buttons in the chat card no longer stack their label one letter per line.
+- The ban list row on Model Setup reads **Full list**, **Short list** or **Only your phrases**.
+- Dev Mode shows V11 Тайна's own tags.
+
+---
+
 ## 2026-10-18
 
 > Chomusuke tells you when something goes wrong, and World State stops

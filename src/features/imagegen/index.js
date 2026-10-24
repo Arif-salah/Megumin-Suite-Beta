@@ -16,7 +16,7 @@ import { showKazumaProgress } from "../../ui/progress.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
 import { igGenerateWithComfy, setImagePromptResolver } from "./comfy.js";
 import { classicGenerateImagePromptText, classicInlineNpcTags } from "./classic/prompt.js";
-import { v2GenerateImagePromptText, v2InlineInstruction, v2ResolveForComfy, v2PrepareImagePrompt } from "./v2/index.js";
+import { v2GenerateImagePromptText, v2InlineInstruction, v2InlineSplit, v2ResolveForComfy, v2PrepareImagePrompt } from "./v2/index.js";
 import { imageGenEngine } from "./engineChoice.js";
 
 export {
@@ -57,6 +57,11 @@ export function imageInjectionNpcTags() {
 /** V2 replaces the whole inline instruction; null on Classic. */
 export function imageV2InlineInstruction(opts) {
     return imageGenEngine() === "v2" ? v2InlineInstruction(opts) : null;
+}
+
+/** V2's instruction split for the V11 preset (plan 018); null on Classic. */
+export function imageV2InlineSplit(opts) {
+    return imageGenEngine() === "v2" ? v2InlineSplit(opts) : null;
 }
 
 export async function igManualGenerate() {

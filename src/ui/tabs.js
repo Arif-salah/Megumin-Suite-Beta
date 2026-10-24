@@ -13,6 +13,7 @@ import { TAB_SYNC_KEYS, TABS_ALREADY_GLOBAL, meguminGlobalSyncMap, meguminIsTabS
 import { saveSettingsDebounced } from "../st.js";
 import { updateLiveTokenCount } from "../core/tokens.js";
 import { renderCoreAndCot } from "./tabs/coreAndCot.js";
+import { renderModelSetup } from "../features/modelsetup/ui.js";
 import { renderPersonality, personaTabInUse } from "./tabs/personality.js";
 import { renderGlobalAndBlocks } from "./tabs/globalAndBlocks.js";
 import { renderSidePanelTab } from "./tabs/sidePanelTab.js";
@@ -34,6 +35,7 @@ import { renderChomusuke } from "./tabs/chomusuke.js";
 // The title is also the global-sync key (core/sync.js), so renaming one needs a
 // line in RENAMED_TABS (core/migrations.js).
 export const tabsUI = [
+    { id: "setup", title: "Model Setup", sub: "Pick your model and use the settings tested for it.", icon: "fa-compass", render: renderModelSetup },
     { id: "preset", title: "Preset & Thinking", sub: "Choose the preset, how it thinks, and the story's standing rules.", icon: "fa-server", render: renderCoreAndCot },
     { id: "blocks", title: "Blocks", sub: "What goes in the block under each reply, in what order, and how it looks.", icon: "fa-cubes", render: renderBlocksTab },
     { id: "notebook", title: "The Notebook", sub: "The truths the story is hiding, the clues it plants, and when they come out.", icon: "fa-book", render: renderNotebookTab },
@@ -229,7 +231,9 @@ export function toggleTabGlobalSync() {
         return;
     }
     if (!TAB_SYNC_KEYS[title]) {
-        toastr.info("This tab has nothing to sync.", "Megumin Suite");
+        toastr.info(title === "Model Setup"
+            ? "A loadout goes to every character unless you turn on Only this character."
+            : "This tab has nothing to sync.", "Megumin Suite");
         return;
     }
 
@@ -275,7 +279,9 @@ export function updateGlobalSyncButton() {
 
     if (alreadyGlobal || !syncable) {
         btn.html(`<i class="fa-solid fa-earth-americas"></i> Global`)
-            .attr("title", alreadyGlobal ? "This tab is stored globally already." : "This tab has nothing to sync.")
+            .attr("title", alreadyGlobal ? "This tab is stored globally already."
+                : title === "Model Setup" ? "A loadout goes to every character unless you turn on Only this character."
+                : "This tab has nothing to sync.")
             .css({ color: "var(--text-muted)", "border-color": "var(--border-color)", opacity: "0.55" });
         return;
     }

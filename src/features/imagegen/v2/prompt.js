@@ -14,7 +14,7 @@ import { renderBlocksTasks } from "../../../state/modules/stats/worker.js";
 
 // Every section a combined answer can carry besides the image prompt (plan 009
 // adds the blocks Chomusuke writes), so none of them leaks into the prompt.
-const SECTION_TAGS = ["Outfit_Tags", "Character_Visual", "World_Update", "World_State", "Bonds", "Character_Sheet", "NPC_Inner_Chatter", "CYOA", "Notebook_Update"];
+const SECTION_TAGS = ["Outfit_Tags", "Character_Visual", "World_Update", "World_State", "Bonds", "Character_Sheet", "NPC_Inner_Chatter", "CYOA", "Notebook_Update", "Notebook"];
 const ANY_SECTION = SECTION_TAGS.join("|");
 
 export const V2_STYLES = ["tags", "natural"];
@@ -88,7 +88,7 @@ export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", 
     const guide = focusRule(method === "reference"
         ? [P.reference.head, P.reference[style] || P.reference.tags].join("\n")
         : (P.style[style] || P.style.tags), String(focus));
-    const parts = [guide, P.shot[shot] || P.shot.cinematic];
+    const parts = [guide, P.shot[shot] || P.shot.cinematic, P.inEnglish];
     if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
     // A blank line, so the shot line never reads as part of the example above it.
     return parts.join("\n\n");
@@ -132,6 +132,20 @@ export function renderV2InlineInstruction({ conditionalText = "", imageCount = 1
     return [head, castList, method === "reference" ? previousBlock(previous) : "", rules, P.inlineTail].filter(Boolean).join("\n");
 }
 
+/**
+ * The same instruction split for the V11 preset (plan 018): the rules, the
+ * same every turn, and what changes with the scene (the cast, the previous
+ * prompt), which goes in <turn_notes>.
+ * @returns {{ rules: string, turn: string }}
+ */
+export function renderV2InlineSplit({ conditionalText = "", castList = "", rules = "", method = "placeholders", previous = "" } = {}) {
+    const head = P.inlineHeadSplit.replace("{{conditionalText}}", conditionalText || "");
+    return {
+        rules: [head, rules, P.inlineTail].filter(Boolean).join("\n"),
+        turn: [castList, method === "reference" ? previousBlock(previous) : ""].filter(Boolean).join("\n"),
+    };
+}
+
 // ── One call, several answers ────────────────────────────────────────────
 // The image call can also bring the outfit tags that went stale and the looks
 // that are missing, so an image never costs more than one background call.
@@ -153,6 +167,7 @@ export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = fa
         parts.push(`- Outfit tags ${who}: main garments only, 3 to 6 booru tags, one tag per garment with its colour, material and print ("oversized pink sweater", "white cat print bra"; never two tags for one garment), plus one standout accessory; plain over detailed; keep the state of dress; clothing only, nothing the text does not say.`);
         parts.push(...outfits.map(o => `  ${o.name}: ${o.outfit}`));
     }
+    if (outfits.length || followUpdate || looks.length) parts.push(`- ${P.tagsInEnglish}`);
     if (looks.length) {
         parts.push(`- Appearance of ${looks.join(", ")} as 8 to 12 booru tags each, from the story and <Character_Sheets>: always start with sex (male or female) and an age tag (young adult, adult, mature female, mature male, old woman, old man; never a number like "30s"), then hair, eye colour, skin, build, permanent features. A feminine-looking man gets "otoko no ko, flat chest"; a masculine-looking woman gets "tomboy". One tag per thing, never two that fight (petite with tall), only real booru tags ("mole under eye", not "moles"), no small face details (nose, lips, eyelashes). No clothing, expressions, poses or count tags. Skip anyone the text does not describe.`);
     }
@@ -291,7 +306,7 @@ export function renderCombinedPrompt(a) {
             notebook ? notebook.task.template : ""
         ].filter(Boolean).join("\n")
     ].filter(s => String(s || "").trim()).join("\n\n");
-    return { system: combinedSystem({ world: Boolean(world), image, blocks: Boolean(blocks), notebook: Boolean(notebook) }), user, prefill: world ? `<${tag}>\n` : "" };
+    return { system: combinedSystem({ world: Boolean(world), image, blocks: Boolean(blocks), notebook: notebook ? (notebook.setup ? "setup" : "read") : false }), user, prefill: world ? `<${tag}>\n` : "" };
 }
 
 // The system line for whatever the call does. World State + image keeps the
@@ -301,10 +316,14 @@ function combinedSystem({ world, image, blocks, notebook = false }) {
     const jobs = [];
     if (world) jobs.push("note what it changed in the world");
     if (blocks) jobs.push("keep the story's running notes (how the characters feel about {{user}}, {{user}}'s condition and belongings, their private thoughts, the choices open next)");
-    if (notebook) jobs.push("keep the author's notebook (the clues it shows, who finds out a hidden truth, what comes out)");
+    if (notebook === "setup") jobs.push("start the author's notebook (two or three truths the story keeps hidden)");
+    else if (notebook) jobs.push("keep the author's notebook (the clues it shows, who finds out a hidden truth, what comes out)");
     if (image) jobs.push("write an image prompt for the moment it ends on");
     const last = jobs.pop();
     const list = jobs.length ? `${jobs.join(", ")} and ${last}` : last;
+    // The notebook's truths are the one thing it makes up: no fact-rule for them.
     return `You follow an ongoing roleplay. You read the latest exchange and ${list}. ` +
-        "You never continue the story, never explain, and never add facts the exchange does not state or clearly show.";
+        (notebook === "setup"
+            ? "You never continue the story and never explain. Apart from the notebook's truths, you never add facts the exchange does not state or clearly show."
+            : "You never continue the story, never explain, and never add facts the exchange does not state or clearly show.");
 }

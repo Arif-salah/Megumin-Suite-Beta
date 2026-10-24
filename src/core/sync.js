@@ -29,16 +29,16 @@ export const TAB_SYNC_KEYS = {
     "Blocks": ["blockStack", "statBlocks", "blocks", "hideBlocksFromAI"],
     "Story Director": ["storyPlan"],
     "The Notebook": ["notebook"],
-    "Banned Phrases": ["banList", "banListBackend", "banListCustomPromptsEnabled", "banListCustomPrompts"],
+    "Banned Phrases": ["banList", "banListBuiltIn", "banListShort", "banListBackend", "banListCustomPromptsEnabled", "banListCustomPrompts"],
     "Images": ["imageGen"],
     "NPC Bank": ["npcBank"],
-    "Memory": ["memoryCore"],
-    "Chomusuke": ["chomusuke"]
+    "Memory": ["memoryCore"]
 };
 
-// These two are stored globally already, so there is nothing per-character to keep
-// in step and the toggle has no meaning on them.
-export const TABS_ALREADY_GLOBAL = ["Side Panel", "Settings"];
+// These are stored globally already, so there is nothing per-character to keep
+// in step and the toggle has no meaning on them. Chomusuke (plan 018) is one
+// setup in extension_settings, not a copy per profile.
+export const TABS_ALREADY_GLOBAL = ["Side Panel", "Settings", "Chomusuke"];
 
 // ── Story Config's own opt-out ───────────────────────────────────────────────
 //

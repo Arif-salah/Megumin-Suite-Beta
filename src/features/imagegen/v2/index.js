@@ -13,7 +13,7 @@ import { meguminCleanChatHistoryText } from "../../../engine/chatText.js";
 import { getWorldState, worldHasState } from "../../../state/index.js";
 import { buildImageCast, inImage, needsLook } from "./cast.js";
 import { resolveImagePrompt } from "./resolve.js";
-import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2Extras, splitCombinedAnswer } from "./prompt.js";
+import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2InlineSplit, renderV2Extras, splitCombinedAnswer } from "./prompt.js";
 import { refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSourceFor } from "./looks.js";
 
 export const V2_DEFAULTS = {
@@ -176,6 +176,19 @@ export function v2InlineInstruction({ conditionalText = "", imageCount = 1 } = {
         method: cfg.method,
         previous: getLastImagePrompt()
     }));
+}
+
+/** The V11 preset's split of the same instruction: rules up top, the cast in <turn_notes>. */
+export function v2InlineSplit({ conditionalText = "" } = {}) {
+    const cfg = v2Settings();
+    const out = renderV2InlineSplit({
+        conditionalText,
+        castList: renderCastList(currentImageCast(), { shot: cfg.shot, method: cfg.method }),
+        rules: rules(),
+        method: cfg.method,
+        previous: getLastImagePrompt()
+    });
+    return { rules: sub(out.rules), turn: sub(out.turn) };
 }
 
 // ── Every image, just before ComfyUI ─────────────────────────────────────
