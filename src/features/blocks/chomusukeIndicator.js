@@ -13,7 +13,7 @@ export function initChomusukeIndicator() {
     onChomusukeStatus(s => {
         const busy = Boolean(s.running || s.waiting);
         document.body.classList.toggle("meg-chomu-busy", busy);
-        if (busy) $(".meg-chomu-text").text(`Chomusuke: ${chomusukeStatusText(s)}`);
+        if (busy) $(".meg-chomu").attr("title", `Chomusuke: ${chomusukeStatusText(s)}`);
     });
     setChomusukeStopHandler(() => {
         const n = stopChomusukeJobs();

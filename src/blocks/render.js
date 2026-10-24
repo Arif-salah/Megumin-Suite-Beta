@@ -429,8 +429,10 @@ export function buildBlocksCard(blocks, opts = {}) {
     if (!opts.preview) {
         const ind = doc.createElement("span");
         ind.className = "meg-chomu";
+        // Only the cat and Stop show; what it is doing is in the tooltip.
         const now = chomusukeStatusText(getChomusukeStatus());
-        ind.innerHTML = `<i class="fa-solid fa-cat meg-chomu-cat"></i><span class="meg-chomu-text">${esc(now ? `Chomusuke: ${now}` : "Chomusuke is working…")}</span><button type="button" class="meg-chomu-stop" title="Stop Chomusuke's jobs"><i class="fa-solid fa-stop"></i> Stop</button>`;
+        ind.title = now ? `Chomusuke: ${now}` : "Chomusuke is working…";
+        ind.innerHTML = `<i class="fa-solid fa-cat meg-chomu-cat"></i><button type="button" class="meg-chomu-stop" title="Stop Chomusuke's jobs"><i class="fa-solid fa-stop"></i> Stop</button>`;
         ind.addEventListener("click", e => e.stopPropagation());
         ind.querySelector(".meg-chomu-stop").addEventListener("click", e => {
             e.stopPropagation();

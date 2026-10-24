@@ -3298,7 +3298,6 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu {
 body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { margin-left: 0; }
 .meg-chomu-cat { color: #f43f5e; animation: meg-chomu-pulse 1.2s ease-in-out infinite; }
 @keyframes meg-chomu-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
-.meg-chomu-text { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .meg-chomu-stop {
   display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
   padding: 3px 9px; border-radius: 999px; font: inherit; font-size: .68rem;
@@ -3351,7 +3350,6 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
   .meg-blocks-tab:has(.meg-blocks-tab-emoji:empty) .meg-blocks-tab-label { display: inline; }
   .meg-blocks-tab-named .meg-blocks-tab-label { max-width: 110px; }
   .meg-blocks-collapse { padding: 10px 13px; }
-  .meg-chomu-text { display: none; }
 }
 
 /* ---- CYOA CHOICES (clickable) ---- */
