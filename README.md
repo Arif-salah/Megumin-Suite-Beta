@@ -9,6 +9,39 @@ README on the stable branch.
 
 ---
 
+## 2026-10-24
+
+> Chomusuke leaves your story connection alone, and you can see what it's doing
+> and stop it.
+
+### Chomusuke sends its jobs straight to its connection
+
+- **Your story connection never changes.** Chomusuke used to switch SillyTavern over to its profile for each job and back afterwards. Now it sends each job straight to its own profile: no switching, no chat reload, and no Story profile to keep picked.
+- **Setup takes one profile.** Connect the model Chomusuke should use, save a connection profile named **Chomusuke**, connect your story model again, then pick the profile in the Chomusuke tab and press **Test**. You no longer need to uncheck Settings Preset and Regex Preset.
+- **Its reply length comes from its own profile's preset**, or from your story's when the profile has none.
+- **It still waits for the story.** Chomusuke reads a reply only once it's finished. If you send a message while it's still reading World State, Blocks or the Notebook, your message waits a moment (30 seconds at most) so the next reply sees them.
+- **Errors say what the API said:** a wrong key, a model that doesn't exist, a rate limit.
+- **Chat Completion only.** The list shows only Chat Completion profiles, and a Text Completion profile you picked before gets a red note.
+- **The old way is still there.** Turn on **Switch my connection for each Chomusuke job** in Settings if you need the switching back. The Story profile steps and the presets note come back with it.
+
+### See what Chomusuke is doing, and stop it
+
+- **A cat on the blocks bar.** While Chomusuke works or has jobs waiting, a pulsing cat and a **Stop** button show on the last message's blocks bar. Hover the cat to see the job ("Chomusuke: World State… (1 more waiting)").
+- **Stop** cancels the running job and the ones waiting. A stopped job doesn't warn you.
+- **Leaving a chat stops the jobs queued for it**, so they don't run for a chat you're not in.
+
+### Pick a model that won't refuse
+
+- **Chomusuke has no jailbreak.** The Chomusuke tab says so: a censored model like Gemini can refuse an NSFW story and send back nothing. Use an uncensored or less censored model, like **GLM 5.3 Flash** ★ (recommended) or **DeepSeek 4.1 Flash**.
+- **An empty answer says why it may be empty.** The popup says a censored model may have refused, and to try a less censored one.
+
+### Also
+
+- **Chomusuke skips empty replies.** It doesn't read a reply that has nothing in it.
+- **Image prompts and tags are always in English**, whatever language the story is in.
+
+---
+
 ## 2026-10-18
 
 > Chomusuke tells you when something goes wrong, and World State stops

@@ -188,4 +188,8 @@ Every job, the new way and then with the fallback switch on:
     pure + `tests/chomusuke-status.test.mjs`; `features/blocks/chomusukeIndicator.js`;
     the slot in `blocks/render.js`; `body.meg-chomu-busy` in `style.css`). On a
     phone only the cat and Stop show.
-- [ ] Phase 4: docs
+- [x] Phase 4: docs (2026-10-24)
+  - CLAUDE.md: the Chomusuke worker section (no switching, the fallback, the
+    waits, Stop and the indicator; the deadlock rule still holds for the queue).
+  - README: the 2026-10-24 entry. The release post (`DISCORD_CHANGELOG.md`):
+    the opening lines, the Chomusuke post and the setup steps.
