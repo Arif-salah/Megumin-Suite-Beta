@@ -21,7 +21,7 @@ import { inImage, needsLook } from "./cast.js";
 import { loreForNames, loreBlock } from "../../../core/lore.js";
 import { imageViaChomusuke } from "../auto.js";
 import {
-    LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey,
+    LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey, sheetNames, lookSourceFor,
     NATURAL_SYSTEM, renderNaturalPrompt, parseNaturalBlocks, matchScanToTargets,
     OUTFIT_SYSTEM, renderOutfitTagsPrompt, parseOutfitBlocks, outfitHash
 } from "./looksCore.js";
@@ -51,13 +51,18 @@ function chatSource(count = 30) {
 }
 
 export function sheetSource() {
-    return buildCharacterSheets().replace(/^Use these sheets for what each character looks like:\s*/, "").trim();
+    return buildCharacterSheets({ personality: true }).replace(/^Use these sheets for what each character looks like:\s*/, "").trim();
 }
 
 /** The sheets plus the lorebook entries about these characters, for a look read in an image call. */
 export async function sheetSourceFor(members) {
     const lore = loreBlock(await loreForNames((members || []).flatMap(m => [m.name, ...(m.aliases || [])])), "lore");
     return [sheetSource(), lore].filter(Boolean).join("\n\n");
+}
+
+// A look for someone on the card counts as read from the card.
+function autoSource(item) {
+    return lookSourceFor(item.key, item.aliases, sheetNames(buildCharacterSheets()));
 }
 
 function writeLook(looks, item, source) {
@@ -110,7 +115,9 @@ async function reviewChanges(plan) {
 // ── Scans ────────────────────────────────────────────────────────────────
 
 /**
- * @param {{ from: "sheet"|"chat", targets?: Array<{ name: string, aliases?: string[] }>, interactive?: boolean }} opts
+ * @param {{ from: "sheet"|"chat"|"auto", targets?: Array<{ name: string, aliases?: string[] }>, interactive?: boolean }} opts
+ *   from: "auto" = the recent chat plus the card's sheets (the card wins), for
+ *     a character who just arrived; "chat" and "sheet" read only that one.
  *   targets: only these characters (by name or nickname); empty = everyone the text describes.
  *   interactive: false (the automatic scan) only ever adds missing looks.
  * @returns {Promise<{ added: string[], changed: string[], locked: string[], same: string[] } | null>}
@@ -118,31 +125,34 @@ async function reviewChanges(plan) {
 export async function scanLooks({ from, targets = [], interactive = true }) {
     const names = targets.map(t => t.name);
     const source = from === "sheet" ? sheetSource() : chatSource();
+    const sheets = from === "auto" ? sheetSource() : "";
     // What the lorebook says about them (everyone in the image cast when no one is named).
     const lore = await loreForNames(targets.length
         ? targets.flatMap(t => [t.name, ...(t.aliases || [])])
         : currentImageCast().flatMap(m => [m.name, ...(m.aliases || [])]));
-    if (!source && !lore) {
+    if (!source && !lore && !sheets) {
         if (interactive) toastr.info(from === "sheet" ? "No character or persona description to read." : "The chat is empty.", "Megumin Suite");
         return null;
     }
     const chatAtStart = getContext()?.chatId;
-    const user = renderLookScanPrompt({ source, sourceLabel: from === "sheet" ? "Character_Sheets" : "Recent_Story", names, lore });
+    const user = renderLookScanPrompt({ source, sourceLabel: from === "sheet" ? "Character_Sheets" : "Recent_Story", names, lore, sheets });
     const raw = await ask(LOOK_SCAN_SYSTEM, user);
     if (getContext()?.chatId !== chatAtStart) return null; // the user moved on: this belongs to another chat
+    // No answer at all (cancelled, refused, failed): the automatic look asks again later.
+    const empty = !String(raw || "").trim();
 
     const scanned = matchScanToTargets(parseLookBlocks(raw), targets);
     if (!scanned.length) {
         if (interactive) toastr.warning("The scan found no appearance to use.", "Megumin Suite");
-        return { added: [], changed: [], locked: [], same: [] };
+        return { added: [], changed: [], locked: [], same: [], empty };
     }
 
     const looks = getLooks();
     const plan = planLookUpdates(looks, scanned);
-    const src = from === "sheet" ? "sheet" : "chat";
-    for (const item of plan.add) writeLook(looks, item, src);
+    const src = item => from === "auto" ? autoSource(item) : from === "sheet" ? "sheet" : "chat";
+    for (const item of plan.add) writeLook(looks, item, src(item));
     const accepted = interactive ? await reviewChanges(plan) : [];
-    for (const item of accepted) writeLook(looks, item, src);
+    for (const item of accepted) writeLook(looks, item, src(item));
     // Nicknames the scan found are worth keeping even where the tags were not.
     for (const item of [...plan.same, ...plan.locked, ...plan.change]) {
         const cur = looks[item.key];
@@ -232,9 +242,22 @@ export function releaseLookAttempts(chatId, members) {
     (members || []).forEach(m => attempted.delete(`${chatId}|${m.name.toLowerCase()}`));
 }
 
+// Automatic look reads still running: an image the story model wrote waits for them.
+const lookReads = new Set();
+
+/** Resolves once no automatic look read is running (now if none is). */
+export async function looksSettled() {
+    while (lookReads.size) await Promise.allSettled([...lookReads]);
+}
+
+/** Names whose automatic look is being read right now. */
+export function looksBeingRead() {
+    return [...lookReads].flatMap(p => p.names || []);
+}
+
 /**
  * Someone in the scene has no look (and no NPC Bank tags): read one for them
- * from the recent chat, in the background, and add it. Never changes an
+ * from the card and the recent chat, in the background, and add it. Never changes an
  * existing look. Only while V2 is the active image engine.
  */
 export function v2LooksForArrivals() {
@@ -251,19 +274,28 @@ export function v2LooksForArrivals() {
     // The image cast already knows who has a look (stored, NPC Bank, or one
     // saved under a first name), so it decides who is missing one.
     const cast = currentImageCast();
+    // The player too (their look comes from the persona), unless the shot is through their eyes.
     const missing = cfg.autoLooks === false ? [] : cast    // off: "Automatic look for new characters"
-        .filter(m => !m.isPc && needsLook(m) && !attempted.has(`${chatId}|${m.name.toLowerCase()}`))
+        .filter(m => needsLook(m, cfg.shot) && !attempted.has(`${chatId}|${m.name.toLowerCase()}`))
         .map(m => ({ name: m.name, aliases: m.aliases || [] }));
     warnLooklessInScene(chatId, cast, cfg.shot, missing);
     if (!missing.length) return;
     missing.forEach(t => attempted.add(`${chatId}|${t.name.toLowerCase()}`));
-    scanLooks({ from: "chat", targets: missing, interactive: false })
+    const read = scanLooks({ from: "auto", targets: missing, interactive: false })
         .then(r => {
-            if (!r || getContext()?.chatId !== chatId) return;
+            // Nothing came back (cancelled, refused, failed): ask again on the next reply.
+            if (!r || r.empty) { releaseLookAttempts(chatId, missing); return; }
+            if (getContext()?.chatId !== chatId) return;
             if (r.added.length) toastr.info(`New look${r.added.length === 1 ? "" : "s"} for ${r.added.join(", ")}.`, "Megumin Suite", { timeOut: 3500 });
             warnLooksNotMade(missing, r.added);
         })
-        .catch(e => console.error("[Megumin-Suite] Automatic look scan failed", e));
+        .catch(e => {
+            releaseLookAttempts(chatId, missing);
+            console.error("[Megumin-Suite] Automatic look scan failed", e);
+        });
+    read.names = missing.map(m => m.name);
+    lookReads.add(read);
+    read.finally(() => lookReads.delete(read));
 }
 
 // ── Detailed outfit tags ─────────────────────────────────────────────────
@@ -301,7 +333,7 @@ export function storeOutfitTags(stale, raw) {
 export function storeNewLooks(targets, raw) {
     const looks = getLooks();
     const plan = planLookUpdates(looks, matchScanToTargets(parseLookBlocks(raw), targets));
-    for (const item of plan.add) writeLook(looks, item, "chat");
+    for (const item of plan.add) writeLook(looks, item, autoSource(item));
     if (plan.add.length) saveProfileToMemory();
     return plan.add.map(x => x.key);
 }

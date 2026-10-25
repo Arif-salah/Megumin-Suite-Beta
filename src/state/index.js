@@ -232,7 +232,7 @@ export function worldSameCharacter(name, into) {
 /** A manual edit from the editor. Returns the entry, or null with no chat open. */
 export function worldEdit(changes) {
     if (!adapter.getMeta() || !Array.isArray(changes) || !changes.length) return null;
-    return stateStore.addUserEntry("world", { kind: "delta", changes, skipped: [], noChanges: false });
+    return stateStore.addUserEntry("world", { kind: "delta", changes, skipped: [], noChanges: false, byUser: true });
 }
 
 export function worldSetEntryDisabled(entryId, disabled) {
@@ -273,6 +273,29 @@ export function worldChatOpen() {
 const pendingExtract = new Set();          // "uid:swipe" being read right now
 let extractQueue = Promise.resolve();
 let stateChangedHook = () => {};
+
+// Reads still open, counted until their answer is filed and the hook has run,
+// so an image waiting on them sees the outfits and the arrivals they bring.
+let readsOpen = 0;
+let readsIdle = [];
+function readOpened() { readsOpen++; }
+function readClosed() {
+    if (readsOpen > 0) readsOpen--;
+    if (readsOpen) return;
+    const waiting = readsIdle;
+    readsIdle = [];
+    waiting.forEach(r => r());
+}
+function closeToken(token) {
+    if (!token || token.closed) return;
+    token.closed = true;
+    readClosed();
+}
+
+/** Resolves once no World State read is running or queued (now if none is). */
+export function worldReadsSettled() {
+    return readsOpen ? new Promise(r => readsIdle.push(r)) : Promise.resolve();
+}
 
 /** Called whenever a background extraction starts or lands (cards redraw). */
 export function setWorldStateChangedHook(fn) {
@@ -343,9 +366,10 @@ export function worldExtractMessage(index, { force = false } = {}) {
     const chatId = getContext()?.chatId;
     const hash = hashText(text);
     pendingExtract.add(key);
+    readOpened();
     stateChangedHook();
 
-    const run = async () => {
+    const read = async () => {
         let out = null;
         let req = null;
         let failure = null;
@@ -403,6 +427,7 @@ export function worldExtractMessage(index, { force = false } = {}) {
         stateChangedHook();
         return true;
     };
+    const run = () => read().finally(readClosed);
 
     const p = extractQueue.then(run, run);
     extractQueue = p.catch(() => {});
@@ -430,8 +455,12 @@ export function worldBeginExternalRead(index) {
     const key = st.uid + ":" + swipe;
     if (pendingExtract.has(key)) return null;
     pendingExtract.add(key);
+    readOpened();
     stateChangedHook();
-    return { index, uid: st.uid, swipe, seq: st.seq, text, hash: hashText(text), key, chatId: getContext()?.chatId };
+    const token = { index, uid: st.uid, swipe, seq: st.seq, text, hash: hashText(text), key, chatId: getContext()?.chatId };
+    // Safety net: a token nobody finishes must not keep images waiting forever.
+    setTimeout(() => closeToken(token), 180000);
+    return token;
 }
 
 /** The notes (state BEFORE the reply) and the exchange, built at run time. */
@@ -457,6 +486,14 @@ function findTokenMessage(token) {
  *   dropped: the reply changed or is gone (nothing filed, no fallback needed)
  */
 export function worldFinishExternalRead(token, raw, prefill = "<World_Update>\n") {
+    try {
+        return finishExternalRead(token, raw, prefill);
+    } finally {
+        closeToken(token);
+    }
+}
+
+function finishExternalRead(token, raw, prefill) {
     pendingExtract.delete(token.key);
     const at = findTokenMessage(token);
     if (at < 0) {
@@ -479,9 +516,11 @@ export function worldFinishExternalRead(token, raw, prefill = "<World_Update>\n"
 export function worldRecordMissing(token) {
     pendingExtract.delete(token.key);
     const at = findTokenMessage(token);
-    if (at < 0) return;
-    stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe: token.swipe, parsed: null });
-    stateChangedHook();
+    if (at >= 0) {
+        stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: ["world"], swipe: token.swipe, parsed: null });
+        stateChangedHook();
+    }
+    closeToken(token);
 }
 
 // ── ST events ────────────────────────────────────────────────────────────
@@ -516,19 +555,23 @@ function activeEngine() {
     return [...(hardcodedLogic.modes || []), ...custom].find(m => m.id === localProfile?.mode) || null;
 }
 
-/** The engine turns the notebook on by itself (the switch can't turn it off). */
-export function notebookForcedByEngine() {
+/** The engine turns the notebook on by itself (V11). The user can still turn it off. */
+export function notebookComesWithEngine() {
     return engineKeepsNotebook(activeEngine());
 }
 
+// V11 has its own switch (offForV11), so turning it off there doesn't change
+// what older engines do, and the other way round.
 export function notebookEnabled() {
     if (!localProfile) return false;
-    return notebookForcedByEngine() || Boolean(localProfile.notebook && localProfile.notebook.enabled);
+    const nb = localProfile.notebook || {};
+    return notebookComesWithEngine() ? !nb.offForV11 : Boolean(nb.enabled);
 }
 
 // There is no per-chat pause any more (it was removed with the tab's "Pause in
-// this chat"): V11's text always speaks of its notebook, so it must always have
-// one. An old chat's `megumin_notebook.paused` flag is simply ignored.
+// this chat"): V11's text always speaks of its notebook, so it only goes off
+// with the tab's switch, behind a warning. An old chat's
+// `megumin_notebook.paused` flag is simply ignored.
 
 export function notebookState() {
     return stateStore.getState("notebook");
