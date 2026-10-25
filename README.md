@@ -11,8 +11,8 @@ README on the stable branch.
 
 ## 2026-10-25
 
-> World State lists stop growing forever, and an image the story model writes
-> waits for the looks it needs.
+> World State lists stop growing forever, an image the story model writes waits
+> for the looks it needs, and the Notebook can be turned off on V11.
 
 ### Threads, Seeds and Timers stay short
 
@@ -30,6 +30,11 @@ README on the stable branch.
 - **Read the look again from the card**: a new button on each character's look popup.
 - **Your own character gets an automatic look** from your persona too.
 - **A look that failed or that you cancelled is asked for again** on the next reply.
+
+### The Notebook
+
+- **You can disable the Notebook on V11 now.** It's not advised, because the V11 engine text refers to its notebook and the story expects one. The switch asks before it turns off, and tells you to go into Dev Mode and edit the V11 engine to remove the lines about the notebook.
+- **Disabling it on V11 doesn't affect older engines.**
 
 ### Fixes
 
