@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     renderLookScanPrompt, renderNaturalPrompt, parseLookBlocks, parseNaturalBlocks, planLookUpdates, findLookKey,
-    LOOK_SCAN_SYSTEM, NATURAL_SYSTEM
+    LOOK_SCAN_SYSTEM, NATURAL_SYSTEM, SHEET_FIRST, sheetNames, lookSourceFor
 } from "../src/features/imagegen/v2/looksCore.js";
 
 const OFF_FRAME = /\b(extension|plugin|app|ledger|database|tracker|interface)\b/i;
@@ -169,4 +169,32 @@ test("look prompts ask for an age tag, never a number", () => {
     const p = renderLookScanPrompt({ source: "x" });
     assert.match(p, /Age is one of these tags, never a number or a decade: young adult, adult, mature female, mature male, old woman, old man\./);
     assert.match(p, /"late 20s" is "young adult"; "30s" is "adult"\./);
+});
+
+// A new chat is only the greeting: a card character's look comes from the card.
+test("the automatic look reads the card before the story, and the card wins", () => {
+    const p = renderLookScanPrompt({ source: "Aqua: Hello!", sourceLabel: "Recent_Story", names: ["Aqua"],
+        sheets: '<character_sheet name="Aqua">Long blue hair, blue eyes.</character_sheet>' });
+    assert.ok(p.indexOf("<Character_Sheets>") < p.indexOf("<Recent_Story>"));
+    assert.ok(p.includes(SHEET_FIRST));
+    const plain = renderLookScanPrompt({ source: "Aqua: Hello!", sourceLabel: "Recent_Story", names: ["Aqua"] });
+    assert.ok(!plain.includes("<Character_Sheets>"));
+    assert.ok(!plain.includes(SHEET_FIRST));
+});
+
+test("the names on the sheets", () => {
+    const s = '<character_sheet name="Aqua">x</character_sheet>\n\n<persona_sheet name="Kazuma">y</persona_sheet>';
+    assert.deepEqual(sheetNames(s), ["Aqua", "Kazuma"]);
+    assert.deepEqual(sheetNames(""), []);
+});
+
+test("a look for someone on the card is marked as read from the card", () => {
+    const card = ["Resha Helios", "Kazuma"];
+    assert.equal(lookSourceFor("Resha Helios", [], card), "sheet");
+    assert.equal(lookSourceFor("Resha", [], card), "sheet");
+    assert.equal(lookSourceFor("kazuma", [], card), "sheet");
+    assert.equal(lookSourceFor("Megumin", ["Kazuma"], card), "sheet");
+    assert.equal(lookSourceFor("Res", [], card), "chat");
+    assert.equal(lookSourceFor("Wiz", [], card), "chat");
+    assert.equal(lookSourceFor("Wiz", [], []), "chat");
 });
