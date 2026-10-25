@@ -47,7 +47,8 @@ test("continuity notes: full detail", () => {
     assert.match(t, /\{\{user\}\} \(PC\)\n  Outfit: green cape/);
     assert.match(t, /Aqua\n    Outfit: blue dress\n    Mood: smug\n    Agenda: win back her followers/);
     assert.match(t, /Off-screen\n(.*\n)*  Wiz: restocking her shop/);
-    assert.match(t, /Threads\n  - Who stole the coin/);
+    assert.match(t, /Threads \(1 of 3\)\n  1\. Who stole the coin/);
+    assert.match(t, /Timers \(1 of 2\)\n  1\. landlord: 2 turns/);
     assert.match(t, /Arc: Escalation \| Scene: Building/);
     assert.doesNotMatch(t, /Returning/);
 });
@@ -171,4 +172,69 @@ test("describeWorldChange covers every change type", () => {
     assert.equal(d({ type: "list", list: "timers", op: "add", value: "x: 2 turns" }), "Timer +: x: 2 turns");
     assert.equal(d({ type: "list", list: "threads", op: "remove", value: "coin" }), "Thread −: coin");
     assert.equal(d({ type: "list", list: "seeds", op: "item", value: "crest" }), "Seed: crest");
+});
+
+// ── Plan 020: the lists stay short ───────────────────────────────────────
+
+const withLists = (threads, seeds = [], timers = []) => {
+    const s = emptyWorld();
+    s.scene.time = "Night";
+    return Object.assign(s, { threads: [...threads], seeds: [...seeds], timers: [...timers] });
+};
+
+test("a removal can name the item's number", () => {
+    const s = applyWorldChanges(withLists(["coin thief", "the debt"], ["a demon crest", "a cold draft", "a red ribbon"]),
+        parseWorldBlocks(U("Seed-: 2\nThread-: #1\nSeed-: Seed 3")), {}).state;
+    assert.deepEqual(s.seeds, ["a demon crest"]);
+    assert.deepEqual(s.threads, ["the debt"]);
+});
+
+test("a number past the end removes nothing", () => {
+    const r = applyWorldChanges(withLists(["coin thief"]), parseWorldBlocks(U("Thread-: 4")), {});
+    assert.deepEqual(r.state.threads, ["coin thief"]);
+    assert.ok(r.notes.some(n => /Could not find thread/.test(n)));
+});
+
+test("a full list drops its oldest when the model adds", () => {
+    const r = applyWorldChanges(withLists(["a", "b", "c"], [], ["t1: 2 turns", "t2: 3 turns"]),
+        parseWorldBlocks(U("Thread+: d\nTimer+: t3: 1 turn")), {});
+    assert.deepEqual(r.state.threads, ["b", "c", "d"]);
+    assert.deepEqual(r.state.timers, ["t2: 3 turns", "t3: 1 turn"]);
+    assert.ok(r.applied.some(a => a.label === "Thread − (list full)" && a.before === "a"));
+});
+
+test("an old chat with too many seeds is cut on the next reply", () => {
+    const s = applyWorldChanges(withLists([], ["s1", "s2", "s3", "s4", "s5", "s6"]), parseWorldBlocks(U("Time: Dawn")), {}).state;
+    assert.deepEqual(s.seeds, ["s4", "s5", "s6"]);
+});
+
+test("a first World State with too many keeps the first ones", () => {
+    const s = applyWorldChanges(emptyWorld(), parseWorldBlocks(S("Time: Night\nThread+: a\nThread+: b\nThread+: c\nThread+: d")), {}).state;
+    assert.deepEqual(s.threads.length, 3);
+    const listed = applyWorldChanges(emptyWorld(), parseWorldBlocks(S("Time: Night\n**🔥 Unresolved Threads:**\n* alpha one\n* beta two\n* gamma three\n* delta four")), {}).state;
+    assert.deepEqual(listed.threads, ["alpha one", "beta two", "gamma three"]);
+});
+
+test("the user's own edit isn't cut", () => {
+    const s = applyWorldChanges(withLists(["a", "b", "c"]),
+        { kind: "delta", changes: [{ type: "list", list: "threads", op: "add", value: "d" }], byUser: true }, {}).state;
+    assert.deepEqual(s.threads, ["a", "b", "c", "d"]);
+});
+
+test("the rules say the limits and that a number is enough", () => {
+    const r = renderWorldInstructions("update").rules;
+    assert.match(r, /at most 3 Threads, 3 Seeds and 2 Timers/);
+    assert.match(r, /Seed-: <its number/);
+    assert.match(renderWorldInstructions("bootstrap").template, /at most 3 lines in all/);
+});
+
+test("with the Notebook on, Seeds are gone from the prompt, the rules and the card", () => {
+    const s = scene();
+    const r = renderWorldInstructions("update", { noSecret: true });
+    assert.doesNotMatch(r.rules, /Seed/);
+    assert.match(r.rules, /at most 3 Threads and 2 Timers/);
+    assert.doesNotMatch(renderWorldInstructions("bootstrap", { noSecret: true }).template, /Seed/);
+    assert.doesNotMatch(renderWorldForPrompt(s, { noSecret: true }), /Seeds|demon crest/);
+    assert.doesNotMatch(renderWorldCard(s, { noSecret: true }), /Planted Seeds/);
+    assert.match(renderWorldCard(s), /Planted Seeds/);
 });
