@@ -9,6 +9,34 @@ README on the stable branch.
 
 ---
 
+## 2026-10-25
+
+> World State lists stop growing forever, and an image the story model writes
+> waits for the looks it needs.
+
+### Threads, Seeds and Timers stay short
+
+- **At most 3 Threads, 3 Seeds and 2 Timers.** Some models keep adding Unresolved Threads, Planted Seeds and Consequence Timers and never delete any, so World State ended up with ten or fifteen seeds.
+- **Over the limit, the oldest one goes.** It shows on the card under **Changed in this reply**, and **Revert** on that reply brings it back. An old chat with a long list gets smaller on its next reply.
+- **The model sees each list numbered**, so it can delete an item by writing its number instead of copying the text.
+- **Seeds are hidden while the Notebook is on**, because the Notebook's clues already do that job. Turn the Notebook off and they come back.
+- **The World State editor shows the limit** next to each list.
+
+### Images wait for their looks
+
+- **The image waits before it goes to ComfyUI** when the story model writes it in its reply. It waits for the look of a new character who just appeared, and for Chomusuke's World State read, so the picture has this reply's outfits and the right faces.
+- **It tells you who it's waiting for.** After a minute it gives up and sends the image anyway. Time you spend on a background prompt preview doesn't count.
+- **A new character's automatic look is read from their character card** when they have one, and the look says "read from the card". The card's Personality field is read too, not only the Description.
+- **Read the look again from the card**: a new button on each character's look popup.
+- **Your own character gets an automatic look** from your persona too.
+- **A look that failed or that you cancelled is asked for again** on the next reply.
+
+### Fixes
+
+- A copy of a Co-writer engine no longer gets your edited "Never Write For {{user}}" rule, and Dev Mode shows that rule as off for it.
+
+---
+
 ## 2026-10-24
 
 > A Model Setup tab that sets everything up for your model, three new V11 Тайна
