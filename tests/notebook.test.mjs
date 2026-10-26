@@ -39,6 +39,12 @@ test("ids, names and the clue check", () => {
     assert.equal(truthId("Truth"), null);
     assert.deepEqual(splitNames("Mira, Old Tomas and the reader"), ["Mira", "Old Tomas", "the reader"]);
     assert.deepEqual(splitNames("no one"), []);
+    assert.deepEqual(splitNames("Alice, the reader, because the story has not shown it on the page yet"), ["Alice", "the reader"], "a reason after a comma");
+    assert.deepEqual(splitNames("Alice and the reader has not been shown this outright"), ["Alice", "the reader"], "a reason stuck to a name");
+    assert.deepEqual(splitNames("Alice (her brother suspects, though), the reader (not shown yet)"), ["Alice", "the reader"], "brackets");
+    assert.deepEqual(splitNames("Mira, who suspects but has no proof; Tomas doesn't know"), ["Mira", "Tomas"]);
+    assert.deepEqual(splitNames("Old Tomas — he was away that night, So-yeon, Reader"), ["Old Tomas", "So-yeon", "the reader"]);
+    assert.deepEqual(splitNames("Mira, mira, the reader"), ["Mira", "the reader"], "no doubles");
     assert.equal(clueInProse("the ferryman refused payment from Mira", "The ferryman pushed the coin back."), true);
     assert.equal(clueInProse("Mira saw a scar on his hand", "They ate soup in silence."), false, "only the name matches");
     assert.equal(clueInProse("refuses her money", "He refused it."), true, "same stem");
