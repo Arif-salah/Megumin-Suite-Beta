@@ -45,6 +45,8 @@ test("ids, names and the clue check", () => {
     assert.deepEqual(splitNames("Mira, who suspects but has no proof; Tomas doesn't know"), ["Mira", "Tomas"]);
     assert.deepEqual(splitNames("Old Tomas — he was away that night, So-yeon, Reader"), ["Old Tomas", "So-yeon", "the reader"]);
     assert.deepEqual(splitNames("Mira, mira, the reader"), ["Mira", "the reader"], "no doubles");
+    assert.deepEqual(splitNames("Kazuma, the reader, becuase of what."), ["Kazuma", "the reader"], "a misspelled because");
+    assert.deepEqual(splitNames("Kazuma, cuz he was asleep"), ["Kazuma"]);
     assert.equal(clueInProse("the ferryman refused payment from Mira", "The ferryman pushed the coin back."), true);
     assert.equal(clueInProse("Mira saw a scar on his hand", "They ate soup in silence."), false, "only the name matches");
     assert.equal(clueInProse("refuses her money", "He refused it."), true, "same stem");
