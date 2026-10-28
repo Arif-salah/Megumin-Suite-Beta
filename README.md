@@ -50,6 +50,7 @@ README on the stable branch.
 ### Fixes
 
 - A Notebook truth's **Hidden from** keeps only names. The model sometimes added a reason ("because it hasn't been shown", "who suspects", something in brackets, even a misspelled "becuase", "bc" or "cuz"), and that stopped the truth from coming out on its own. The setup now asks for names only, and truths saved before the fix are cleaned up, so old chats get it too.
+- **Blocks not rendering for some people after the update.** The preset's **Blocks display marker** regex is back. It tells the extension exactly where the blocks are, so the card still draws when another extension (like MVU) or your own regex changes the end of the message. Re-import `Megumin Suite V11 Universal.json` to get it.
 
 ---
 
