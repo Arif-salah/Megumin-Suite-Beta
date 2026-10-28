@@ -31,6 +31,9 @@ README on the stable branch.
 
 - **Only characters get listed in the scene.** Models were adding horses, carts and other objects as people, and **Present** filled up. Now animals, mounts, pets, vehicles, objects and crowds go in someone's Position or Carrying instead ("riding a grey mare"). A being the story treats as a person, like a talking dragon, still counts.
 - **Chats that already have one** keep it until you remove it in the World State editor.
+- **Chomusuke reads the character card and your persona** every time it updates the World State (the card's Description and Personality, and every member's card in a group chat). Before, it only saw the latest messages, so a starting outfit, goal or secret that only the card mentioned was missed.
+- **Off-screen holds at most 4 people.** When a 5th is added, the oldest off-screen line goes. Only the line goes: the character, their outfit, Agenda and the rest are kept, so they come back as they were. Chats that already list more than 4 are trimmed on the next reply.
+- **The model can remove an off-screen line itself** with `Offscreen-: <Name>`, and the rules tell it to remove one before adding a 5th.
 
 ### New installs start on V11
 
