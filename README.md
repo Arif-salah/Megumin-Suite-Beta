@@ -9,6 +9,47 @@ README on the stable branch.
 
 ---
 
+## 2026-10-28
+
+> A Thinking Cap for every V11 Тайна preset, a World State that stops listing
+> horses as characters, and new installs that start on V11.
+
+### Thinking Cap for V11 Тайна
+
+- **V11 Тайна, V11 Тайна DeepSeek and V11 Тайна · Writers' Room each have a Thinking Cap now.** Before, only V11 Тайна Preview had one. Pick **CoT V11 Тайна — Thinking Cap** or **CoT V11 Тайна · Writers' Room — Thinking Cap** on the Thinking page.
+- **Same five steps, one line of notes each.** No draft in the thinking, and the reply is written only once, in the reply. For models that over-think, like DeepSeek, Kimi, GLM and Qwen.
+- **The rules are said again at the very end of the prompt**, where over-thinking models actually follow them, the same as the Preview's cap.
+- **The normal CoT is still the default.** You only get the cap if you pick it.
+
+### Model Setup
+
+- **A Thinking Cap switch** on the Big open models and Fast models loadouts. It's off by default. It only works with custom thinking on, which Big open models has off.
+- **Switching presets keeps the cap on** when the new preset has one too.
+- **The page says it's optional.** A loadout is only the settings I tested. Skipping it, or using a model that isn't listed, doesn't break anything.
+
+### World State
+
+- **Only characters get listed in the scene.** Models were adding horses, carts and other objects as people, and **Present** filled up. Now animals, mounts, pets, vehicles, objects and crowds go in someone's Position or Carrying instead ("riding a grey mare"). A being the story treats as a person, like a talking dragon, still counts.
+- **Chats that already have one** keep it until you remove it in the World State editor.
+
+### New installs start on V11
+
+- **A new install starts on V11 Тайна with CoT V11 Тайна**, and so The Notebook is on. Before, it started on V4.2 Balance with CoT V1. If you already use the suite, nothing changes.
+
+### Preset
+
+- **A new prompt: USER Hard (only enable one).** A stronger version of **USER** for models that still refuse. It's off by default. Turn on USER or USER Hard, not both.
+
+### Removed
+
+- **The Dialogue & Narration Format add-on is gone**, with its regex in the preset. If you had it on, it just stops being sent, and older presets that still have its tag don't leak it to the AI.
+
+### Fixes
+
+- A Notebook truth's **Hidden from** keeps only names. The model sometimes added a reason ("because it hasn't been shown", "who suspects", something in brackets, even a misspelled "becuase", "bc" or "cuz"), and that stopped the truth from coming out on its own. The setup now asks for names only, and truths saved before the fix are cleaned up, so old chats get it too.
+
+---
+
 ## 2026-10-25
 
 > World State lists stop growing forever, an image the story model writes waits
