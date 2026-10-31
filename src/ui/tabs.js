@@ -31,6 +31,7 @@ import { renderImageGen } from "../features/imagegen/index.js";
 import { renderNpcBank } from "../features/npc/ui.js";
 import { renderMemoryCore } from "../features/memory/index.js";
 import { renderBlocksTab } from "../features/blocks/ui.js";
+import { renderWorldStateTab } from "../features/worldstate/ui.js";
 import { renderChomusuke } from "./tabs/chomusuke.js";
 
 export { DOCK_GROUPS };
@@ -41,6 +42,7 @@ const RENDERERS = {
     style: renderStoryConfig,
     addons: renderGlobalAndBlocks,
     blocks: renderBlocksTab,
+    world: renderWorldStateTab,
     notebook: renderNotebookTab,
     images: renderImageGen,
     npc: renderNpcBank,

@@ -18,6 +18,7 @@ export const TAB_LIST = [
     { id: "style", group: "story", title: "Writing Style", sub: "Pick the prose voice the story is told in.", icon: "fa-pen-nib" },
     { id: "addons", parent: "style", title: "Language & rules", sub: "Language, pronouns, and the gameplay add-ons.", icon: "fa-language" },
     { id: "blocks", group: "story", title: "Blocks", sub: "What goes in the block under each reply, in what order, and how it looks.", icon: "fa-cubes" },
+    { id: "world", group: "story", title: "World State", sub: "Keeps track of the scene: time, place, who is there, what they wear.", icon: "fa-thumbtack" },
     { id: "notebook", group: "story", title: "The Notebook", sub: "The truths the story is hiding, the clues it plants, and when they come out.", icon: "fa-book" },
     { id: "images", group: "helpers", title: "Images", sub: "Wire up ComfyUI to draw the scenes of the story.", icon: "fa-image" },
     { id: "npc", group: "helpers", title: "NPC Bank", sub: "The characters the story has met, kept and tracked.", icon: "fa-address-book" },

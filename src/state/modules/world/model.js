@@ -18,7 +18,7 @@ export function emptyWorld() {
     return {
         scene: { time: "", location: "", weather: "" },
         pc: { name: "", fields: {} },
-        cast: {},          // nameKey → { name, present, fields, offscreen, lastSeenSeq }
+        cast: {},          // nameKey → { name, present, fields, offscreen, lastSeenSeq, lastSeenReply }
         threads: [],
         seeds: [],
         timers: [],
@@ -34,6 +34,10 @@ const LIST_LABEL = { threads: "Thread", seeds: "Seed", timers: "Timer" };
 // How long each list may grow (plan 020). Past it, a reply's lists lose their
 // oldest items, so a model that only ever adds can't bury the story in them.
 export const LIST_LIMITS = { threads: 3, seeds: 3, timers: 2 };
+
+// How many off-screen lines are kept. Past it, the oldest lines go; the
+// character and their fields stay, so they come back as they were.
+export const OFFSCREEN_LIMIT = 4;
 
 // "Seed-: 2" / "#2" / "Seed 2": an item by its number in <Current_World_State>,
 // which lists them as they stood before the reply.
@@ -137,7 +141,10 @@ function adoptAliases(state, entry, aliases) {
         const twin = state.cast[ak];
         if (twin && twin !== entry) {
             entry.fields = { ...twin.fields, ...entry.fields };
-            if (!entry.offscreen && twin.offscreen) entry.offscreen = twin.offscreen;
+            if (!entry.offscreen && twin.offscreen) {
+                entry.offscreen = twin.offscreen;
+                entry.offscreenAt = twin.offscreenAt;
+            }
             if (twin.present) entry.present = true;
             entry.lastSeenSeq = Math.max(entry.lastSeenSeq || 0, twin.lastSeenSeq || 0);
             for (const x of twin.aliases || []) if (!entry.aliases.some(y => nameKey(y) === nameKey(x))) entry.aliases.push(x);
@@ -173,11 +180,71 @@ function matchCastPrefix(state, text) {
     return best;
 }
 
+// ── Out of the scene when the story stops naming them (plan 020) ───────────
+//
+// Models write "+ Name" when someone arrives but often forget "- Name" when
+// they walk off, so people stayed "in the scene" for good. After each reply,
+// anyone in the scene whose name (or nickname) hasn't been in the story for
+// `staleAfter` replies is moved out of it. Their details are kept, so they
+// come back as they were.
+//
+// Counted from the message text (ctx.text: the reply and the user's message
+// before it, given by the store), so a swipe, a Revert or a rewind undoes it
+// like any other change, and the card lists it under "Changed in this reply".
+// Never the last one left: a scene with one other person names them "she".
+
+export const STALE_AFTER_DEFAULT = 8;
+
+/** The story text of a message: blocks, thinking and folded cards taken out. */
+export function proseOf(text) {
+    return String(text || "")
+        .replace(/<!--[\s\S]*?-->/g, " ")
+        .replace(/<(think|thinking|details)\b[^>]*>[\s\S]*?(<\/\1\s*>|$)/gi, " ")
+        .replace(/<([A-Z][\w-]*)\b[^>]*>[\s\S]*?<\/\1\s*>/g, " ")
+        .replace(/<Blocks\b[\s\S]*$/, " ");
+}
+
+const escapeRe = v => String(v).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Whether the prose names this character (name or nickname, whole words). */
+export function namedIn(prose, c) {
+    return [c.name, ...(c.aliases || [])].some(n => {
+        const t = String(n || "").trim();
+        return t.length > 1 && new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(t)}($|[^\\p{L}\\p{N}])`, "iu").test(prose);
+    });
+}
+
+function staleStep(state, ctx, seq, note) {
+    if (typeof ctx.text !== "string") return;   // your own edits, deleted messages
+    state.replies = (state.replies || 0) + 1;
+    const prose = proseOf(ctx.text);
+    for (const c of Object.values(state.cast)) {
+        // Touched by this reply's update, named in it, or from before this rule.
+        if (c.lastSeenSeq === seq || typeof c.lastSeenReply !== "number" || namedIn(prose, c)) c.lastSeenReply = state.replies;
+    }
+    const after = Number(ctx.staleAfter) || 0;
+    if (after <= 0) return;
+    const present = presentCast(state);
+    const stale = present.filter(c => state.replies - c.lastSeenReply >= after);
+    if (!stale.length) return;
+    // Never empty the scene this way: the one named most lately stays.
+    if (stale.length === present.length) {
+        stale.sort((a, b) => b.lastSeenReply - a.lastSeenReply);
+        stale.shift();
+    }
+    for (const c of stale) {
+        c.present = false;
+        note(`${c.name} left`, "present", `not named for ${after} replies`);
+    }
+}
+
 /**
  * Applies one parsed reply to a state.
  * @param {object} prev     world state (not mutated)
  * @param {{kind: string, changes: object[]}} parsed
- * @param {{seq?: number, userNames?: string[]}} [ctx]
+ * @param {{seq?: number, userNames?: string[], text?: string, staleAfter?: number}} [ctx]
+ *   text: the message (and the user's message before it) this entry belongs
+ *   to, for the "not named for N replies" step; absent for your own edits.
  * @returns {{ state: object, applied: Array<{label: string, before: string, after: string}>, notes: string[], unannounced: string[] }}
  *   unannounced: characters this reply created with no "+" line (the card
  *   asks whether one of them is someone already known)
@@ -188,17 +255,32 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
     const notes = [];
     const unannounced = [];
     const seq = typeof ctx.seq === "number" ? ctx.seq : 0;
-    if (!parsed || !Array.isArray(parsed.changes)) return { state, applied, notes, unannounced };
-    const startLists = Object.fromEntries(LISTS.map(k => [k, [...(state[k] || [])]]));
-
     const note = (label, before, after) => {
         if (before !== after) applied.push({ label, before: before || "", after: after || "" });
     };
+    if (!parsed || !Array.isArray(parsed.changes)) {
+        staleStep(state, ctx, seq, note);
+        return { state, applied, notes, unannounced };
+    }
+    const startLists = Object.fromEntries(LISTS.map(k => [k, [...(state[k] || [])]]));
+
+    // When an off-screen line was written, so the oldest go first when there
+    // are too many. Lines written in the same reply keep the order they were written in.
+    let tick = 0;
+    const offscreenStamp = () => seq + (++tick) / 1e6;
 
     // A full snapshot describes who is present now: everyone else has left.
-    if (parsed.kind === "snapshot") {
-        for (const c of Object.values(state.cast)) c.present = false;
+    // Who was there before, so the card lists only real comings and goings
+    // (with "the whole scene every reply" a snapshot comes every reply).
+    const snapshot = parsed.kind === "snapshot";
+    const wasHere = new Set();
+    if (snapshot) {
+        for (const c of Object.values(state.cast)) {
+            if (c.present) wasHere.add(c);
+            c.present = false;
+        }
     }
+    const arrived = entry => !wasHere.has(entry);
 
     // Items listed under a section header replace that list as a whole.
     const listItems = {};
@@ -265,7 +347,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 } else if (!entry.present) {
                     entry.present = true;
                     entry.offscreen = "";
-                    note(`${entry.name} entered`, "", "present");
+                    if (arrived(entry)) note(`${entry.name} entered`, "", "present");
                 }
                 if (!ch.keepPresence) entry.lastSeenSeq = seq;
                 const before = entry.fields[ch.field] || "";
@@ -283,7 +365,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 if (!entry.present) {
                     entry.present = true;
                     entry.offscreen = "";
-                    note(`${entry.name} entered`, "", "present");
+                    if (arrived(entry)) note(`${entry.name} entered`, "", "present");
                 }
                 break;
             }
@@ -296,7 +378,10 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 const wasPresent = entry.present;
                 entry.present = false;
                 entry.lastSeenSeq = seq;
-                if (ch.where) entry.offscreen = ch.where;
+                if (ch.where) {
+                    entry.offscreen = ch.where;
+                    entry.offscreenAt = offscreenStamp();
+                }
                 if (wasPresent) note(`${entry.name} left`, "present", ch.where || "gone");
                 break;
             }
@@ -323,6 +408,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 if (fromIsNewer) {
                     to.present = from.present;
                     to.offscreen = from.offscreen || "";
+                    to.offscreenAt = from.offscreenAt;
                 }
                 to.lastSeenSeq = Math.max(to.lastSeenSeq || 0, from.lastSeenSeq || 0);
                 to.aliases = to.aliases || [];
@@ -357,7 +443,19 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                     note(`${entry.name} left`, "present", value);
                 }
                 entry.offscreen = value;
+                entry.offscreenAt = offscreenStamp();
                 note(`${entry.name} · Off-screen`, before, value);
+                break;
+            }
+            case "offscreenRemove": {
+                // "Offscreen-: Wiz": her off-screen line goes, she and her fields stay.
+                const entry = state.cast[resolveCastKey(state, ch.who)];
+                if (!entry || !entry.offscreen) {
+                    notes.push(`Could not find an off-screen line to remove for "${ch.who}"`);
+                    break;
+                }
+                note(`${entry.name} · Off-screen`, entry.offscreen, "");
+                entry.offscreen = "";
                 break;
             }
             case "list": {
@@ -365,7 +463,8 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 const list = state[ch.list];
                 const label = LIST_LABEL[ch.list];
                 const find = ch.list === "timers" ? findTimer : findListItem;
-                if (ch.op === "item") {
+                // In a full snapshot, "Thread+: …" lines are the whole list.
+                if (ch.op === "item" || (snapshot && ch.op === "add")) {
                     (listItems[ch.list] = listItems[ch.list] || []).push(ch.value);
                 } else if (ch.op === "add") {
                     // Held back until every removal in this reply has run, so
@@ -384,6 +483,11 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 break;
             }
         }
+    }
+
+    // A snapshot that left someone out: they left.
+    for (const c of wasHere) {
+        if (!c.present && Object.values(state.cast).includes(c)) note(`${c.name} left`, "present", c.offscreen || "gone");
     }
 
     for (const ch of pendingAdds) {
@@ -423,8 +527,19 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 note(`${LIST_LABEL[key]} − (list full)`, gone, "");
             }
         }
+        const away = Object.values(state.cast).filter(c => !c.present && c.offscreen);
+        if (away.length > OFFSCREEN_LIMIT) {
+            // A line from before the stamp counts from when they were last seen.
+            const at = c => c.offscreenAt ?? c.lastSeenSeq ?? 0;
+            away.sort((a, b) => at(a) - at(b));
+            for (const c of away.slice(0, away.length - OFFSCREEN_LIMIT)) {
+                note(`${c.name} · Off-screen (list full)`, c.offscreen, "");
+                c.offscreen = "";
+            }
+        }
     }
 
+    if (!parsed.byUser) staleStep(state, ctx, seq, note);
     return { state, applied, notes, unannounced };
 }
 

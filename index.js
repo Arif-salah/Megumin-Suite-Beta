@@ -827,7 +827,7 @@ jQuery(async () => {
                 clearInterval(int);
                 return;
             }
-            const b = `<div id="kazuma_quick_gen" class="interactable" title="Visualize Last Scene (Manual)" style="cursor: pointer; width: 35px; height: 35px; display: none; align-items: center; justify-content: center; margin-right: 5px; color: var(--gold);"><i class="fa-solid fa-image fa-lg"></i></div>`;
+            const b = `<div id="kazuma_quick_gen" class="interactable" title="Draw this scene now" style="cursor: pointer; width: 35px; height: 35px; display: none; align-items: center; justify-content: center; margin-right: 5px; color: var(--gold);"><i class="fa-solid fa-image fa-lg"></i></div>`;
             let t = $("#send_but_sheld");
             if (!t.length) t = $("#send_textarea");
             if (t.length) {

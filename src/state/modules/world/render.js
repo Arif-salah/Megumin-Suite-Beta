@@ -12,7 +12,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { nameKey } from "./parse.js";
-import { fieldLabel, presentCast, castDisplayName, LIST_LIMITS } from "./model.js";
+import { fieldLabel, presentCast, castDisplayName, LIST_LIMITS, OFFSCREEN_LIMIT } from "./model.js";
 
 export const PC_FIELDS = ["outfit", "position", "condition", "carrying"];
 export const NPC_FIELDS = ["outfit", "position", "mood", "agenda", "secret"];
@@ -98,7 +98,7 @@ export function renderWorldForPrompt(state, opts = {}) {
     const offscreen = Object.values(state.cast || {}).filter(c => !c.present && c.offscreen);
     if (full && offscreen.length) {
         lines.push("");
-        lines.push("Off-screen");
+        lines.push(`Off-screen (${offscreen.length} of ${OFFSCREEN_LIMIT})`);
         for (const c of offscreen) lines.push(`  ${c.name}: ${c.offscreen}`);
     }
 
@@ -145,10 +145,25 @@ const DEEP_CURRENTS_UPDATE =
     "A Secret changes only when it is exposed or a new one is born. A Thread closes only when the story answers it. " +
     "A small moment is never a reason to rewrite them.";
 
+// Models list a horse or a cart as a character, and "Present" fills up.
+const WHO_COUNTS =
+    "Only characters get a \"+ <Name>\" line: people, or beings the story treats as people, with a mind of their own who speak, plan or act. " +
+    "Animals, mounts, pets, vehicles, objects, furniture and crowds never do; put them in someone's Position or Carrying instead (\"riding a grey mare\", \"leaning on the cart\").";
+
+// Models write "+ Name" on arrival but forget "- Name" on the way out (plan 020).
+const LEAVING_UPDATE =
+    "- Check everyone under Present in <Current_World_State> each time. Anyone who walked off, was sent away, stayed behind, " +
+    "or simply is no longer part of the scene gets a \"- <Name>: …\" line. When the scene moves to a new place or jumps ahead in time, " +
+    "write \"- <Name>: …\" for each person who did not come along.";
+
 const LISTS_UPDATE =
     `- Keep at most ${LIST_LIMITS.threads} Threads, ${LIST_LIMITS.seeds} Seeds and ${LIST_LIMITS.timers} Timers. ` +
     "When a list is full and you want to add one, first remove the one that matters least or the one the story has already answered. " +
     "<Current_World_State> numbers each Thread, Seed and Timer, so to remove one you can write its number.";
+
+const OFFSCREEN_UPDATE =
+    `- Keep at most ${OFFSCREEN_LIMIT} Off-screen lines. When ${OFFSCREEN_LIMIT} are listed and you want to add one ` +
+    "(with Offscreen: or \"- <Name>: …\"), first remove the one that matters least with Offscreen-: <Name>.";
 
 // While the Author's Notebook is on (plan 010), hidden things live in the
 // notebook only, so World State stops asking for a Secret, and for Seeds: the
@@ -164,14 +179,27 @@ export function withoutSecret(text) {
         .split("\n").filter(l => !/\.Secret:/.test(l)).join("\n");
 }
 
+// The whole scene every reply (plan 020, "V10 + V11"): the scene is written in
+// full again, starting from where it stood. Leaving someone out is how they
+// leave, so stale people can't linger.
+const carryOver = noSecret =>
+    "<Current_World_State> is where the story stood before your reply. Start from it: copy every detail your reply did not change word for word, and change only what it did. " +
+    "Give \"+ <Name>\" only to the people physically present at the end of your reply; anyone you leave out has left the scene, so put them in an Offscreen line if the story will want them again. " +
+    (noSecret
+        ? `Write the Threads and Timers that still matter, at most ${LIST_LIMITS.threads} and ${LIST_LIMITS.timers}; the ones you leave out are closed.`
+        : `Write the Threads, Seeds and Timers that still matter, at most ${LIST_LIMITS.threads}, ${LIST_LIMITS.seeds} and ${LIST_LIMITS.timers}; the ones you leave out are closed.`);
+
 /**
  * @param {"update"|"bootstrap"} mode
- * @param {{ noSecret?: boolean }} [opts]
+ * @param {{ noSecret?: boolean, carry?: boolean }} [opts]
+ *   carry: a full rewrite of a scene already on file (the "whole scene every
+ *   reply" setting, or Rewrite next reply): start from the current state.
  * @returns {{ rules: string, template: string }}
  */
-export function renderWorldInstructions(mode, { noSecret = false } = {}) {
-    const ins = worldInstructions(mode);
-    return noSecret ? { rules: withoutSecret(ins.rules), template: withoutSecret(ins.template) } : ins;
+export function renderWorldInstructions(mode, { noSecret = false, carry = false } = {}) {
+    const base = worldInstructions(mode);
+    const ins = noSecret ? { rules: withoutSecret(base.rules), template: withoutSecret(base.template) } : base;
+    return mode === "bootstrap" && carry ? { ...ins, rules: `${ins.rules}\n${carryOver(noSecret)}` } : ins;
 }
 
 function worldInstructions(mode) {
@@ -181,6 +209,7 @@ function worldInstructions(mode) {
                 "## World State rules",
                 "In <World_State>, record the scene as it stands at the END of your reply, one fact per line, in the exact forms shown. " +
                 "List every character physically present with a \"+ <Name>\" line followed by their fields. " +
+                WHO_COUNTS + " " +
                 "Only what a camera could see goes in Outfit, Position and Condition. " +
                 "Mood, Agenda, Secret and Threads are the story's deep currents: write them as things big enough to carry a character, and the story, through many scenes to come."
             ].join("\n"),
@@ -200,7 +229,7 @@ function worldInstructions(mode) {
                 "[NPC Name].Agenda: [the big goal that drives them through the story, e.g. \"earn back her family's name\", never a small errand like \"order a drink\"]",
                 "[NPC Name].Secret: [something that would change how others see them, or shift the story, if it came out]",
                 "(repeat \"+ [NPC Name]\" and its fields for each character present)",
-                "Offscreen: [NPC Name] = [where they are, what they are doing]",
+                `Offscreen: [NPC Name] = [where they are, what they are doing]   (at most ${OFFSCREEN_LIMIT})`,
                 `Thread+: [a major tension or open question the story will have to answer, at most ${LIST_LIMITS.threads} lines in all]`,
                 `Seed+: [foreshadowing detail, what it hints at; at most ${LIST_LIMITS.seeds}]`,
                 `Timer+: [consequence]: [turns remaining]   (at most ${LIST_LIMITS.timers})`,
@@ -221,8 +250,9 @@ function worldInstructions(mode) {
             "  Fields for {{user}}: Outfit, Position, Condition, Carrying",
             "  Fields for everyone else: Outfit, Position, Mood, Agenda, Secret",
             "+ <Name>                                someone enters the scene; follow with their Outfit, Position, Mood, Agenda, Secret lines",
-            "- <Name>: <where they went or what they are doing now>",
+            "- <Name>: <where they went or what they are doing now>   someone leaves the scene",
             "Offscreen: <Name> = <where they are / what they are doing>",
+            "Offscreen-: <Name>                      remove their off-screen line",
             "Thread+: <new tension>        Thread-: <its number, or the resolved tension as written>",
             "Seed+: <foreshadowing detail>   Seed-: <its number, or the paid-off seed>",
             "Timer+: <consequence>: <turns left>   to count a timer down, write it again with the new count; it replaces the old one",
@@ -230,12 +260,15 @@ function worldInstructions(mode) {
             "Arc: <Setup/Escalation/Complication/Crisis/Resolution>",
             "Scene: <Early Simmer/Building/Midpoint Tension/Climax/Breather>",
             "- Use names exactly as they appear in <Current_World_State>. {{user}} is written as {{user}}.",
+            `- ${WHO_COUNTS}`,
+            LEAVING_UPDATE,
             "- Give the complete new value of a changed field. Never write \"unchanged\" or \"same\"; leave unchanged fields out.",
             "- Write each field at most once per character.",
             "- Clothing changes matter: if anyone's clothes changed at all (removed, torn, wet, swapped), write their new Outfit.",
             "- An Outfit is the complete visible outfit, top to bottom, with colours and materials (\"grey hoodie, black joggers, white socks\"), never a summary like \"casual clothes\" or \"loungewear\".",
             DEEP_CURRENTS_UPDATE,
             LISTS_UPDATE,
+            OFFSCREEN_UPDATE,
             "- If nothing changed, write exactly: No changes"
         ].join("\n"),
         template: "<World_Update>\n[change lines, or: No changes]\n</World_Update>"
@@ -306,6 +339,7 @@ export function describeWorldChange(ch, pcLabel = "{{user}}") {
         case "enter": return `${who(ch.who)} entered`;
         case "leave": return `${who(ch.who)} left${ch.where ? `: ${ch.where}` : ""}`;
         case "offscreen": return `${ch.who ? who(ch.who) + " " : ""}off-screen: ${ch.value}`;
+        case "offscreenRemove": return `${who(ch.who)} off-screen line removed`;
         case "forget": return `${who(ch.who)} removed`;
         case "merge": return `${who(ch.who)} is ${who(ch.into)}`;
         case "pcname": return `Player character: ${ch.name}`;
@@ -336,8 +370,8 @@ export function describeWorldChange(ch, pcLabel = "{{user}}") {
  * Shared word for word by the Chomusuke read and the combined call.
  * @returns {{ rules: string, template: string, tag: string }}
  */
-export function renderWorldClerkTask(mode, { noSecret = false } = {}) {
-    const ins = renderWorldInstructions(mode, { noSecret });
+export function renderWorldClerkTask(mode, { noSecret = false, carry = false } = {}) {
+    const ins = renderWorldInstructions(mode, { noSecret, carry });
     const reword = t => t
         .replace(/before your reply/g, "before the latest exchange")
         .replace(/what your reply changed/g, "what the latest exchange changed")
@@ -354,13 +388,22 @@ export function renderClerkNotes(notes) {
         : "<Current_World_State>\n(Nothing has been noted about this story yet.)\n</Current_World_State>";
 }
 
-export function renderWorldExtractPrompt({ notes, exchange, mode, noSecret = false }) {
-    const task = renderWorldClerkTask(mode, { noSecret });
+/**
+ * @param {{ notes: string, exchange: string, mode: string, noSecret?: boolean, sheets?: string }} a
+ *   sheets — the character card(s) and the persona, so the clerk knows who the people are
+ */
+export function renderWorldExtractPrompt({ notes, exchange, mode, noSecret = false, sheets = "", carry = false }) {
+    const task = renderWorldClerkTask(mode, { noSecret, carry });
+    const s = String(sheets || "").trim();
     const system =
         "You are a continuity clerk for an ongoing roleplay. You read the latest exchange and note what it changed: " +
         "the physical scene, who is present and how they look, and the story's slow deep currents. " +
-        "You never write story, never explain, and never add facts the exchange does not state or clearly show.";
+        (s
+            ? "The character sheets tell you who the characters and {{user}} are; use them to understand the people. " +
+              "You never write story, never explain, and never add facts that neither the exchange nor the sheets give you."
+            : "You never write story, never explain, and never add facts the exchange does not state or clearly show.");
     const user = [
+        ...(s ? [`<Character_Sheets>\n${s}\n</Character_Sheets>`, ""] : []),
         renderClerkNotes(notes),
         "",
         "<Latest_Exchange>",

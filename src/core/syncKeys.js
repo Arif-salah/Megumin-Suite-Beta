@@ -20,6 +20,9 @@ export const TAB_SYNC_KEYS = {
     style: ["activeStyleId", "aiRule", "customStyles", "dnRatio"],
     addons: ["addons", "blocks", "userLanguage", "userPronouns", "onomatopoeia", "v9Limits"],
     blocks: ["blockStack", "statBlocks", "blocks", "hideBlocksFromAI"],
+    // Plan 020: World State's own settings. Whether it is on is the block
+    // stack (Blocks); who writes it may be Chomusuke, which is shared anyway.
+    world: ["worldState"],
     director: ["storyPlan"],
     notebook: ["notebook"],
     banlist: ["banList", "banListBuiltIn", "banListShort", "banListBackend", "banListCustomPromptsEnabled", "banListCustomPrompts"],

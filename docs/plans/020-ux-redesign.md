@@ -221,8 +221,61 @@ developer tests in SillyTavern and reports back.
   (`tests/sync.test.mjs`); `RENAMED_TABS` is closed, `syncMapByTabId` moves
   the old map to ids once. Model Setup's tab has no scope pill (the loadout
   has its own "Use it on" choice).
-- [ ] Phase 3: World State tab
-- [ ] Phase 4: Setup checklists and the Draw button
+- [~] Phase 3: World State tab — built 2026-10-31, waiting for the
+  developer's test. `src/features/worldstate/ui.js`, dock id `world`, own
+  scope (`worldState`). "Who writes the updates" = The story model /
+  Chomusuke / Only me: Only me sets manual and leaves Chomusuke's job alone
+  (it is shared by every character); the tab says Chomusuke's choice is the
+  same for every character, and warns with a link when Chomusuke isn't set
+  up. The preview is this chat's real card (after the last message), not the
+  template. Reset asks with a popup. Linked from the Blocks row, the
+  Chomusuke tab's chips and the Images V2 banner. Model Setup has no World
+  State mention to link from, so nothing there.
+  Added after a user question (people couldn't find how to take someone out
+  of the scene): an × on each character in the LATEST reply's World State
+  card, asking "Left the scene" (kept, Off-screen) / "Forget them" / Cancel
+  (`worldDecorateCast` in `worldstate/card.js`); the latest reply's card now
+  shows the scene as it is now, so your edit shows at once; the tab has its
+  own "Change this chat's World State" section with a big Open the Editor
+  button and how-to lines; the Editor says "Left the scene" / "Off-screen"
+  like the card (was "Away").
+  Also (developer's request): people who stay "in the scene" forever.
+  (1) The World Update rules (story model and Chomusuke) now ask to check
+  everyone under Present each time and write "- Name: …" for anyone who left
+  or didn't come along to a new place (`LEAVING_UPDATE` in
+  `modules/world/render.js`). (2) "Who's in the scene" in the World State tab:
+  anyone not named in the story (reply + the user's message before it, blocks
+  and thinking left out, nicknames count) for 5 / 8 / 12 replies is moved out
+  of the scene, never the last one left (`staleStep` in
+  `modules/world/model.js`, default 8, `worldState.staleAfter`). It runs as
+  part of replaying each reply (the store passes the message text,
+  `adapter.applyContext`), so swipes, Revert and rewinds undo it, and the card
+  shows "X left · not named for 8 replies". `tests/world-stale.test.mjs`.
+  Phase-line fix: "Scene: Breather | Scene: Building" is two lines (first
+  wins); world parser version 3 so old chats are re-read.
+  "Each update writes: Only what changed / The whole scene (V10 + V11)"
+  (never "like V10": V10 had the model write a big HTML block; this is V10's
+  full rewrite in V11's short lines, kept and drawn by the extension)
+  (`worldState.writeMode`, default changes; the developer chose this over a
+  full V10 mode without the store, which was ~3 phases). Full = every reply,
+  story model and Chomusuke, write the full <World_State> snapshot, starting
+  from the last scene (`carry` in `renderWorldInstructions`); a snapshot now
+  replaces Threads/Seeds/Timers, says only real arrivals and "X left" for
+  whoever it left out. Rewrite next reply is greyed in that mode.
+  The control is HIDDEN for now (`SHOW_WRITE_MODE = false` in
+  `features/worldstate/ui.js`): the developer wants users on "only what
+  changed" first, to find its bugs. Flip it to true to show it.
+- [~] Phase 4: Setup checklists and the Draw button — built 2026-10-31,
+  waiting for the developer's test. `ui/checklist.js` (+ pure
+  `ui/checklistCore.js`, `tests/setup-checklist.test.mjs`). Chomusuke: the
+  connection card became the checklist (pick · test · choose its jobs);
+  "tested" is kept per connection (`chomusuke.testedProfileId`), a new
+  connection must be tested again. Test asks for one word (`TEST_PROMPT`)
+  and tells apart answered-as-asked / answered-something-else / empty
+  (refusal hint). The empty-answer warning on real jobs shows once per chat.
+  Images: the checklist replaces the "not connected" banner and the V2
+  "needs World State" banner; step 1 has the address and Test, steps 2–3
+  link to their pages. Draw button shows whenever Images are on.
 - [ ] Phase 5: One set of controls
 - [ ] Phase 6: The card in the chat
 - [ ] Phase 7: Names

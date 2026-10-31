@@ -18,7 +18,7 @@ import { npcDecorateNewPane } from "../npc/newCard.js";
 import { worldCardTextAt, worldExtractMessage, blocksCardTextAt, notebookCardTextAt } from "../../state/index.js";
 import { blocksReadForReply } from "./worker.js";
 import { bondsDecoratePane, sheetDecoratePane } from "../bonds/overview.js";
-import { worldDecoratePane } from "../worldstate/card.js";
+import { worldDecoratePane, worldDecorateCast } from "../worldstate/card.js";
 import { openWorldEditor } from "../worldstate/editor.js";
 import { NOTEBOOK_CARD_DEFS, notebookDecoratePane, notebookCardStamp } from "../notebook/card.js";
 import { notebookReadForReply } from "../notebook/worker.js";
@@ -184,11 +184,14 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
                     onReread: () => { notebookReadForReply(msgIndex, { force: true }); }
                 }));
             const wsPane = bodyEl.querySelector('.meg-block-body[data-block-id="world"]');
-            if (wsPane) worldDecoratePane(wsPane, msgIndex, {
-                onEdit: () => openWorldEditor(),
-                onChanged: () => meguminScheduleBlocksRefresh(),
-                onReread: () => { worldExtractMessage(msgIndex, { force: true }); }
-            });
+            if (wsPane) {
+                worldDecoratePane(wsPane, msgIndex, {
+                    onEdit: () => openWorldEditor(),
+                    onChanged: () => meguminScheduleBlocksRefresh(),
+                    onReread: () => { worldExtractMessage(msgIndex, { force: true }); }
+                });
+                worldDecorateCast(wsPane, msgIndex, () => meguminScheduleBlocksRefresh());
+            }
         }
     } catch (e) {
         // Fail visible: the reader keeps the raw block text, which is exactly

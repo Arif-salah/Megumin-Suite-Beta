@@ -46,7 +46,7 @@ test("continuity notes: full detail", () => {
     assert.match(t, /Loc: Axel \| guild tavern/);
     assert.match(t, /\{\{user\}\} \(PC\)\n  Outfit: green cape/);
     assert.match(t, /Aqua\n    Outfit: blue dress\n    Mood: smug\n    Agenda: win back her followers/);
-    assert.match(t, /Off-screen\n(.*\n)*  Wiz: restocking her shop/);
+    assert.match(t, /Off-screen \(2 of 4\)\n(.*\n)*  Wiz: restocking her shop/);
     assert.match(t, /Threads \(1 of 3\)\n  1\. Who stole the coin/);
     assert.match(t, /Timers \(1 of 2\)\n  1\. landlord: 2 turns/);
     assert.match(t, /Arc: Escalation \| Scene: Building/);

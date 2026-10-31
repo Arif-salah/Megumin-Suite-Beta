@@ -62,9 +62,12 @@ export async function igFetchComfyLists() {
     } catch (e) { console.warn(`[Megumin-Suite] ComfyLists failed`, e); }
 }
 
+// The Draw button next to the send button: there whenever Images are on, in
+// every "When to draw" mode (plan 020). It used to show only in "Only when I
+// ask", and nothing said so.
 export function toggleQuickGenButton() {
     const s = localProfile?.imageGen;
-    if (s && s.enabled && s.triggerMode === 'manual') {
+    if (s && s.enabled) {
         $("#kazuma_quick_gen").css("display", "flex");
     } else {
         $("#kazuma_quick_gen").css("display", "none");

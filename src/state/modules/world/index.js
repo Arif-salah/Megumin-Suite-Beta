@@ -8,7 +8,8 @@ export const worldModule = {
     id: "world",
     // Raise when a parser change should reach entries already on file.
     // 2: 'Matthew "Matt"' is one character with a nickname, not "Matthew Matt".
-    version: 2,
+    // 3: "Scene: Breather | Scene: Building" is two phase lines, not one value.
+    version: 3,
     empty: emptyWorld,
     parse: parseWorldBlocks,
     apply: applyWorldChanges

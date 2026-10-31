@@ -205,6 +205,45 @@ test("offscreen line", () => {
     assert.equal(findCast(s, "Wiz").offscreen, "restocking her shop");
 });
 
+test("Offscreen-: removes the off-screen line, keeps the character", () => {
+    const s = run(U("Wiz.Outfit: purple robe\nOffscreen: Wiz = restocking her shop"), base()).state;
+    const r = applyWorldChanges(s, parseWorldBlocks(U("Offscreen-: Wiz")), { seq: 2 });
+    assert.equal(findCast(r.state, "Wiz").offscreen, "");
+    assert.equal(findCast(r.state, "Wiz").fields.outfit, "purple robe");
+    assert.equal(r.notes.length, 0);
+    // "Off-screen - : Wiz = gone" is read the same way
+    const r2 = applyWorldChanges(s, parseWorldBlocks(U("Off-screen - : Wiz = gone for good")), { seq: 2 });
+    assert.equal(findCast(r2.state, "Wiz").offscreen, "");
+});
+
+test("Offscreen-: on someone with no line is noted", () => {
+    const r = run(U("Offscreen-: Nobody"), base());
+    assert.equal(r.notes.length, 1);
+});
+
+test("at most 4 off-screen lines: the oldest go, the characters stay", () => {
+    let s = base();
+    ["Wiz", "Megumin", "Darkness", "Yunyun"].forEach((n, i) => {
+        s = applyWorldChanges(s, parseWorldBlocks(U(`Offscreen: ${n} = somewhere ${i}`)), { seq: i + 2 }).state;
+    });
+    s = applyWorldChanges(s, parseWorldBlocks(U("- Aqua: went to the bath")), { seq: 10 }).state;
+    assert.equal(findCast(s, "Wiz").offscreen, "");
+    assert.ok(findCast(s, "Wiz"));
+    assert.equal(findCast(s, "Megumin").offscreen, "somewhere 1");
+    assert.equal(findCast(s, "Aqua").offscreen, "went to the bath");
+    // two in one reply: the first written is the older
+    s = applyWorldChanges(s, parseWorldBlocks(U("Offscreen: Chris = a heist\nOffscreen: Sena = the guild")), { seq: 11 }).state;
+    const away = Object.values(s.cast).filter(c => c.offscreen).map(c => c.name).sort();
+    assert.deepEqual(away, ["Aqua", "Chris", "Sena", "Yunyun"]);
+});
+
+test("update rules carry the off-screen limit and Offscreen-:", async () => {
+    const { renderWorldInstructions } = await import("../src/state/modules/world/render.js");
+    const rules = renderWorldInstructions("update").rules;
+    assert.match(rules, /Offscreen-: <Name>/);
+    assert.match(rules, /Keep at most 4 Off-screen lines/);
+});
+
 test("the PC cannot leave", () => {
     const r = run(U("- Kazuma: walks off"), base());
     assert.equal(r.notes.length, 1);

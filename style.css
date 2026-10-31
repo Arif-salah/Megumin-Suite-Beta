@@ -3493,6 +3493,20 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 .meg-ws-mood.meg-ws-you {
   background: rgba(245,158,11,.16); color: #fcd34d; border-color: rgba(245,158,11,.3);
 }
+/* × on a character in the latest card: take them out of the scene (plan 020).
+   Faint until you point at the character; always plain on touch screens. */
+.meg-ws-remove {
+  flex: 0 0 auto; width: 24px; height: 24px; margin: 0 -4px 0 0; padding: 0;
+  display: grid; place-items: center; border-radius: 6px;
+  border: 1px solid transparent; background: transparent;
+  color: var(--text-muted, #9aa0a6); font-size: .78rem; cursor: pointer;
+  opacity: .35; transition: opacity .15s, background .15s, color .15s;
+}
+.meg-ws-person:hover .meg-ws-remove { opacity: .85; }
+.meg-ws-remove:hover, .meg-ws-remove:focus-visible {
+  opacity: 1; color: #fca5a5; background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.35);
+}
+@media (hover: none) { .meg-ws-remove { opacity: .8; width: 30px; height: 30px; } }
 
 .meg-ws-rows { padding: 8px 11px 10px; display: grid; gap: 5px; }
 .meg-ws-row { display: grid; grid-template-columns: 62px 1fr; gap: 9px; font-size: .755rem; line-height: 1.5; }
@@ -3752,14 +3766,13 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 .blk-sub-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .blk-sub-label { font-size: .72rem; font-weight: 600; color: var(--text-main); }
 .blk-sub-desc { font-size: .62rem; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
-/* World State settings: stacked, never label-beside-control, because this
-   panel lives in the narrow left column. */
-.blk-ws { gap: 10px; padding-left: 14px; }
-.blk-ws-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.blk-ws-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.blk-ws-field select.ps-modern-input { width: 100%; box-sizing: border-box; padding: 5px 8px; font-size: .74rem; }
-.blk-ws-field .blk-sub-desc { margin-top: 0; }
-.blk-ws-chips { display: flex; flex-direction: column; gap: 5px; }
+/* World State's row in the Blocks tab: one button to its own tab (plan 020). */
+.blk-ws { gap: 6px; padding-left: 14px; }
+.blk-ws-open {
+    align-self: flex-start; margin: 0;
+    font-size: .74rem; padding: 6px 10px;
+    display: inline-flex; align-items: center; gap: 6px;
+}
 .blk-ws-chip {
     display: flex; align-items: center; gap: 8px;
     font-size: .7rem; color: var(--text-main); cursor: pointer;
@@ -3767,15 +3780,24 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
     border: 1px solid var(--border-color); background: rgba(255,255,255,.02);
 }
 .blk-ws-chip input { margin: 0; flex: none; }
-.blk-ws-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.blk-ws-actions .menu_button {
-    width: 100%; margin: 0; box-sizing: border-box;
-    font-size: .7rem; padding: 6px 4px;
-    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+
+/* The World State tab (plan 020, features/worldstate/ui.js). */
+.wsx-actions { flex-wrap: wrap; gap: 8px; }
+.wsx-actions .menu_button { margin: 0; display: inline-flex; align-items: center; gap: 6px; }
+.wsx-actions .menu_button.is-on { color: #f59e0b; border-color: rgba(245,158,11,.5); }
+.wsx-actions .menu_button[disabled] { opacity: .45; cursor: not-allowed; }
+.wsx-preview { margin-top: 4px; }
+.wsx-open-editor {
+    align-self: flex-start; margin: 4px 0 2px;
+    padding: 10px 18px; font-size: .9rem; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 8px;
+    color: #f59e0b; border-color: rgba(245,158,11,.5); background: rgba(245,158,11,.1);
 }
-.blk-ws-actions .menu_button.is-on { color: #f59e0b; border-color: rgba(245,158,11,.5); }
-.blk-ws-actions .menu_button[disabled] { opacity: .45; cursor: not-allowed; }
+.wsx-open-editor:hover:not([disabled]) { background: rgba(245,158,11,.2); }
+.wsx-open-editor[disabled] { opacity: .45; cursor: not-allowed; }
+.wsx-howto { margin: 8px 0 0; padding-left: 18px; font-size: .78rem; line-height: 1.55; color: var(--text-muted); }
+.wsx-howto b { color: var(--text-main); }
+.wsx-howto li + li { margin-top: 3px; }
 
 /* System blocks in the BLOCKS tab: shown, never arranged */
 .blk-row-system { background: rgba(59,130,246,.05); border-style: dashed; }
@@ -5504,6 +5526,34 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 .chx-conn select { max-width: 420px; }
 .chx-ok { color: #34d399; }
 .chx-bad { color: #f87171; }
+.chx-warn { color: #fbbf24; }
+.chx-offnote { margin: -4px 0 12px; }
+
+/* Setup checklist (plan 020, ui/checklist.js): Chomusuke and Images tabs. */
+.meg-check { border-left: 3px solid #f59e0b; }
+.meg-check.is-ready { border-left-color: #10b981; padding-top: 10px; padding-bottom: 10px; }
+.meg-check-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.meg-check-title { font-size: .9rem; font-weight: 700; color: var(--text-main); }
+.meg-check-title i { color: #f59e0b; margin-right: 4px; }
+.meg-check.is-ready .meg-check-title i { color: #10b981; }
+.meg-check-title small { margin-left: 6px; font-size: .72rem; font-weight: 500; color: var(--text-muted); }
+.meg-check-toggle { margin: 0; }
+.meg-check-steps { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.meg-check-step { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(0,0,0,.18); }
+.meg-check-step.is-next { border-color: rgba(245,158,11,.45); background: rgba(245,158,11,.06); }
+.meg-check-step.is-done { opacity: .85; }
+.meg-check-num {
+    flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center; font-size: .78rem; font-weight: 800;
+    background: rgba(255,255,255,.08); color: var(--text-muted);
+}
+.meg-check-step.is-next .meg-check-num { background: rgba(245,158,11,.22); color: #fcd34d; }
+.meg-check-step.is-done .meg-check-num { background: rgba(16,185,129,.2); color: #34d399; }
+.meg-check-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.meg-check-step-title { font-size: .86rem; font-weight: 700; color: var(--text-main); padding-top: 3px; }
+.meg-check-note { font-size: .74rem; color: var(--text-muted); }
+.meg-check-body:empty { display: none; }
+.meg-check-body .igx-banner { margin: 0; }
 .chx-cost { display: flex; gap: 8px; align-items: baseline; font-size: .82rem; line-height: 1.5; padding: 8px 12px; border-radius: 9px; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.22); }
 .chx-cost i { color: #f59e0b; }
 .chx-cost b { color: #fbbf24; }

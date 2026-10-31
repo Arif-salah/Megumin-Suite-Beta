@@ -65,7 +65,7 @@ function renderStateView(state) {
                 <b>${esc(c.name)}</b>${(c.aliases || []).map(a => `<span class="meg-wsed-tag">"${esc(a)}"</span>`).join("")}
                 <select class="ps-modern-input meg-wsed-status" data-who="${esc(c.name)}">
                     <option value="in" ${c.present ? "selected" : ""}>In the scene</option>
-                    <option value="away" ${c.present ? "" : "selected"}>Away</option>
+                    <option value="away" ${c.present ? "" : "selected"}>Left the scene</option>
                 </select>
                 <button type="button" class="meg-wsed-mini meg-wsed-forget" data-who="${esc(c.name)}" title="Forget this character entirely"><i class="fa-solid fa-trash"></i></button>
             </div>
@@ -115,7 +115,7 @@ function renderStateView(state) {
 
         ${away.length ? `
         <div class="meg-wsed-section">
-            <div class="meg-wsed-title"><i class="fa-solid fa-person-walking-arrow-right"></i> Away <span class="meg-wsed-tag">${away.length}</span></div>
+            <div class="meg-wsed-title"><i class="fa-solid fa-person-walking-arrow-right"></i> Off-screen <span class="meg-wsed-tag">${away.length}</span></div>
             <div class="meg-wsed-hint">Remembered with their last known details, so they come back as they left.</div>
             ${away.map(person).join("")}
         </div>` : ""}

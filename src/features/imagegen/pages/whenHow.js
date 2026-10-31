@@ -20,7 +20,7 @@ const WHEN = [
     { id: "always", label: "Every reply", desc: "A new image with each reply." },
     { id: "frequency", label: "Every few replies", desc: "You pick how often." },
     { id: "conditional", label: "When a character sends a picture", desc: "Only when the story calls for one." },
-    { id: "manual", label: "Only when I ask", desc: "Use the image button." }
+    { id: "manual", label: "Only when I ask", desc: "With the Draw button next to the send button." }
 ];
 const WHERE = [
     { id: "inline", label: "Inside the reply", desc: "The image sits in the story text." },
@@ -59,6 +59,7 @@ export function renderWhenHow(c, { engine, redraw }) {
         $freq.toggle(id === "frequency");
     }));
     when.append($freq);
+    when.append(`<div class="igx-note"><i class="fa-solid fa-image"></i> In every mode, the Draw button next to the send button draws the scene when you want one.</div>`);
     $freq.find("input").on("input", e => { let v = parseInt($(e.target).val()); if (!(v >= 1)) v = 1; s.autoGenFreq = v; saveProfileDebounced(); });
     c.append(when);
 

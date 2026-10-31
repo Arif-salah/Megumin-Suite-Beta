@@ -276,6 +276,15 @@ function parseLine({ t, bullet }, ctx, out) {
         }
     }
 
+    // ── "Offscreen-: Wiz": her off-screen line goes
+    m = t.match(/^off[\s-]?screen\s*[-–]\s*:?\s*(.+)$/i);
+    if (m) {
+        ctx.who = null;
+        const cn = cleanName(m[1].split(/\s*(?:=|:|—|–|\s-\s)\s*/)[0]);
+        if (!cn || isPlaceholder(m[1]) || skipValue(m[1])) return true;
+        return push(out, { type: "offscreenRemove", who: cn.name });
+    }
+
     // ── List ops: "Thread+: text" / "Seeds - : text"
     m = t.match(/^([\p{L}\s]{3,24}?)\s*([+\-–])\s*:?\s*(.+)$/u);
     if (m && LIST_LABELS[normLabel(m[1])]) {
@@ -307,8 +316,18 @@ function parseLine({ t, bullet }, ctx, out) {
 
         // Phases
         if (PHASE_LABELS[L]) {
-            if (skipValue(value)) return true;
-            return push(out, { type: "phase", key: PHASE_LABELS[L], value });
+            // Several phases on one line ("Arc: Resolution | Scene: Breather",
+            // "Scene: Breather | Scene: Building"): each part is its own line,
+            // so the second Scene counts as written twice (the first wins).
+            // A phase is one word or two; it never holds a "|".
+            const [own, ...rest] = value.split(/\s*\|\s*/);
+            if (!skipValue(own)) push(out, { type: "phase", key: PHASE_LABELS[L], value: own.trim() });
+            for (const part of rest) {
+                const pm = part.match(/^([^:]+):\s*(.+)$/);
+                const key = pm && PHASE_LABELS[normLabel(pm[1])];
+                if (key && !skipValue(pm[2])) push(out, { type: "phase", key, value: pm[2].trim() });
+            }
+            return true;
         }
 
         // Off-screen: "Offscreen: Wiz = restocking" or a section header

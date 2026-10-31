@@ -15,13 +15,14 @@ import { runWithChomusuke } from "../engine/tasks.js";
 import { warnChomusuke, answerKind } from "../engine/chomusukeNotice.js";
 import { setActiveWorldExtractRequest } from "../core/activeRequests.js";
 import { localProfile } from "../core/state.js";
+import { buildCharacterSheets } from "../features/imagegen/classic/prompt.js";
 import { createStateStore } from "./store.js";
 import { worldModule } from "./modules/world/index.js";
 import { bondsModule, sheetModule, chatterModule, trackerModule, cyoaModule } from "./modules/stats/index.js";
 import { renderWorkerNotes, cleanWorkerAnswer, blockTextIn } from "./modules/stats/worker.js";
 import { pickBondsFor } from "./modules/stats/model.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
-import { presentCast, findCast } from "./modules/world/model.js";
+import { presentCast, findCast, castDisplayName, STALE_AFTER_DEFAULT } from "./modules/world/model.js";
 import { notebookModule } from "./modules/notebook/index.js";
 import {
     notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler
@@ -43,6 +44,13 @@ export const WORLD_SETTINGS_DEFAULTS = {
     injectionDetail: "full",     // full | scene
     showReturning: true,
     showChanges: true,
+    // Plan 020: anyone in the scene not named for this many replies is moved
+    // out of it (0 = never). See staleStep in modules/world/model.js.
+    staleAfter: STALE_AFTER_DEFAULT,
+    // Plan 020: "changes" = each reply writes only what it changed;
+    // "full" = each reply writes the whole scene again (V10's habit, in
+    // V11's short lines; the store still keeps it and draws the card).
+    writeMode: "changes",
     journalDepth: 200
 };
 
@@ -52,17 +60,21 @@ export function worldSettings() {
 
 /**
  * How replies update the World State right now:
- *   "manual"    — they don't (Blocks tab: Updates → Manual)
- *   "sidemodel" — Chomusuke reads each reply (Chomusuke tab: World State route on)
+ *   "manual"    — they don't (World State tab: Who writes the updates → Only me)
+ *   "sidemodel" — Chomusuke reads each reply (World State tab → Chomusuke, or
+ *                 the Chomusuke tab's World State route; the same setting)
  *   "inline"    — the story model writes the block in its reply (everything else)
- * The Chomusuke route is decided in the Chomusuke tab with every other routed
- * feature, so the Blocks tab only says whether updates happen at all.
  */
 export function worldUpdateMode() {
     if (worldSettings().updateMode === "manual") return "manual";
     const c = localProfile && localProfile.chomusuke;
     if (c && c.enabled && c.profileId && c.features && c.features.worldState === true) return "sidemodel";
     return "inline";
+}
+
+/** Each reply writes the whole scene again (the "V10 + V11" setting). */
+export function worldWritesFull() {
+    return worldSettings().writeMode === "full";
 }
 
 /** The World State block is switched on in the block stack. */
@@ -89,7 +101,8 @@ const adapter = {
         const u = sub("{{user}}");
         if (u && u !== "{{user}}") names.push(u);
         return names;
-    }
+    },
+    applyContext: mid => mid === "world" ? { staleAfter: Number(worldSettings().staleAfter) || 0 } : {}
 };
 
 export const stateStore = createStateStore({
@@ -136,17 +149,31 @@ export function worldPromptBlock() {
 export function worldBlockRequest() {
     if (!worldEnabled()) return null;
     if (worldUpdateMode() !== "inline") return null;
-    const mode = !stateStore.hasState("world") || stateStore.isPendingFullRewrite("world") ? "bootstrap" : "update";
-    const ins = renderWorldInstructions(mode, { noSecret: notebookEnabled() });
+    const has = stateStore.hasState("world");
+    const mode = !has || stateStore.isPendingFullRewrite("world") || worldWritesFull() ? "bootstrap" : "update";
+    const ins = renderWorldInstructions(mode, { noSecret: notebookEnabled(), carry: has });
     return { rules: sub(ins.rules), template: sub(ins.template), mode };
 }
 
-/** The card body for one message: the world as it stood right after it. */
+/** The last reply in the chat: its card shows the scene as it is now. */
+export function worldIsLatestReply(msgIndex) {
+    const chat = adapter.getChat();
+    for (let i = chat.length - 1; i >= 0; i--) {
+        const m = chat[i];
+        if (!m || m.is_system || m.is_user) continue;
+        return i === msgIndex;
+    }
+    return false;
+}
+
+/** The card body for one message: the world as it stood right after it. The
+ *  latest reply shows the scene now, so your own edits (removing someone from
+ *  the scene) show at once instead of after the next reply. */
 export function worldCardTextAt(msgIndex) {
     if (!worldEnabled()) return "";
     const msg = adapter.getChat()[msgIndex];
     const seq = msg?.extra?.megumin_seq;
-    const state = typeof seq === "number" ? stateStore.getStateAt("world", seq) : getWorldState();
+    const state = typeof seq === "number" && !worldIsLatestReply(msgIndex) ? stateStore.getStateAt("world", seq) : getWorldState();
     if (isEmptyWorld(state)) return "";
     return sub(renderWorldCard(state, { pcName: sub("{{user}}"), noSecret: notebookEnabled() }));
 }
@@ -233,6 +260,17 @@ export function worldSameCharacter(name, into) {
 export function worldEdit(changes) {
     if (!adapter.getMeta() || !Array.isArray(changes) || !changes.length) return null;
     return stateStore.addUserEntry("world", { kind: "delta", changes, skipped: [], noChanges: false, byUser: true });
+}
+
+/** Who is in the scene now: [{ name, display }] (display = how the card names them). */
+export function worldPresentNames() {
+    if (!worldHasState()) return [];
+    return presentCast(getWorldState()).map(c => ({ name: c.name, display: castDisplayName(c) }));
+}
+
+/** From the card's ×: `name` left the scene (kept, off-screen), or is forgotten. */
+export function worldRemoveFromScene(name, { forget = false } = {}) {
+    return worldEdit([forget ? { type: "forget", who: name } : { type: "leave", who: name, where: "" }]);
 }
 
 export function worldSetEntryDisabled(entryId, disabled) {
@@ -377,10 +415,11 @@ export function worldExtractMessage(index, { force = false } = {}) {
             // Built when its turn comes, so a queued read sees the entries that
             // landed before it.
             const before = stateStore.getStateAt("world", st.seq - 0.5);
-            const mode = isEmptyWorld(before) ? "bootstrap" : "update";
+            const empty = isEmptyWorld(before);
+            const mode = empty || worldWritesFull() ? "bootstrap" : "update";
             const noSecret = notebookEnabled();
-            const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
-            const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, mode), mode, noSecret });
+            const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
+            const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, empty ? "bootstrap" : "update"), mode, noSecret, carry: !empty, sheets: worldSheets() });
             req = { system: sub(built.system), user: sub(built.user), prefill: built.prefill, job: "world" };
             // The marker is set only once this job has the worker. Chomusuke runs
             // are queued; set while waiting, it would hijack whatever generation
@@ -466,10 +505,21 @@ export function worldBeginExternalRead(index) {
 /** The notes (state BEFORE the reply) and the exchange, built at run time. */
 export function worldReadInputs(token) {
     const before = stateStore.getStateAt("world", token.seq - 0.5);
-    const mode = isEmptyWorld(before) ? "bootstrap" : "update";
+    const empty = isEmptyWorld(before);
+    const mode = empty || worldWritesFull() ? "bootstrap" : "update";
     const noSecret = notebookEnabled();
-    const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
-    return { mode, notes, noSecret, exchange: exchangeFor(token.index, token.text, mode) };
+    const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
+    return { mode, notes, noSecret, carry: !empty, exchange: exchangeFor(token.index, token.text, empty ? "bootstrap" : "update"), sheets: worldSheets() };
+}
+
+// The card(s) (Description and Personality) and the persona, sent with every
+// World State read so Chomusuke knows who the people are.
+function worldSheets() {
+    try {
+        return buildCharacterSheets({ personality: true }).replace(/^Use these sheets for what each character looks like:\s*/, "").trim();
+    } catch (e) {
+        return "";
+    }
 }
 
 function findTokenMessage(token) {
