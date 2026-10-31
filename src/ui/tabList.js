@@ -22,7 +22,7 @@ export const TAB_LIST = [
     { id: "notebook", group: "story", title: "The Notebook", sub: "The truths the story is hiding, the clues it plants, and when they come out.", icon: "fa-book" },
     { id: "images", group: "helpers", title: "Images", sub: "Wire up ComfyUI to draw the scenes of the story.", icon: "fa-image" },
     { id: "npc", group: "helpers", title: "NPC Bank", sub: "The characters the story has met, kept and tracked.", icon: "fa-address-book" },
-    { id: "chomusuke", group: "helpers", title: "Chomusuke", sub: "Your helper model: it does background work so the story model doesn't have to.", icon: "fa-cat" },
+    { id: "chomusuke", group: "helpers", title: "Chomusuke", sub: "A second model that does the background work, so the story model doesn't have to.", icon: "fa-cat" },
     { id: "banlist", group: "helpers", title: "Banned Phrases", sub: "Find the phrases the AI keeps repeating and ban them.", icon: "fa-ban" },
     { id: "memory", group: "legacy", title: "Memory", sub: "How the story remembers older parts of the chat.", icon: "fa-memory" },
     { id: "director", group: "legacy", title: "Story Director", sub: "Direct the narrative. Shape what happens next.", icon: "fa-clapperboard" },

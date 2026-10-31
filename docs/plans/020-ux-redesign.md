@@ -278,4 +278,12 @@ developer tests in SillyTavern and reports back.
   link to their pages. Draw button shows whenever Images are on.
 - [ ] Phase 5: One set of controls
 - [ ] Phase 6: The card in the chat
-- [ ] Phase 7: Names
+- [~] Phase 7: Names — built 2026-10-31, waiting for the developer's test.
+  On-screen text only (nothing sent to the model): engine → preset
+  everywhere, Dev Mode included ("Presets" door, Save Preset, This preset…);
+  code names kept (`session.engine`, scope `"engine"`, Memory's "Scanner
+  Engine" is another thing). Story Config → Story settings; NPC Book → NPC
+  Bank (side panel); Chomusuke is "a second model", its connection "its own
+  connection"; CYOA → Choices; the Dice card tab was "Roll"; close toast
+  "Saved."; Persona's Nora description. No `docs/*-prompts.md` shows UI
+  words, so nothing to regenerate.

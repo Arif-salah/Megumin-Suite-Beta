@@ -238,7 +238,7 @@ $("body").off("click", "#ps_btn_dev_mode").on("click", "#ps_btn_dev_mode", funct
     e.preventDefault();
     if ($(this).text().includes("Exit Dev")) {
         if (isDevEngineDirty) {
-            if (!confirm("You have unsaved changes in your custom engine. Are you sure you want to exit? Changes will be lost.")) return;
+            if (!confirm("You have unsaved changes in your custom preset. Are you sure you want to exit? Changes will be lost.")) return;
         }
         setDevEngineDirty(false);
         switchTab(0);
@@ -328,7 +328,7 @@ jQuery(async () => {
             }
         });
 
-        $("body").on("click", "#ps_btn_save_close", function () { saveProfileToMemory(); $("#prompt-slot-modal-overlay").fadeOut(200); toastr.success("Workflow Configured & Applied Successfully!"); });
+        $("body").on("click", "#ps_btn_save_close", function () { saveProfileToMemory(); $("#prompt-slot-modal-overlay").fadeOut(200); toastr.success("Saved.", "Megumin Suite"); });
 
         if (typeof eventSource !== 'undefined' && typeof event_types !== 'undefined') {
             eventSource.on(event_types.APP_READY, () => {
@@ -814,7 +814,7 @@ jQuery(async () => {
         $("body").off("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay").on("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay", function (e) {
             if (e.target === this) {
                 if (isDevEngineDirty) {
-                    if (!confirm("You have unsaved changes in your custom engine. Are you sure you want to close? Changes will be lost.")) return;
+                    if (!confirm("You have unsaved changes in your custom preset. Are you sure you want to close? Changes will be lost.")) return;
                     setDevEngineDirty(false);
                 }
                 saveProfileToMemory();

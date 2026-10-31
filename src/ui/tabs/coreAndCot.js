@@ -79,13 +79,13 @@ const DESCRIPTIONS = {
     "v6-anime-director": "Advanced cinematic framing and pacing. Designed to emulate high-budget anime direction.",
     "v6-dream-team": "The ultimate 6-specialist writer room. Unprecedented narrative consistency and realism.",
     "v6-dream-team-lite": "A streamlined version of the Dream Team. Faster generation with lower token overhead.",
-    "v7-core": "The V7 Core engine. The perfect middle ground: cinematic pacing, realistic friction, and relentless world progression.",
-    "v7-reality": "The V7 Reality engine. Grounded, unrelenting simulation with zero narrative protection.",
-    "v7-gentle": "The V7 Gentle engine. A softer, more intimate storytelling flow.",
-    "v7.5": "The Kismet engine. Focused purely on inescapable narrative momentum, pushing the story forward as the unseen author of fate.",
+    "v7-core": "The V7 Core preset. The perfect middle ground: cinematic pacing, realistic friction, and relentless world progression.",
+    "v7-reality": "The V7 Reality preset. Grounded, unrelenting simulation with zero narrative protection.",
+    "v7-gentle": "The V7 Gentle preset. A softer, more intimate storytelling flow.",
+    "v7.5": "The Kismet preset. Focused purely on inescapable narrative momentum, pushing the story forward as the unseen author of fate.",
     "v8-m": "Unmatched in complex human psychology, authentic flawed dialogue, and autonomous, multi-layered story plotting.",
     "v8-lite": "A streamlined, highly efficient version of Obsidian. Retains the core rules of psychology, dialogue, and momentum with a much lighter token footprint.",
-    "v8-fusion": "The absolute pinnacle of the Megumin Suite. A hybrid engine mixing V8 Obsidian's deep psychology with V6 Dream Team's specialist writer room framework.",
+    "v8-fusion": "The absolute pinnacle of the Megumin Suite. A hybrid preset mixing V8 Obsidian's deep psychology with V6 Dream Team's specialist writer room framework.",
     "v11-voice": "One storyteller writes the whole turn, plainly and with a voice of its own. Characters play their sheets at full strength, the world goes on without you, and a notebook keeps the story's hidden truths until they come out. The base for every model.",
     "v11-deepseek": "V11 Тайна with one more line for DeepSeek, which tends to treat the character as the player and leave them doing nothing: the character and everyone else in the story are the AI's to write and to move. Use it with Chomusuke writing the blocks, since DeepSeek leaves them out.",
     "v11-writers-room": "V11 Тайна written by a room of five: a director, a psychologist, a story architect, a storyteller and a dialogue writer talk the turn over in the thinking before it is written.",
@@ -95,7 +95,7 @@ const DESCRIPTIONS = {
     "v10-core-cw": "Ukiyo, with the narrator writing {{user}} as well. It reads how you write — diction, rhythm, how boldly you act — and plays your character in that voice. Anything you write yourself is canon and is never overwritten or corrected. Your history stays yours; only the acting is shared.",
     "v10-shura-cw": "Shura with shared authorship: every character is a protagonist, {{user}} among them, and the narrator writes them all in your voice. It yields the moment you take a turn back, and never invents your past. For hands-off, cinematic play — watching the story rather than steering each beat.",
     "v9-core": "The definitive, final Megumin V9 Preset. V9 Mirage is the absolute pinnacle of narrative simulation, delivering hyper-realistic psychology, visceral atmospheric grounding, and dynamic world consequences. This is the ultimate, highly recommended preset.",
-    "v9-lite": "An experimental beta engine with a slightly different, highly stylized narrative flow. Proved interesting enough to include for those who want an alternative storytelling rhythm. Note: this doesn't support custom Writing style it have it own one. ",
+    "v9-lite": "An experimental beta preset with a slightly different, highly stylized narrative flow. Proved interesting enough to include for those who want an alternative storytelling rhythm. Note: this doesn't support custom Writing style it have it own one. ",
     "v9-director": "A unique beta hybrid blending the specialized writer-room mechanics of V8 Fusion with the raw psychological depth of V9 Xin. Highly experimental. Note: this doesn't support custom Writing style it have it own one.",
     "v9-immersion": "A streamlined, lightweight version of V9 Mirage. It retains the core philosophy and brutal realism of Mirage but runs with a smaller context footprint. V9 Mirage is still recommended if your model can handle it."
 };
@@ -111,18 +111,18 @@ const COT_TYPES = [
     { id: "v10-shura-cap", label: "CoT V10 Shura — Thinking Cap", desc: "The same seven rules with a hard ceiling on the thinking phase. For models that over-think.", isNew: true },
     { id: "v1", label: "CoT V1 (Classic)", desc: "The original 8-step framework. Focuses heavily on the NPC's internal emotional landscape vs their observable actions." },
     { id: "v2", label: "CoT V2 (New)", desc: "The new experimental framework. Stricter reality checks, info audits, better NPCs, and hook generation." },
-    { id: "v6", label: "CoT V6 (Dream Team)", desc: "The full 4-phase sequence designed specifically for V6 engines. Specialized validation and modeling." },
+    { id: "v6", label: "CoT V6 (Dream Team)", desc: "The full 4-phase sequence designed specifically for V6 presets. Specialized validation and modeling." },
     { id: "v6-lite", label: "CoT V6 (Lite)", desc: "A streamlined 3-phase sequence. Less token overhead while maintaining narrative rules." },
     { id: "v7", label: "CoT V7", desc: "The new V7 sequence with 5-phase strict ground truth rebuilding." },
     { id: "v7-lite", label: "CoT V7 (Lite)", desc: "A streamlined 5-phase sequence for V7." },
-    { id: "v7.5", label: "CoT V7.5 Kismet", desc: "The new V7.5 sequence focused on story engine mechanics." },
+    { id: "v7.5", label: "CoT V7.5 Kismet", desc: "The new V7.5 sequence, focused on what drives the story forward." },
     { id: "v8", label: "CoT V8", desc: "The new V8 narrative processing sequence." },
     { id: "v8-fusion", label: "CoT V8 Fusion", desc: "The new V8 Fusion narrative processing sequence." },
-    { id: "v9", label: "CoT V9 Mirage", desc: "The primary and most balanced reasoning sequence, purpose-built for the V9 Mirage engine. The gold standard for modern roleplay.", isNew: true },
+    { id: "v9", label: "CoT V9 Mirage", desc: "The primary and most balanced reasoning sequence, purpose-built for the V9 Mirage preset. The gold standard for modern roleplay.", isNew: true },
     { id: "v9-director", label: "CoT V9 Mirage Air", desc: "A lighter, version of CoT V9 Mirage, it give Different output Try and see if you like.", isNew: true },
     { id: "v9-immersion", label: "CoT V9 Mirage Max", desc: "The heavy-duty, maximum-thinking sequence. Forces the AI to dive incredibly deep into sensory data and psychological realism before generating a single word.", isNew: true },
-    { id: "v9-hybrid", label: "CoT V9 Kuromaku", desc: "A specialized multi-agent reasoning sequence designed specifically to pair with the V9 Kuromaku engine.", isNew: true },
-    { id: "v9-lite", label: "CoT V9 Cui (Lite)", desc: "A highly streamlined, fast-executing reasoning sequence perfectly paired with the V9 Cui engine to save tokens.", isNew: true }
+    { id: "v9-hybrid", label: "CoT V9 Kuromaku", desc: "A specialized multi-agent reasoning sequence designed specifically to pair with the V9 Kuromaku preset.", isNew: true },
+    { id: "v9-lite", label: "CoT V9 Cui (Lite)", desc: "A highly streamlined, fast-executing reasoning sequence perfectly paired with the V9 Cui preset to save tokens.", isNew: true }
 ];
 
 const ALL_LANGS = [
@@ -237,7 +237,7 @@ export function renderCoreAndCot(c) {
         <div class="igx-chips ptx-summary">
             <span class="igx-chip ok"><i class="fa-solid fa-server"></i> ${esc(active ? active.label : localProfile.mode)}</span>
             <span class="igx-chip ${localProfile.cotEnabled ? "warm" : ""}"><i class="fa-solid fa-brain"></i> Thinking: ${localProfile.cotEnabled ? esc(cotLabel) : "off"}</span>
-            <span class="igx-chip"><i class="fa-solid fa-sliders"></i> Story Config: ${cfgCount ? `${cfgCount} set` : "preset defaults"}</span>
+            <span class="igx-chip"><i class="fa-solid fa-sliders"></i> Story settings: ${cfgCount ? `${cfgCount} set` : "preset defaults"}</span>
         </div>
     `);
 
@@ -246,7 +246,7 @@ export function renderCoreAndCot(c) {
     const pages = [
         { id: "preset", label: "Preset", icon: "fa-server" },
         { id: "thinking", label: "Thinking", icon: "fa-brain" },
-        { id: "config", label: "Story Config", icon: "fa-sliders" }
+        { id: "config", label: "Story settings", icon: "fa-sliders" }
     ];
     const $tabs = $(`<div class="igx-tabs" role="tablist"></div>`);
     pages.forEach(p => {

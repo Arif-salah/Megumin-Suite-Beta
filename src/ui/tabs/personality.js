@@ -47,7 +47,7 @@ export function renderPersonality(c) {
     // would have done it again. The engine already knows what it is called.
     const lockedEngineName = (activeEngineForPersona && activeEngineForPersona.label)
         ? activeEngineForPersona.label
-        : "This engine";
+        : "This preset";
 
     if (isModern) {
         c.append(`
@@ -63,7 +63,7 @@ export function renderPersonality(c) {
             <div class="mtab-locked-state">
                 <i class="fa-solid fa-user-lock" style="color: #a855f7;"></i>
                 <h3>Persona Selection Locked</h3>
-                <p>The V6 Dream Team engine utilizes an intrinsic 6-specialist framework. Standard persona injections are disabled to prevent logic conflicts.</p>
+                <p>The V6 Dream Team preset utilizes an intrinsic 6-specialist framework. Standard persona injections are disabled to prevent logic conflicts.</p>
             </div>
         `);
     } else if (isV7) {
@@ -71,15 +71,15 @@ export function renderPersonality(c) {
             <div class="mtab-locked-state">
                 <i class="fa-solid fa-user-lock" style="color: #3b82f6;"></i>
                 <h3>Persona Selection Locked</h3>
-                <p>The V7 engine utilizes a pure narrative framework. Standard persona injections are disabled to prevent logic conflicts.</p>
+                <p>The V7 preset utilizes a pure narrative framework. Standard persona injections are disabled to prevent logic conflicts.</p>
             </div>
         `);
     } else {
         const descriptions = {
             "megumin": "A rebellious, dominant voice. Adds an edge of arrogance and chaos to the narration. Best for energetic or confrontational stories.",
             "director": "Professional narrator. Clean, authoritative story direction with cinematic awareness.",
-            "Nora": "Nora should i say more.",
-            "engine": "No personality overlay at all. The engine speaks in its purest form — precise, neutral, and fully under your control. Recommended for most setups."
+            "Nora": "The story is told by Nora, a narrator with her own voice.",
+            "engine": "No personality overlay at all. The preset speaks in its purest form — precise, neutral, and fully under your control. Recommended for most setups."
         };
 
         c.append(`<div class="wstyle-section-head purple"><i class="fa-solid fa-masks-theater"></i> Select Persona</div>`);
@@ -117,7 +117,7 @@ export function renderPersonality(c) {
             <div class="mtab-toggle-row ${isOn ? 'active' : ''}">
                 <div class="toggle-info">
                     <div class="toggle-label">${tog.label}</div>
-                    ${tog.recommendedOff ? `<div class="toggle-desc"><i class="fa-solid fa-star" style="color:var(--gold);font-size:0.6rem;margin-right:4px;"></i> Off by default — most engines handle this natively</div>` : ''}
+                    ${tog.recommendedOff ? `<div class="toggle-desc"><i class="fa-solid fa-star" style="color:var(--gold);font-size:0.6rem;margin-right:4px;"></i> Off by default — most presets handle this natively</div>` : ''}
                 </div>
                 <div class="ps-switch"></div>
             </div>

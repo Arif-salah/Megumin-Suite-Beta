@@ -154,7 +154,7 @@ export function renderNotebookTab(c) {
     const live = state ? liveTruths(state).length : 0;
     const past = state ? pastTruths(state).length : 0;
 
-    const status = !on && v11 ? "The notebook is off. V11's engine still talks about its notebook, so edit the engine in Dev Mode and take out the lines about it."
+    const status = !on && v11 ? "The notebook is off. V11's preset still talks about its notebook, so edit the preset in Dev Mode and take out the lines about it."
         : !on ? "The notebook is off."
         : !hasChat ? "Open a chat to see its notebook."
         : phase === "setup" ? "The next reply writes the notebook: two or three hidden truths."
@@ -191,8 +191,8 @@ export function renderNotebookTab(c) {
             if (on) {
                 const popup = new Popup(
                     "<h3>Turn the notebook off for V11?</h3>" +
-                    "<p>This isn't recommended. V11's engine text talks about its notebook, so the story keeps expecting one.</p>" +
-                    "<p>If you turn it off, edit the V11 engine in Dev Mode too and take out the lines about the notebook.</p>",
+                    "<p>This isn't recommended. V11's preset text talks about its notebook, so the story keeps expecting one.</p>" +
+                    "<p>If you turn it off, edit the V11 preset in Dev Mode too and take out the lines about the notebook.</p>",
                     POPUP_TYPE.CONFIRM, "", { okButton: "Turn it off", cancelButton: "Keep it on" }
                 );
                 if (!(await popup.show())) return;

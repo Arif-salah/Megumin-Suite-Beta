@@ -159,7 +159,7 @@ function buildPanelSkeleton() {
         el("div", { class: "meg-sp-header-actions" },
             el("button", {
                 class: "meg-sp-icon-btn",
-                title: "Open NPC Book",
+                title: "Open NPC Bank",
                 onclick: () => openNpcBook(),
             }, el("i", { class: "fa-solid fa-book-open" })),
             el("button", {
@@ -207,7 +207,7 @@ function clickNpcBankDot() {
 function openNpcBook(focusIdx) {
     const $overlay = window.jQuery ? window.jQuery("#prompt-slot-modal-overlay") : null;
     if (!$overlay || !$overlay.length) {
-        try { (window.toastr || console).info("Open Megumin Suite (wand icon) at least once first.", "NPC Book"); } catch (e) { /* */ }
+        try { (window.toastr || console).info("Open Megumin Suite (wand icon) at least once first.", "NPC Bank"); } catch (e) { /* */ }
         return;
     }
 

@@ -38,7 +38,7 @@ export function renderGlobalAndBlocks(c) {
     const addonDescriptions = {
         "death": "Enables permanent consequences. Characters — including yours — can die for real. No safety net, no plot armor.",
         "combat": "Activates a grounded, tactical combat layer. Actions have real weight, positioning matters, and you can lose badly.",
-        "direct": "Forces AI to say words like D and P. No dancing around the subject, no polite deflection. you know what i mean. <b>Not needed on V10</b> — that engine already writes this way, so switching it on just repeats the instruction.",
+        "direct": "Forces AI to say words like D and P. No dancing around the subject, no polite deflection. you know what i mean. <b>Not needed on V10</b> — that preset already writes this way, so switching it on just repeats the instruction.",
         "color": "Each character's dialogue is color-coded for easy visual parsing.",
         "npc_events": "Requires all new story events to grow naturally from prior context or environmental cues — no random drama out of nowhere. V6 only.",
         "dn": "Forces dialogue and narration to be wrapped in their respective XML tags. Useful for specific Models for better narration style adherence. <b>Not recommended on V10</b> — the tags fight that engine's own prose rules.",
@@ -292,7 +292,7 @@ export function renderGlobalAndBlocks(c) {
                         ${customBadge(b)}
                     </div>
                     <p class="ecard-desc">${blockDescriptions[b.id] || ""}</p>
-                    ${isOverridden ? `<div style="margin-top:4px;"><span class="ecard-badge override"><i class="fa-solid fa-code-branch"></i> Engine Override</span></div>` : ''}
+                    ${isOverridden ? `<div style="margin-top:4px;"><span class="ecard-badge override"><i class="fa-solid fa-code-branch"></i> Preset Override</span></div>` : ''}
                 </div>
             </div>
         `);

@@ -40,7 +40,7 @@ const BLOCK_ROUTES = [
     { id: "bonds", label: "Bonds", icon: "fa-heart" },
     { id: "sheet", label: "Character Sheet", icon: "fa-shield-halved" },
     { id: "chatter", label: "NPC Inner Chatter", icon: "fa-comments" },
-    { id: "cyoa", label: "CYOA choices", icon: "fa-list-check" }
+    { id: "cyoa", label: "Choices", icon: "fa-list-check" }
 ];
 
 // After every reply: each is a call on every reply while on (off by default,
@@ -152,7 +152,7 @@ export function renderChomusuke(c) {
         <div class="mtab-header">
             <div class="mtab-header-left">
                 <div class="mtab-header-icon" style="background: linear-gradient(135deg, #f43f5e, #be123c);"><i class="fa-solid fa-cat"></i></div>
-                <div><h2>Chomusuke</h2><p>Your helper model: it does the background jobs on a second connection, so the story model doesn't have to.</p></div>
+                <div><h2>Chomusuke</h2><p>A second model that does the background jobs on its own connection, so the story model doesn't have to.</p></div>
             </div>
         </div>
     `);
@@ -316,7 +316,7 @@ export function renderChomusuke(c) {
     c.append(occ);
 
     c.append(switching
-        ? `<div class="igx-note chx-how"><i class="fa-solid fa-cat"></i> When a job starts, Chomusuke switches to the worker connection, does the job quietly, then switches back. If anything goes wrong, your story connection is put back straight away. (Settings: "Switch my connection for each Chomusuke job" is on.)</div>`
+        ? `<div class="igx-note chx-how"><i class="fa-solid fa-cat"></i> When a job starts, Chomusuke switches to its own connection, does the job quietly, then switches back. If anything goes wrong, your story connection is put back straight away. (Settings: "Switch my connection for each Chomusuke job" is on.)</div>`
         : `<div class="igx-note chx-how"><i class="fa-solid fa-cat"></i> Chomusuke sends its jobs straight to its connection. Your story connection never changes.</div>`);
 
     // ── Wiring ──

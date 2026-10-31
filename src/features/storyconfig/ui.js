@@ -38,12 +38,12 @@ function buildConfigSyncRow() {
         const keep = !meguminStoryConfigSyncs();
         const hostOn = meguminStoryConfigHostSynced();
         row.empty().append(switchRow({
-            label: `<i class="fa-solid fa-user"></i> Keep Story Config with this ${noun}`,
+            label: `<i class="fa-solid fa-user"></i> Keep Story settings with this ${noun}`,
             desc: !hostOn
                 ? `Only matters when this tab is set to "Every ${noun}" (top bar). It is set to "This ${noun} only", so nothing is copied.`
                 : keep
                     ? `Genre, POV, pace and the rest stay with this ${noun}. The preset and thinking still go to every ${noun}.`
-                    : `Story Config goes to every ${noun} with the rest of this tab.`,
+                    : `Story settings go to every ${noun} with the rest of this tab.`,
             on: keep,
             disabled: !hostOn,
             onChange: on => {
@@ -68,7 +68,7 @@ export function buildStoryConfigSection() {
     applyStoryConfigDefaults(cfg);
     const sec = $(`<div class="ws-section" id="sec-config"></div>`);
 
-    sec.append(`<h3 style="margin-top: 0; color: var(--gold); font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-sliders"></i> Story Config</h3>`);
+    sec.append(`<h3 style="margin-top: 0; color: var(--gold); font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-sliders"></i> Story settings</h3>`);
 
     // No master toggle: the block is always injected. Anything left on Preset default
     // still emits no line, so "off" is expressed per field rather than for the whole
@@ -433,7 +433,7 @@ export function renderStoryConfig(c) {
     if (!isLockedStyleEngine) {
         btnOff.on("click", () => { localProfile.activeStyleId = null; localProfile.aiRule = ""; saveProfileToMemory(); renderStyleLibrary(c); });
     } else {
-        btnOff.css({"opacity":"0.6", "cursor":"not-allowed"}).attr("title", "Modern Engines require a narrative style directive.");
+        btnOff.css({"opacity":"0.6", "cursor":"not-allowed"}).attr("title", "This preset needs a writing style.");
     }
     sidebar.append(btnOff);
     sidebar.append(`<div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>`);

@@ -73,7 +73,7 @@ const GATE = {
     // Custom clones are resolved from customModes as well as the shipped list,
     // because a clone of a Co-writer is still a Co-writer.
     notCoWriter: gate(p => !isCoWriterEngine(meguminModeById(p && p.mode)),
-                      "a non Co-writer engine", "Preset & Thinking"),
+                      "a non Co-writer preset", "Preset & Thinking"),
 };
 
 /**
@@ -122,10 +122,10 @@ export const MEGUMIN_SLOT_REGISTRY = [
     { key: "p5", trigger: "[[prompt5]]", structural: true, label: "Prompt 5", scope: "engine", group: "engine",
       hint: "How characters act and what the model may decide on its own." },
     { key: "p6", trigger: "[[prompt6]]", structural: true, label: "Prompt 6", scope: "engine", group: "engine",
-      hint: "The last of the engine's own instructions." },
+      hint: "The last of the preset's own instructions." },
     { key: "main", trigger: "[[main]]", hidden: true, label: "Personality", scope: "auto", group: "engine",
       where: "Persona",
-      hint: "Comes from the Persona tab. Blanked entirely on V6 and newer engines." },
+      hint: "Comes from the Persona tab. Blanked entirely on V6 and newer presets." },
     { key: "A1", trigger: "[[AI1]]", structural: true, hidden: true, label: "Model Acknowledgement 1", scope: "engine", group: "engine",
       advanced: true, hint: "A fake reply from the model, agreeing that it read the rules." },
     { key: "A2", trigger: "[[AI2]]", structural: true, hidden: true, label: "Model Acknowledgement 2", scope: "engine", group: "engine",
@@ -139,13 +139,13 @@ export const MEGUMIN_SLOT_REGISTRY = [
     { key: "cot", trigger: "[[COT]]", label: "Chain of Thought", scope: "engine", group: "reasoning",
       carrier: "think",
       picker: { label: "Load from a chain-of-thought", options: cotPicker("content") },
-      hint: "The reasoning script the model works through before it writes. Engine-specific, because it is written to match the engine's own rules." },
+      hint: "The reasoning script the model works through before it writes. Preset-specific, because it is written to match the preset's own rules." },
     { key: "prefill", trigger: "[[prefill]]", label: "Prefill", scope: "engine", group: "reasoning",
       picker: { label: "Load from a chain-of-thought", options: cotPicker("prefill") },
       hint: "Words put into the model's mouth to start its reply." },
     { key: "think", trigger: "[[THINK]]", label: "Thinking Tags", scope: "shared", group: "reasoning",
       gate: GATE.think,
-      hint: "The tags the reasoning is wrapped in. {Thinking} marks where the engine's Chain of Thought is dropped in — keep it, or the script has nowhere to go.",
+      hint: "The tags the reasoning is wrapped in. {Thinking} marks where the preset's Chain of Thought is dropped in — keep it, or the script has nowhere to go.",
       fallback: () => "<think>\n<think>\n<think>\n{Thinking}\n</think>" },
 
     // ── Shared fragments: one value, every engine ────────────────────────────
@@ -172,7 +172,7 @@ export const MEGUMIN_SLOT_REGISTRY = [
       ] },
     { key: "userControl", trigger: "[[user]]", label: "Never Write For {{user}}", scope: "shared", group: "systems",
       gate: GATE.notCoWriter,
-      hint: "Sent on every engine except the Co-writer variants, which are built to write {{user}}. The last line of the final reminder. Older presets number that list by hand, so keep it written as a numbered line; on V11 the number is counted for you.",
+      hint: "Sent on every preset except the Co-writer variants, which are built to write {{user}}. The last line of the final reminder. Older presets number that list by hand, so keep it written as a numbered line; on V11 the number is counted for you.",
       fallback: () => "5. The response does not speak, think, feel, or act for {{user}}, and it shows everything {{user}} reached for." },
     { key: "finalChecks", trigger: "[[final_checks]]", label: "Final Checks", scope: "shared", group: "systems",
       hint: "The checks at the top of the final reminder, one per line. They are numbered for you.",
@@ -207,7 +207,7 @@ export const MEGUMIN_SLOT_REGISTRY = [
     { key: "info", trigger: "[[infoblock]]", carrier: "blocks", label: "World State Block", scope: "shared", group: "blocks",
       gate: GATE.block("info"), hint: "The scene board printed under each reply.",
       fallback: () => blockText("info") },
-    { key: "cyoa", trigger: "[[cyoa]]", carrier: "blocks", label: "Choice Block", scope: "shared", group: "blocks",
+    { key: "cyoa", trigger: "[[cyoa]]", carrier: "blocks", label: "Choices Block", scope: "shared", group: "blocks",
       gate: GATE.block("cyoa"), hint: "The numbered options offered at the end of a reply.",
       fallback: () => blockText("cyoa") },
     { key: "mvu", trigger: "[[MVU]]", label: "MVU Variables", scope: "shared", group: "blocks",
@@ -234,11 +234,11 @@ export const MEGUMIN_SLOT_REGISTRY = [
       hint: "Built from the pronouns you picked on Writing Style → Language & rules." },
     { key: "count", trigger: "[[count]]", label: "Word Count", scope: "auto", group: "global",
       overridable: true, deprecated: true, where: "Preset & Thinking",
-      hint: "Superseded by Length in Story Config. Always sent empty unless you override it here." },
+      hint: "Superseded by Length in Story settings. Always sent empty unless you override it here." },
 
     // ── Filled live by a feature. Nothing to edit ────────────────────────────
-    { key: null, trigger: "[[config]]", label: "Story Config", scope: "auto", group: "live", where: "Preset & Thinking",
-      hint: "The <config> block built from your Story Config choices." },
+    { key: null, trigger: "[[config]]", label: "Story settings", scope: "auto", group: "live", where: "Preset & Thinking",
+      hint: "The <config> block built from your Story settings choices." },
     { key: null, trigger: "[[infoblockcurrent]]", label: "Current World State", scope: "auto", group: "live", where: "Blocks",
       hint: "The current compiled World State context on file, injected right above <Blocks> when in delta update mode." },
     { key: null, trigger: "[[notebook]]", label: "Author's Notebook", scope: "auto", group: "live", where: "Blocks",
@@ -290,7 +290,7 @@ export const MEGUMIN_SLOT_REGISTRY = [
       hint: "Instructions for emitting image prompts." },
     { key: null, trigger: "[[aiprompt]]", label: "Narration Style", scope: "auto", group: "live",
       where: "Writing Style",
-      hint: "Your writing style, wrapped differently depending on the engine generation." },
+      hint: "Your writing style, wrapped differently depending on the preset generation." },
     { key: null, trigger: "[[style]]", label: "Writing Style (as written)", scope: "auto", group: "live",
       where: "Writing Style",
       hint: "The style you picked, exactly as written, for presets that say \"You narrate as [[style]]\". Falls back to V11 Default." },
@@ -399,7 +399,7 @@ export function meguminModuleTrigger(attachPoint) {
 }
 
 export const SLOT_GROUPS = [
-    { id: "engine", label: "The Engine's Own Rules", hint: "Belongs to this engine. Editing means saving your own copy." },
+    { id: "engine", label: "The Preset's Own Rules", hint: "Belongs to this preset. Editing means saving your own copy." },
     { id: "reasoning", label: "Reasoning" },
     { id: "systems", label: "Systems" },
     { id: "format", label: "Formatting" },

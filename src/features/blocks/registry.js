@@ -49,7 +49,7 @@ import { storyPlanPrompts } from "../../prompts/storyPlan.js";
 // to write. Optional -- a block without one simply shows no tooltip.
 export const MEGUMIN_BLOCK_REGISTRY = [
     {
-        id: "dice", tag: "Dice", label: "Roll",
+        id: "dice", tag: "Dice", label: "Dice",
         emoji: "\u{1F3B2}", icon: "fa-dice-d20", color: "#22d3ee",
         visibility: "open", builtin: true, system: true,
         // The model writes one <Dice> per roll as often as it writes one tag
