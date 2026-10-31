@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-    LOADOUTS, COMING_SOON, SETTINGS, loadoutById, settingFor, applyLoadout, changedFromLoadout, pickEngine,
+    LOADOUTS, COMING_SOON, SETTINGS, loadoutById, settingFor, applyLoadout, changedFromLoadout, pickEngine, loadoutChanges,
     LENGTH_FLEXIBLE, LENGTH_SHORT
 } from "../src/features/modelsetup/loadouts.js";
 import { modes } from "../data/modes/index.js";
@@ -167,4 +167,22 @@ test("V11 Тайна DeepSeek: V11 Тайна with one line back in <reader>, an
     assert.equal(ds.contentRules, voice.contentRules);
     assert.equal(ds.repetition, voice.repetition);
     assert.equal(meguminCotForMode("v11-deepseek"), "cot-v11-voice-english");
+});
+
+test("what Use this loadout would change: listed before, profile untouched (plan 020)", () => {
+    const p = profile();
+    const before = JSON.stringify(p);
+    const changes = loadoutChanges(p, loadoutById("fast"), ctx);
+    assert.equal(JSON.stringify(p), before, "the profile is not touched");
+    const keys = changes.map(c => c.key);
+    assert.deepEqual(keys, ["mode", "length", "banList", "html", "chomusuke", "style"]);
+    assert.deepEqual(changes[0], { key: "mode", label: "Preset", from: "v10-core", to: "v11-deepseek" });
+    assert.deepEqual(changes.find(c => c.key === "style"), { key: "style", label: "Writing style", from: "dir_v10_ukiyo", to: "dir_v11" });
+    assert.ok(!keys.includes("thinking"), "custom thinking is already on: not listed");
+
+    applyLoadout(p, loadoutById("fast"), ctx);
+    assert.deepEqual(loadoutChanges(p, loadoutById("fast"), ctx), [], "nothing left to change");
+    const l = loadoutById("gemini-pro");
+    assert.deepEqual(loadoutChanges(p, l, ctx, { ...l.settings, banList: "short" }).map(c => c.key),
+        ["mode", "thinking", "length", "chomusuke"], "the page's changes count");
 });

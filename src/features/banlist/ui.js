@@ -98,12 +98,7 @@ export function renderBanList(c) {
                 <div class="mtab-panel-title purple" style="margin-bottom:0;"><i class="fa-solid fa-radar"></i> AI Slop Detector</div>
                 <button id="ps_btn_scan_slop" class="wstyle-gen-btn" style="padding: 8px 18px; font-size: 0.78rem; background: linear-gradient(135deg, #a855f7, #7c3aed);"><i class="fa-solid fa-radar"></i> Analyze Chat</button>
             </div>
-            <div class="mtab-setting-row">
-                <div class="set-info">
-                    <div class="set-label"><i class="fa-solid fa-cat" style="color: #f43f5e; margin-right: 6px;"></i> Background Worker</div>
-                    <div class="set-desc">Managed by the <b>Chomusuke</b> tab. Configure Chomusuke to offload slop analysis to a dedicated worker LLM.</div>
-                </div>
-            </div>
+        </div>
 
         <div class="mtab-panel" style="margin-bottom:16px;">
             <div class="mtab-panel-title red"><i class="fa-solid fa-plus-circle"></i> Add Phrase</div>

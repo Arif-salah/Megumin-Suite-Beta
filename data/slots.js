@@ -54,15 +54,15 @@ const gate = (test, label, where) => ({ test, label, where });
 const GATE = {
     think:   gate(p => p.cotEnabled !== false, "Chain of Thought", "Preset & Thinking"),
     block:   id => gate(p => (p.blocks || []).includes(id), null, "Blocks"),
-    addon:   id => gate(p => (p.addons || []).includes(id), null, "Add-ons"),
+    addon:   id => gate(p => (p.addons || []).includes(id), null, "Writing Style → Language & rules"),
     chatter: gate(p => (p.blocks || []).includes("npc_inner_chatter")
                     || (p.blocks || []).includes("npc_inner_chatter_v2"),
                   "NPC Inner Chatter", "Blocks"),
     plan:    gate(p => !!(p.storyPlan && p.storyPlan.enabled), "Story Director", "Story Plan"),
     dnratio: gate(p => !!(p.dnRatio && p.dnRatio.enabled), "Dialogue/Narration ratio", "Writing Style"),
-    onomato: gate(p => !!(p.onomatopoeia && p.onomatopoeia.enabled), "Onomatopoeia", "Language & Add-ons"),
+    onomato: gate(p => !!(p.onomatopoeia && p.onomatopoeia.enabled), "Onomatopoeia", "Writing Style → Language & rules"),
     dice:    gate(p => (p.addons || []).includes("dice")
-                    || (p.addons || []).includes("dice_all"), "Dice", "Add-ons"),
+                    || (p.addons || []).includes("dice_all"), "Dice", "Writing Style → Language & rules"),
     banBuiltIn: gate(p => p.banListBuiltIn !== false, "Built-in list", "Banned Phrases"),
 
     // The one gate keyed on the ENGINE rather than a switch the reader flips.
@@ -227,11 +227,11 @@ export const MEGUMIN_SLOT_REGISTRY = [
 
     // ── Computed from your settings. Overridable, but rarely worth it ────────
     { key: "language", trigger: "[[Language]]", label: "Language Rule", scope: "auto", group: "global",
-      overridable: true, where: "Language & Add-ons",
-      hint: "Built from the language you picked in the Language & Add-ons tab." },
+      overridable: true, where: "Writing Style → Language & rules",
+      hint: "Built from the language you picked on Writing Style → Language & rules." },
     { key: "pronouns", trigger: "[[pronouns]]", label: "Your Pronouns", scope: "auto", group: "global",
-      overridable: true, where: "Language & Add-ons",
-      hint: "Built from the pronouns you picked in the Language & Add-ons tab." },
+      overridable: true, where: "Writing Style → Language & rules",
+      hint: "Built from the pronouns you picked on Writing Style → Language & rules." },
     { key: "count", trigger: "[[count]]", label: "Word Count", scope: "auto", group: "global",
       overridable: true, deprecated: true, where: "Preset & Thinking",
       hint: "Superseded by Length in Story Config. Always sent empty unless you override it here." },
@@ -259,13 +259,13 @@ export const MEGUMIN_SLOT_REGISTRY = [
     // new each turn at the end. Older presets use the combined slots above.
     { key: null, trigger: "[[block_rules]]", label: "Block Rules", scope: "auto", group: "live", where: "Blocks",
       hint: "How to fill World State and the Notebook, sent up top. The blocks to write this turn are in This Turn." },
-    { key: null, trigger: "[[dice_rules]]", label: "Dice Rules", scope: "auto", group: "live", where: "Language & Add-ons",
+    { key: null, trigger: "[[dice_rules]]", label: "Dice Rules", scope: "auto", group: "live", where: "Writing Style → Language & rules",
       gate: GATE.addon("dice"), hint: "The Dice rules without this turn's numbers. Edit them in Dice; the numbers are in This Turn." },
     { key: null, trigger: "[[img_rules]]", label: "Image Rules (top)", scope: "auto", group: "live", where: "Images",
       hint: "How to write an image tag, sent up top. This Turn says when one is due, with the characters in the scene." },
     { key: null, trigger: "[[npc_rules]]", label: "NPC Rules (top)", scope: "auto", group: "live", where: "NPC Bank",
       hint: "How to write a new character's dossier and update a known one, sent up top. Built from the NPC Bank's fields." },
-    { key: null, trigger: "[[addon_rules]]", label: "Add-on Rules", scope: "auto", group: "live", where: "Language & Add-ons",
+    { key: null, trigger: "[[addon_rules]]", label: "Add-on Rules", scope: "auto", group: "live", where: "Writing Style → Language & rules",
       hint: "The add-ons you switched on (Death, Combat, Organic NPCs, Immersive HTML, Onomatopoeia), each in its own section, sent up top." },
     { key: null, trigger: "[[storyplan_rules]]", label: "Story Director: Unrestricted Content", scope: "auto", group: "live", where: "Story Director",
       gate: GATE.plan, hint: "The Story Director's unrestricted content rule, sent up top." },
@@ -282,7 +282,7 @@ export const MEGUMIN_SLOT_REGISTRY = [
     { key: null, trigger: "[[npc_dossier]]", label: "NPC Dossier Rules", scope: "auto", group: "live", where: "NPC Bank",
       hint: "Instructions for keeping dossiers up to date. Not the dossiers themselves." },
     { key: null, trigger: "[[npc_events]]", label: "Organic NPCs & Events", scope: "auto", group: "live",
-      where: "Language & Add-ons", gate: GATE.addon("npc_events"),
+      where: "Writing Style → Language & rules", gate: GATE.addon("npc_events"),
       hint: "Stops new characters appearing out of nowhere." },
     { key: null, trigger: "[[storyplan]]", label: "Story Plan", scope: "auto", group: "live", where: "Story Director",
       gate: GATE.plan, hint: "The current directive from the Story Director." },

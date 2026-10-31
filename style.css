@@ -1757,28 +1757,8 @@
 }
 
 /* ================================================================
-   MOBILE RESPONSIVE — Sidebar Drawer Redesign
-   Desktop UI is completely untouched.
+   MOBILE RESPONSIVE
    ================================================================ */
-
-/* ── Drawer backdrop overlay (injected via JS) ── */
-.mobile-drawer-overlay {
-    display: none;
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 90;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-.mobile-drawer-overlay.open {
-    opacity: 1;
-}
-
-/* ── Hamburger button (injected via JS) ── */
-.mobile-hamburger {
-    display: none; /* Hidden on desktop */
-}
 
 @media (max-width: 768px) {
 
@@ -1887,33 +1867,11 @@
         width: auto !important;
     }
 
-    /* Everything the drawer needed and the bar does not: the header and footer
-       index.js injects into it, and the flex spacer that pushed Global Settings
-       to the bottom of a vertical rail. One rule, because they are exactly the
-       dock's non-tab children. */
+    /* Everything the rail has and the bar does not: the group headings (Story,
+       Helpers) and the flex spacer that pushes Settings to the bottom of the
+       rail. One rule, because they are exactly the dock's non-tab children. */
     .dock > *:not(.dock-icon) {
         display: none !important;
-    }
-
-    .mobile-drawer-overlay,
-    .mobile-hamburger {
-        display: none !important;
-    }
-
-    /* ── Drawer header (injected via JS inside dock) ── */
-    .mobile-drawer-header {
-        padding: 0 20px 16px 20px;
-        margin-bottom: 8px;
-        border-bottom: 1px solid var(--border-color);
-        flex-shrink: 0;
-    }
-    .mobile-drawer-header h3 {
-        font-size: 0.7rem;
-        font-weight: 700;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin: 0;
     }
 
     /* ── Dock icon: a pill. 44px tall is the touch-target floor. ── */
@@ -1980,43 +1938,6 @@
         border-left-width: 1px !important;
     }
 
-    /* ── Drawer footer (injected via JS at bottom of dock) ── */
-    .mobile-drawer-footer {
-        margin-top: auto;
-        padding: 12px 16px;
-        border-top: 1px solid var(--border-color);
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        flex-shrink: 0;
-    }
-    .mobile-drawer-footer-btn {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 14px;
-        border-radius: 8px;
-        background: var(--bg-main);
-        border: 1px solid var(--border-color);
-        color: var(--text-muted);
-        font-family: 'Inter', sans-serif;
-        font-size: 0.78rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: 0.15s;
-    }
-    .mobile-drawer-footer-btn:hover {
-        background: rgba(255, 255, 255, 0.05);
-    }
-    .mobile-drawer-footer-btn.danger {
-        color: #ef4444;
-        border-color: rgba(239, 68, 68, 0.3);
-    }
-    .mobile-drawer-footer-btn.sync-global {
-        color: var(--gold);
-        border-color: rgba(245, 158, 11, 0.3);
-    }
-
     /* ════════════════════════════════════════════════════
        HERO BANNER — kept with character pic
        ════════════════════════════════════════════════════ */
@@ -2050,7 +1971,7 @@
         font-size: 0.6rem !important;
     }
 
-    /* ── Top app bar — hamburger on left, actions on right ── */
+    /* ── Top app bar — actions on the right ── */
     .top-app-bar {
         padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important;
         padding-bottom: 10px !important;
@@ -2058,10 +1979,6 @@
         padding-right: calc(12px + env(safe-area-inset-right, 0px)) !important;
         justify-content: space-between !important;
     }
-
-    /* No hamburger. Every tab is in the bar at the foot of the screen, so the
-       menu that used to open the drawer has nothing left to open. index.js
-       still injects the button; this is what keeps it off the screen. */
 
     .app-actions {
         gap: 6px !important;
@@ -2098,6 +2015,11 @@
 
     #btn_apply_tab_all i {
         font-size: 0.75rem !important;
+    }
+    /* The scope pill keeps its choice on the phone, drops "This tab:". */
+    #btn_apply_tab_all .meg-scope-pre,
+    #btn_apply_tab_all .meg-scope-caret {
+        display: none;
     }
 
     /* Token counter: compact */
@@ -3153,45 +3075,8 @@
 .cfg-master.active { border-color: rgba(16,185,129,.45); background: rgba(16,185,129,.06); }
 .cfg-master-title { font-size: .85rem; font-weight: 700; color: var(--text-main); }
 .cfg-master-title i { color: var(--gold); margin-right: 6px; }
-/* Story Config's own global-sync opt-out. Sits above the preset bar. */
-.cfg-sync-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-    padding: 9px 12px;
-    border: 1px solid var(--border-color);
-    border-left: 3px solid var(--gold);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
-}
-
-.cfg-sync-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-
-.cfg-sync-label {
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: var(--text-main);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.cfg-sync-desc {
-    font-size: 0.66rem;
-    color: var(--text-muted);
-    line-height: 1.35;
-}
-
-.cfg-sync-btn {
-    flex: 0 0 auto;
-}
+/* "Keep Story Config with this character": a switch row above the preset bar. */
+.cfg-sync-row { margin-bottom: 14px; }
 
 .cfg-master-desc { font-size: .68rem; color: var(--text-muted); margin-top: 4px; line-height: 1.35; }
 
@@ -5222,10 +5107,11 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 .meg-nb-line { font-size: .8rem; line-height: 1.5; margin-bottom: 4px; }
 .meg-nb-how { font-size: .7rem; color: #10b981; }
 
-/* ── Dock groups (plan 011) ──────────────────────────────────────────────────
-   Story Setup and More Tools fold into one row each. The head is a dock icon
-   with a chevron; its tabs sit under it while it is open. A thin line marks
-   where each group starts, so it reads as a group with the dock closed too. */
+/* ── Dock groups (plan 011, plan 020) ────────────────────────────────────────
+   Legacy folds into one row. The head is a dock icon with a chevron; its tabs
+   sit under it while it is open. A thin line marks where each group starts,
+   so it reads as a group with the dock closed too. Story and Helpers are
+   headings (.dock-group-label) over tabs that always show. */
 .dock-group-head {
     position: relative;
 }
@@ -5272,6 +5158,155 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 
 /* The tab you are in, after a group's name: shown on the phone bar only. */
 .dock-group-current { font-style: normal; display: none; }
+
+/* A heading over tabs that always show. On the icon rail it is a thin line
+   until the rail opens on hover; the phone bar hides it (non-tab child). */
+.dock-group-label {
+    position: relative;
+    flex-shrink: 0;
+    height: 28px;
+    padding: 12px 22px 0;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+.dock-group-label::before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: 12px;
+    right: 12px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+}
+.dock-group-label span { opacity: 0; transition: opacity 0.2s; }
+.dock:hover .dock-group-label span { opacity: 1; transition-delay: 0.1s; }
+
+/* Legacy: greyed, full colour when you point at it or are on one of its tabs. */
+.dock-legacy:not(.active):not(.has-active):not(:hover) { opacity: 0.6; }
+
+/* ── Dock with names (plan 020) ──────────────────────────────────────────────
+   Wide screens keep the labels on: a 200px column instead of the icon rail
+   that opened on hover. The window grows by the same 140px so the page keeps
+   its width. Under 900px the rail is back; at 768px the phone bar. */
+@media (min-width: 901px) {
+    .ps-modern-modal.app-container { width: 1190px; }
+    .dock {
+        width: 200px;
+        padding-top: 10px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: none;
+        transition: none;
+    }
+    .dock::-webkit-scrollbar { width: 0; }
+    .dock:hover {
+        width: 200px;
+        box-shadow: var(--spec), 0 18px 40px -22px rgba(0, 0, 0, 0.8);
+    }
+    .dock-icon,
+    .dock-icon:hover,
+    .dock-icon.active {
+        width: auto;
+        height: 40px;
+        margin: 0 8px 2px;
+        padding: 0 12px;
+        border-radius: 8px;
+        flex-shrink: 0;
+    }
+    .dock-group-items .dock-icon { height: 36px; }
+    .dock-icon i { margin-right: 12px; }
+    .dock-icon span,
+    .dock-group-label span {
+        opacity: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .dock-group-label { padding-left: 20px; }
+    .dock-group-head .dock-group-chevron { opacity: 0.7; }
+    .main-content { padding-left: 240px; }
+}
+
+/* Page bar of a tab with pages (Writing Style · Language & rules). */
+.dock-pages { margin-bottom: 14px; }
+
+/* "This tab: This character only / Every character" (plan 020, tabs.js). */
+.meg-scope-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.meg-scope-btn .meg-scope-pre { color: var(--text-muted); font-weight: 500; }
+.meg-scope-btn .meg-scope-caret { font-size: 0.7rem; opacity: 0.7; }
+.meg-scope-btn.scope-one { color: var(--gold); border-color: rgba(245, 158, 11, 0.3); }
+.meg-scope-btn.scope-every { color: #10b981; border-color: rgba(16, 185, 129, 0.45); }
+.meg-scope-btn.scope-shared,
+.meg-scope-btn.scope-shared:disabled { color: var(--text-muted); opacity: 0.8; cursor: default; }
+.meg-scope-menu {
+    position: absolute;
+    z-index: 130;
+    width: 290px;
+    max-width: calc(100% - 20px);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    border-radius: 12px;
+    background: rgba(24, 24, 28, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
+}
+.meg-scope-head { padding: 4px 8px 6px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); }
+.meg-scope-menu button {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 10px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+}
+.meg-scope-menu button > i { width: 18px; margin-top: 2px; text-align: center; color: var(--text-muted); }
+.meg-scope-menu button b { display: block; font-size: 0.85rem; }
+.meg-scope-menu button small { display: block; margin-top: 2px; font-size: 0.72rem; line-height: 1.35; color: var(--text-muted); }
+.meg-scope-menu button:hover { background: rgba(255, 255, 255, 0.07); }
+.meg-scope-menu button.on { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.4); }
+.meg-scope-menu button.on > i { color: var(--gold); }
+
+/* Settings → Data: the tabs shared right now. */
+.gs-shared { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px; }
+.gs-shared-row { font-size: 0.75rem; line-height: 1.4; color: var(--text-muted); }
+.gs-shared-row b { color: var(--text-main); }
+
+/* Use this loadout: what it changes, listed before anything is written. */
+.msx-changes { margin: 8px 0 0; padding-left: 18px; line-height: 1.6; }
+.msx-changes i { font-size: 0.7em; opacity: 0.6; margin: 0 4px; }
+
+/* Who does this job: one line on Memory and Story Director
+   (ui/chomusukeLine.js, plan 020). */
+.meg-chomu-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 4px 0 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+.meg-chomu-line > i { color: #f43f5e; }
+.meg-chomu-line > span { flex: 1; min-width: 180px; }
+.meg-chomu-line b { color: var(--text-main); }
+.meg-chomu-line.on { border-color: rgba(16, 185, 129, 0.35); }
 
 /* Phone bar: groups are pills too. A group's tabs open in a small sheet above
    the bar (tabs.js, togglePhoneSheet), so the bar holds the main tabs, the two

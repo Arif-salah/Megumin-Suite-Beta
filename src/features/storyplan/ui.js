@@ -11,6 +11,7 @@ import { setActiveStoryPlanRequest } from "../../core/activeRequests.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js";
 import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
+import { chomusukeJobLine } from "../../ui/chomusukeLine.js";
 import { cleanAIOutput, getChatForStoryDirector } from "../../engine/chatText.js";
 import { escapeHtmlAttr } from "../../utils/html.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
@@ -249,12 +250,7 @@ export function renderStoryPlanner(c) {
             <!-- ENGINE SETTINGS -->
             <div class="mtab-panel">
                 <div class="mtab-panel-title gold"><i class="fa-solid fa-gears"></i> Engine Settings</div>
-                <div class="mtab-setting-row">
-                    <div class="set-info">
-                        <div class="set-label"><i class="fa-solid fa-cat" style="color: #f43f5e; margin-right: 6px;"></i> Background Worker</div>
-                        <div class="set-desc">Managed by the <b>Chomusuke</b> tab. Configure Chomusuke to offload story directive evolution to a dedicated worker LLM.</div>
-                    </div>
-                </div>
+                ${chomusukeJobLine("storyPlan", "the story direction updates")}
                 <div class="mtab-setting-row">
                     <div class="set-info">
                         <div class="set-label">Context Limit</div>

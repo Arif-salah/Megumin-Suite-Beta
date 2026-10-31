@@ -1,5 +1,6 @@
 // ────────────────────────────────────────────────────────────────────────────
-// Language & Add-ons — language, pronouns, sound effects and the gameplay add-ons.
+// Language & rules (a page of Writing Style) — language, pronouns, sound
+// effects and the gameplay add-ons.
 // ────────────────────────────────────────────────────────────────────────────
 
 import { Popup, POPUP_TYPE } from "../../st.js";
@@ -69,7 +70,7 @@ export function renderGlobalAndBlocks(c) {
                     <i class="fa-solid fa-puzzle-piece"></i>
                 </div>
                 <div>
-                    <h2>Language & Add-ons</h2>
+                    <h2>Language & rules</h2>
                     <p>The story's language and your pronouns, plus the gameplay add-ons.</p>
                 </div>
             </div>

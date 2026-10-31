@@ -25,6 +25,7 @@ import { registerRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { setActiveMemorySummarizationRequest } from "../../core/activeRequests.js";
 import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
+import { chomusukeJobLine } from "../../ui/chomusukeLine.js";
 import { downloadJsonFile } from "../../utils/download.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
@@ -183,12 +184,7 @@ export function renderMemoryCore(c) {
                     </div>
                 </div>
 
-                <div class="mtab-setting-row" style="border-top: 1px solid rgba(255,255,255,0.04); padding-top: 14px;">
-                    <div class="set-info">
-                        <div class="set-label"><i class="fa-solid fa-cat" style="color: #f43f5e; margin-right: 6px;"></i> Background Worker</div>
-                        <div class="set-desc">Managed by the <b>Chomusuke</b> tab. Configure Chomusuke to offload memory chunk summarization to a dedicated worker LLM.</div>
-                    </div>
-                </div>
+                ${chomusukeJobLine("memory", "the memory summaries")}
                 <div class="mtab-setting-row" style="border-top: 1px solid rgba(255,255,255,0.04); padding-top: 14px;">
                     <div class="set-info">
                         <div class="set-label">Vault Scanner Engine</div>
