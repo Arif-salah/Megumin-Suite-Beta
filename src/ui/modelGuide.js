@@ -6,7 +6,7 @@
 
 // Chomusuke sends its jobs straight to its profile (plan 019): one profile,
 // for Chomusuke, and the story's connection never changes.
-const MODEL_ADVICE = "Chomusuke works best with <b>GLM 5.3 Flash</b>. It has no jailbreak, so pick an uncensored or less censored model, like GLM 5.3 Flash <i class='fa-solid fa-star' style='color: #fbbf24;' title='Recommended'></i> (recommended) or <b>DeepSeek 4.1 Flash</b>: a censored one like Gemini can refuse an NSFW story.";
+const MODEL_ADVICE = "Chomusuke works best with <b>GLM 5.3 Flash</b>. It has no jailbreak, so pick an uncensored or less censored model, like GLM 5.3 Flash <i class='fa-solid fa-star' style='color: var(--c-warn, #fbbf24);' title='Recommended'></i> (recommended) or <b>DeepSeek 4.1 Flash</b>: a censored one like Gemini can refuse an NSFW story.";
 
 export const CHOMUSUKE_SETUP_STEPS = [
     "Open SillyTavern's <b>API Connections</b> panel (the plug icon in the top bar).",

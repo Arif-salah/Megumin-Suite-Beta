@@ -276,7 +276,24 @@ developer tests in SillyTavern and reports back.
   Images: the checklist replaces the "not connected" banner and the V2
   "needs World State" banner; step 1 has the address and Test, steps 2–3
   link to their pages. Draw button shows whenever Images are on.
-- [ ] Phase 5: One set of controls
+- [~] Phase 5: One set of controls — built 2026-10-31, waiting for the
+  developer's test. `ui/controls.js`: header, note, confirmPopup, askName,
+  choosePopup, keepScroll. Every native confirm()/prompt() and every
+  click-again delete is gone (imports ask Add to mine / Replace mine).
+  Thinking choices a preset with its own thinking ignores are greyed
+  (`.ptx-unused`); a Thinking Cap already says it sets its own length;
+  Model Setup rows of a loadout not in use say "Preview"; picking a preset
+  says "Also set: Thinking → …, Writing Style → …". Blocks and NPC Bank
+  keep scroll, NPC Bank keeps its open cards (by creation time). Colours:
+  the --c-* vocabulary moved to the top :root (+ --c-chomu, --c-warn,
+  --c-sky); CSS-written colours in the page renderers use
+  `var(--c-x, #hex)` (123 of them; stored colours in profile, NPC fields,
+  Story settings and block definitions are data and stay hex).
+  NOT done, on purpose: tabs not rebuilt one by one on `header()` (old
+  `mtab-*` markup still works and looks the same; the new controls are for
+  new code and the next edits), and the "COHERENCE LAYER" `!important`
+  block stays: it styles every tab's glass look, and removing it needs a
+  visual check in SillyTavern first.
 - [~] Phase 6: The card in the chat — built 2026-10-31, waiting for the
   developer's test. World State tab "· N" (`worldTabCount`, shown even with
   "Show what changed" off); each choice's arrow is a send button (paper

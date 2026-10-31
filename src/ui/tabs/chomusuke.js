@@ -184,7 +184,7 @@ export function renderChomusuke(c) {
         ${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === cfg.profileId ? "selected" : ""}>${esc(p.name)}</option>`).join("")}
     </select>`);
     $pick.append(`<div class="igx-banner"><i class="fa-solid fa-shield-halved"></i>
-        <span>Chomusuke has no jailbreak. A censored model like Gemini can refuse its jobs on an NSFW story and send back nothing. Use an uncensored or less censored model, like <b>GLM 5.3 Flash</b> <i class="fa-solid fa-star" style="color: #fbbf24;" title="Recommended"></i> (recommended) or <b>DeepSeek 4.1 Flash</b>.</span></div>`);
+        <span>Chomusuke has no jailbreak. A censored model like Gemini can refuse its jobs on an NSFW story and send back nothing. Use an uncensored or less censored model, like <b>GLM 5.3 Flash</b> <i class="fa-solid fa-star" style="color: var(--c-warn, #fbbf24);" title="Recommended"></i> (recommended) or <b>DeepSeek 4.1 Flash</b>.</span></div>`);
     // Step by step: making the connection profiles.
     const open = setupOpen === null ? !profiles.length : setupOpen;
     const $howFold = $(`<button type="button" class="igx-fold"><i class="fa-solid fa-chevron-${open ? "down" : "right"}"></i> How do I make a connection profile?</button>`);
@@ -283,14 +283,14 @@ export function renderChomusuke(c) {
     // Combine calls belongs to this group.
     every.append(`<div class="chx-sub">Combine calls ${combineReady ? "" : `<small>Needs Chomusuke on and at least two of the jobs above.</small>`}</div>`);
     every.append(switchRow({
-        label: `<i class="fa-solid fa-layer-group" style="color:#f59e0b; margin-right: 6px;"></i> Everything in one call`,
+        label: `<i class="fa-solid fa-layer-group" style="color:var(--c-brand, #f59e0b); margin-right: 6px;"></i> Everything in one call`,
         desc: "After each reply, one call does every job above that is on, plus the image prompt when an image is due (on Version 2 also outfit tags and new looks). A reply that needs only one of them keeps its own call.",
         on: combine.all === true && combineReady,
         disabled: !combineReady,
         onChange: on => { combine.all = on; if (!on) combine.worldFallback = false; saveProfileToMemory(); redraw(); }
     }));
     every.append(switchRow({
-        label: `<i class="fa-solid fa-life-ring" style="color:#10b981; margin-right: 6px;"></i> Fall back to separate reads`,
+        label: `<i class="fa-solid fa-life-ring" style="color:var(--c-live, #10b981); margin-right: 6px;"></i> Fall back to separate reads`,
         desc: "If the combined answer has no usable World State update, blocks or notebook lines, read the reply again for just that part (one extra call, only then). Off: the card shows it, with Read again.",
         on: combine.worldFallback === true && combineReady && combine.all === true,
         disabled: !(combineReady && combine.all === true),

@@ -75,7 +75,7 @@ export function renderNpcBank(c) {
         <!-- ROOT LEVEL ENABLE TOGGLE -->
         <div class="mtab-toggle-row ${nb.enabled ? 'active' : ''}" id="npc_enable_card" style="margin-bottom: 20px;">
             <div class="toggle-info">
-                <div class="toggle-label" style="font-size: 1.05rem;"><i class="fa-solid fa-users" style="color:#f43f5e;"></i> Enable NPC Bank</div>
+                <div class="toggle-label" style="font-size: 1.05rem;"><i class="fa-solid fa-users" style="color:var(--c-chomu, #f43f5e);"></i> Enable NPC Bank</div>
                 <div class="toggle-desc">When enabled, the AI generates detailed dossiers for new NPCs and injects them when relevant.</div>
             </div>
             <div class="ps-switch"></div>
@@ -91,27 +91,27 @@ export function renderNpcBank(c) {
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
                     <div style="flex: 1; min-width: 200px;">
                         <div style="font-size: 0.75rem; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-                            OOC Trigger <i class="fa-solid fa-circle-question" title="When ON, Dossier Template ONLY injects if 'NPC' or 'dossier' is in your latest message." style="cursor: help; color: #a855f7;"></i>
+                            OOC Trigger <i class="fa-solid fa-circle-question" title="When ON, Dossier Template ONLY injects if 'NPC' or 'dossier' is in your latest message." style="cursor: help; color: var(--c-ai, #a855f7);"></i>
                         </div>
                         <div class="ps-toggle-card ${nb.oocTrigger ? 'active' : ''}" id="npc_ooc_trigger" style="padding: 10px 14px; justify-content: space-between; background: rgba(0,0,0,0.2); border-color: ${nb.oocTrigger ? '#a855f7' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
                             <span style="font-size: 0.75rem; color: ${nb.oocTrigger ? '#a855f7' : 'var(--text-muted)'}; font-weight: 600;">Manual Extract</span>
-                            <div class="ps-switch" style="transform: scale(0.8); ${nb.oocTrigger ? 'background: #a855f7;' : ''}"></div>
+                            <div class="ps-switch" style="transform: scale(0.8); ${nb.oocTrigger ? 'background: var(--c-ai, #a855f7);' : ''}"></div>
                         </div>
                     </div>
                     
                     <div style="flex: 1; min-width: 200px;">
                         <div style="font-size: 0.75rem; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-                            Send Portraits <i class="fa-solid fa-circle-question" title="If an injected NPC has a portrait, send the image to the AI vision model." style="cursor: help; color: #a855f7;"></i>
+                            Send Portraits <i class="fa-solid fa-circle-question" title="If an injected NPC has a portrait, send the image to the AI vision model." style="cursor: help; color: var(--c-ai, #a855f7);"></i>
                         </div>
                         <div class="ps-toggle-card ${nb.sendPortraitsToAi ? 'active' : ''}" id="npc_send_portraits" style="padding: 10px 14px; justify-content: space-between; background: rgba(0,0,0,0.2); border-color: ${nb.sendPortraitsToAi ? '#a855f7' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
                             <span style="font-size: 0.75rem; color: ${nb.sendPortraitsToAi ? '#a855f7' : 'var(--text-muted)'}; font-weight: 600;">Multimodal</span>
-                            <div class="ps-switch" style="transform: scale(0.8); ${nb.sendPortraitsToAi ? 'background: #a855f7;' : ''}"></div>
+                            <div class="ps-switch" style="transform: scale(0.8); ${nb.sendPortraitsToAi ? 'background: var(--c-ai, #a855f7);' : ''}"></div>
                         </div>
                     </div>
                     
                     <div style="flex: 1; min-width: 150px;">
                         <div style="font-size: 0.75rem; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-                            Max Injections <i class="fa-solid fa-circle-question" title="Limit how many NPCs are injected into the prompt at once." style="cursor: help; color: #a855f7;"></i>
+                            Max Injections <i class="fa-solid fa-circle-question" title="Limit how many NPCs are injected into the prompt at once." style="cursor: help; color: var(--c-ai, #a855f7);"></i>
                         </div>
                         <input type="number" id="npc_injection_limit" class="ps-modern-input" value="${nb.injectionLimit}" min="1" max="20" style="padding: 10px 14px; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2);" />
                     </div>
@@ -119,7 +119,7 @@ export function renderNpcBank(c) {
 
                 <div class="mtab-setting-row" style="padding-bottom: 0; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.05); align-items: flex-start; flex-direction: column;">
                     <div class="set-info" style="width: 100%; margin-bottom: 8px;">
-                        <div class="set-label" style="color: #ef4444;"><i class="fa-solid fa-user-slash"></i> Ignore List (Do Not Extract)</div>
+                        <div class="set-label" style="color: var(--c-danger, #ef4444);"><i class="fa-solid fa-user-slash"></i> Ignore List (Do Not Extract)</div>
                         <div class="set-desc">Comma-separated names the AI should NEVER make a dossier for (e.g., background characters).</div>
                     </div>
                     <input type="text" id="npc_ignored_names" class="ps-modern-input" value="${nb.ignoredNames || ''}" placeholder="e.g. Fluffy, Guards, The Bartender..." style="width: 100%; background: rgba(0,0,0,0.2);" />
@@ -144,14 +144,14 @@ export function renderNpcBank(c) {
             <!-- SAVED NPCs -->
             <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <div style="color: #f43f5e; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-address-card"></i> Saved NPCs <span id="npc_count" style="color: var(--text-muted); font-size: 0.75rem; margin-left: 8px;">(${(nb.npcs || []).length})</span></div>
+                    <div style="color: var(--c-chomu, #f43f5e); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-address-card"></i> Saved NPCs <span id="npc_count" style="color: var(--text-muted); font-size: 0.75rem; margin-left: 8px;">(${(nb.npcs || []).length})</span></div>
                     <div style="display: flex; gap: 8px;">
                         <input type="file" id="npc_file_import" accept=".json" style="display: none;">
-                        <button id="npc_btn_import" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: #10b981; border-color: rgba(16, 185, 129, 0.3);" title="Import NPCs"><i class="fa-solid fa-file-import"></i></button>
-                        <button id="npc_btn_export" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Export All NPCs"><i class="fa-solid fa-download"></i></button>
-                        <button id="npc_btn_add" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: #a855f7; border-color: rgba(168, 85, 247, 0.3);" title="Create an NPC by hand"><i class="fa-solid fa-user-plus"></i> Add NPC</button>
+                        <button id="npc_btn_import" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: var(--c-live, #10b981); border-color: rgba(16, 185, 129, 0.3);" title="Import NPCs"><i class="fa-solid fa-file-import"></i></button>
+                        <button id="npc_btn_export" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: var(--c-info, #3b82f6); border-color: rgba(59, 130, 246, 0.3);" title="Export All NPCs"><i class="fa-solid fa-download"></i></button>
+                        <button id="npc_btn_add" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: var(--c-ai, #a855f7); border-color: rgba(168, 85, 247, 0.3);" title="Create an NPC by hand"><i class="fa-solid fa-user-plus"></i> Add NPC</button>
                         <button id="npc_btn_scan_story" class="ps-modern-btn primary" style="padding: 4px 10px; font-size: 0.72rem; background: linear-gradient(135deg, #f43f5e, #e11d48); color: #fff; border: none;"><i class="fa-solid fa-radar"></i> Scan Story</button>
-                        <button id="npc_btn_clear_all" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-trash-can"></i> Clear All</button>
+                        <button id="npc_btn_clear_all" class="ps-modern-btn secondary" style="padding: 4px 10px; font-size: 0.72rem; color: var(--c-danger, #ef4444); border-color: rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-trash-can"></i> Clear All</button>
                     </div>
                 </div>
                 <div id="npc_bank_list" style="display: flex; flex-direction: column; gap: 14px; padding: 4px;">
@@ -399,7 +399,7 @@ export function renderNpcFieldEditor(c) {
                 <div class="blk-sub-desc" style="margin-bottom:10px;">
                     The changeable part of the dossier. Name, age, appearance, voice, background, inner circle and the rest are the dossier's fixed skeleton and are not listed here.<br>
                     <b style="color:#34d399;">Lasting</b> fields describe the person's ongoing life and are told to ignore the current scene.
-                    <b style="color:#fbbf24;">Updatable</b> fields can be changed later by an <code>&lt;NPC_Update&gt;</code> block; fixed ones are written once.
+                    <b style="color:var(--c-warn, #fbbf24);">Updatable</b> fields can be changed later by an <code>&lt;NPC_Update&gt;</code> block; fixed ones are written once.
                 </div>
                 <div class="stat-field-list" id="npc_fields_rows"></div>
                 <div class="blk-pool" id="npc_fields_tools" style="margin-top:8px;"></div>
@@ -435,7 +435,7 @@ export function renderNpcFieldEditor(c) {
                     <i class="fa-solid ${f.updatable ? "fa-pen-to-square" : "fa-lock"}"></i> ${f.updatable ? "Updatable" : "Fixed"}
                 </button>
                 <button class="ws-btn-small nf-up" ${i === 0 ? "disabled" : ""} title="Move up"><i class="fa-solid fa-arrow-up"></i></button>
-                <button class="ws-btn-small nf-del" style="color:#ef4444;" title="Remove this field"><i class="fa-solid fa-xmark"></i></button>
+                <button class="ws-btn-small nf-del" style="color:var(--c-danger, #ef4444);" title="Remove this field"><i class="fa-solid fa-xmark"></i></button>
                 <input type="text" class="ps-modern-input nf-placeholder" value="${escapeHtmlAttr(f.placeholder || "")}" placeholder="What to tell the AI to put here" style="flex-basis: 100%; font-size: 0.7rem; opacity: 0.85;" />
             </div>
         `);
@@ -504,7 +504,7 @@ export function renderNpcFieldEditor(c) {
     });
     tools.append(addBtn);
 
-    const resetBtn = $(`<button class="blk-add" style="color:#ef4444; border-color:rgba(239,68,68,0.3);"><i class="fa-solid fa-rotate-left"></i> Reset fields</button>`);
+    const resetBtn = $(`<button class="blk-add" style="color:var(--c-danger, #ef4444); border-color:rgba(239,68,68,0.3);"><i class="fa-solid fa-rotate-left"></i> Reset fields</button>`);
     resetBtn.on("click", async () => {
         if (!(await confirmPopup("Reset the dossier fields?", "The fields go back to the defaults. Fields you added stop being asked for. No NPC text is deleted.", { ok: "Reset" }))) return;
         nb.fields = JSON.parse(JSON.stringify(NPC_DEFAULT_FIELDS));
@@ -594,14 +594,14 @@ function drawNpcList() {
                         <div class="npc_img_only_toggle" data-idx="${idx}" style="display: flex; align-items: center; gap: 6px; cursor: pointer; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 8px; border: 1px solid ${n.imageOnly ? 'rgba(16,185,129,0.3)' : 'transparent'};" title="If enabled, hides the text dossier from the AI to save tokens, but still sends Image Tags to ComfyUI.">
                             <span style="font-size: 0.65rem; font-weight: 700; color: ${n.imageOnly ? '#10b981' : 'var(--text-muted)'};">Image Tags Only</span>
                             <div class="ps-toggle-card ${n.imageOnly ? 'active' : ''}" style="padding: 2px; min-width: 36px; background: transparent; border-color: ${n.imageOnly ? '#10b981' : 'rgba(255,255,255,0.1)'}; border-radius: 8px;">
-                                <div class="ps-switch" style="transform: scale(0.65); ${n.imageOnly ? 'background: #10b981;' : ''}"></div>
+                                <div class="ps-switch" style="transform: scale(0.65); ${n.imageOnly ? 'background: var(--c-live, #10b981);' : ''}"></div>
                             </div>
                         </div>
 
                         <span style="color: var(--text-muted); font-size: 0.6rem;">${dateStr}</span>
-                        <button class="npc_force_update" data-idx="${idx}" style="background: transparent; border: none; color: #fbbf24; cursor: pointer; font-size: 0.75rem; padding: 2px 4px;" title="Re-read the story and update this NPC's changeable fields now"><i class="fa-solid fa-arrows-rotate"></i></button>
-                        <button class="npc_export_btn" data-idx="${idx}" style="background: transparent; border: none; color: #3b82f6; cursor: pointer; font-size: 0.75rem; padding: 2px 4px;" title="Export NPC"><i class="fa-solid fa-download"></i></button>
-                        <button class="npc_del_btn" data-idx="${idx}" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 0.75rem; padding: 2px 4px;" title="Delete NPC"><i class="fa-solid fa-trash"></i></button>
+                        <button class="npc_force_update" data-idx="${idx}" style="background: transparent; border: none; color: var(--c-warn, #fbbf24); cursor: pointer; font-size: 0.75rem; padding: 2px 4px;" title="Re-read the story and update this NPC's changeable fields now"><i class="fa-solid fa-arrows-rotate"></i></button>
+                        <button class="npc_export_btn" data-idx="${idx}" style="background: transparent; border: none; color: var(--c-info, #3b82f6); cursor: pointer; font-size: 0.75rem; padding: 2px 4px;" title="Export NPC"><i class="fa-solid fa-download"></i></button>
+                        <button class="npc_del_btn" data-idx="${idx}" style="background: transparent; border: none; color: var(--c-danger, #ef4444); cursor: pointer; font-size: 0.75rem; padding: 2px 4px;" title="Delete NPC"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
                 <!-- Body (collapsed by default) -->
@@ -616,7 +616,7 @@ function drawNpcList() {
                             <button class="npc_upload_pfp" data-idx="${idx}" style="width: 100%; font-size: 0.65rem; padding: 4px 0; border-radius: 6px; border: 1px solid rgba(${accentRgba},0.3); background: rgba(${accentRgba},0.1); color: ${accentColor}; cursor: pointer; transition: background 0.2s;" title="Upload Image">
                                 <i class="fa-solid fa-upload"></i> Upload
                             </button>
-                            <button class="npc_gen_pfp" data-idx="${idx}" data-name="${name}" style="width: 100%; font-size: 0.65rem; padding: 4px 0; border-radius: 6px; border: 1px solid rgba(168,85,247,0.3); background: rgba(168,85,247,0.1); color: #a855f7; cursor: pointer; transition: background 0.2s;" title="Generate with ComfyUI">
+                            <button class="npc_gen_pfp" data-idx="${idx}" data-name="${name}" style="width: 100%; font-size: 0.65rem; padding: 4px 0; border-radius: 6px; border: 1px solid rgba(168,85,247,0.3); background: rgba(168,85,247,0.1); color: var(--c-ai, #a855f7); cursor: pointer; transition: background 0.2s;" title="Generate with ComfyUI">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Generate
                             </button>
                         </div>

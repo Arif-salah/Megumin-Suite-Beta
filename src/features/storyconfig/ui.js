@@ -101,8 +101,8 @@ export function buildStoryConfigSection() {
         <div class="cfg-preset-bar">
             <select id="cfg_preset_select" class="ps-modern-input" style="flex: 1; min-width: 160px; cursor: pointer;">${presetOpts}</select>
             <button class="ws-btn-small" id="cfg_preset_load"><i class="fa-solid fa-download"></i> Load</button>
-            <button class="ws-btn-small" id="cfg_preset_save" style="color:#10b981; border-color: rgba(16,185,129,0.35);"><i class="fa-solid fa-floppy-disk"></i> Save Current</button>
-            <button class="ws-btn-small" id="cfg_preset_delete" style="color:#ef4444; border-color: rgba(239,68,68,0.3);"><i class="fa-solid fa-trash"></i></button>
+            <button class="ws-btn-small" id="cfg_preset_save" style="color:var(--c-live, #10b981); border-color: rgba(16,185,129,0.35);"><i class="fa-solid fa-floppy-disk"></i> Save Current</button>
+            <button class="ws-btn-small" id="cfg_preset_delete" style="color:var(--c-danger, #ef4444); border-color: rgba(239,68,68,0.3);"><i class="fa-solid fa-trash"></i></button>
             <button class="ws-btn-small" id="cfg_reset_all" style="margin-left:auto;"><i class="fa-solid fa-rotate-left"></i> Reset All</button>
         </div>
     `);
@@ -386,9 +386,9 @@ export function renderStoryConfig(c) {
     const dnPanel = $(`
         <div style="margin-bottom: 14px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-scale-balanced" style="color: #3b82f6; margin-right: 5px;"></i> DN Ratio</span>
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-scale-balanced" style="color: var(--c-info, #3b82f6); margin-right: 5px;"></i> DN Ratio</span>
                 <div class="ps-toggle-card ${isDNR ? 'active' : ''}" id="dnr_toggle_sb" style="padding: 2px; min-width: 36px; background: transparent; border-color: ${isDNR ? '#10b981' : 'var(--border-color)'}; cursor: pointer; border-radius: 8px;">
-                    <div class="ps-switch" style="transform: scale(0.65); ${isDNR ? 'background: #10b981;' : ''}"></div>
+                    <div class="ps-switch" style="transform: scale(0.65); ${isDNR ? 'background: var(--c-live, #10b981);' : ''}"></div>
                 </div>
             </div>
             <div id="dnr_body_sb" style="display: ${isDNR ? 'block' : 'none'};">
@@ -396,11 +396,11 @@ export function renderStoryConfig(c) {
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 6px; margin-bottom: 6px;">
                         <div style="text-align: left; min-width: 0;">
                             <div style="font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted);">Narration</div>
-                            <div style="font-size: 0.9rem; font-weight: 800; color: #a855f7; line-height: 1.1;"><span id="lbl_narr">${100 - dVal}</span>%</div>
+                            <div style="font-size: 0.9rem; font-weight: 800; color: var(--c-ai, #a855f7); line-height: 1.1;"><span id="lbl_narr">${100 - dVal}</span>%</div>
                         </div>
                         <div style="text-align: right; min-width: 0;">
                             <div style="font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted);">Dialogue</div>
-                            <div style="font-size: 0.9rem; font-weight: 800; color: #10b981; line-height: 1.1;"><span id="lbl_dial">${dVal}</span>%</div>
+                            <div style="font-size: 0.9rem; font-weight: 800; color: var(--c-live, #10b981); line-height: 1.1;"><span id="lbl_dial">${dVal}</span>%</div>
                         </div>
                     </div>
                     <input type="range" id="dnr_slider" min="0" max="100" step="10" value="${dVal}" style="width: 100%; accent-color: var(--gold); height: 4px; display: block;">
@@ -429,7 +429,7 @@ export function renderStoryConfig(c) {
     sidebar.append(`<div class="ws-sidebar-title">Writing Style</div>`);
 
     // Off Button
-    const btnOff = $(`<button class="ws-nav-btn ${isOff ? 'active-green' : ''}"><span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-power-off" style="color:${isLockedStyleEngine ? '#ef4444' : ''}"></i> No Style (Off)</span> ${isLockedStyleEngine ? '<i class="fa-solid fa-lock" style="color:#ef4444; font-size:0.7rem;"></i>' : ''}</button>`);
+    const btnOff = $(`<button class="ws-nav-btn ${isOff ? 'active-green' : ''}"><span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-power-off" style="color:${isLockedStyleEngine ? '#ef4444' : ''}"></i> No Style (Off)</span> ${isLockedStyleEngine ? '<i class="fa-solid fa-lock" style="color:var(--c-danger, #ef4444); font-size:0.7rem;"></i>' : ''}</button>`);
     if (!isLockedStyleEngine) {
         btnOff.on("click", () => { localProfile.activeStyleId = null; localProfile.aiRule = ""; saveProfileToMemory(); renderStyleLibrary(c); });
     } else {
@@ -461,7 +461,7 @@ export function renderStoryConfig(c) {
             <div class="ws-card ${isSel ? 'active' : ''}">
                 <div class="ws-card-title">
                     <span style="color:${isSel ? '#10b981' : 'var(--text-main)'};">${ds.name}</span>
-                    ${isSel ? '<i class="fa-solid fa-check" style="color:#10b981;"></i>' : ''}
+                    ${isSel ? '<i class="fa-solid fa-check" style="color:var(--c-live, #10b981);"></i>' : ''}
                 </div>
                 <div class="ws-card-desc">${ds.desc}</div>
                 <div class="ws-card-rule">${ds.rule}</div>
@@ -499,12 +499,12 @@ export function renderStoryConfig(c) {
     secPrecooked.append(gridPre);
 
     // B. CUSTOM
-    secCustom.append(`<h3 style="margin-top: 0; color: #10b981; font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-book"></i> My Library</h3>`);
+    secCustom.append(`<h3 style="margin-top: 0; color: var(--c-live, #10b981); font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-book"></i> My Library</h3>`);
     const gridCust = $(`<div class="ws-grid"></div>`);
     
     const createCard = $(`
         <div class="ws-card" style="border: 1px dashed rgba(16,185,129,0.5); background: transparent; justify-content: center; align-items: center; min-height: 120px;">
-            <div style="color: #10b981; font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-plus"></i> Create New Style</div>
+            <div style="color: var(--c-live, #10b981); font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-plus"></i> Create New Style</div>
         </div>
     `);
     createCard.on("click", () => renderStyleEditor(c, null));
@@ -517,13 +517,13 @@ export function renderStoryConfig(c) {
                 <div class="ws-card ${isSel ? 'active' : ''}">
                     <div class="ws-card-title">
                         <span style="color:${isSel ? '#10b981' : 'var(--text-main)'};">${style.name}</span>
-                        ${isSel ? '<i class="fa-solid fa-check" style="color:#10b981;"></i>' : ''}
+                        ${isSel ? '<i class="fa-solid fa-check" style="color:var(--c-live, #10b981);"></i>' : ''}
                     </div>
                     <div class="ws-card-desc" style="max-height: 40px; overflow: hidden;">${style.notes || "Custom AI generated style."}</div>
                     <div class="ws-card-actions">
                         <button class="ws-btn-small ps-btn-edit"><i class="fa-solid fa-pen"></i> Edit</button>
                         <button class="ws-btn-small ps-btn-regen" style="color: var(--gold); border-color: rgba(245,158,11,0.3);"><i class="fa-solid fa-rotate-right"></i></button>
-                        <button class="ws-btn-small ps-btn-delete" style="color: #ef4444; border-color: rgba(239,68,68,0.3);"><i class="fa-solid fa-trash"></i></button>
+                        <button class="ws-btn-small ps-btn-delete" style="color: var(--c-danger, #ef4444); border-color: rgba(239,68,68,0.3);"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
             `);
@@ -556,7 +556,7 @@ export function renderStoryConfig(c) {
     secCustom.append(gridCust);
 
     // C. GENERATORS
-    secGenerators.append(`<h3 style="margin-top: 0; color: #a855f7; font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Generators</h3>`);
+    secGenerators.append(`<h3 style="margin-top: 0; color: var(--c-ai, #a855f7); font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Generators</h3>`);
     const gridGen = $(`<div class="ws-grid"></div>`);
     hardcodedLogic.styleTemplates.forEach(tpl => {
         if (existingNames.includes(tpl.name)) return;
@@ -564,7 +564,7 @@ export function renderStoryConfig(c) {
             <div class="ws-card" style="border-style: dashed; border-color: rgba(168,85,247,0.4); background: rgba(168,85,247,0.02);">
                 <div class="ws-card-title" style="color: #c084fc;">${tpl.name}</div>
                 <div class="ws-card-desc">${tpl.notes}</div>
-                <button class="ws-btn-small ps-btn-tpl-gen" style="margin-top: 12px; width: 100%; background: rgba(168,85,247,0.1); color: #c084fc; border-color: #a855f7;">
+                <button class="ws-btn-small ps-btn-tpl-gen" style="margin-top: 12px; width: 100%; background: rgba(168,85,247,0.1); color: #c084fc; border-color: var(--c-ai, #a855f7);">
                     <i class="fa-solid fa-bolt"></i> Generate This Style
                 </button>
             </div>
@@ -650,9 +650,9 @@ export function renderStyleEditor(c, editId, presetData = null) {
     // ── EDITOR TOP BAR ──
     c.append(`
         <div class="wstyle-editor-bar">
-            <i class="fa-solid fa-pen-nib" style="color: #a855f7; font-size: 1.1rem;"></i>
+            <i class="fa-solid fa-pen-nib" style="color: var(--c-ai, #a855f7); font-size: 1.1rem;"></i>
             <input type="text" id="ps_style_name" value="${currentStyle.name}" placeholder="Name your style…" />
-            <button id="ps_btn_save_style" class="ps-modern-btn primary" style="background: #10b981; color: #fff; padding: 8px 18px; white-space: nowrap;">
+            <button id="ps_btn_save_style" class="ps-modern-btn primary" style="background: var(--c-live, #10b981); color: #fff; padding: 8px 18px; white-space: nowrap;">
                 <i class="fa-solid fa-floppy-disk"></i> Save
             </button>
             <button id="ps_btn_cancel_style" class="ps-modern-btn secondary" style="color: var(--text-muted); padding: 8px 18px; white-space: nowrap;">
@@ -709,7 +709,7 @@ export function renderStyleEditor(c, editId, presetData = null) {
         <div class="wstyle-rule-panel">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-scroll" style="color: #a855f7; font-size: 0.85rem;"></i>
+                    <i class="fa-solid fa-scroll" style="color: var(--c-ai, #a855f7); font-size: 0.85rem;"></i>
                     <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);">Generated Rule</span>
                 </div>
                 <button id="ps_btn_generate_style" class="wstyle-gen-btn" style="padding: 8px 18px; font-size: 0.78rem;">

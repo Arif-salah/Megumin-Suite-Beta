@@ -229,7 +229,7 @@ export function renderCoreAndCot(c) {
     c.append(`
         <div class="mtab-header">
             <div class="mtab-header-left">
-                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #f59e0b, #a855f7);"><i class="fa-solid fa-server"></i></div>
+                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #f59e0b, var(--c-ai, #a855f7));"><i class="fa-solid fa-server"></i></div>
                 <div><h2>Preset & Thinking</h2><p>Choose the preset, how it thinks before it writes, and the story's standing settings.</p></div>
             </div>
             <button type="button" class="menu_button ptx-guide-btn" title="Open Model Setup: the settings tested for the model you use"><i class="fa-solid fa-compass"></i> Model Setup</button>
@@ -373,7 +373,7 @@ function presetCard(m, { custom, rerender }) {
             <div class="ecard-body">
                 <div class="ecard-title">
                     <span>${esc(m.label)}</span>
-                    ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> Active</span>` : ""}
+                    ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:var(--c-live, #10b981);"><i class="fa-solid fa-check"></i> Active</span>` : ""}
                     ${custom ? `<button type="button" class="ps-modern-btn secondary btn-quick-edit ptx-edit"><i class="fa-solid fa-pen"></i> Edit</button>` : ""}
                 </div>
                 <p class="ecard-desc" title="${esc(custom ? "" : (DESCRIPTIONS[m.id] || ""))}">${custom ? "One of your own presets." : (DESCRIPTIONS[m.id] || "")}</p>
@@ -430,14 +430,14 @@ function renderThinkingPage(c, { active, cot, rerender }) {
         const isSel = cot.type === t.id;
         const warned = allowed && !allowed.includes(t.id);
         const badge = warned
-            ? `<span class="ecard-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><i class="fa-solid fa-triangle-exclamation"></i> Made for another preset</span>`
+            ? `<span class="ecard-badge" style="background:rgba(245,158,11,0.15);color:var(--c-brand, #f59e0b);"><i class="fa-solid fa-triangle-exclamation"></i> Made for another preset</span>`
             : (t.isNew ? `<span class="ecard-badge new">New</span>` : "");
         const $card = $(`
             <div class="mtab-eng-card ptx-cot ${isSel ? "active" : ""}">
                 <div class="ecard-accent"></div>
                 <div class="ecard-body">
                     <div class="ecard-title"><span>${t.label}</span>
-                        ${isSel ? `<span class="ecard-badge" style="background:rgba(168,85,247,0.15);color:#a855f7;"><i class="fa-solid fa-check"></i> Active</span>` : ""}
+                        ${isSel ? `<span class="ecard-badge" style="background:rgba(168,85,247,0.15);color:var(--c-ai, #a855f7);"><i class="fa-solid fa-check"></i> Active</span>` : ""}
                     </div>
                     <p class="ecard-desc">${t.desc}</p>
                     ${badge ? `<div class="ptx-badges">${badge}</div>` : ""}

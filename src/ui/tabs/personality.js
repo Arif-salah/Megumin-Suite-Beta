@@ -52,7 +52,7 @@ export function renderPersonality(c) {
     if (isModern) {
         c.append(`
             <div class="mtab-locked-state">
-                <i class="fa-solid fa-user-lock" style="color: #f59e0b;"></i>
+                <i class="fa-solid fa-user-lock" style="color: var(--c-brand, #f59e0b);"></i>
                 <h3>Persona Locked</h3>
                 <p>${lockedEngineName} manages its own internal persona and strictly enforces narrative toggles natively. Standard injections are completely disabled.</p>
             </div>
@@ -61,7 +61,7 @@ export function renderPersonality(c) {
     } else if (isV6DreamTeam) {
         c.append(`
             <div class="mtab-locked-state">
-                <i class="fa-solid fa-user-lock" style="color: #a855f7;"></i>
+                <i class="fa-solid fa-user-lock" style="color: var(--c-ai, #a855f7);"></i>
                 <h3>Persona Selection Locked</h3>
                 <p>The V6 Dream Team preset utilizes an intrinsic 6-specialist framework. Standard persona injections are disabled to prevent logic conflicts.</p>
             </div>
@@ -69,7 +69,7 @@ export function renderPersonality(c) {
     } else if (isV7) {
         c.append(`
             <div class="mtab-locked-state">
-                <i class="fa-solid fa-user-lock" style="color: #3b82f6;"></i>
+                <i class="fa-solid fa-user-lock" style="color: var(--c-info, #3b82f6);"></i>
                 <h3>Persona Selection Locked</h3>
                 <p>The V7 preset utilizes a pure narrative framework. Standard persona injections are disabled to prevent logic conflicts.</p>
             </div>
@@ -95,7 +95,7 @@ export function renderPersonality(c) {
                     <div class="ecard-body">
                         <div class="ecard-title">
                             <span>${p.label}</span>
-                            ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> Active</span>` : ''}
+                            ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:var(--c-live, #10b981);"><i class="fa-solid fa-check"></i> Active</span>` : ''}
                         </div>
                         <p class="ecard-desc">${descriptions[p.id] || ""}</p>
                         ${badges ? `<div style="margin-top:4px;">${badges}</div>` : ''}

@@ -66,7 +66,7 @@ export function renderGlobalSettings(c) {
                     <p>Preferences that apply to every character and every chat.</p>
                 </div>
             </div>
-            <div class="mtab-header-badge" style="background: rgba(168,85,247,0.12); color: #a855f7; border: 1px solid rgba(168,85,247,0.25);">
+            <div class="mtab-header-badge" style="background: rgba(168,85,247,0.12); color: var(--c-ai, #a855f7); border: 1px solid rgba(168,85,247,0.25);">
                 <i class="fa-solid fa-earth-americas" style="font-size:0.6rem;"></i> Saved globally
             </div>
         </div>
@@ -78,12 +78,12 @@ export function renderGlobalSettings(c) {
     $content.append(`<div class="wstyle-section-head blue"><i class="fa-solid fa-sliders"></i> Behaviour</div>`);
     const suiteOn = suiteEnabled();
     $content.append(`
-        <div class="mtab-toggle-row ${suiteOn ? 'active' : ''}" id="gs_toggle_suite" style="cursor: pointer; ${suiteOn ? 'border-color: #10b981;' : ''}">
+        <div class="mtab-toggle-row ${suiteOn ? 'active' : ''}" id="gs_toggle_suite" style="cursor: pointer; ${suiteOn ? 'border-color: var(--c-live, #10b981);' : ''}">
             <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-power-off" style="color: #10b981;"></i> Megumin Suite On</div>
+                <div class="toggle-label"><i class="fa-solid fa-power-off" style="color: var(--c-live, #10b981);"></i> Megumin Suite On</div>
                 <div class="toggle-desc">The master switch, also on the top bar. <b>Off:</b> prompts go out exactly as SillyTavern builds them and nothing runs in the background after a reply. Cards and images already in the chat still show, and the buttons in this window still work.</div>
             </div>
-            <div class="ps-switch" style="${suiteOn ? 'background: #10b981;' : ''}"></div>
+            <div class="ps-switch" style="${suiteOn ? 'background: var(--c-live, #10b981);' : ''}"></div>
         </div>
     `);
     $content.append(`
@@ -122,31 +122,31 @@ export function renderGlobalSettings(c) {
     $content.append(`
         <div class="mtab-toggle-row ${gs.enableUtilityPrefill ? 'active' : ''}" id="gs_toggle_utility_prefill" style="cursor: pointer;">
             <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-wand-sparkles" style="color: #10b981;"></i> Utility Prefills</div>
+                <div class="toggle-label"><i class="fa-solid fa-wand-sparkles" style="color: var(--c-live, #10b981);"></i> Utility Prefills</div>
                 <div class="toggle-desc">Puts an opening &lt;think&gt; into the AI's mouth for background jobs — Image Gen, the Ban List, the Story Director, NPC scans. <b>Off by default:</b> Claude and several other APIs reject a prefill outright. Turn it on only if yours accepts one.</div>
             </div>
-            <div class="ps-switch" style="${gs.enableUtilityPrefill ? 'background: #10b981;' : ''}"></div>
+            <div class="ps-switch" style="${gs.enableUtilityPrefill ? 'background: var(--c-live, #10b981);' : ''}"></div>
         </div>
     `);
 
     $content.append(`
-        <div class="mtab-toggle-row ${gs.chomusukeSwitchConnection ? 'active' : ''}" id="gs_toggle_chomusuke_switch" style="cursor: pointer; ${gs.chomusukeSwitchConnection ? 'border-color: #38bdf8;' : ''}">
+        <div class="mtab-toggle-row ${gs.chomusukeSwitchConnection ? 'active' : ''}" id="gs_toggle_chomusuke_switch" style="cursor: pointer; ${gs.chomusukeSwitchConnection ? 'border-color: var(--c-sky, #38bdf8);' : ''}">
             <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-right-left" style="color: #38bdf8;"></i> Switch my connection for each Chomusuke job</div>
+                <div class="toggle-label"><i class="fa-solid fa-right-left" style="color: var(--c-sky, #38bdf8);"></i> Switch my connection for each Chomusuke job</div>
                 <div class="toggle-desc">Chomusuke sends its jobs straight to its own connection, and your story connection never changes. Turn this on only if Chomusuke's jobs fail that way: SillyTavern then switches to Chomusuke's connection for each job and back, the way older versions did.</div>
             </div>
-            <div class="ps-switch" style="${gs.chomusukeSwitchConnection ? 'background: #38bdf8;' : ''}"></div>
+            <div class="ps-switch" style="${gs.chomusukeSwitchConnection ? 'background: var(--c-sky, #38bdf8);' : ''}"></div>
         </div>
     `);
 
     if (gs.loreInTasks === undefined) gs.loreInTasks = true;
     $content.append(`
-        <div class="mtab-toggle-row ${gs.loreInTasks ? 'active' : ''}" id="gs_toggle_lore_tasks" style="cursor: pointer; ${gs.loreInTasks ? 'border-color: #a855f7;' : ''}">
+        <div class="mtab-toggle-row ${gs.loreInTasks ? 'active' : ''}" id="gs_toggle_lore_tasks" style="cursor: pointer; ${gs.loreInTasks ? 'border-color: var(--c-ai, #a855f7);' : ''}">
             <div class="toggle-info">
-                <div class="toggle-label"><i class="fa-solid fa-book-atlas" style="color: #a855f7;"></i> Lorebooks in Background Jobs</div>
+                <div class="toggle-label"><i class="fa-solid fa-book-atlas" style="color: var(--c-ai, #a855f7);"></i> Lorebooks in Background Jobs</div>
                 <div class="toggle-desc">Background jobs build their own prompt, so your lorebook entries don't reach them on their own. <b>On:</b> image looks, NPC portraits and NPC refreshes get the entries that name that character; the Story Director and NPC scans get the entries your story has active right now. Your story replies use the lorebook as usual either way.</div>
             </div>
-            <div class="ps-switch" style="${gs.loreInTasks ? 'background: #a855f7;' : ''}"></div>
+            <div class="ps-switch" style="${gs.loreInTasks ? 'background: var(--c-ai, #a855f7);' : ''}"></div>
         </div>
     `);
 
@@ -213,7 +213,7 @@ export function renderGlobalSettings(c) {
                     <span><b>GitHub</b><small>Source, issues and releases</small></span>
                 </a>
                 <div class="gs-link gs-link-static">
-                    <i class="fa-brands fa-paypal" style="color:#3b82f6;"></i>
+                    <i class="fa-brands fa-paypal" style="color:var(--c-info, #3b82f6);"></i>
                     <span><b>PayPal</b><small>arifsalah10@gmail.com</small></span>
                 </div>
                 <div class="gs-link gs-link-static">

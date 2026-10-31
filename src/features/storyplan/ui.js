@@ -215,7 +215,7 @@ export function renderStoryPlanner(c) {
             <!-- UNRESTRICTED CONTENT TOGGLE -->
             <div class="mtab-toggle-row ${sp.unrestrictedContent ? 'active' : ''}" id="sd_unrestricted_card">
                 <div class="toggle-info">
-                    <div class="toggle-label"><i class="fa-solid fa-lock-open" style="color:#ef4444;"></i> Unrestricted Content</div>
+                    <div class="toggle-label"><i class="fa-solid fa-lock-open" style="color:var(--c-danger, #ef4444);"></i> Unrestricted Content</div>
                     <div class="toggle-desc">Inject a content policy override into the story context. Enables darker, more explicit narrative directions without AI refusals.</div>
                 </div>
                 <div class="ps-switch"></div>

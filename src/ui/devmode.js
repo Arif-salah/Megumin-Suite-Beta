@@ -696,13 +696,13 @@ function renderEnginesList(c) {
             const card = $(`
                 <div class="ps-card dev-card-custom">
                     <div style="width:100%;">
-                        <div class="ps-card-title"><span style="color:#10b981;">${esc(m.label)}</span></div>
+                        <div class="ps-card-title"><span style="color:var(--c-live, #10b981);">${esc(m.label)}</span></div>
                         <div class="ps-card-desc">${m.parentId ? `Copy of ${esc(m.parentId)}` : "Your own preset"}</div>
                     </div>
                     <div style="display:flex; gap:8px; margin-top:20px; width:100%;">
                         <button class="ps-modern-btn secondary dev-export" title="Export"><i class="fa-solid fa-download"></i></button>
                         <button class="ps-modern-btn primary dev-edit" style="flex:2;"><i class="fa-solid fa-pen"></i> Edit</button>
-                        <button class="ps-modern-btn secondary dev-delete" title="Delete" style="color:#ef4444;"><i class="fa-solid fa-trash"></i></button>
+                        <button class="ps-modern-btn secondary dev-delete" title="Delete" style="color:var(--c-danger, #ef4444);"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
             `);

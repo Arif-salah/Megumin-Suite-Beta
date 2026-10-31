@@ -214,7 +214,7 @@ export function renderSidePanelTab(c) {
                     <div class="label">Reset all side-panel settings</div>
                     <div class="desc">Wipes every setting on this tab back to defaults. Debug console handle: <code>window.LukaSuite</code></div>
                 </div>
-                <div class="control"><button id="megsp_reset_all" class="ps-modern-btn secondary" style="color: #ef4444; border-color: rgba(239,68,68,0.3);"><i class="fa-solid fa-trash"></i> Reset all</button></div>
+                <div class="control"><button id="megsp_reset_all" class="ps-modern-btn secondary" style="color: var(--c-danger, #ef4444); border-color: rgba(239,68,68,0.3);"><i class="fa-solid fa-trash"></i> Reset all</button></div>
             </div>
         </div>
     `);

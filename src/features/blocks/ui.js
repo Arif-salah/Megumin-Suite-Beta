@@ -57,7 +57,7 @@ function drawBlocksTab(c) {
                     <p>Everything in this list is sent as one master block at the end of the reply, and drawn in the chat as one collapsible card.</p>
                 </div>
             </div>
-            <div class="mtab-header-badge" style="background: rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.25);">
+            <div class="mtab-header-badge" style="background: rgba(245,158,11,0.12); color:var(--c-brand, #f59e0b); border:1px solid rgba(245,158,11,0.25);">
                 <i class="fa-solid fa-layer-group" style="font-size:0.6rem;"></i> ${inStack.length} in block
             </div>
         </div>
@@ -104,7 +104,7 @@ function drawBlocksTab(c) {
                         ${BLOCK_VISIBILITY_CHOICES.map(o => `<option value="${o.v}" ${(visOf(b) === "hidden" ? "hidden" : "open") === o.v ? "selected" : ""} title="${o.hint}">${o.label}</option>`).join("")}
                     </select>
                     ${b.builtin ? "" : `<button class="ws-btn-small blk-edit" style="color:var(--gold);"><i class="fa-solid fa-pen"></i></button>`}
-                    <button class="ws-btn-small blk-remove" style="color:#ef4444;"><i class="fa-solid fa-xmark"></i></button>
+                    <button class="ws-btn-small blk-remove" style="color:var(--c-danger, #ef4444);"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
         `);
@@ -199,7 +199,7 @@ export function renderStatFieldEditor(c, def) {
                 <input type="number" class="ps-modern-input sf-max" value="${f.max || 100}" title="Maximum" style="display:${f.type === "meter" ? "" : "none"};" />
                 <input type="number" class="ps-modern-input sf-start" value="${f.start !== undefined ? f.start : 0}" title="Starting value" style="display:${f.type === "meter" || f.type === "number" ? "" : "none"};" />
                 <button class="ws-btn-small sf-up" ${i === 0 ? "disabled" : ""}><i class="fa-solid fa-arrow-up"></i></button>
-                <button class="ws-btn-small sf-del" style="color:#ef4444;"><i class="fa-solid fa-xmark"></i></button>
+                <button class="ws-btn-small sf-del" style="color:var(--c-danger, #ef4444);"><i class="fa-solid fa-xmark"></i></button>
             </div>
         `);
         row.find(".sf-label").on("input", function () { f.label = $(this).val(); saveProfileDebounced(); });
@@ -349,7 +349,7 @@ export function renderCustomBlockEditor(c, editId) {
 
     const actions = $(`
         <div style="display:flex; gap:10px; margin-top:16px;">
-            <button class="ws-btn-small" id="blk_save" style="color:#10b981; border-color:rgba(16,185,129,0.4);"><i class="fa-solid fa-check"></i> Save</button>
+            <button class="ws-btn-small" id="blk_save" style="color:var(--c-live, #10b981); border-color:rgba(16,185,129,0.4);"><i class="fa-solid fa-check"></i> Save</button>
             <button class="ws-btn-small" id="blk_cancel"><i class="fa-solid fa-xmark"></i> Cancel</button>
         </div>
     `);

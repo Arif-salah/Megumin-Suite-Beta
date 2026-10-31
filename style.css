@@ -8,6 +8,17 @@
     --text-muted: #a1a1aa;
     --accent-color: #ffffff;
     --gold: #f59e0b;
+    /* One job per hue (plan 020). The JS pages use these too, always with
+       the old colour as fallback: var(--c-live, #10b981). */
+    --c-brand:  #f59e0b;            /* chrome / nav / recommended        */
+    --c-select: #ffffff;            /* the chosen one-of-many            */
+    --c-live:   #10b981;            /* a boolean that is ON, success     */
+    --c-danger: #ef4444;            /* destructive                       */
+    --c-info:   #3b82f6;            /* neutral data / new / links        */
+    --c-ai:     #a855f7;            /* machine-authored surfaces         */
+    --c-chomu:  #f43f5e;            /* Chomusuke                         */
+    --c-warn:   #fbbf24;            /* a warning that isn't an error     */
+    --c-sky:    #38bdf8;            /* choices                           */
 }
 
 #prompt-slot-fixed-btn {
@@ -2878,13 +2889,7 @@
 /* ---- 1. VOCABULARY (one job per hue) ----
    --gold / --accent-color above are kept; these are semantic aliases. */
 :root {
-  --c-brand:  #f59e0b;            /* chrome / nav / recommended        */
-  --c-select: #ffffff;            /* the chosen one-of-many            */
-  --c-live:   #10b981;            /* a boolean that is ON (knobs only) */
-  --c-danger: #ef4444;            /* destructive                       */
-  --c-info:   #3b82f6;            /* neutral data / new / links        */
-  --c-ai:     #a855f7;            /* machine-authored surfaces         */
-
+  /* The hue vocabulary (--c-*) moved to the :root at the top (plan 020). */
   --glass:        rgba(24,24,27,.55);
   --glass-lit:    rgba(40,40,46,.72);
   --glass-line:   rgba(255,255,255,.10);
@@ -3301,6 +3306,13 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 }
 .meg-waiting-stop:hover { background: rgba(244,63,94,.2); color: #fff; }
 @media (prefers-reduced-motion: reduce) { .meg-waiting-line > i { animation: none; } }
+
+/* Model Setup: a row of a loadout not in use yet (plan 020). */
+.msx-preview {
+    margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+    font-size: .6rem; font-weight: 800; letter-spacing: .4px; text-transform: uppercase;
+    color: #93c5fd; background: rgba(59,130,246,.14); border: 1px solid rgba(59,130,246,.35);
+}
 
 /* Preset & Thinking (plan 020): choices a preset with its own thinking
    ignores are greyed and can't be clicked; "Also set: …" after a pick. */

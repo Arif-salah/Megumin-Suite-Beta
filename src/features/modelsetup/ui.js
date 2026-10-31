@@ -98,8 +98,8 @@ export function renderModelSetup(c) {
     c.append(`
         <div class="mtab-header">
             <div class="mtab-header-left">
-                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #0ea5e9, #a855f7);"><i class="fa-solid fa-compass"></i></div>
-                <div><h2>Model Setup</h2><p>Pick the model you play with, and use the settings we tested for it.</p></div>
+                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #0ea5e9, var(--c-ai, #a855f7));"><i class="fa-solid fa-compass"></i></div>
+                <div><h2>Model Setup</h2><p>Pick the model you play with, and use the settings I tested for it.</p></div>
             </div>
         </div>
     `);
@@ -114,7 +114,7 @@ export function renderModelSetup(c) {
                 <div class="ecard-accent"></div>
                 <div class="ecard-body">
                     <div class="ecard-title"><span><i class="fa-solid ${l.icon}"></i> ${esc(l.name)}</span>
-                        ${inUse ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> In use</span>` : ""}
+                        ${inUse ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:var(--c-live, #10b981);"><i class="fa-solid fa-check"></i> In use</span>` : ""}
                     </div>
                     <p class="ecard-desc">${esc(l.models)}</p>
                 </div>
@@ -190,7 +190,7 @@ function settingRow(s, l, isChanged, draft, rerender) {
     const value = draft ? draft[s.key] : s.read(localProfile, CTX);
     const $row = $(`
         <div class="msx-row">
-            <div class="msx-row-label">${esc(s.label)}${s.desc ? ` <span class="msx-desc">${esc(s.desc)}</span>` : ""}${value === "mixed" ? ` <span class="msx-mixed">Some of these go to Chomusuke, some don't</span>` : ""}${isChanged ? ` <span class="msx-changed" title="The loadout sets ${esc(describe(s.key, l.settings[s.key]))}.">Changed from the loadout</span>` : ""}</div>
+            <div class="msx-row-label">${esc(s.label)}${draft ? ` <span class="msx-preview" title="This loadout isn't in use yet. A change here only changes what Use this loadout will set.">Preview</span>` : ""}${s.desc ? ` <span class="msx-desc">${esc(s.desc)}</span>` : ""}${value === "mixed" ? ` <span class="msx-mixed">Some of these go to Chomusuke, some don't</span>` : ""}${isChanged ? ` <span class="msx-changed" title="The loadout sets ${esc(describe(s.key, l.settings[s.key]))}.">Changed from the loadout</span>` : ""}</div>
             <div class="msx-row-control"></div>
             <button type="button" class="menu_button msx-open" title="Open ${esc(tabTitle(s.tab))}"><i class="fa-solid fa-arrow-up-right-from-square"></i> ${esc(tabTitle(s.tab))}</button>
         </div>
