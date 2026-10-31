@@ -3302,6 +3302,12 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 .meg-waiting-stop:hover { background: rgba(244,63,94,.2); color: #fff; }
 @media (prefers-reduced-motion: reduce) { .meg-waiting-line > i { animation: none; } }
 
+/* Preset & Thinking (plan 020): choices a preset with its own thinking
+   ignores are greyed and can't be clicked; "Also set: …" after a pick. */
+.ptx-unused { opacity: .45; filter: grayscale(.6); }
+.ptx-unused > *:not(.igx-card-title) { pointer-events: none; }
+.ptx-also { margin: 2px 0 10px; }
+
 /* "World State · 3": what this reply changed, on the tab itself (plan 020). */
 .meg-blocks-tab .meg-tab-count {
   margin-left: 4px; font-size: .68rem; font-weight: 800; color: #f59e0b;

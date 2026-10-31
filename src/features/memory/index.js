@@ -25,6 +25,7 @@ import { registerRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { setActiveMemorySummarizationRequest } from "../../core/activeRequests.js";
 import { DEFAULT_PROMPTS } from "../../prompts/index.js";
 import { renderPromptEditor } from "../../ui/promptEditor.js";
+import { confirmPopup, choosePopup } from "../../ui/controls.js";
 import { chomusukeJobLine } from "../../ui/chomusukeLine.js";
 import { downloadJsonFile } from "../../utils/download.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
@@ -252,11 +253,11 @@ export function renderMemoryCore(c) {
     `);
 
     // Clear All Short-Term Memory
-    $("#mem_btn_clear_short").off("click").on("click", function () {
+    $("#mem_btn_clear_short").off("click").on("click", async function () {
         const mem = localProfile.memoryCore;
         if (!mem.shortTermChunks || mem.shortTermChunks.length === 0) return toastr.info("Short-Term memory is already empty.");
         
-        if (confirm("Are you sure you want to delete ALL Short-Term Memory chunks? They will revert to 'Pending' status.")) {
+        if (await confirmPopup("Delete every short-term memory?", "All summaries are deleted; their messages go back to waiting to be summarised.", { ok: "Delete all" })) {
             mem.shortTermChunks = [];
             delete mem._archivedSet; mem._tokensDirty = true;
             saveProfileToMemory();
@@ -281,14 +282,17 @@ export function renderMemoryCore(c) {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(evt) {
+        reader.onload = async function(evt) {
             try {
                 const data = JSON.parse(evt.target.result);
                 if (!data.shortTermChunks && !data.longTermVault) {
                     toastr.error("This file isn't a Memory export.");
                     return;
                 }
-                if (confirm("Do you want to merge imported memories with your existing ones? (Click 'Cancel' to overwrite)")) {
+                const how = await choosePopup("Import memories", "Add them to the memories you have, or replace yours with them?",
+                    [{ label: "Add to mine", value: "merge" }, { label: "Replace mine", value: "replace" }]);
+                if (!how) { $("#mem_file_import").val(""); return; }
+                if (how === "merge") {
                     if (data.shortTermChunks) localProfile.memoryCore.shortTermChunks = (localProfile.memoryCore.shortTermChunks || []).concat(data.shortTermChunks);
                     if (data.longTermVault) localProfile.memoryCore.longTermVault = (localProfile.memoryCore.longTermVault || []).concat(data.longTermVault);
                 } else {
@@ -315,7 +319,7 @@ export function renderMemoryCore(c) {
         const mem = localProfile.memoryCore;
         if (!mem.longTermVault || mem.longTermVault.length === 0) return toastr.info("Vault is already empty.");
         
-        if (confirm("WARNING: Are you sure you want to permanently delete ALL Long-Term Vault archives? This cannot be undone.")) {
+        if (await confirmPopup("Delete the whole long-term vault?", "Every archived memory is deleted for good. This can't be undone.", { ok: "Delete all" })) {
             
             // If Semantic Mode is active, wipe them from the actual SillyTavern Vector DB
             if (mem.scannerEngine === 'semantic') {
@@ -727,8 +731,8 @@ export function memRenderAccordion() {
             });
 
             // Delete button logic
-            acc.find(".mem_short_del").on("click", function () {
-                if (confirm(`Delete short-term memory chunk [Messages: ${chunk.id}]? It will be permanently removed.`)) {
+            acc.find(".mem_short_del").on("click", async function () {
+                if (await confirmPopup("Delete this memory?", `The summary of messages ${chunk.id} is deleted for good.`, { ok: "Delete" })) {
                     const id = $(this).attr("data-id");
                     localProfile.memoryCore.shortTermChunks = localProfile.memoryCore.shortTermChunks.filter(c => c.id !== id);
                     mem._tokensDirty = true; delete mem._archivedSet;
@@ -839,8 +843,8 @@ export function memRenderVault(searchFilter = "") {
             });
 
             // Delete button
-            row.find(".mem_vault_del").on("click", function () {
-                if (confirm("Permanently delete this archived memory?")) {
+            row.find(".mem_vault_del").on("click", async function () {
+                if (await confirmPopup("Delete this archived memory?", "It is deleted for good.", { ok: "Delete" })) {
                     const id = $(this).attr("data-id");
                     localProfile.memoryCore.longTermVault = localProfile.memoryCore.longTermVault.filter(c => c.id !== id);
                     if (localProfile.memoryCore.scannerEngine === 'semantic') memDeleteFromVectorDB([id]);

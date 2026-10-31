@@ -20,6 +20,7 @@ import {
 } from "../../state/index.js";
 import { liveTruths, pastTruths, LIVE_CAP } from "../../state/modules/notebook/model.js";
 import { splitNames } from "../../state/modules/notebook/parse.js";
+import { confirmPopup } from "../../ui/controls.js";
 
 const esc = v => String(v == null ? "" : v)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -278,16 +279,11 @@ function bindNotebook(c, state, chatId) {
         commit({ op: "restore", id: t.id });
     });
 
-    // Delete asks twice: click once to arm, again within 3 s to delete.
-    c.find(".meg-nb-del").on("click", function () {
-        const $b = $(this);
-        if ($b.attr("data-armed") !== "1") {
-            $b.attr("data-armed", "1").addClass("armed").html(`<i class="fa-solid fa-trash"></i> Delete for good?`);
-            setTimeout(() => $b.attr("data-armed", "0").removeClass("armed").html(`<i class="fa-solid fa-trash"></i> Delete`), 3000);
-            return;
-        }
+    // Delete asks first, the same popup as every other delete (plan 020).
+    c.find(".meg-nb-del").on("click", async function () {
         const t = truthOf(this);
         if (!t) return;
+        if (!(await confirmPopup("Delete this truth for good?", "It leaves the notebook and the story stops keeping it. To take it out of the story but keep it, use Mark revealed instead.", { ok: "Delete" }))) return;
         opened.delete(`${chatId}|${t.id}`);
         commit({ op: "forget", id: t.id });
     });

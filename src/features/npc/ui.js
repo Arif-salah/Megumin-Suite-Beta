@@ -19,6 +19,7 @@ import { npcParseUpdateBlocks, npcApplyUpdates } from "./updates.js";
 import { meguminActiveDataIdentity } from "../../core/keys.js";
 import { escapeHtmlAttr } from "../../utils/html.js";
 import { npcGeneratePfp } from "./pfp.js";
+import { confirmPopup, askName, choosePopup, keepScroll } from "../../ui/controls.js";
 
 // Everything on an NPC record can come from somewhere untrusted: an imported
 // pack, a shared chat file, or a story model talked into writing markup into a
@@ -253,7 +254,7 @@ export function renderNpcBank(c) {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(evt) {
+        reader.onload = async function(evt) {
             try {
                 const parsed = JSON.parse(evt.target.result);
                 if (!Array.isArray(parsed)) {
@@ -265,7 +266,10 @@ export function renderNpcBank(c) {
                     toastr.error("No usable NPCs in that file.");
                     return;
                 }
-                if (confirm("Do you want to merge imported NPCs with your existing ones? (Click 'Cancel' to overwrite)")) {
+                const how = await choosePopup("Import NPCs", "Add them to the NPCs you have, or replace yours with them?",
+                    [{ label: "Add to mine", value: "merge" }, { label: "Replace mine", value: "replace" }]);
+                if (!how) { $("#npc_file_import").val(""); return; }
+                if (how === "merge") {
                     localProfile.npcBank.npcs = (localProfile.npcBank.npcs || []).concat(data);
                 } else {
                     localProfile.npcBank.npcs = data;
@@ -288,9 +292,9 @@ export function renderNpcBank(c) {
     // messageIndex is the current end of the chat: an NPC added by hand exists from
     // now on, which is what makes a rewind past this point remove it, exactly as it
     // would for one the scanner found here.
-    $("#npc_btn_add").on("click", function () {
-        const name = prompt("Name for the new NPC:", "");
-        if (!name || !name.trim()) return;
+    $("#npc_btn_add").on("click", async function () {
+        const name = await askName("Name the new NPC", { ok: "Add" });
+        if (!name) return;
         const trimmed = name.trim();
 
         if (!localProfile.npcBank.npcs) localProfile.npcBank.npcs = [];
@@ -308,9 +312,9 @@ export function renderNpcBank(c) {
         toastr.success(`"${trimmed}" added. Open the card to fill in the details.`);
     });
 
-    $("#npc_btn_clear_all").on("click", function () {
+    $("#npc_btn_clear_all").on("click", async function () {
         if (!localProfile.npcBank.npcs || localProfile.npcBank.npcs.length === 0) return;
-        if (confirm("Are you sure you want to delete all saved NPCs? This cannot be undone.")) {
+        if (await confirmPopup("Delete every NPC?", "Every saved NPC is deleted for good. This can't be undone.", { ok: "Delete all" })) {
             localProfile.npcBank.npcs = []; saveProfileToMemory(); renderNpcList();
         }
     });
@@ -439,7 +443,7 @@ export function renderNpcFieldEditor(c) {
         // Reopened after every redraw, because every control below redraws the
         // whole tab and a section that folded itself on each edit would be
         // unusable.
-        const keepOpen = () => { renderNpcBank(c); $("#npc_fields_editor").addClass("open"); };
+        const keepOpen = () => keepScroll(() => { renderNpcBank(c); $("#npc_fields_editor").addClass("open"); });
 
         row.find(".nf-label").on("input", function () { f.label = $(this).val(); saveProfileDebounced(); });
         row.find(".nf-placeholder").on("input", function () { f.placeholder = $(this).val(); saveProfileDebounced(); });
@@ -465,12 +469,12 @@ export function renderNpcFieldEditor(c) {
             all[prev.realIndex] = tmp;
             saveProfileToMemory(); keepOpen();
         });
-        row.find(".nf-del").on("click", () => {
+        row.find(".nf-del").on("click", async () => {
             // The field goes out of the dossier, but the text every NPC already
             // has under it is left alone. Deleting a field changes what the AI is
             // asked for; it is not permission to throw away what it wrote — and
             // re-adding the field brings all of it back.
-            if (!confirm(`Remove "${f.label}" from the dossier?\n\nThe AI stops being asked for it and it disappears from the cards. Text your NPCs already have under it is kept, and re-adding the field shows it again.`)) return;
+            if (!(await confirmPopup(`Remove "${escv(f.label)}" from the dossier?`, "The AI stops being asked for it and it disappears from the cards. Text your NPCs already have under it is kept, and adding the field again shows it again.", { ok: "Remove" }))) return;
             all.splice(realIndex, 1);
             saveProfileToMemory(); keepOpen();
         });
@@ -479,7 +483,7 @@ export function renderNpcFieldEditor(c) {
     });
 
     const tools = wrap.find("#npc_fields_tools");
-    const reopen = () => { renderNpcBank(c); $("#npc_fields_editor").addClass("open"); };
+    const reopen = () => keepScroll(() => { renderNpcBank(c); $("#npc_fields_editor").addClass("open"); });
 
     const addBtn = $(`<button class="blk-add"><i class="fa-solid fa-plus"></i> Add field</button>`);
     addBtn.on("click", () => {
@@ -501,8 +505,8 @@ export function renderNpcFieldEditor(c) {
     tools.append(addBtn);
 
     const resetBtn = $(`<button class="blk-add" style="color:#ef4444; border-color:rgba(239,68,68,0.3);"><i class="fa-solid fa-rotate-left"></i> Reset fields</button>`);
-    resetBtn.on("click", () => {
-        if (!confirm("Put the dossier fields back to the defaults?\n\nFields you added stop being asked for. No NPC text is deleted.")) return;
+    resetBtn.on("click", async () => {
+        if (!(await confirmPopup("Reset the dossier fields?", "The fields go back to the defaults. Fields you added stop being asked for. No NPC text is deleted.", { ok: "Reset" }))) return;
         nb.fields = JSON.parse(JSON.stringify(NPC_DEFAULT_FIELDS));
         saveProfileToMemory(); reopen();
         toastr.info("Dossier fields reset to defaults.");
@@ -513,6 +517,15 @@ export function renderNpcFieldEditor(c) {
 }
 
 export function renderNpcList() {
+    keepScroll(drawNpcList);
+}
+
+// The NPC cards open right now, by the NPC's creation time (it survives a
+// rename), so any redraw after an edit opens them again (plan 020).
+const npcCardKey = (n, idx) => String(n && n.timestamp ? n.timestamp : `i${idx}`);
+const openNpcCards = new Set();
+
+function drawNpcList() {
     const list = $("#npc_bank_list");
     list.empty();
     if (!localProfile.npcBank.npcs) localProfile.npcBank.npcs = [];
@@ -566,7 +579,7 @@ export function renderNpcList() {
         const miniPfp = pfpSrc ? `<img src="${pfpSrc}" style="width:28px;height:28px;object-fit:cover;border-radius:6px;border:1px solid rgba(${accentRgba},0.3);" />` : "";
 
         const card = $(`
-            <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(${accentRgba},0.2); border-radius: 12px; overflow: hidden; transition: border-color 0.2s;" class="npc-card" data-accent-rgba="${accentRgba}">
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(${accentRgba},0.2); border-radius: 12px; overflow: hidden; transition: border-color 0.2s;" class="npc-card" data-accent-rgba="${accentRgba}" data-npc-key="${escv(npcCardKey(n, idx))}">
                 <!-- Header (clickable to toggle) -->
                 <div class="npc-card-header" style="background: linear-gradient(135deg, ${gradientFrom}, ${gradientTo}); padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -625,8 +638,11 @@ export function renderNpcList() {
             if ($(e.target).closest(".npc_del_btn").length) return; // Don't toggle when clicking delete
             const body = $(this).siblings(".npc-card-body");
             const chevron = $(this).find(".npc-chevron");
+            const opening = !body.is(":visible");
+            const key = $(this).closest(".npc-card").attr("data-npc-key");
+            if (opening) openNpcCards.add(key); else openNpcCards.delete(key);
             body.slideToggle(200);
-            chevron.css("transform", body.is(":visible") ? "rotate(0deg)" : "rotate(90deg)");
+            chevron.css("transform", opening ? "rotate(90deg)" : "rotate(0deg)");
         });
 
         // Field editing
@@ -657,12 +673,12 @@ export function renderNpcList() {
         });
 
         // Edit Name
-        card.find(".npc_edit_name_btn").on("click", function (e) {
+        card.find(".npc_edit_name_btn").on("click", async function (e) {
             e.stopPropagation();
             const i = parseInt($(this).attr("data-idx"));
             const currentName = localProfile.npcBank.npcs[i].name;
-            const newName = prompt("Enter new name for this NPC:", currentName);
-            if (newName && newName.trim() !== "" && newName !== currentName) {
+            const newName = await askName("Rename this NPC", { value: currentName, ok: "Rename" });
+            if (newName && newName !== currentName) {
                 localProfile.npcBank.npcs[i].name = newName.trim();
                 saveProfileToMemory();
                 renderNpcList();
@@ -792,10 +808,10 @@ export function renderNpcList() {
         });
 
         // Delete
-        card.find(".npc_del_btn").on("click", function (e) {
+        card.find(".npc_del_btn").on("click", async function (e) {
             e.stopPropagation();
             const i = parseInt($(this).attr("data-idx"));
-            if (confirm(`Delete ${localProfile.npcBank.npcs[i]?.name || "this NPC"}?`)) {
+            if (await confirmPopup(`Delete ${escv(localProfile.npcBank.npcs[i]?.name || "this NPC")}?`, "Their dossier is deleted from the NPC Bank.", { ok: "Delete" })) {
                 localProfile.npcBank.npcs.splice(i, 1);
                 saveProfileToMemory();
                 renderNpcList();
@@ -841,6 +857,10 @@ export function renderNpcList() {
             await npcGeneratePfp(name);
         });
 
+        if (openNpcCards.has(npcCardKey(n, idx))) {
+            card.children(".npc-card-body").show();
+            card.find(".npc-chevron").css("transform", "rotate(90deg)");
+        }
         list.append(card);
     });
 }

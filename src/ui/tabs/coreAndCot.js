@@ -269,7 +269,13 @@ function pickPreset(m) {
     localProfile.mode = m.id;
     // Same mapping the Writing Style tab uses when it finds a locked preset with
     // no style set. One list, so the two cannot disagree. Your own style, or a
+// What picking a preset also changed (plan 020), shown under the picker
+// until another preset is picked: { presetId, text }.
+let alsoSet = null;
+
     // style of the same generation (V11 Inside between the V11 engines), is
+    const styleBefore = localProfile.activeStyleId;
+    const cotBefore = localProfile.model;
     // kept, as Model Setup does.
     const isBuiltIn = hardcodedLogic.directStyles.some(x => x.id === localProfile.activeStyleId);
     const lockedStyle = styleAfterPicking(m, localProfile.activeStyleId, isBuiltIn);
@@ -288,6 +294,17 @@ function pickPreset(m) {
 
 function badgesFor(m, isLocked) {
     let b = "";
+
+    const parts = [];
+    if (localProfile.model !== cotBefore) {
+        const t = COT_TYPES.find(x => x.id === parseCot(localProfile.model).type);
+        if (t) parts.push(`Thinking → ${t.label}`);
+    }
+    if (localProfile.activeStyleId !== styleBefore) {
+        const ds = hardcodedLogic.directStyles.find(x => x.id === localProfile.activeStyleId);
+        if (ds) parts.push(`Writing Style → ${ds.name}`);
+    }
+    alsoSet = parts.length ? { presetId: m.id, text: `Also set: ${parts.join(", ")}.` } : null;
     if (m.recommended) b += `<span class="ecard-badge rec"><i class="fa-solid fa-star"></i> Recommended</span>`;
     if (m.isNew && !isLocked) b += `<span class="ecard-badge new">New</span>`;
     if (isLocked) b += `<span class="ecard-badge locked"><i class="fa-solid fa-lock"></i> Coming Soon</span>`;
@@ -328,6 +345,9 @@ function renderPresetPage(c, { active, activeIsCustom, official, customModes, re
     pick.append(segmented([
         { id: "latest", label: `Latest (${latestCount})` },
         { id: "all", label: `All (${official.length})` },
+    if (alsoSet && alsoSet.presetId === localProfile.mode) {
+        pick.append(`<div class="igx-note ptx-also"><i class="fa-solid fa-circle-info"></i> ${esc(alsoSet.text)} You can change them on their pages.</div>`);
+    }
         { id: "mine", label: `Mine (${customModes.length})` }
     ], presetFilter, id => { presetFilter = id; rerender(); }));
 
@@ -388,11 +408,14 @@ function renderThinkingPage(c, { active, cot, rerender }) {
     c.append(main);
     if (!localProfile.cotEnabled) return;
 
-    if (active && active.cot && active.cot.trim() !== "") {
+    // A preset with its own thinking steps ignores the choices below: they are
+    // greyed and can't be clicked (plan 020), not left live and doing nothing.
+    const ownThinking = Boolean(active && active.cot && active.cot.trim() !== "");
+    if (ownThinking) {
         c.append(`
             <div class="mtab-callout green" style="margin-bottom:14px;">
                 <i class="fa-solid fa-shield-halved"></i>
-                <span><strong>This preset brings its own thinking.</strong> It carries its own [[COT]] and [[prefill]], so the choices below are not used.</span>
+                <span><strong>This preset has its own thinking steps.</strong> The choices below aren't used while it's picked, so they're greyed out.</span>
             </div>
         `);
     }
@@ -400,6 +423,7 @@ function renderThinkingPage(c, { active, cot, rerender }) {
     // ── Framework ──
     const allowed = cotTypesFor(localProfile.mode);
     const fw = pageCard("How it thinks", allowed ? "The frameworks made for your preset." : "Your preset works with any of these.");
+    const unused = $el => (ownThinking ? $el.addClass("ptx-unused").attr("title", "This preset has its own thinking steps") : $el);
     const visible = COT_TYPES.filter(t => !allowed || showAllCot || allowed.includes(t.id) || t.id === cot.type);
     const $grid = $(`<div class="mtab-card-grid ptx-grid ptx-cot-grid"></div>`);
     visible.forEach(t => {
@@ -437,7 +461,7 @@ function renderThinkingPage(c, { active, cot, rerender }) {
             onChange: on => { showAllCot = on; rerender(); }
         }));
     }
-    c.append(fw);
+    c.append(unused(fw));
 
     // ── Length (a Thinking Cap sets its own) ──
     if (!localProfile.thinkEffort) localProfile.thinkEffort = "unspecified";
@@ -450,7 +474,7 @@ function renderThinkingPage(c, { active, cot, rerender }) {
                 <span>For Kimi and DeepSeek, a temperature of 0.7–0.8 also helps them think less. Kimi ignores Reasoning Effort: it only thinks or doesn't.</span>
             </div>
         `);
-        c.append(capLen);
+        c.append(unused(capLen));
     } else {
         const len = pageCard("How long it thinks");
         const $custom = field("Words", "", $(`<input type="number" id="ps_input_custom_effort" class="ps-modern-input igx-tiny" min="1" value="${esc(localProfile.customThinkEffort)}" />`));
@@ -465,7 +489,7 @@ function renderThinkingPage(c, { active, cot, rerender }) {
         }));
         $custom.find("input").on("change input", function () { localProfile.customThinkEffort = $(this).val(); saveProfileToMemory(); });
         len.append($custom);
-        c.append(len);
+        c.append(unused(len));
     }
 
     // ── Language: only where the framework has more than English ──
@@ -475,7 +499,7 @@ function renderThinkingPage(c, { active, cot, rerender }) {
             localProfile.model = `cot-${cot.type}-${id}`;
             saveProfileToMemory();
         }));
-        c.append(lang);
+        c.append(unused(lang));
     }
 
     // ── Advanced ──

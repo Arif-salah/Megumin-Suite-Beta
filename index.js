@@ -89,6 +89,8 @@ import {
 import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex, cleanAIOutput } from "./src/engine/chatText.js";
 import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise, setReplyHeld, stopJobsForOtherChats } from "./src/engine/tasks.js";
 import { initChomusukeIndicator, showWaitingLine, hideWaitingLine } from "./src/features/blocks/chomusukeIndicator.js";
+import { confirmPopup } from "./src/ui/controls.js";
+import { scopeNoun } from "./src/core/sync.js";
 import { warnChomusuke, answerKind } from "./src/engine/chomusukeNotice.js";
 import { escapeHtmlAttr } from "./src/utils/html.js";
 import { downloadJsonFile } from "./src/utils/download.js";
@@ -238,7 +240,9 @@ $("body").off("click", "#ps_btn_dev_mode").on("click", "#ps_btn_dev_mode", funct
     e.preventDefault();
     if ($(this).text().includes("Exit Dev")) {
         if (isDevEngineDirty) {
-            if (!confirm("You have unsaved changes in your custom preset. Are you sure you want to exit? Changes will be lost.")) return;
+            confirmPopup("Leave without saving?", "Your custom preset has changes you haven't saved. Leaving loses them.", { ok: "Leave", cancel: "Stay" })
+                .then(ok => { if (!ok) return; setDevEngineDirty(false); switchTab(0); });
+            return;
         }
         setDevEngineDirty(false);
         switchTab(0);
@@ -317,8 +321,8 @@ jQuery(async () => {
             if (!isNaN(index)) switchTab(index);
         });
 
-        $("body").on("click", "#ps_btn_reset", function () {
-            if (confirm("Are you sure you want to completely reset this character's profile to the default template?")) {
+        $("body").on("click", "#ps_btn_reset", async function () {
+            if (await confirmPopup(`Reset this ${scopeNoun()}'s settings?`, `Every setting of this ${scopeNoun()} goes back to the defaults. Other ${scopeNoun()}s and tabs set to "Every ${scopeNoun()}" are not touched.`, { ok: "Reset", cancel: "Cancel" })) {
                 // A save debounced by an edit made just before the click would fire ~500ms
                 // from now, after the delete, and write the old profile straight back under
                 // the same live key. Drop it first, the same way the chat switch does.
@@ -812,10 +816,10 @@ jQuery(async () => {
         }
 
         $("body").on("click", "#prompt-slot-fixed-btn", function () { initProfile(); updateCharacterDisplay(); switchTab(0); $("#prompt-slot-modal-overlay").fadeIn(250).css("display", "flex"); });
-        $("body").off("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay").on("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay", function (e) {
+        $("body").off("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay").on("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay", async function (e) {
             if (e.target === this) {
                 if (isDevEngineDirty) {
-                    if (!confirm("You have unsaved changes in your custom preset. Are you sure you want to close? Changes will be lost.")) return;
+                    if (!(await confirmPopup("Close without saving?", "Your custom preset has changes you haven't saved. Closing loses them.", { ok: "Close", cancel: "Stay" }))) return;
                     setDevEngineDirty(false);
                 }
                 saveProfileToMemory();

@@ -10,7 +10,7 @@ import { renderPromptEditor } from "../../ui/promptEditor.js";
 import { getCleanedChatHistory } from "../../engine/chatText.js";
 import { analyzeSlopDirectly, analyzeSlopWithPreset, runWithChomusuke } from "../../engine/tasks.js";
 import { Popup, POPUP_TYPE, extension_settings } from "../../st.js";
-import { switchRow, segmented } from "../../ui/controls.js";
+import { switchRow, segmented, confirmPopup } from "../../ui/controls.js";
 import { getSharedFragment, setSharedFragment } from "../../core/sharedFragments.js";
 import { BUILTIN_BAN_LIST } from "../../prompts/presetFrame.js";
 import { V11_BAN_LIST } from "../../../data/modes/v11taina.js";
@@ -181,9 +181,9 @@ export function renderBanList(c) {
         const val = $("#ps_manual_ban_input").val().trim();
         if (val && !localProfile.banList.includes(val)) { localProfile.banList.push(val); saveProfileToMemory(); $("#ps_manual_ban_input").val(""); renderTags(); }
     });
-    $("#ps_btn_clear_bans").on("click", () => {
+    $("#ps_btn_clear_bans").on("click", async () => {
         if (localProfile.banList.length === 0) return;
-        if (confirm("Are you sure you want to delete all banned phrases?")) { localProfile.banList = []; saveProfileToMemory(); renderTags(); toastr.info("Ban list cleared."); }
+        if (await confirmPopup("Delete all your banned phrases?", "Your own phrases are removed. The built-in list is not touched.", { ok: "Delete all" })) { localProfile.banList = []; saveProfileToMemory(); renderTags(); toastr.info("Ban list cleared."); }
     });
     $("#ps_btn_export_bans").on("click", () => {
         if (!localProfile.banList || localProfile.banList.length === 0) return toastr.warning("Ban list is empty!");

@@ -10,7 +10,7 @@ import { Popup, POPUP_TYPE } from "../../../st.js";
 import { v2Settings, currentImageCast, getLooks } from "./index.js";
 import { scanLooks, describeLooks, sheetSource } from "./looks.js";
 import { findLookKey, outfitHash } from "./looksCore.js";
-import { card, busy, esc } from "../../../ui/controls.js";
+import { card, busy, esc, confirmPopup } from "../../../ui/controls.js";
 
 const SOURCE_LABEL = { npc: "from the NPC Bank", sheet: "read from the card", chat: "read from the chat", manual: "written by you" };
 
@@ -208,12 +208,8 @@ async function openLookEditor(name, redraw) {
             () => scanLooks({ from: "sheet", targets: [{ name: member.name, aliases: member.aliases || [] }] }),
             () => { if (!gone) draw(); });
         const $forget = $root.find(".igx-ed-forget");
-        $forget.on("click", () => {
-            if ($forget.attr("data-armed") !== "1") {
-                $forget.attr("data-armed", "1").html(`<i class="fa-solid fa-trash"></i> Click again to delete`);
-                setTimeout(() => { $forget.attr("data-armed", "0").html(`<i class="fa-solid fa-trash"></i> Delete this look`); }, 3000);
-                return;
-            }
+        $forget.on("click", async () => {
+            if (!(await confirmPopup(`Delete ${esc(member.name)}'s look?`, "Their saved look is deleted. A new one is read again when they are drawn next.", { ok: "Delete" }))) return;
             const all = getLooks();
             const key = findLookKey(all, member.name, member.aliases || []);
             if (key) delete all[key];

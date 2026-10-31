@@ -20,6 +20,7 @@ import { presentCast, fieldLabel, LIST_LIMITS } from "../../state/modules/world/
 import { PC_FIELDS, NPC_FIELDS } from "../../state/modules/world/render.js";
 import { PC } from "../../state/modules/world/parse.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
+import { confirmPopup } from "../../ui/controls.js";
 
 const esc = v => String(v == null ? "" : v)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -176,7 +177,7 @@ function renderHistoryView(showAllSwipes) {
                     <input type="number" min="0" class="ps-modern-input meg-wsed-to" placeholder="to #" />
                     <button type="button" class="menu_button meg-wsed-doimport"><i class="fa-solid fa-file-import"></i> Read</button>
                 </span>
-                <button type="button" class="menu_button meg-wsed-reset" data-armed="0"><i class="fa-solid fa-eraser"></i> Reset World State</button>
+                <button type="button" class="menu_button meg-wsed-reset"><i class="fa-solid fa-eraser"></i> Reset World State</button>
             </div>
             <div class="meg-wsed-hint">Re-read picks up World blocks from those messages again (e.g. after the extension was switched off). Reset clears everything; the next reply describes the scene from scratch.</div>
         </div>
@@ -250,14 +251,10 @@ export async function openWorldEditor({ view = "state" } = {}) {
             commit([$(this).val() === "in" ? { type: "enter", who } : { type: "leave", who, where: "" }]);
         });
 
-        $root.find(".meg-wsed-forget").on("click", function () {
-            const $b = $(this);
-            if ($b.attr("data-armed") !== "1") {
-                $b.attr("data-armed", "1").addClass("armed").html(`<i class="fa-solid fa-trash"></i> Forget?`);
-                setTimeout(() => $b.attr("data-armed", "0").removeClass("armed").html(`<i class="fa-solid fa-trash"></i>`), 3000);
-                return;
-            }
-            commit([{ type: "forget", who: this.dataset.who }]);
+        $root.find(".meg-wsed-forget").on("click", async function () {
+            const who = this.dataset.who;
+            if (!(await confirmPopup(`Forget ${esc(who)}?`, "They are removed from World State completely. To take them out of the scene but keep them, set them to Left the scene instead.", { ok: "Forget them" }))) return;
+            commit([{ type: "forget", who }]);
         });
 
         $root.find(".meg-wsed-addchar").on("keydown", function (e) {
@@ -303,13 +300,8 @@ export async function openWorldEditor({ view = "state" } = {}) {
             meguminScheduleBlocksRefresh();
             draw();
         });
-        $root.find(".meg-wsed-reset").on("click", function () {
-            const $b = $(this);
-            if ($b.attr("data-armed") !== "1") {
-                $b.attr("data-armed", "1").addClass("armed").html(`<i class="fa-solid fa-triangle-exclamation"></i> Click again to clear this chat's World State`);
-                setTimeout(() => { if ($b.closest("body").length) draw(); }, 4000);
-                return;
-            }
+        $root.find(".meg-wsed-reset").on("click", async function () {
+            if (!(await confirmPopup("Clear this chat's World State?", "The next reply describes the scene from scratch. Other chats are not touched.", { ok: "Clear it" }))) return;
             stateStore.reset("world");
             meguminScheduleBlocksRefresh();
             toastr.info("World State cleared for this chat.", "Megumin Suite");

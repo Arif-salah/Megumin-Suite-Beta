@@ -13,7 +13,7 @@ import { getCharacterKey } from "../../core/keys.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { meguminStoryConfigSyncs, meguminSetStoryConfigSyncs, meguminStoryConfigHostSynced, scopeNoun } from "../../core/sync.js";
-import { switchRow } from "../../ui/controls.js";
+import { switchRow, confirmPopup, askName } from "../../ui/controls.js";
 import { hardcodedLogic } from "../../../data/database.js";
 import { escapeHtmlAttr, fieldPlaceholder } from "../../utils/html.js";
 import { cleanAIOutput } from "../../engine/chatText.js";
@@ -119,9 +119,9 @@ export function buildStoryConfigSection() {
         toastr.success(`Loaded "${p.name}".`);
     });
 
-    presetBar.find("#cfg_preset_save").on("click", () => {
-        const name = prompt("Name this config preset:");
-        if (!name || !name.trim()) return;
+    presetBar.find("#cfg_preset_save").on("click", async () => {
+        const name = await askName("Name these story settings", { html: "Saved so you can load them in any chat.", ok: "Save" });
+        if (!name) return;
         const values = {};
         storyConfigFields.forEach(f => { values[f.key] = cfg[f.key] || ""; });
         extension_settings[extensionName].configPresets.push({
@@ -135,21 +135,21 @@ export function buildStoryConfigSection() {
         toastr.success(`Saved "${name.trim()}".`);
     });
 
-    presetBar.find("#cfg_preset_delete").on("click", () => {
+    presetBar.find("#cfg_preset_delete").on("click", async () => {
         const pid = presetBar.find("#cfg_preset_select").val();
         if (!pid) { toastr.info("Pick a preset first."); return; }
         const p = getAllConfigPresets().find(x => x.id === pid);
         if (!p) return;
-        if (p.builtin) { toastr.warning("Built-in presets can't be deleted."); return; }
-        if (!confirm(`Delete the preset "${p.name}"?`)) return;
+        if (p.builtin) { toastr.warning("Built-in story settings can't be deleted."); return; }
+        if (!(await confirmPopup(`Delete "${p.name}"?`, "These saved story settings are deleted. The ones in use now don't change.", { ok: "Delete" }))) return;
         extension_settings[extensionName].configPresets = extension_settings[extensionName].configPresets.filter(x => x.id !== pid);
         saveSettingsDebounced();
         fireRefreshHook(REFRESH.SWITCH_TAB);
         toastr.success("Preset deleted.");
     });
 
-    presetBar.find("#cfg_reset_all").on("click", () => {
-        if (!confirm("Set every setting back to preset default?")) return;
+    presetBar.find("#cfg_reset_all").on("click", async () => {
+        if (!(await confirmPopup("Reset every story setting?", "Every field goes back to the preset's default.", { ok: "Reset" }))) return;
         storyConfigFields.forEach(f => { cfg[f.key] = ""; });
         applyStoryConfigDefaults(cfg);
         saveProfileToMemory();
@@ -532,8 +532,8 @@ export function renderStoryConfig(c) {
                 localProfile.activeStyleId = style.id; localProfile.aiRule = style.rule; saveProfileToMemory(); renderStyleLibrary(c);
             });
             card.find(".ps-btn-edit").on("click", () => renderStyleEditor(c, style.id));
-            card.find(".ps-btn-delete").on("click", () => {
-                if (confirm(`Delete "${style.name}"?`)) {
+            card.find(".ps-btn-delete").on("click", async () => {
+                if (await confirmPopup(`Delete "${style.name}"?`, "This writing style is deleted from your library.", { ok: "Delete" })) {
                     localProfile.customStyles = localProfile.customStyles.filter(s => s.id !== style.id);
                     if (localProfile.activeStyleId === style.id) { localProfile.activeStyleId = null; localProfile.aiRule = ""; }
                     saveProfileToMemory(); renderStyleLibrary(c);

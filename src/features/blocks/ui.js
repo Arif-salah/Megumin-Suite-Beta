@@ -20,6 +20,7 @@ import {
 } from "./registry.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
+import { keepScroll } from "../../ui/controls.js";
 import { meguminSlotByTrigger } from "../../../data/slots.js";
 import { hasSharedFragment } from "../../core/sharedFragments.js";
 
@@ -34,6 +35,11 @@ function editedFlag(b) {
 }
 
 export function renderBlocksTab(c) {
+    // An edit here redraws the tab: keep the scroll where it was (plan 020).
+    return keepScroll(() => drawBlocksTab(c));
+}
+
+function drawBlocksTab(c) {
     c.empty();
     const stack = localProfile.blockStack;
     const all = [...MEGUMIN_BLOCK_REGISTRY, ...(stack.custom || [])].filter(b => !b.system);

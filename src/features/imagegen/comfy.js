@@ -9,6 +9,7 @@ import {
     getContext, getRequestHeaders, saveChat, reloadCurrentChat, addOneMessage, appendMediaToMessage, updateMessageBlock, saveBase64AsFile, humanizedDateTime, Popup, POPUP_TYPE,
 } from "../../st.js";
 import { localProfile } from "../../core/state.js";
+import { askName, confirmPopup } from "../../ui/controls.js";
 import { saveProfileToMemory } from "../../core/profile.js";
 import { registerRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { showKazumaProgress } from "../../ui/progress.js";
@@ -134,7 +135,7 @@ export async function igPopulateWorkflows() {
 }
 
 export async function igNewWorkflowClick() {
-    let name = await prompt("New workflow file name (e.g. 'my_flux.json'):");
+    let name = await askName("Name the new workflow", { html: "A file name, for example my_flux.json", ok: "Create" });
     if (!name) return; if (!name.toLowerCase().endsWith('.json')) name += '.json';
     try {
         const res = await fetch('/api/sd/comfy/save-workflow', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ file_name: name, workflow: '{}' }) });
@@ -146,7 +147,7 @@ export async function igNewWorkflowClick() {
 
 export async function igDeleteWorkflowClick() {
     const name = localProfile.imageGen.currentWorkflowName;
-    if (!name) return; if (!confirm(`Delete ${name}?`)) return;
+    if (!name) return; if (!(await confirmPopup(`Delete ${name}?`, "The workflow file is deleted from SillyTavern.", { ok: "Delete" }))) return;
     try {
         const res = await fetch('/api/sd/comfy/delete-workflow', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ file_name: name }) });
         if (!res.ok) throw new Error(await res.text());
