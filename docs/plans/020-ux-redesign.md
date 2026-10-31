@@ -277,7 +277,15 @@ developer tests in SillyTavern and reports back.
   "needs World State" banner; step 1 has the address and Test, steps 2–3
   link to their pages. Draw button shows whenever Images are on.
 - [ ] Phase 5: One set of controls
-- [ ] Phase 6: The card in the chat
+- [~] Phase 6: The card in the chat — built 2026-10-31, waiting for the
+  developer's test. World State tab "· N" (`worldTabCount`, shown even with
+  "Show what changed" off); each choice's arrow is a send button (paper
+  plane, visible on phones too; Shift+click still sends); a choice that
+  starts with "/" says why it wasn't sent; the image regenerate button rests
+  at 45% (85% on touch) instead of hidden; Notebook "Show it, don't ask
+  again in this chat" (`chat_metadata.megumin_notebook.spoilerOk`); a line
+  under the input with Stop while a sent message waits for Chomusuke
+  (replaces the toast).
 - [~] Phase 7: Names — built 2026-10-31, waiting for the developer's test.
   On-screen text only (nothing sent to the model): engine → preset
   everywhere, Dev Mode included ("Presets" door, Save Preset, This preset…);

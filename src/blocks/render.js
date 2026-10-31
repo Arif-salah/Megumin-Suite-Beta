@@ -230,21 +230,24 @@ function renderChoicesInto(pane, parsed, doc, opts) {
             btn.disabled = true;
             btn.title = "The model left this option unfilled";
         } else {
-            btn.title = onChoice ? `Click to put in the input · Shift-click to send` : full;
+            btn.title = onChoice ? `Click to put it in the input · the arrow sends it` : full;
         }
+        // The arrow sends (plan 020): Shift-click was the only way, and nobody
+        // found it. Shift-click still works.
         btn.innerHTML = `
             <span class="meg-choice-num">${i + 1}</span>
             <span class="meg-choice-body">
                 <span class="meg-choice-label">${esc(c.label)}</span>
                 ${c.detail ? `<span class="meg-choice-detail">${esc(c.detail)}</span>` : ""}
             </span>
-            <span class="meg-choice-go"><i class="fa-solid fa-arrow-right"></i></span>
+            <span class="meg-choice-go${onChoice && !c.placeholder ? " meg-choice-send" : ""}"${onChoice && !c.placeholder ? ` title="Send this choice now"` : ""}><i class="fa-solid ${onChoice && !c.placeholder ? "fa-paper-plane" : "fa-arrow-right"}"></i></span>
         `;
         if (onChoice && !c.placeholder) {
             btn.addEventListener("click", e => {
                 e.stopPropagation();
                 e.preventDefault();
-                onChoice(full, { send: e.shiftKey });
+                const viaArrow = Boolean(e.target && e.target.closest && e.target.closest(".meg-choice-send"));
+                onChoice(full, { send: e.shiftKey || viaArrow });
             });
         }
         list.appendChild(btn);
@@ -255,7 +258,7 @@ function renderChoicesInto(pane, parsed, doc, opts) {
     if (onChoice) {
         const hint = doc.createElement("div");
         hint.className = "meg-choices-hint";
-        hint.textContent = "Click to fill the input · Shift-click to send straight away";
+        hint.textContent = "Click a choice to put it in the input · the arrow sends it straight away";
         pane.appendChild(hint);
     }
 }

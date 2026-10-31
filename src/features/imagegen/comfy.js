@@ -266,12 +266,13 @@ export function addKazumaRetryButtons(msgIndex) {
         // Create the retry button
         const btn = document.createElement('div');
         btn.className = 'kazuma-regen-btn';
-        btn.title = 'Regenerate this image';
-        // On a device with no pointer there is no mouseenter, so a button that
-        // rests at opacity 0 can never be seen. Rest it at 0.85 instead.
+        btn.title = 'Draw this image again';
+        // Always visible (plan 020): small and faint at rest, so people find it
+        // without hovering; full strength when you point at the image. Touch
+        // screens have no hover, so they rest brighter.
         const kazumaCanHover = !window.matchMedia || window.matchMedia('(hover: hover)').matches;
-        const kazumaRestOpacity = kazumaCanHover ? '0' : '0.85';
-        btn.style.cssText = 'position:absolute; top:8px; right:8px; cursor:pointer; background:rgba(0,0,0,0.65); color:#ffcc00; border-radius:6px; padding:5px 8px; font-size:14px; z-index:10; border:1px solid rgba(255,204,0,0.5); opacity:' + kazumaRestOpacity + '; transition:opacity 0.2s ease; line-height:1;';
+        const kazumaRestOpacity = kazumaCanHover ? '0.45' : '0.85';
+        btn.style.cssText = 'position:absolute; top:6px; right:6px; cursor:pointer; background:rgba(0,0,0,0.65); color:#ffcc00; border-radius:6px; padding:4px 6px; font-size:12px; z-index:10; border:1px solid rgba(255,204,0,0.5); opacity:' + kazumaRestOpacity + '; transition:opacity 0.2s ease; line-height:1;';
         btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i>';
 
         // Show/hide on hover

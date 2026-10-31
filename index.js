@@ -88,7 +88,7 @@ import {
 } from "./src/features/blocks/registry.js";
 import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex, cleanAIOutput } from "./src/engine/chatText.js";
 import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise, setReplyHeld, stopJobsForOtherChats } from "./src/engine/tasks.js";
-import { initChomusukeIndicator } from "./src/features/blocks/chomusukeIndicator.js";
+import { initChomusukeIndicator, showWaitingLine, hideWaitingLine } from "./src/features/blocks/chomusukeIndicator.js";
 import { warnChomusuke, answerKind } from "./src/engine/chomusukeNotice.js";
 import { escapeHtmlAttr } from "./src/utils/html.js";
 import { downloadJsonFile } from "./src/utils/download.js";
@@ -383,7 +383,8 @@ jQuery(async () => {
                 if (dryRun || genType === "quiet") return;
                 const session = chomusukeSessionPromise();
                 if (!session) return;
-                toastr.info("Waiting a moment for Chomusuke to finish reading the last reply…", "Megumin Suite", { timeOut: 3000 });
+                // A line under the input, with Stop (plan 020); a toast if there is no input to put it under.
+                if (!showWaitingLine()) toastr.info("Waiting a moment for Chomusuke to finish reading the last reply…", "Megumin Suite", { timeOut: 3000 });
                 setReplyHeld(true);
                 try {
                     const gaveUp = await Promise.race([
@@ -391,7 +392,7 @@ jQuery(async () => {
                         new Promise(r => setTimeout(() => r(true), 30000))
                     ]);
                     if (gaveUp) console.warn("[Megumin-Suite] Send guard: Chomusuke still busy after 30s; sending anyway.");
-                } finally { setReplyHeld(false); }
+                } finally { setReplyHeld(false); hideWaitingLine(); }
             });
             eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
                 if (stateOnSwiped(mesId)) meguminScheduleBlocksRefresh();

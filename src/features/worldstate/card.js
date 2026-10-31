@@ -239,3 +239,21 @@ export function worldDecorateCast(paneEl, msgIndex, onChanged) {
         head.appendChild(btn);
     });
 }
+
+// ── "World State · 3" on the card's tab (plan 020) ──────────────────────────
+// The "Changed in this reply" strip is inside the tab, so nobody saw it. The
+// tab itself says how many things this reply changed. Shown whether or not
+// the strip is on; nothing when the reply changed nothing or is switched off.
+export function worldTabCount(bodyEl, msgIndex) {
+    const tab = bodyEl && bodyEl.querySelector('.meg-blocks-tab[data-block-id="world"]');
+    if (!tab || typeof msgIndex !== "number") return;
+    tab.querySelector(".meg-tab-count")?.remove();
+    const info = worldCardInfo(msgIndex);
+    const n = info && !info.disabled && !info.pending ? (info.applied || []).length : 0;
+    if (!n) return;
+    const badge = document.createElement("span");
+    badge.className = "meg-tab-count";
+    badge.textContent = `· ${n}`;
+    badge.title = `This reply changed ${n} thing${n === 1 ? "" : "s"} in the scene`;
+    tab.appendChild(badge);
+}

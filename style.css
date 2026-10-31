@@ -3286,6 +3286,37 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
   transition: opacity .15s ease, transform .15s ease;
 }
 .meg-choice:hover .meg-choice-go { opacity: 1; transform: translateX(0); }
+/* Under the input while a sent message waits for Chomusuke (plan 020). */
+.meg-waiting-line {
+  display: flex; align-items: center; gap: 8px;
+  margin: 4px 8px 2px; padding: 5px 10px; border-radius: 8px;
+  font-size: .78rem; color: var(--SmartThemeBodyColor, #ddd);
+  background: rgba(244,63,94,.10); border: 1px solid rgba(244,63,94,.3);
+}
+.meg-waiting-line > i { color: #f43f5e; animation: meg-chomu-pulse 1.2s ease-in-out infinite; }
+.meg-waiting-line > span { flex: 1; }
+.meg-waiting-stop {
+  padding: 2px 10px; border-radius: 6px; cursor: pointer;
+  border: 1px solid rgba(244,63,94,.45); background: transparent; color: #fda4af; font-size: .74rem;
+}
+.meg-waiting-stop:hover { background: rgba(244,63,94,.2); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .meg-waiting-line > i { animation: none; } }
+
+/* "World State · 3": what this reply changed, on the tab itself (plan 020). */
+.meg-blocks-tab .meg-tab-count {
+  margin-left: 4px; font-size: .68rem; font-weight: 800; color: #f59e0b;
+}
+
+/* Live choices: the arrow is a send button (plan 020), always there, faint
+   until you point at the choice, bright when you point at the arrow. */
+.meg-choice-go.meg-choice-send {
+  opacity: .55; transform: none;
+  display: grid; place-items: center;
+  width: 30px; height: 30px; margin: -4px -4px -4px 0; border-radius: 8px;
+  font-size: .78rem;
+}
+.meg-choice:hover .meg-choice-go.meg-choice-send { opacity: .85; }
+.meg-choice-go.meg-choice-send:hover { opacity: 1; background: rgba(56,189,248,.18); color: #7dd3fc; }
 
 .meg-choices-hint {
   margin-top: 9px; font-size: .6rem; line-height: 1.4;
@@ -3316,6 +3347,7 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 @media (max-width: 560px) {
   .meg-choice { padding: 12px 11px; }
   .meg-choice-go { display: none; }
+  .meg-choice-go.meg-choice-send { display: grid; opacity: .8; width: 34px; height: 34px; }
 }
 
 /* ---- DICE - the roll, written before the scene ---- */
