@@ -9,7 +9,7 @@
 // Pure: no imports from SillyTavern. {{user}} is left for the caller.
 // ────────────────────────────────────────────────────────────────────────────
 
-import { LIVE_CAP, filledLiveTruths, clampLiveCap } from "./model.js";
+import { LIVE_CAP, filledLiveTruths, clampLiveCap, peekNextId } from "./model.js";
 
 /** How many truths the setup asks for, in words: "two or three truths" at the
  *  default of 3, so the wording stays as written (plan 020). */
@@ -72,7 +72,7 @@ export function renderNotebookForPrompt(state, { cap = LIVE_CAP } = {}) {
     if (!live.length) return "";
     const out = ["<Author_Notebook>"];
     live.forEach((t, i) => { if (i) out.push(""); out.push(...truthLines(t)); });
-    out.push("", `Live truths: ${live.length} of ${clampLiveCap(cap)}. Next id: T${state.next || 1}.`, "</Author_Notebook>");
+    out.push("", `Live truths: ${live.length} of ${clampLiveCap(cap)}. Next id: ${peekNextId(state)}.`, "</Author_Notebook>");
     return out.join("\n");
 }
 

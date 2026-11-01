@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { parseWorldBlocks } from "../src/state/modules/world/parse.js";
 import { emptyWorld, applyWorldChanges, LIST_LIMITS } from "../src/state/modules/world/model.js";
 import { renderWorldInstructions, renderWorldForPrompt, renderWorldClerkTask, withoutLimits } from "../src/state/modules/world/render.js";
-import { applyNotebook, emptyNotebook, liveTruths, filledLiveTruths, clampLiveCap, LIVE_CAP, MAX_LIVE_CAP } from "../src/state/modules/notebook/model.js";
+import { applyNotebook, emptyNotebook, liveTruths, filledLiveTruths, clampLiveCap, LIVE_CAP, MAX_LIVE_CAP, peekNextId } from "../src/state/modules/notebook/model.js";
 import { renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, truthCountWords, notebookPhase, describeNotebookChange } from "../src/state/modules/notebook/render.js";
 import { renderNotebookSetupTask } from "../src/state/modules/notebook/worker.js";
 
@@ -93,4 +93,33 @@ test("World State keeps Secrets and Seeds when asked, even with the Notebook on"
     assert.match(keep, /Seed\+:/);
     assert.match(keep, /Secret/);
     assert.doesNotMatch(hide, /Seed\+:/);
+});
+
+test("a deleted truth's number goes to the next new one (T4 deleted, the next is T4)", () => {
+    const op = o => st => applyNotebook(st, { ops: [o] }, { seq: 9, liveCap: 10 }).state;
+    let st = applyNotebook(emptyNotebook(), setup(3), { seq: 1, liveCap: 10 }).state;   // T1-T3
+    st = op({ op: "add" })(st);
+    assert.ok(st.truths.T4);
+    st = op({ op: "forget", id: "T4", reuse: true })(st);
+    assert.equal(peekNextId(st), "T4");
+    st = op({ op: "add" })(st);
+    assert.ok(st.truths.T4, "added again as T4, not T5");
+    assert.equal(st.truths.T5, undefined);
+    st = op({ op: "forget", id: "T4", reuse: true })(st);
+    st = op({ op: "add" })(st);
+    assert.ok(st.truths.T4, "still T4 after deleting it again");
+
+    // Two gaps: the lowest comes first; the model's new truths use them too.
+    st = op({ op: "forget", id: "T2", reuse: true })(st);
+    st = op({ op: "forget", id: "T3", reuse: true })(st);
+    st = applyNotebook(st, { ops: [{ op: "entry", id: "T9", truth: "A new one.", hiddenFrom: ["Kazuma"] }] }, { seq: 10, liveCap: 10 }).state;
+    assert.equal(st.truths.T2.truth, "A new one.");
+    assert.equal(peekNextId(st), "T3");
+    assert.match(renderNotebookForPrompt(st, { cap: 10 }), /Next id: T3\./);
+});
+
+test("an old chat's deletions (no reuse flag) replay as before", () => {
+    let st = applyNotebook(emptyNotebook(), setup(3), { seq: 1 }).state;
+    st = applyNotebook(st, { ops: [{ op: "forget", id: "T3" }] }, { seq: 2 }).state;
+    assert.equal(peekNextId(st), "T4");
 });
