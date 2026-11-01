@@ -121,10 +121,28 @@ export function pickBondsFor(state, { present = [], recentText = "", latestNames
     // "Dom’s") or "O'Brien" still matches. It used to delete apostrophes,
     // which turned "Chloe's" into "chloes" and missed her.
     const text = ` ${nameWords(recentText)} `;
+    // A surname alone counts when only one character has it ("Bathory"), never
+    // when two share it ("Cairns" could be Duncan or Cathleen).
+    const surnames = {};
     for (const [k, rec] of Object.entries(people)) {
-        if (nameCandidates(rec.name).some(n => text.includes(` ${n} `))) add(k);
+        const sn = surnameOf(rec.name);
+        if (sn) (surnames[sn] = surnames[sn] || []).push(k);
+    }
+    for (const [k, rec] of Object.entries(people)) {
+        const sn = surnameOf(rec.name);
+        const names = nameCandidates(rec.name);
+        if (sn && surnames[sn].length === 1) names.push(sn);
+        if (names.some(n => text.includes(` ${n} `))) add(k);
     }
     return out;
+}
+
+// The last word of a name with two or more words, brackets left out:
+// "Elizabeth Bathory" → "bathory", "Dom (Dominic Morin)" → none ("Dom" alone).
+function surnameOf(name) {
+    const w = nameWords(String(name || "").replace(/\([^)]*\)/g, " ")).split(" ").filter(Boolean);
+    const last = w.length >= 2 ? w[w.length - 1] : "";
+    return last.length > 2 ? last : "";
 }
 
 /** Lowercase words, possessives dropped, every other mark a space. */

@@ -167,3 +167,14 @@ test("bonds in play: possessives, names in brackets, a nickname for someone in t
     assert.deepEqual(pick({ present: ["Cat"] }), ["Cathleen Cairns"]);
     assert.deepEqual(pick({ recentText: "the cat slept" }), [], "a nickname counts only for someone in the scene");
 });
+
+test("bonds in play: a surname alone, only when one character has it", () => {
+    let st = emptyBonds();
+    for (const n of ["Elizabeth Bathory", "Duncan Cairns", "Cathleen Cairns", "Mira"]) {
+        st = applyBonds(st, { people: [{ name: n, fields: [{ key: "trust", label: "Trust", kind: "meter", value: 10, max: 100, text: "10/100" }] }] }, { seq: 1 }).state;
+    }
+    const pick = o => pickBondsFor(st, o).map(k => st.people[k].name);
+    assert.deepEqual(pick({ recentText: "Bathory's carriage arrived." }), ["Elizabeth Bathory"]);
+    assert.deepEqual(pick({ recentText: "The Cairns farm was quiet." }), [], "two Cairns: no guess");
+    assert.deepEqual(pick({ recentText: "Duncan nodded." }), ["Duncan Cairns"], "first names still work");
+});
