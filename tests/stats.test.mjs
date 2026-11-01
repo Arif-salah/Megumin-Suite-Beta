@@ -154,3 +154,16 @@ test("editor: set a value, clear a field, forget a character", () => {
     assert.equal(s.people.anno.fields.mood, undefined);
     assert.equal(s.people.matt, undefined);
 });
+
+test("bonds in play: possessives, names in brackets, a nickname for someone in the scene", () => {
+    let st = emptyBonds();
+    for (const n of ["Chloe von Einzbern", "Dom (Dominic Morin)", "Cathleen Cairns", "Sean O'Brien", "Harold"]) {
+        st = applyBonds(st, { people: [{ name: n, fields: [{ key: "affection", label: "Affection", kind: "meter", value: 10, max: 100, text: "10/100" }] }] }, { seq: 1 }).state;
+    }
+    const pick = o => pickBondsFor(st, o).map(k => st.people[k].name);
+    assert.deepEqual(pick({ recentText: "Chloe's awake by now. Dom’s beer sat warm." }), ["Chloe von Einzbern", "Dom (Dominic Morin)"]);
+    assert.deepEqual(pick({ recentText: "Dominic laughed." }), ["Dom (Dominic Morin)"]);
+    assert.deepEqual(pick({ recentText: "Sean O'Brien's coat." }), ["Sean O'Brien"]);
+    assert.deepEqual(pick({ present: ["Cat"] }), ["Cathleen Cairns"]);
+    assert.deepEqual(pick({ recentText: "the cat slept" }), [], "a nickname counts only for someone in the scene");
+});

@@ -115,12 +115,51 @@ export function pickBondsFor(state, { present = [], recentText = "", latestNames
     const people = (state && state.people) || {};
     const out = [];
     const add = k => { if (k && people[k] && !out.includes(k)) out.push(k); };
-    for (const n of present) add(findPersonKey(people, n));
+    for (const n of present) add(findPersonKey(people, n) || findByNickname(people, n));
     for (const n of latestNames) add(findPersonKey(people, n));
-    const text = ` ${statKey(recentText).replace(/[^\p{L}\p{N} ]+/gu, " ")} `;
+    // Names and text are normalised the same way, so a possessive ("Chloe's",
+    // "Dom’s") or "O'Brien" still matches. It used to delete apostrophes,
+    // which turned "Chloe's" into "chloes" and missed her.
+    const text = ` ${nameWords(recentText)} `;
     for (const [k, rec] of Object.entries(people)) {
-        const names = [k, statKey(rec.name).split(" ")[0]].filter(n => n.length > 2);
-        if (names.some(n => text.includes(` ${n} `))) add(k);
+        if (nameCandidates(rec.name).some(n => text.includes(` ${n} `))) add(k);
     }
     return out;
+}
+
+/** Lowercase words, possessives dropped, every other mark a space. */
+export function nameWords(s) {
+    return String(s || "")
+        .toLowerCase()
+        .replace(/[’‘`´]/g, "'")
+        .replace(/(\p{L})'s\b/gu, "$1")
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .trim();
+}
+
+// What a character can be called in the story: the full name, the first name,
+// and a name in brackets ("Dom (Dominic Morin)" is also Dominic Morin, Dominic).
+function nameCandidates(name) {
+    const raw = String(name || "");
+    const forms = [raw, ...(raw.match(/\(([^)]+)\)/g) || []).map(x => x.slice(1, -1)), raw.replace(/\([^)]*\)/g, " ")];
+    const out = new Set();
+    for (const f of forms) {
+        const w = nameWords(f);
+        if (!w) continue;
+        out.add(w);
+        out.add(w.split(" ")[0]);
+    }
+    return [...out].filter(n => n.length > 2);
+}
+
+// A short name for someone in the scene ("Cat" for Cathleen Cairns): the one
+// character whose first name starts with it. Only for the scene's cast.
+function findByNickname(people, name) {
+    const n = nameWords(name);
+    if (n.length < 3 || n.includes(" ")) return null;
+    const hits = Object.keys(people).filter(k => {
+        const first = nameWords(people[k].name).split(" ")[0];
+        return first !== n && first.startsWith(n);
+    });
+    return hits.length === 1 ? hits[0] : null;
 }
