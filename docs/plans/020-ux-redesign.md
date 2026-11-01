@@ -265,6 +265,17 @@ developer tests in SillyTavern and reports back.
   The control is HIDDEN for now (`SHOW_WRITE_MODE = false` in
   `features/worldstate/ui.js`): the developer wants users on "only what
   changed" first, to find its bugs. Flip it to true to show it.
+  2026-11-01: SHOWN again, named "How each update is written: Only what
+  changed / Full update each time" (no V10 in the name). Full update also
+  lifts every limit (threads, seeds, timers, Off-screen): no trimming
+  (`ctx.noLimits`), no "(2 of 3)" in the notes, no "at most N" in the rules
+  (`withoutLimits`). The Editor's "at most" tags go too.
+  The Notebook: "How many truths the story keeps at once", 1–10, default 3
+  (`notebook.maxTruths`, `notebookCap()`); setup, update rules and
+  <Author_Notebook> use the number, and are word for word the same at 3.
+  The replay uses the highest number a chat was run with
+  (`megumin_notebook.capHigh`), so lowering it never drops truths already
+  written. `tests/limits.test.mjs`.
 - [~] Phase 4: Setup checklists and the Draw button — built 2026-10-31,
   waiting for the developer's test. `ui/checklist.js` (+ pure
   `ui/checklistCore.js`, `tests/setup-checklist.test.mjs`). Chomusuke: the

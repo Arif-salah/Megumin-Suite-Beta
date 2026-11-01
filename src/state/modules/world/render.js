@@ -59,7 +59,7 @@ export function findReturning(state, recentText) {
 
 /**
  * @param {object} state
- * @param {{ detail?: "full"|"scene", returning?: object[], pcName?: string, noSecret?: boolean }} [opts]
+ * @param {{ detail?: "full"|"scene", returning?: object[], pcName?: string, noSecret?: boolean, noLimits?: boolean }} [opts]
  *   noSecret — the Author's Notebook is on: hidden things (Secret, Seeds) live there, not here
  */
 export function renderWorldForPrompt(state, opts = {}) {
@@ -98,7 +98,7 @@ export function renderWorldForPrompt(state, opts = {}) {
     const offscreen = Object.values(state.cast || {}).filter(c => !c.present && c.offscreen);
     if (full && offscreen.length) {
         lines.push("");
-        lines.push(`Off-screen (${offscreen.length} of ${OFFSCREEN_LIMIT})`);
+        lines.push(opts.noLimits ? "Off-screen" : `Off-screen (${offscreen.length} of ${OFFSCREEN_LIMIT})`);
         for (const c of offscreen) lines.push(`  ${c.name}: ${c.offscreen}`);
     }
 
@@ -119,7 +119,7 @@ export function renderWorldForPrompt(state, opts = {}) {
             const items = state[key] || [];
             if (!items.length) return;
             lines.push("");
-            lines.push(`${title} (${items.length} of ${LIST_LIMITS[key]})`);
+            lines.push(opts.noLimits ? title : `${title} (${items.length} of ${LIST_LIMITS[key]})`);
             items.forEach((it, i) => lines.push(`  ${i + 1}. ${it}`));
         };
         list("threads", "Threads");
@@ -182,24 +182,40 @@ export function withoutSecret(text) {
 // The whole scene every reply (plan 020, "V10 + V11"): the scene is written in
 // full again, starting from where it stood. Leaving someone out is how they
 // leave, so stale people can't linger.
-const carryOver = noSecret =>
+const carryOver = (noSecret, noLimits) =>
     "<Current_World_State> is where the story stood before your reply. Start from it: copy every detail your reply did not change word for word, and change only what it did. " +
     "Give \"+ <Name>\" only to the people physically present at the end of your reply; anyone you leave out has left the scene, so put them in an Offscreen line if the story will want them again. " +
-    (noSecret
-        ? `Write the Threads and Timers that still matter, at most ${LIST_LIMITS.threads} and ${LIST_LIMITS.timers}; the ones you leave out are closed.`
-        : `Write the Threads, Seeds and Timers that still matter, at most ${LIST_LIMITS.threads}, ${LIST_LIMITS.seeds} and ${LIST_LIMITS.timers}; the ones you leave out are closed.`);
+    (noLimits
+        ? (noSecret
+            ? "Write the Threads and Timers that still matter; the ones you leave out are closed."
+            : "Write the Threads, Seeds and Timers that still matter; the ones you leave out are closed.")
+        : noSecret
+            ? `Write the Threads and Timers that still matter, at most ${LIST_LIMITS.threads} and ${LIST_LIMITS.timers}; the ones you leave out are closed.`
+            : `Write the Threads, Seeds and Timers that still matter, at most ${LIST_LIMITS.threads}, ${LIST_LIMITS.seeds} and ${LIST_LIMITS.timers}; the ones you leave out are closed.`);
+
+// "Full update each time" (plan 020) has no limits: no "at most N" anywhere,
+// no "Keep at most …" rule lines. The rest of the text stays as written.
+export function withoutLimits(text) {
+    return String(text || "")
+        .split("\n").filter(l => !/^- Keep at most \d/.test(l)).join("\n")
+        .replace(/\s+\(at most \d+\)/g, "")
+        .replace(/, at most \d+ lines in all\]/g, "]")
+        .replace(/; at most \d+\]/g, "]");
+}
 
 /**
  * @param {"update"|"bootstrap"} mode
- * @param {{ noSecret?: boolean, carry?: boolean }} [opts]
- *   carry: a full rewrite of a scene already on file (the "whole scene every
- *   reply" setting, or Rewrite next reply): start from the current state.
+ * @param {{ noSecret?: boolean, carry?: boolean, noLimits?: boolean }} [opts]
+ *   carry: a full rewrite of a scene already on file (the "full update each
+ *   time" setting, or Rewrite next reply): start from the current state.
+ *   noLimits: "full update each time" is on, so no list or Off-screen limits.
  * @returns {{ rules: string, template: string }}
  */
-export function renderWorldInstructions(mode, { noSecret = false, carry = false } = {}) {
+export function renderWorldInstructions(mode, { noSecret = false, carry = false, noLimits = false } = {}) {
     const base = worldInstructions(mode);
-    const ins = noSecret ? { rules: withoutSecret(base.rules), template: withoutSecret(base.template) } : base;
-    return mode === "bootstrap" && carry ? { ...ins, rules: `${ins.rules}\n${carryOver(noSecret)}` } : ins;
+    let ins = noSecret ? { rules: withoutSecret(base.rules), template: withoutSecret(base.template) } : base;
+    if (noLimits) ins = { rules: withoutLimits(ins.rules), template: withoutLimits(ins.template) };
+    return mode === "bootstrap" && carry ? { ...ins, rules: `${ins.rules}\n${carryOver(noSecret, noLimits)}` } : ins;
 }
 
 function worldInstructions(mode) {
@@ -370,8 +386,8 @@ export function describeWorldChange(ch, pcLabel = "{{user}}") {
  * Shared word for word by the Chomusuke read and the combined call.
  * @returns {{ rules: string, template: string, tag: string }}
  */
-export function renderWorldClerkTask(mode, { noSecret = false, carry = false } = {}) {
-    const ins = renderWorldInstructions(mode, { noSecret, carry });
+export function renderWorldClerkTask(mode, { noSecret = false, carry = false, noLimits = false } = {}) {
+    const ins = renderWorldInstructions(mode, { noSecret, carry, noLimits });
     const reword = t => t
         .replace(/before your reply/g, "before the latest exchange")
         .replace(/what your reply changed/g, "what the latest exchange changed")
@@ -392,8 +408,8 @@ export function renderClerkNotes(notes) {
  * @param {{ notes: string, exchange: string, mode: string, noSecret?: boolean, sheets?: string }} a
  *   sheets — the character card(s) and the persona, so the clerk knows who the people are
  */
-export function renderWorldExtractPrompt({ notes, exchange, mode, noSecret = false, sheets = "", carry = false }) {
-    const task = renderWorldClerkTask(mode, { noSecret, carry });
+export function renderWorldExtractPrompt({ notes, exchange, mode, noSecret = false, sheets = "", carry = false, noLimits = false }) {
+    const task = renderWorldClerkTask(mode, { noSecret, carry, noLimits });
     const s = String(sheets || "").trim();
     const system =
         "You are a continuity clerk for an ongoing roleplay. You read the latest exchange and note what it changed: " +

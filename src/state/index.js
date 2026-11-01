@@ -25,9 +25,9 @@ import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast, findCast, castDisplayName, STALE_AFTER_DEFAULT } from "./modules/world/model.js";
 import { notebookModule } from "./modules/notebook/index.js";
 import {
-    notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler
+    notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler, truthCountWords
 } from "./modules/notebook/render.js";
-import { liveTruths } from "./modules/notebook/model.js";
+import { liveTruths, LIVE_CAP, clampLiveCap } from "./modules/notebook/model.js";
 import { parseNotebook } from "./modules/notebook/parse.js";
 import {
     replyWroteNotebookChanges, notebookAnswerBlock, joinNotebookRead, notebookReadPart, parseNotebookRead,
@@ -102,7 +102,9 @@ const adapter = {
         if (u && u !== "{{user}}") names.push(u);
         return names;
     },
-    applyContext: mid => mid === "world" ? { staleAfter: Number(worldSettings().staleAfter) || 0 } : {}
+    applyContext: mid => mid === "world"
+        ? { staleAfter: Number(worldSettings().staleAfter) || 0, noLimits: worldWritesFull() }
+        : mid === "notebook" ? { liveCap: notebookReplayCap() } : {}
 };
 
 export const stateStore = createStateStore({
@@ -138,7 +140,7 @@ export function worldPromptBlock() {
     const cfg = worldSettings();
     const state = getWorldState();
     const returning = cfg.showReturning ? findReturning(state, recentText()) : [];
-    return sub(renderWorldForPrompt(state, { detail: cfg.injectionDetail, returning, noSecret: notebookEnabled() }));
+    return sub(renderWorldForPrompt(state, { detail: cfg.injectionDetail, returning, noSecret: notebookEnabled(), noLimits: worldWritesFull() }));
 }
 
 /**
@@ -151,7 +153,7 @@ export function worldBlockRequest() {
     if (worldUpdateMode() !== "inline") return null;
     const has = stateStore.hasState("world");
     const mode = !has || stateStore.isPendingFullRewrite("world") || worldWritesFull() ? "bootstrap" : "update";
-    const ins = renderWorldInstructions(mode, { noSecret: notebookEnabled(), carry: has });
+    const ins = renderWorldInstructions(mode, { noSecret: notebookEnabled(), carry: has, noLimits: worldWritesFull() });
     return { rules: sub(ins.rules), template: sub(ins.template), mode };
 }
 
@@ -418,8 +420,9 @@ export function worldExtractMessage(index, { force = false } = {}) {
             const empty = isEmptyWorld(before);
             const mode = empty || worldWritesFull() ? "bootstrap" : "update";
             const noSecret = notebookEnabled();
-            const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
-            const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, empty ? "bootstrap" : "update"), mode, noSecret, carry: !empty, sheets: worldSheets() });
+            const noLimits = worldWritesFull();
+            const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }));
+            const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, empty ? "bootstrap" : "update"), mode, noSecret, carry: !empty, noLimits, sheets: worldSheets() });
             req = { system: sub(built.system), user: sub(built.user), prefill: built.prefill, job: "world" };
             // The marker is set only once this job has the worker. Chomusuke runs
             // are queued; set while waiting, it would hijack whatever generation
@@ -508,8 +511,9 @@ export function worldReadInputs(token) {
     const empty = isEmptyWorld(before);
     const mode = empty || worldWritesFull() ? "bootstrap" : "update";
     const noSecret = notebookEnabled();
-    const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
-    return { mode, notes, noSecret, carry: !empty, exchange: exchangeFor(token.index, token.text, empty ? "bootstrap" : "update"), sheets: worldSheets() };
+    const noLimits = worldWritesFull();
+    const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }));
+    return { mode, notes, noSecret, carry: !empty, noLimits, exchange: exchangeFor(token.index, token.text, empty ? "bootstrap" : "update"), sheets: worldSheets() };
 }
 
 // The card(s) (Description and Personality) and the persona, sent with every
@@ -623,6 +627,33 @@ export function notebookEnabled() {
 // with the tab's switch, behind a warning. An old chat's
 // `megumin_notebook.paused` flag is simply ignored.
 
+/** How many truths can be live (The Notebook tab, plan 020): 3 by default. */
+export function notebookCap() {
+    const n = localProfile && localProfile.notebook && localProfile.notebook.maxTruths;
+    return n === undefined ? LIVE_CAP : clampLiveCap(n);
+}
+
+// Replaying a chat must not drop truths written while the number was higher:
+// each chat keeps the highest number it was run with (megumin_notebook.capHigh),
+// and the replay allows that many. Lowering the number stops new truths only.
+function notebookReplayCap() {
+    const meta = adapter.getMeta();
+    const high = meta && meta.megumin_notebook && Number(meta.megumin_notebook.capHigh);
+    return Math.max(notebookCap(), Number.isFinite(high) ? clampLiveCap(high) : 0);
+}
+
+/** Records the number in use for the open chat (on each request, and when it changes). */
+export function notebookNoteCap() {
+    const meta = adapter.getMeta();
+    if (!meta) return;
+    if (!meta.megumin_notebook || typeof meta.megumin_notebook !== "object") meta.megumin_notebook = {};
+    const cap = notebookCap();
+    if (!(Number(meta.megumin_notebook.capHigh) >= cap)) {
+        meta.megumin_notebook.capHigh = cap;
+        adapter.saveMeta();
+    }
+}
+
 export function notebookState() {
     return stateStore.getState("notebook");
 }
@@ -636,7 +667,7 @@ export function notebookCurrentPhase() {
 /** <Author_Notebook> for Current Info, or "". */
 export function notebookPromptBlock() {
     if (notebookCurrentPhase() !== "running") return "";
-    return sub(renderNotebookForPrompt(notebookState()));
+    return sub(renderNotebookForPrompt(notebookState(), { cap: notebookCap() }));
 }
 
 /**
@@ -645,15 +676,16 @@ export function notebookPromptBlock() {
  */
 export function notebookBlockRequest() {
     const phase = notebookCurrentPhase();
+    if (phase !== "off") notebookNoteCap();
     if (phase === "setup") {
-        return { phase, rules: sub(renderNotebookSetup()), template: "<Notebook>\n[two or three truths, each in the form above]\n</Notebook>" };
+        return { phase, rules: sub(renderNotebookSetup({ cap: notebookCap() })), template: `<Notebook>\n[${truthCountWords(notebookCap())}, each in the form above]\n</Notebook>` };
     }
     if (phase === "running") {
         // With the Chomusuke route on, the story model only writes new truths.
         const newOnly = notebookViaChomusuke();
         return {
             phase,
-            rules: sub(renderNotebookUpdateRules({ newOnly })),
+            rules: sub(renderNotebookUpdateRules({ newOnly, cap: notebookCap() })),
             template: newOnly
                 ? "<Notebook_Update>\n[a new truth with its lines; leave this block out when there is none]\n</Notebook_Update>"
                 : "<Notebook_Update>\n[change lines; leave this block out when nothing changed]\n</Notebook_Update>"
@@ -819,7 +851,7 @@ export function notebookBeginRead(index, { force = false } = {}) {
 
 /** <Author_Notebook> as it stood before the reply, for the worker. */
 export function notebookReadNotes(token) {
-    return sub(renderNotebookForPrompt(stateStore.getStateAt("notebook", token.seq - 0.5)));
+    return sub(renderNotebookForPrompt(stateStore.getStateAt("notebook", token.seq - 0.5), { cap: notebookCap() }));
 }
 
 /**

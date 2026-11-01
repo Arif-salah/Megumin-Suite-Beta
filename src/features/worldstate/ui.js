@@ -28,9 +28,9 @@ import { buildBlocksCard, extractBlocks } from "../../blocks/render.js";
 import { openWorldEditor } from "./editor.js";
 import { card, segmented, switchRow, field, esc } from "../../ui/controls.js";
 
-// "Each update writes: Only what changed / The whole scene (V10 + V11)".
+// "How each update is written: Only what changed / Full update each time".
 // false = not shown; worldState.writeMode still decides (default "changes").
-const SHOW_WRITE_MODE = false;
+const SHOW_WRITE_MODE = true;
 
 function ws() {
     if (!localProfile.worldState) localProfile.worldState = {};
@@ -138,16 +138,16 @@ export function renderWorldStateTab(c) {
     ], who, id => { setWriter(id); redraw(); }));
     updates.append(`<div class="igx-note">${WRITER_DESC[who]}</div>`);
     // Plan 020: what each update holds. Not for "Only me": nothing is written.
-    // Hidden for now (SHOW_WRITE_MODE): the developer wants V11's "only what
-    // changed" used first, to find its bugs. The setting itself still works.
+    // "Full update each time" also lifts every limit (threads, seeds, timers,
+    // Off-screen): the model writes what still matters, and that's the list.
     if (SHOW_WRITE_MODE && who !== "me") {
         const full = cfg.writeMode === "full";
-        updates.append(field("Each update writes", full
-            ? "A mix of V10 and V11: as in V10, the model writes the whole scene every reply, so anyone left out has left. As in V11, it writes short plain lines and the extension keeps the scene and draws the card, no big HTML block. Costs more of each reply (a few hundred tokens in a busy scene), and small details can drift as they are copied over."
-            : "Only what the reply changed. Short, and details stay exactly as written.",
+        updates.append(field("How each update is written", full
+            ? "Every reply writes the whole scene again, so anyone left out has left the scene, and there's no limit on threads, seeds, timers or people off-screen. Costs more of each reply (a few hundred tokens in a busy scene), and small details can shift as they're copied over."
+            : "Each reply writes only what it changed. Short, and details stay exactly as written. Keeps at most 3 threads, 3 seeds, 2 timers and 4 people off-screen.",
         segmented([
             { id: "changes", label: "Only what changed" },
-            { id: "full", label: "The whole scene (V10 + V11)" }
+            { id: "full", label: "Full update each time" }
         ], full ? "full" : "changes", id => {
             cfg.writeMode = id;
             saveProfileToMemory();

@@ -3307,6 +3307,12 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 .meg-waiting-stop:hover { background: rgba(244,63,94,.2); color: #fff; }
 @media (prefers-reduced-motion: reduce) { .meg-waiting-line > i { animation: none; } }
 
+/* The Notebook: how many truths can be live (plan 020). */
+.nbx-cap { display: flex; align-items: center; gap: 14px; margin: 10px 0 14px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(0,0,0,.18); }
+.nbx-cap label { flex: 1; display: flex; flex-direction: column; gap: 3px; font-size: .82rem; color: var(--text-main); }
+.nbx-cap small { font-size: .72rem; line-height: 1.4; color: var(--text-muted); }
+.nbx-cap input { width: 70px; text-align: center; }
+
 /* Model Setup: a row of a loadout not in use yet (plan 020). */
 .msx-preview {
     margin-left: 6px; padding: 1px 6px; border-radius: 999px;

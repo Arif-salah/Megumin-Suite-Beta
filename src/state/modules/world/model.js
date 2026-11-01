@@ -242,7 +242,7 @@ function staleStep(state, ctx, seq, note) {
  * Applies one parsed reply to a state.
  * @param {object} prev     world state (not mutated)
  * @param {{kind: string, changes: object[]}} parsed
- * @param {{seq?: number, userNames?: string[], text?: string, staleAfter?: number}} [ctx]
+ * @param {{seq?: number, userNames?: string[], text?: string, staleAfter?: number, noLimits?: boolean}} [ctx]
  *   text: the message (and the user's message before it) this entry belongs
  *   to, for the "not named for N replies" step; absent for your own edits.
  * @returns {{ state: object, applied: Array<{label: string, before: string, after: string}>, notes: string[], unannounced: string[] }}
@@ -518,8 +518,9 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
     }
 
     // Over the limit, the oldest go. A list the reply wrote out whole (a first
-    // World State) keeps the first ones it wrote. The user's own edits aren't cut.
-    if (!parsed.byUser) {
+    // World State) keeps the first ones it wrote. The user's own edits aren't
+    // cut, and nothing is with "full update each time" (ctx.noLimits, plan 020).
+    if (!parsed.byUser && !ctx.noLimits) {
         for (const key of LISTS) {
             const list = state[key] || (state[key] = []);
             while (list.length > LIST_LIMITS[key]) {

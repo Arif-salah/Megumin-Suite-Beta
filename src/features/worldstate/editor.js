@@ -14,7 +14,7 @@
 import { Popup, POPUP_TYPE, substituteParams } from "../../st.js";
 import {
     getWorldState, worldEdit, worldHistory, worldSetEntryDisabled, worldRemoveUserEntry,
-    worldImportRange, worldChatOpen, stateStore, notebookEnabled
+    worldImportRange, worldChatOpen, stateStore, notebookEnabled, worldWritesFull
 } from "../../state/index.js";
 import { presentCast, fieldLabel, LIST_LIMITS } from "../../state/modules/world/model.js";
 import { PC_FIELDS, NPC_FIELDS } from "../../state/modules/world/render.js";
@@ -78,7 +78,7 @@ function renderStateView(state) {
     const list = l => `
         <div class="meg-wsed-list">
             <div class="meg-wsed-sub"><i class="fa-solid ${l.icon}"></i> ${l.title}
-                <span class="meg-wsed-tag" title="When a reply leaves more than ${LIST_LIMITS[l.key]}, the oldest one is removed.">at most ${LIST_LIMITS[l.key]}</span></div>
+                ${worldWritesFull() ? "" : `<span class="meg-wsed-tag" title="When a reply leaves more than ${LIST_LIMITS[l.key]}, the oldest one is removed.">at most ${LIST_LIMITS[l.key]}</span>`}</div>
             ${(state[l.key] || []).map(item => `
                 <div class="meg-wsed-listrow">
                     ${input({ kind: "listitem", list: l.key }, item)}

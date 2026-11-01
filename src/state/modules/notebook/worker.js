@@ -15,7 +15,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { parseNotebook, storyProse } from "./parse.js";
-import { NOTEBOOK_TRUTH_FORM } from "./render.js";
+import { NOTEBOOK_TRUTH_FORM, truthCountWords } from "./render.js";
 
 export const NOTEBOOK_WORKER_SYSTEM =
     "You keep the author's notebook of an ongoing story: the truths it is hiding, the clues it plants, and who finds what out. " +
@@ -69,10 +69,11 @@ export const NOTEBOOK_SETUP_SYSTEM =
     "You never continue the story and never explain.";
 
 /** The setup task, for the separate call and the combined one. */
-export function renderNotebookSetupTask() {
+export function renderNotebookSetupTask({ cap } = {}) {
+    const count = truthCountWords(cap);
     const rules = [
         "<Notebook_Setup_Rules>",
-        "The story keeps a notebook of the truths it holds back about the world, its past, or the people in it. It is empty, so write it now: a <Notebook> block with two or three truths, built from the character sheet, the setting, and the story so far.",
+        `The story keeps a notebook of the truths it holds back about the world, its past, or the people in it. It is empty, so write it now: a <Notebook> block with ${count}, built from the character sheet, the setting, and the story so far.`,
         "",
         "A good truth comes from the setting and the sheet, and once it comes out it changes how earlier scenes read. A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader. Nothing in the story so far has given it away.",
         "",
@@ -81,16 +82,16 @@ export function renderNotebookSetupTask() {
         ...NOTEBOOK_TRUTH_FORM,
         "</Notebook_Setup_Rules>"
     ].join("\n");
-    return { rules, template: "<Notebook>\n[two or three truths, each in the form above]\n</Notebook>", tag: "Notebook" };
+    return { rules, template: `<Notebook>\n[${count}, each in the form above]\n</Notebook>`, tag: "Notebook" };
 }
 
 /**
  * The separate setup call.
- * @param {{ sheet?: string, earlier?: string, exchange: string }} a  sheet: the character card
+ * @param {{ sheet?: string, earlier?: string, exchange: string, cap?: number }} a  sheet: the character card; cap: how many truths can be live
  * @returns {{ system: string, user: string }}
  */
 export function renderNotebookSetupWorkerPrompt(a) {
-    const task = renderNotebookSetupTask();
+    const task = renderNotebookSetupTask({ cap: a.cap });
     const user = [
         String(a.sheet || "").trim() ? `<Character_Sheet>\n${String(a.sheet).trim()}\n</Character_Sheet>` : "",
         String(a.earlier || "").trim() ? `<Earlier_Story>\n${String(a.earlier).trim()}\n</Earlier_Story>` : "",

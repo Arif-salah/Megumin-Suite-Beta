@@ -16,9 +16,11 @@ import { saveProfileToMemory } from "../../core/profile.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import {
     notebookEnabled, notebookComesWithEngine, notebookCurrentPhase, notebookState,
-    notebookEdit, notebookTurnLabel
+    notebookEdit, notebookTurnLabel, notebookCap, notebookNoteCap
 } from "../../state/index.js";
-import { liveTruths, pastTruths, LIVE_CAP } from "../../state/modules/notebook/model.js";
+import { liveTruths, pastTruths, MAX_LIVE_CAP, clampLiveCap } from "../../state/modules/notebook/model.js";
+import { truthCountWords } from "../../state/modules/notebook/render.js";
+import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { splitNames } from "../../state/modules/notebook/parse.js";
 import { confirmPopup } from "../../ui/controls.js";
 
@@ -119,7 +121,7 @@ function notebookSections(state, chatId, on) {
     const kept = on ? "" : `<div class="meg-nb-none">The notebook is off, so these are kept but not handed to the story.</div>`;
     return `
         <section class="nbx-section">
-            <h3 class="nbx-heading purple"><i class="fa-solid fa-mask"></i> Active <span class="meg-nb-count">${live.length} of ${LIVE_CAP} live</span></h3>
+            <h3 class="nbx-heading purple"><i class="fa-solid fa-mask"></i> Active <span class="meg-nb-count">${live.length} of ${notebookCap()} live</span></h3>
             ${kept}
             ${live.length ? `
             <p class="nbx-note warn"><i class="fa-solid fa-triangle-exclamation"></i> These are the truths the story is still hiding. Opening one spoils what the story is building toward.</p>
@@ -158,8 +160,8 @@ export function renderNotebookTab(c) {
     const status = !on && v11 ? "The notebook is off. V11's preset still talks about its notebook, so edit the preset in Dev Mode and take out the lines about it."
         : !on ? "The notebook is off."
         : !hasChat ? "Open a chat to see its notebook."
-        : phase === "setup" ? "The next reply writes the notebook: two or three hidden truths."
-        : `${live} of ${LIVE_CAP} truths are live in this chat${past ? `, ${past} came out` : ""}.`;
+        : phase === "setup" ? `The next reply writes the notebook: ${truthCountWords(notebookCap()).replace("truth", "hidden truth")}.`
+        : `${live} of ${notebookCap()} truths are live in this chat${past ? `, ${past} came out` : ""}.`;
 
     c.append(`
         <div class="nbx">
@@ -180,6 +182,12 @@ export function renderNotebookTab(c) {
             <div class="nbx-sheet">
             <div class="nbx-status">
                 <span class="nbx-status-text"><i class="fa-solid fa-circle-info"></i> ${status}</span>
+            </div>
+
+            <div class="nbx-cap">
+                <label for="nb_cap"><b>How many truths the story keeps at once</b>
+                    <small>Default 3. More truths means more for the story to juggle and more to read every reply. Lowering it keeps the truths already in play; the story just adds none until fewer are live.</small></label>
+                <input type="number" id="nb_cap" class="ps-modern-input" min="1" max="${MAX_LIVE_CAP}" step="1" value="${notebookCap()}" />
             </div>
 
             ${state ? notebookSections(state, chatId, on) : ""}
@@ -204,6 +212,17 @@ export function renderNotebookTab(c) {
         }
         saveProfileToMemory();
         meguminScheduleBlocksRefresh();
+        renderNotebookTab(c);
+    });
+    c.find("#nb_cap").on("change", function () {
+        const n = clampLiveCap($(this).val());
+        $(this).val(n);
+        if (n === notebookCap()) return;
+        localProfile.notebook = { ...(localProfile.notebook || {}), maxTruths: n };
+        saveProfileToMemory();
+        notebookNoteCap();
+        meguminScheduleBlocksRefresh();
+        fireRefreshHook(REFRESH.TOKEN_COUNT);
         renderNotebookTab(c);
     });
     if (state) bindNotebook(c, state, chatId);
@@ -272,8 +291,8 @@ function bindNotebook(c, state, chatId) {
     c.find(".meg-nb-restore").on("click", function () {
         const t = truthOf(this);
         if (!t) return;
-        if (liveTruths(state).length >= LIVE_CAP) {
-            toastr.warning(`${LIVE_CAP} truths are already live. Mark one revealed or delete one first.`, "Megumin Suite");
+        if (liveTruths(state).length >= notebookCap()) {
+            toastr.warning(`${notebookCap()} truths are already live. Mark one revealed or delete one first, or raise the number above.`, "Megumin Suite");
             return;
         }
         commit({ op: "restore", id: t.id });

@@ -25,7 +25,7 @@ import { runWithChomusuke } from "../../engine/tasks.js";
 import { warnChomusuke, answerKind } from "../../engine/chomusukeNotice.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
 import {
-    worldEnabled, worldUpdateMode, worldBeginExternalRead, worldReadInputs,
+    worldEnabled, worldUpdateMode, worldBeginExternalRead, worldReadInputs, notebookCap,
     worldFinishExternalRead, worldRecordMissing, worldExtractMessage,
     routedBlockIds, blocksBeginRead, blocksReadNotes, blocksFinishRead,
     notebookViaChomusuke, notebookBeginRead, notebookReadNotes, notebookFinishRead, notebookRecordMissing,
@@ -131,13 +131,13 @@ export async function runCombinedTurn(messageId, type, plan) {
                 sheets: w ? w.sheets : "",
                 earlier: earlierStory(index),
                 exchange,
-                world: w ? renderWorldClerkTask(w.mode, { noSecret: w.noSecret, carry: w.carry }) : null,
+                world: w ? renderWorldClerkTask(w.mode, { noSecret: w.noSecret, carry: w.carry, noLimits: w.noLimits }) : null,
                 image: wantImage,
                 onlyIfPhoto: (ig.triggerMode || "always") === "conditional",
                 blocks: bToken ? { notes: blocksReadNotes(bToken, exchange), tasks: blocksTasksFor(bToken.ids) } : null,
                 notebook: !nToken ? null
                     : nToken.kind === "setup"
-                        ? { notes: `<Character_Sheet>\n${notebookSheetText()}\n</Character_Sheet>`, task: renderNotebookSetupTask(), setup: true }
+                        ? { notes: `<Character_Sheet>\n${notebookSheetText()}\n</Character_Sheet>`, task: renderNotebookSetupTask({ cap: notebookCap() }), setup: true }
                         : { notes: notebookReadNotes(nToken), task: renderNotebookClerkTask() }
             };
             if (!wantImage) {

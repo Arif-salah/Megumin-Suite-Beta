@@ -9,7 +9,17 @@
 // Pure: no imports from SillyTavern. {{user}} is left for the caller.
 // ────────────────────────────────────────────────────────────────────────────
 
-import { LIVE_CAP, liveTruths } from "./model.js";
+import { LIVE_CAP, liveTruths, clampLiveCap } from "./model.js";
+
+/** How many truths the setup asks for, in words: "two or three truths" at the
+ *  default of 3, so the wording stays as written (plan 020). */
+export function truthCountWords(cap = LIVE_CAP) {
+    const n = clampLiveCap(cap);
+    if (n === 1) return "one truth";
+    if (n === 2) return "one or two truths";
+    if (n === 3) return "two or three truths";
+    return `two to ${n} truths`;
+}
 
 // How one truth is written, at setup (the story model's and Chomusuke's).
 export const NOTEBOOK_TRUTH_FORM = [
@@ -27,12 +37,12 @@ export function notebookPhase(state, { on = true, paused = false } = {}) {
     return liveTruths(state).length ? "running" : "setup";
 }
 
-export function renderNotebookSetup() {
+export function renderNotebookSetup({ cap = LIVE_CAP } = {}) {
     return [
         "## Author's Notebook rules",
         "This story keeps an author's notebook, and it is empty, so you write it this turn.",
         "",
-        "Write your reply as usual. In <Blocks>, write the Notebook block with two or three truths, built from the character sheet, the setting, and the story so far. A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader. Write each one in this form:",
+        `Write your reply as usual. In <Blocks>, write the Notebook block with ${truthCountWords(cap)}, built from the character sheet, the setting, and the story so far. A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader. Write each one in this form:`,
         "",
         ...NOTEBOOK_TRUTH_FORM,
         "",
@@ -57,12 +67,12 @@ function truthLines(t) {
 }
 
 /** <Author_Notebook> for <Current_Info>: the live truths only. "" when none. */
-export function renderNotebookForPrompt(state) {
+export function renderNotebookForPrompt(state, { cap = LIVE_CAP } = {}) {
     const live = liveTruths(state);
     if (!live.length) return "";
     const out = ["<Author_Notebook>"];
     live.forEach((t, i) => { if (i) out.push(""); out.push(...truthLines(t)); });
-    out.push("", `Live truths: ${live.length} of ${LIVE_CAP}. Next id: T${state.next || 1}.`, "</Author_Notebook>");
+    out.push("", `Live truths: ${live.length} of ${clampLiveCap(cap)}. Next id: T${state.next || 1}.`, "</Author_Notebook>");
     return out.join("\n");
 }
 
@@ -70,14 +80,15 @@ export function renderNotebookForPrompt(state) {
  * The update rules. With newOnly (Chomusuke writes the clues), the story model
  * is asked only for new truths.
  */
-export function renderNotebookUpdateRules({ newOnly = false } = {}) {
+export function renderNotebookUpdateRules({ newOnly = false, cap = LIVE_CAP } = {}) {
+    const n = clampLiveCap(cap);
     const lines = newOnly
-        ? ["Truth+: T3      a new truth, only while fewer than 3 are live, followed by its lines in the notebook's form"]
+        ? [`Truth+: T${n}      a new truth, only while fewer than ${n} are live, followed by its lines in the notebook's form`]
         : [
             "Clue T1: <the clue this turn's story showed>",
             "Learned T1: <who on its Hidden from list found it out this turn>",
             "Truth-: T1      it came out this turn, to everyone it was hidden from",
-            "Truth+: T3      a new truth, only while fewer than 3 are live, followed by its lines in the notebook's form"
+            `Truth+: T${n}      a new truth, only while fewer than ${n} are live, followed by its lines in the notebook's form`
         ];
     return [
         "## Author's Notebook rules",
