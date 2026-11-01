@@ -56,8 +56,31 @@ export function findPersonKey(people, name) {
     return hits.length === 1 && first.length > 2 ? hits[0] : null;
 }
 
+/**
+ * The characters on file that a reply wrote bonds for without having been
+ * handed theirs (someone coming back before the story named them again).
+ * Saved with the reply as `facts.unsent`, so a reload decides the same way.
+ * @param {{ people: object }} state  the bonds before the reply
+ * @param {{ people?: Array<{ name: string }> }} parsed  the reply's Bonds block
+ * @param {string[]} handed  record keys the story model was handed
+ * @returns {string[]} record keys
+ */
+export function unsentBondKeys(state, parsed, handed = []) {
+    const people = (state && state.people) || {};
+    const out = [];
+    for (const p of (parsed && parsed.people) || []) {
+        const k = findPersonKey(people, p.name);
+        if (k && !handed.includes(k) && !out.includes(k)) out.push(k);
+    }
+    return out;
+}
+
 export function applyBonds(prev, parsed, ctx = {}) {
     const state = structuredClone(prev || emptyBonds());
+    // A character the story model could not see is skipped: it would have made
+    // up fresh numbers over the real ones. The line still names them, so their
+    // bonds are handed over next turn and the story adjusts from there.
+    const unsent = new Set((ctx.facts && ctx.facts.unsent) || []);
     const applied = [];
     if (!parsed) return { state, applied, notes: [] };
     // The editor's "Forget": the character's bonds go entirely.
@@ -69,7 +92,9 @@ export function applyBonds(prev, parsed, ctx = {}) {
     }
     if (!Array.isArray(parsed.people)) return { state, applied, notes: [] };
     for (const p of parsed.people) {
-        const key = findPersonKey(state.people, p.name) || statKey(p.name);
+        const known = findPersonKey(state.people, p.name);
+        if (known && unsent.has(known)) continue;
+        const key = known || statKey(p.name);
         const rec = state.people[key] || (state.people[key] = { name: p.name, fields: {} });
         // A longer name ("Matt Reyes" after "Matt") is the better one to show.
         if (p.name.length > rec.name.length && statKey(p.name).startsWith(statKey(rec.name))) rec.name = p.name;

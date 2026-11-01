@@ -20,7 +20,8 @@ import { createStateStore } from "./store.js";
 import { worldModule } from "./modules/world/index.js";
 import { bondsModule, sheetModule, chatterModule, trackerModule, cyoaModule } from "./modules/stats/index.js";
 import { renderWorkerNotes, cleanWorkerAnswer, blockTextIn } from "./modules/stats/worker.js";
-import { pickBondsFor } from "./modules/stats/model.js";
+import { pickBondsFor, unsentBondKeys } from "./modules/stats/model.js";
+import { meguminCleanChatHistoryText } from "../engine/chatText.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast, findCast, castDisplayName, STALE_AFTER_DEFAULT } from "./modules/world/model.js";
 import { notebookModule } from "./modules/notebook/index.js";
@@ -956,7 +957,46 @@ function statsRecord(index) {
     if (!msg || msg.is_user || msg.is_system) return;
     const text = String(msg.mes || "");
     const ids = STAT_MODULES.filter(id => !blockViaChomusuke(id) || STAT_MODULE_DEFS[id].parse(text));
-    if (ids.length) stateStore.recordMessage(index, { moduleIds: ids });
+    if (!ids.length) return;
+    const bondsFacts = ids.includes("bonds") ? bondsFactsFor(index) : undefined;
+    stateStore.recordMessage(index, { moduleIds: ids, ...(bondsFacts ? { facts: { bonds: bondsFacts } } : {}) });
+}
+
+// The last few messages before `index`, blocks removed: what the prompt for
+// that reply read names from (recentStoryText in buildBaseDict).
+function storyTextBefore(index, count = 3) {
+    const chat = adapter.getChat();
+    const out = [];
+    for (let i = index - 1; i >= 0 && out.length < count; i--) {
+        const m = chat[i];
+        if (!m || m.is_system) continue;
+        out.push(meguminCleanChatHistoryText(String(m.mes || "")));
+    }
+    return out.join("\n");
+}
+
+// Whose bonds the story model was handed when it wrote the reply at `index`,
+// worked out again from what came before it. Characters on file the reply
+// wrote numbers for without seeing theirs are kept as `unsent`.
+function bondsFactsFor(index) {
+    const msg = adapter.getChat()[index];
+    const parsed = bondsModule.parse(String(msg.mes || ""));
+    if (!parsed || !Array.isArray(parsed.people) || !parsed.people.length) return undefined;
+    const st = stateStore.stamp(msg);
+    if (!st) return undefined;
+    if (st.dirty) adapter.saveChat();
+    const before = st.seq - 0.5;
+    const state = stateStore.getStateAt("bonds", before);
+    if (!Object.keys((state && state.people) || {}).length) return undefined;
+    const present = worldEnabled() && stateStore.hasState("world")
+        ? presentCast(stateStore.getStateAt("world", before)).flatMap(c => [c.name, ...(c.aliases || [])])
+        : [];
+    const entries = stateStore.activeEntries("bonds").filter(e => !e.missing && e.seq < st.seq);
+    const last = entries[entries.length - 1];
+    const latestNames = (last && last.parsed && last.parsed.people || []).map(p => p.name);
+    const handed = pickBondsFor(state, { present, recentText: storyTextBefore(index), latestNames });
+    const unsent = unsentBondKeys(state, parsed, handed);
+    return unsent.length ? { unsent } : undefined;
 }
 
 function statsOnReceived(messageId) {

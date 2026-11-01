@@ -180,8 +180,11 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
      *            result can land after the user has swiped elsewhere).
      *   parsed — use this result instead of parsing the message text (side model);
      *            null records a missing update.
+     *   facts  — per module, what was true when the reply was written (bonds:
+     *            whose bonds the story could see). Kept with the entry, passed to
+     *            apply as ctx.facts, untouched by a reparse.
      */
-    function recordMessage(index, { source = "reply", expect = false, moduleIds, swipe: forSwipe, parsed: given, raw } = {}) {
+    function recordMessage(index, { source = "reply", expect = false, moduleIds, swipe: forSwipe, parsed: given, raw, facts } = {}) {
         const r = root();
         const msg = chat()[index];
         if (!r || !msg || msg.is_user) return { recorded: [] };
@@ -212,6 +215,7 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
                 // The text the entry was parsed from when it is not the message
                 // itself (a side model's answer), so a better parser can redo it.
                 ...(typeof raw === "string" ? { raw } : {}),
+                ...(facts && facts[mid] ? { facts: facts[mid] } : {}),
                 missing: !parsed,
                 orphan: false,
                 disabled: false
@@ -373,7 +377,7 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
                 const p = present.get(e.uid);
                 const active = e.source === "user" || e.orphan || (p && p.swipe === e.swipe);
                 if (!active) continue;
-                state = modules[mid].apply(state, e.parsed, { ...extra, seq: e.seq, userNames, text: entryText(e, present) }).state;
+                state = modules[mid].apply(state, e.parsed, { ...extra, seq: e.seq, userNames, text: entryText(e, present), facts: e.facts }).state;
             }
             r.checkpoint.modules[mid] = state;
         }
@@ -411,7 +415,7 @@ export function createStateStore({ adapter, modules, journalDepth = 200, rootKey
         let state = base;
         const steps = [];
         for (const e of activeEntries(moduleId)) {
-            const res = mod.apply(state, e.parsed, { ...extra, seq: e.seq, userNames, text: entryText(e, present) });
+            const res = mod.apply(state, e.parsed, { ...extra, seq: e.seq, userNames, text: entryText(e, present), facts: e.facts });
             state = res.state;
             steps.push({ seq: e.seq, entry: e, state, applied: res.applied, notes: res.notes, unannounced: res.unannounced || [] });
         }
