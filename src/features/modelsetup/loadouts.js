@@ -180,6 +180,26 @@ export function applyLoadout(p, loadout, ctx, settings = loadout.settings, { ski
     p.loadout = loadout.id;
 }
 
+/** What Use this loadout would change on one profile, before it runs (plan
+ *  020): [{ key, label, from, to }] in the loadout's order, values as the
+ *  rows read them; plus { key: "style" } when the preset brings its own
+ *  writing style. Empty: nothing would change. The profile is not touched. */
+export function loadoutChanges(p, loadout, ctx, settings = loadout.settings) {
+    const after = JSON.parse(JSON.stringify(p));
+    applyLoadout(after, loadout, ctx, settings);
+    const out = [];
+    for (const key of Object.keys(settings)) {
+        const s = settingFor(key);
+        const from = s.read(p, ctx);
+        const to = s.read(after, ctx);
+        if (from !== to) out.push({ key, label: s.label, from, to });
+    }
+    if ((after.activeStyleId || "") !== (p.activeStyleId || "")) {
+        out.push({ key: "style", label: "Writing style", from: p.activeStyleId || "", to: after.activeStyleId || "" });
+    }
+    return out;
+}
+
 /** The keys whose value differs from the loadout this profile last used.
  *  Empty when it used none, or another one. */
 export function changedFromLoadout(p, loadout, ctx) {

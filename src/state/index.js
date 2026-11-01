@@ -22,12 +22,12 @@ import { bondsModule, sheetModule, chatterModule, trackerModule, cyoaModule } fr
 import { renderWorkerNotes, cleanWorkerAnswer, blockTextIn } from "./modules/stats/worker.js";
 import { pickBondsFor } from "./modules/stats/model.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
-import { presentCast, findCast } from "./modules/world/model.js";
+import { presentCast, findCast, castDisplayName, STALE_AFTER_DEFAULT } from "./modules/world/model.js";
 import { notebookModule } from "./modules/notebook/index.js";
 import {
-    notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler
+    notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler, truthCountWords
 } from "./modules/notebook/render.js";
-import { liveTruths } from "./modules/notebook/model.js";
+import { filledLiveTruths, LIVE_CAP, clampLiveCap } from "./modules/notebook/model.js";
 import { parseNotebook } from "./modules/notebook/parse.js";
 import {
     replyWroteNotebookChanges, notebookAnswerBlock, joinNotebookRead, notebookReadPart, parseNotebookRead,
@@ -44,6 +44,13 @@ export const WORLD_SETTINGS_DEFAULTS = {
     injectionDetail: "full",     // full | scene
     showReturning: true,
     showChanges: true,
+    // Plan 020: anyone in the scene not named for this many replies is moved
+    // out of it (0 = never). See staleStep in modules/world/model.js.
+    staleAfter: STALE_AFTER_DEFAULT,
+    // Plan 020: "changes" = each reply writes only what it changed;
+    // "full" = each reply writes the whole scene again (V10's habit, in
+    // V11's short lines; the store still keeps it and draws the card).
+    writeMode: "changes",
     journalDepth: 200
 };
 
@@ -53,17 +60,21 @@ export function worldSettings() {
 
 /**
  * How replies update the World State right now:
- *   "manual"    — they don't (Blocks tab: Updates → Manual)
- *   "sidemodel" — Chomusuke reads each reply (Chomusuke tab: World State route on)
+ *   "manual"    — they don't (World State tab: Who writes the updates → Only me)
+ *   "sidemodel" — Chomusuke reads each reply (World State tab → Chomusuke, or
+ *                 the Chomusuke tab's World State route; the same setting)
  *   "inline"    — the story model writes the block in its reply (everything else)
- * The Chomusuke route is decided in the Chomusuke tab with every other routed
- * feature, so the Blocks tab only says whether updates happen at all.
  */
 export function worldUpdateMode() {
     if (worldSettings().updateMode === "manual") return "manual";
     const c = localProfile && localProfile.chomusuke;
     if (c && c.enabled && c.profileId && c.features && c.features.worldState === true) return "sidemodel";
     return "inline";
+}
+
+/** Each reply writes the whole scene again (the "V10 + V11" setting). */
+export function worldWritesFull() {
+    return worldSettings().writeMode === "full";
 }
 
 /** The World State block is switched on in the block stack. */
@@ -90,7 +101,10 @@ const adapter = {
         const u = sub("{{user}}");
         if (u && u !== "{{user}}") names.push(u);
         return names;
-    }
+    },
+    applyContext: mid => mid === "world"
+        ? { staleAfter: Number(worldSettings().staleAfter) || 0, noLimits: worldWritesFull() }
+        : mid === "notebook" ? { liveCap: notebookReplayCap() } : {}
 };
 
 export const stateStore = createStateStore({
@@ -126,7 +140,7 @@ export function worldPromptBlock() {
     const cfg = worldSettings();
     const state = getWorldState();
     const returning = cfg.showReturning ? findReturning(state, recentText()) : [];
-    return sub(renderWorldForPrompt(state, { detail: cfg.injectionDetail, returning, noSecret: notebookEnabled() }));
+    return sub(renderWorldForPrompt(state, { detail: cfg.injectionDetail, returning, noSecret: worldHidesSecrets(), noLimits: worldWritesFull() }));
 }
 
 /**
@@ -137,19 +151,33 @@ export function worldPromptBlock() {
 export function worldBlockRequest() {
     if (!worldEnabled()) return null;
     if (worldUpdateMode() !== "inline") return null;
-    const mode = !stateStore.hasState("world") || stateStore.isPendingFullRewrite("world") ? "bootstrap" : "update";
-    const ins = renderWorldInstructions(mode, { noSecret: notebookEnabled() });
+    const has = stateStore.hasState("world");
+    const mode = !has || stateStore.isPendingFullRewrite("world") || worldWritesFull() ? "bootstrap" : "update";
+    const ins = renderWorldInstructions(mode, { noSecret: worldHidesSecrets(), carry: has, noLimits: worldWritesFull() });
     return { rules: sub(ins.rules), template: sub(ins.template), mode };
 }
 
-/** The card body for one message: the world as it stood right after it. */
+/** The last reply in the chat: its card shows the scene as it is now. */
+export function worldIsLatestReply(msgIndex) {
+    const chat = adapter.getChat();
+    for (let i = chat.length - 1; i >= 0; i--) {
+        const m = chat[i];
+        if (!m || m.is_system || m.is_user) continue;
+        return i === msgIndex;
+    }
+    return false;
+}
+
+/** The card body for one message: the world as it stood right after it. The
+ *  latest reply shows the scene now, so your own edits (removing someone from
+ *  the scene) show at once instead of after the next reply. */
 export function worldCardTextAt(msgIndex) {
     if (!worldEnabled()) return "";
     const msg = adapter.getChat()[msgIndex];
     const seq = msg?.extra?.megumin_seq;
-    const state = typeof seq === "number" ? stateStore.getStateAt("world", seq) : getWorldState();
+    const state = typeof seq === "number" && !worldIsLatestReply(msgIndex) ? stateStore.getStateAt("world", seq) : getWorldState();
     if (isEmptyWorld(state)) return "";
-    return sub(renderWorldCard(state, { pcName: sub("{{user}}"), noSecret: notebookEnabled() }));
+    return sub(renderWorldCard(state, { pcName: sub("{{user}}"), noSecret: worldHidesSecrets() }));
 }
 
 /**
@@ -234,6 +262,17 @@ export function worldSameCharacter(name, into) {
 export function worldEdit(changes) {
     if (!adapter.getMeta() || !Array.isArray(changes) || !changes.length) return null;
     return stateStore.addUserEntry("world", { kind: "delta", changes, skipped: [], noChanges: false, byUser: true });
+}
+
+/** Who is in the scene now: [{ name, display }] (display = how the card names them). */
+export function worldPresentNames() {
+    if (!worldHasState()) return [];
+    return presentCast(getWorldState()).map(c => ({ name: c.name, display: castDisplayName(c) }));
+}
+
+/** From the card's ×: `name` left the scene (kept, off-screen), or is forgotten. */
+export function worldRemoveFromScene(name, { forget = false } = {}) {
+    return worldEdit([forget ? { type: "forget", who: name } : { type: "leave", who: name, where: "" }]);
 }
 
 export function worldSetEntryDisabled(entryId, disabled) {
@@ -378,10 +417,12 @@ export function worldExtractMessage(index, { force = false } = {}) {
             // Built when its turn comes, so a queued read sees the entries that
             // landed before it.
             const before = stateStore.getStateAt("world", st.seq - 0.5);
-            const mode = isEmptyWorld(before) ? "bootstrap" : "update";
-            const noSecret = notebookEnabled();
-            const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
-            const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, mode), mode, noSecret, sheets: worldSheets() });
+            const empty = isEmptyWorld(before);
+            const mode = empty || worldWritesFull() ? "bootstrap" : "update";
+            const noSecret = worldHidesSecrets();
+            const noLimits = worldWritesFull();
+            const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }));
+            const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, empty ? "bootstrap" : "update"), mode, noSecret, carry: !empty, noLimits, sheets: worldSheets() });
             req = { system: sub(built.system), user: sub(built.user), prefill: built.prefill, job: "world" };
             // The marker is set only once this job has the worker. Chomusuke runs
             // are queued; set while waiting, it would hijack whatever generation
@@ -467,10 +508,12 @@ export function worldBeginExternalRead(index) {
 /** The notes (state BEFORE the reply) and the exchange, built at run time. */
 export function worldReadInputs(token) {
     const before = stateStore.getStateAt("world", token.seq - 0.5);
-    const mode = isEmptyWorld(before) ? "bootstrap" : "update";
-    const noSecret = notebookEnabled();
-    const notes = mode === "bootstrap" ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret }));
-    return { mode, notes, noSecret, exchange: exchangeFor(token.index, token.text, mode), sheets: worldSheets() };
+    const empty = isEmptyWorld(before);
+    const mode = empty || worldWritesFull() ? "bootstrap" : "update";
+    const noSecret = worldHidesSecrets();
+    const noLimits = worldWritesFull();
+    const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }));
+    return { mode, notes, noSecret, carry: !empty, noLimits, exchange: exchangeFor(token.index, token.text, empty ? "bootstrap" : "update"), sheets: worldSheets() };
 }
 
 // The card(s) (Description and Personality) and the persona, sent with every
@@ -584,6 +627,42 @@ export function notebookEnabled() {
 // with the tab's switch, behind a warning. An old chat's
 // `megumin_notebook.paused` flag is simply ignored.
 
+/** How many truths can be live (The Notebook tab, plan 020): 3 by default. */
+export function notebookCap() {
+    const n = localProfile && localProfile.notebook && localProfile.notebook.maxTruths;
+    return n === undefined ? LIVE_CAP : clampLiveCap(n);
+}
+
+// Replaying a chat must not drop truths written while the number was higher:
+// each chat keeps the highest number it was run with (megumin_notebook.capHigh),
+// and the replay allows that many. Lowering the number stops new truths only.
+function notebookReplayCap() {
+    const meta = adapter.getMeta();
+    const high = meta && meta.megumin_notebook && Number(meta.megumin_notebook.capHigh);
+    return Math.max(notebookCap(), Number.isFinite(high) ? clampLiveCap(high) : 0);
+}
+
+/** Records the number in use for the open chat (on each request, and when it changes). */
+export function notebookNoteCap() {
+    const meta = adapter.getMeta();
+    if (!meta) return;
+    if (!meta.megumin_notebook || typeof meta.megumin_notebook !== "object") meta.megumin_notebook = {};
+    const cap = notebookCap();
+    if (!(Number(meta.megumin_notebook.capHigh) >= cap)) {
+        meta.megumin_notebook.capHigh = cap;
+        adapter.saveMeta();
+    }
+}
+
+/**
+ * World State leaves out Secret and Seeds: the Notebook is on and the user
+ * didn't ask to keep them (The Notebook tab, plan 020).
+ */
+export function worldHidesSecrets() {
+    if (!notebookEnabled()) return false;
+    return !(localProfile && localProfile.notebook && localProfile.notebook.keepWorldSecrets);
+}
+
 export function notebookState() {
     return stateStore.getState("notebook");
 }
@@ -597,7 +676,7 @@ export function notebookCurrentPhase() {
 /** <Author_Notebook> for Current Info, or "". */
 export function notebookPromptBlock() {
     if (notebookCurrentPhase() !== "running") return "";
-    return sub(renderNotebookForPrompt(notebookState()));
+    return sub(renderNotebookForPrompt(notebookState(), { cap: notebookCap() }));
 }
 
 /**
@@ -606,15 +685,16 @@ export function notebookPromptBlock() {
  */
 export function notebookBlockRequest() {
     const phase = notebookCurrentPhase();
+    if (phase !== "off") notebookNoteCap();
     if (phase === "setup") {
-        return { phase, rules: sub(renderNotebookSetup()), template: "<Notebook>\n[two or three truths, each in the form above]\n</Notebook>" };
+        return { phase, rules: sub(renderNotebookSetup({ cap: notebookCap() })), template: `<Notebook>\n[${truthCountWords(notebookCap())}, each in the form above]\n</Notebook>` };
     }
     if (phase === "running") {
         // With the Chomusuke route on, the story model only writes new truths.
         const newOnly = notebookViaChomusuke();
         return {
             phase,
-            rules: sub(renderNotebookUpdateRules({ newOnly })),
+            rules: sub(renderNotebookUpdateRules({ newOnly, cap: notebookCap() })),
             template: newOnly
                 ? "<Notebook_Update>\n[a new truth with its lines; leave this block out when there is none]\n</Notebook_Update>"
                 : "<Notebook_Update>\n[change lines; leave this block out when nothing changed]\n</Notebook_Update>"
@@ -734,7 +814,7 @@ function fileNotebookRead(at, swipe, replyText, block) {
 // nothing (null).
 function readKindFor(seq, text) {
     if (text == null) return null;
-    if (liveTruths(stateStore.getStateAt("notebook", seq - 0.5)).length) {
+    if (filledLiveTruths(stateStore.getStateAt("notebook", seq - 0.5)).length) {
         return replyWroteNotebookChanges(text) ? null : "read";
     }
     return replyWroteTruths(text) ? null : "setup";
@@ -780,7 +860,7 @@ export function notebookBeginRead(index, { force = false } = {}) {
 
 /** <Author_Notebook> as it stood before the reply, for the worker. */
 export function notebookReadNotes(token) {
-    return sub(renderNotebookForPrompt(stateStore.getStateAt("notebook", token.seq - 0.5)));
+    return sub(renderNotebookForPrompt(stateStore.getStateAt("notebook", token.seq - 0.5), { cap: notebookCap() }));
 }
 
 /**

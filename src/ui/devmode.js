@@ -137,7 +137,7 @@ const CARRIERS = {
 };
 
 const SCOPE_META = {
-    engine: { cls: "scope-engine", label: "This engine", icon: "fa-microchip" },
+    engine: { cls: "scope-engine", label: "This preset", icon: "fa-microchip" },
     shared: { cls: "scope-shared", label: "Add-on", icon: "fa-puzzle-piece" },
     auto: { cls: "scope-auto", label: "Automatic", icon: "fa-wand-magic-sparkles" },
 };
@@ -274,8 +274,8 @@ function renderSlotEditor(slot, modeData, onChanged) {
         $wrap.append(`
             <div class="dev-note dev-note-shared">
                 <i class="fa-solid fa-globe"></i>
-                <span><b>This is shared.</b> No engine holds a copy of it — every engine leaves the
-                slot open for whatever is here. Editing it changes it for every engine and every
+                <span><b>This is shared.</b> No preset holds a copy of it — every preset leaves the
+                slot open for whatever is here. Editing it changes it for every preset and every
                 character, and it saves on its own as soon as you click away.</span>
             </div>
         `);
@@ -295,8 +295,8 @@ function renderSlotEditor(slot, modeData, onChanged) {
         $wrap.append(`
             <div class="dev-note dev-note-warn">
                 <i class="fa-solid fa-triangle-exclamation"></i>
-                <span>The engine you have open carries its own copy of this, so it is ignoring the
-                shared version. That only happens with engines made before add-ons were shared.</span>
+                <span>The preset you have open carries its own copy of this, so it is ignoring the
+                shared version. That only happens with presets made before add-ons were shared.</span>
                 <button class="ps-modern-btn secondary dev-unshadow">Use the shared version</button>
             </div>
         `);
@@ -383,7 +383,7 @@ function renderSlotEditor(slot, modeData, onChanged) {
         if (slot.scope === "shared" || (slot.scope === "auto" && slot.overridable)) {
             const had = getSharedFragment(slot.key).trim() !== "";
             setSharedFragment(slot.key, v);
-            if (v) toastr.success(`${slot.label} saved for every engine.`);
+            if (v) toastr.success(`${slot.label} saved for every preset.`);
             else if (had) toastr.info(`${slot.label} is back to the built-in version.`);
         } else if (modeData) {
             modeData[slot.key] = v;
@@ -463,7 +463,7 @@ function renderModulesFor(slot, modeData, rerender) {
                 rerender();
             });
             $m.find(".dev-module-del").on("click", async () => {
-                const ok = await new Popup($(`<div>Remove <b>${esc(mod.name)}</b> from this engine?</div>`),
+                const ok = await new Popup($(`<div>Remove <b>${esc(mod.name)}</b> from this preset?</div>`),
                     POPUP_TYPE.CONFIRM, "Remove module", { okButton: "Remove", cancelButton: "Keep" }).show();
                 if (!ok) return;
                 modeData.customToggles = modeData.customToggles.filter(x => x.id !== mod.id);
@@ -500,8 +500,8 @@ function renderLanding(c) {
         c.append(`
             <div class="dev-note dev-note-warn">
                 <i class="fa-solid fa-triangle-exclamation"></i>
-                <span><b>You're running a Cache Friendly preset.</b> The Engines document shows the
-                standard card order. Several tags sit further down in Output RULES in this preset.
+                <span><b>You're using the Cache Friendly preset file.</b> The Presets document shows the
+                standard card order. Several tags sit further down in Output RULES in that file.
                 Don't worry &mdash; editing works exactly the same.</span>
             </div>
         `);
@@ -516,9 +516,9 @@ function renderLanding(c) {
                 <div class="dev-door-icon"><i class="fa-solid fa-puzzle-piece"></i></div>
                 <div class="dev-door-title">Add-ons</div>
                 <div class="dev-door-desc">
-                    The pieces every engine shares — thinking steps, MVU, the ban list,
+                    The pieces every preset shares — thinking steps, MVU, the ban list,
                     death and combat, the output blocks.
-                    <b>Change one here and every engine uses it.</b>
+                    <b>Change one here and every preset uses it.</b>
                 </div>
                 <div class="dev-door-meta">${changed
                     ? `${changed} changed`
@@ -527,9 +527,9 @@ function renderLanding(c) {
             </div>
             <div class="dev-door dev-door-engines" id="dev_door_engines">
                 <div class="dev-door-icon"><i class="fa-solid fa-microchip"></i></div>
-                <div class="dev-door-title">Engines</div>
+                <div class="dev-door-title">Presets</div>
                 <div class="dev-door-desc">
-                    The rules that make one engine write differently from another.
+                    The rules that make one preset write differently from another.
                     Shown as the real prompt, in the real order, with your add-ons marked
                     where they land.
                 </div>
@@ -542,7 +542,7 @@ function renderLanding(c) {
         <div class="dev-door-hint">
             <i class="fa-solid fa-circle-info"></i>
             Not sure? Almost everything people want to change lives in <b>Add-ons</b>.
-            You only need an engine to rewrite how the AI is told to write.
+            You only need a preset to rewrite how the AI is told to write.
         </div>
     `);
     c.append($doors);
@@ -556,7 +556,7 @@ function renderLanding(c) {
 // ────────────────────────────────────────────────────────────────────────────
 
 function renderAddonsList(c) {
-    $("#ps_stage_sub").text("Shared by every engine. Pick one to edit it and see where it goes.");
+    $("#ps_stage_sub").text("Shared by every preset. Pick one to edit it and see where it goes.");
     c.append(backBar("Add-ons", () => renderDevMode("landing")));
 
     const slots = meguminAddonSlots();
@@ -613,10 +613,10 @@ function renderAddonEditor(c, key) {
     const back = () => cameFromEngine ? renderDevMode("editor") : renderDevMode("addons");
 
     $("#ps_stage_sub").text(cameFromEngine
-        ? `Add-on — shared by every engine, including ${session.engine.modeData.label}.`
-        : "Shared by every engine.");
+        ? `Add-on — shared by every preset, including ${session.engine.modeData.label}.`
+        : "Shared by every preset.");
 
-    c.append(backBar(slot.label, back, cameFromEngine ? "Back to engine" : "All add-ons"));
+    c.append(backBar(slot.label, back, cameFromEngine ? "Back to preset" : "All add-ons"));
 
     const $cols = $(`<div class="dev-cols"></div>`);
     const $left = $(`<div class="dev-col-main"></div>`);
@@ -655,13 +655,13 @@ function renderAddonEditor(c, key) {
 function renderEnginesList(c) {
     session.engine = null;
     setDevEngineDirty(false);
-    $("#ps_stage_sub").text("An engine is the set of rules telling the AI how to write.");
+    $("#ps_stage_sub").text("A preset is the set of rules telling the AI how to write.");
     c.append(backBar("Engines", () => renderDevMode("landing")));
 
     c.append(`
         <div class="dev-actions">
-            <button id="dev_btn_new" class="ps-modern-btn primary"><i class="fa-solid fa-wand-magic-sparkles"></i> Create Blank Engine</button>
-            <button id="dev_btn_import" class="ps-modern-btn secondary"><i class="fa-solid fa-file-import"></i> Import Engine (JSON)</button>
+            <button id="dev_btn_new" class="ps-modern-btn primary"><i class="fa-solid fa-wand-magic-sparkles"></i> Create Blank Preset</button>
+            <button id="dev_btn_import" class="ps-modern-btn secondary"><i class="fa-solid fa-file-import"></i> Import Preset (JSON)</button>
             <input type="file" id="dev_import_file" accept=".json" style="display:none;" />
         </div>
     `);
@@ -686,7 +686,7 @@ function renderEnginesList(c) {
     });
 
     const customModes = extension_settings[extensionName].customModes || [];
-    c.append(`<div class="ps-rule-title dev-rule green"><i class="fa-solid fa-microchip"></i> Your Engines</div>`);
+    c.append(`<div class="ps-rule-title dev-rule green"><i class="fa-solid fa-microchip"></i> Your Presets</div>`);
 
     if (!customModes.length) {
         c.append(`<div class="dev-empty">None yet. Pick a built-in one below to start from.</div>`);
@@ -696,13 +696,13 @@ function renderEnginesList(c) {
             const card = $(`
                 <div class="ps-card dev-card-custom">
                     <div style="width:100%;">
-                        <div class="ps-card-title"><span style="color:#10b981;">${esc(m.label)}</span></div>
-                        <div class="ps-card-desc">${m.parentId ? `Copy of ${esc(m.parentId)}` : "Your own engine"}</div>
+                        <div class="ps-card-title"><span style="color:var(--c-live, #10b981);">${esc(m.label)}</span></div>
+                        <div class="ps-card-desc">${m.parentId ? `Copy of ${esc(m.parentId)}` : "Your own preset"}</div>
                     </div>
                     <div style="display:flex; gap:8px; margin-top:20px; width:100%;">
                         <button class="ps-modern-btn secondary dev-export" title="Export"><i class="fa-solid fa-download"></i></button>
                         <button class="ps-modern-btn primary dev-edit" style="flex:2;"><i class="fa-solid fa-pen"></i> Edit</button>
-                        <button class="ps-modern-btn secondary dev-delete" title="Delete" style="color:#ef4444;"><i class="fa-solid fa-trash"></i></button>
+                        <button class="ps-modern-btn secondary dev-delete" title="Delete" style="color:var(--c-danger, #ef4444);"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
             `);
@@ -719,7 +719,7 @@ function renderEnginesList(c) {
             card.find(".dev-delete").on("click", async () => {
                 const ok = await new Popup(
                     $(`<div>Delete <b>${esc(m.label)}</b>? This cannot be undone.<br><br>Your add-ons are not affected.</div>`),
-                    POPUP_TYPE.CONFIRM, "Delete engine", { okButton: "Delete", cancelButton: "Keep" }).show();
+                    POPUP_TYPE.CONFIRM, "Delete preset", { okButton: "Delete", cancelButton: "Keep" }).show();
                 if (!ok) return;
                 extension_settings[extensionName].customModes =
                     extension_settings[extensionName].customModes.filter(x => x.id !== m.id);
@@ -731,7 +731,7 @@ function renderEnginesList(c) {
         c.append(grid);
     }
 
-    c.append(`<div class="ps-rule-title dev-rule gold"><i class="fa-solid fa-cube"></i> Start From A Built-In Engine</div>`);
+    c.append(`<div class="ps-rule-title dev-rule gold"><i class="fa-solid fa-cube"></i> Start From A Built-In Preset</div>`);
     const coreGrid = $(`<div class="ps-grid dev-grid"></div>`);
     hardcodedLogic.modes.filter(meguminIsDevEditableMode).forEach(m => {
         const card = $(`
@@ -807,7 +807,7 @@ function renderEngineSlot(slot, modeData, rerender) {
             <div class="dev-slot-head">
                 <i class="dev-slot-caret fa-solid fa-chevron-${isOpen ? "down" : "right"}"></i>
                 <span class="dev-slot-label">${esc(slot.label)}</span>
-                <span class="dev-slot-badge"><i class="fa-solid fa-microchip"></i> This engine</span>
+                <span class="dev-slot-badge"><i class="fa-solid fa-microchip"></i> This preset</span>
                 <span class="dev-slot-status ${status.cls}">${esc(status.text)}</span>
                 <span class="dev-slot-oneline">${esc(onelineOf(value))}</span>
             </div>
@@ -935,7 +935,7 @@ function renderEngineDocument(c, modeData, rerender) {
         const $card = $(`
             <div class="dev-card dev-card-orphan">
                 <div class="dev-card-head">
-                    <span class="dev-card-name">Other engine settings</span>
+                    <span class="dev-card-name">Other preset settings</span>
                 </div>
             </div>
         `);
@@ -954,7 +954,7 @@ function renderEngineEditor(c) {
     const { modeData, isNew, returnTo } = session.engine;
     const rerender = () => renderDevMode("editor");
 
-    $("#ps_stage_sub").text("The real prompt, in the real order. Gold panels belong to this engine; green ones are shared add-ons.");
+    $("#ps_stage_sub").text("The real prompt, in the real order. Gold panels belong to this preset; green ones are shared add-ons.");
 
     const $bar = $(`
         <div class="dev-bar">
@@ -963,7 +963,7 @@ function renderEngineEditor(c) {
             <label class="dev-toggle-auto">
                 <input type="checkbox" ${session.showAuto ? "checked" : ""} /> Show automatic parts
             </label>
-            <button id="dev_save_mode" class="ps-modern-btn primary dev-save"><i class="fa-solid fa-floppy-disk"></i> Save Engine</button>
+            <button id="dev_save_mode" class="ps-modern-btn primary dev-save"><i class="fa-solid fa-floppy-disk"></i> Save Preset</button>
         </div>
     `);
     c.append($bar);
@@ -991,8 +991,8 @@ function renderEngineEditor(c) {
     $("#dev_back_list").on("click", async () => {
         if (isDevEngineDirty) {
             const ok = await new Popup(
-                $(`<div>This engine has changes you have not saved. Leave anyway?<br><br>
-                   Add-ons are already saved — only this engine's own gold panels would be lost.</div>`),
+                $(`<div>This preset has changes you have not saved. Leave anyway?<br><br>
+                   Add-ons are already saved — only this preset's own gold panels would be lost.</div>`),
                 POPUP_TYPE.CONFIRM, "Unsaved changes", { okButton: "Discard", cancelButton: "Stay" }).show();
             if (!ok) return;
         }
@@ -1014,7 +1014,7 @@ function renderEngineEditor(c) {
         }
         session.engine.isNew = false;
         saveSettingsDebounced();
-        toastr.success("Engine saved.");
+        toastr.success("Preset saved.");
         if (returnTo === "tab") { $(".ps-sidebar").show(); fireRefreshHook(REFRESH.SWITCH_TAB, "preset"); }
         else renderDevMode("engines");
     });
@@ -1074,7 +1074,7 @@ export function renderDevMode(view = "landing", arg = null, passedModeData = nul
             isNew = true;
             modeData = {
                 id: "custom_" + Date.now(),
-                label: "New Custom Engine",
+                label: "New Custom Preset",
                 isCoreClone: false,
                 isV7: false,
                 p1: "", p3: "", p4: "", p5: "", p6: "",
@@ -1120,7 +1120,7 @@ export function renderDevMode(view = "landing", arg = null, passedModeData = nul
         }
 
         if (!modeData) {
-            c.append(`<div class="dev-empty">That engine no longer exists.</div>`);
+            c.append(`<div class="dev-empty">That preset no longer exists.</div>`);
             return;
         }
         if (!modeData.customToggles) modeData.customToggles = [];

@@ -9,6 +9,7 @@ import {
     getContext, getRequestHeaders, saveChat, reloadCurrentChat, addOneMessage, appendMediaToMessage, updateMessageBlock, saveBase64AsFile, humanizedDateTime, Popup, POPUP_TYPE,
 } from "../../st.js";
 import { localProfile } from "../../core/state.js";
+import { askName, confirmPopup } from "../../ui/controls.js";
 import { saveProfileToMemory } from "../../core/profile.js";
 import { registerRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { showKazumaProgress } from "../../ui/progress.js";
@@ -62,9 +63,12 @@ export async function igFetchComfyLists() {
     } catch (e) { console.warn(`[Megumin-Suite] ComfyLists failed`, e); }
 }
 
+// The Draw button next to the send button: there whenever Images are on, in
+// every "When to draw" mode (plan 020). It used to show only in "Only when I
+// ask", and nothing said so.
 export function toggleQuickGenButton() {
     const s = localProfile?.imageGen;
-    if (s && s.enabled && s.triggerMode === 'manual') {
+    if (s && s.enabled) {
         $("#kazuma_quick_gen").css("display", "flex");
     } else {
         $("#kazuma_quick_gen").css("display", "none");
@@ -131,7 +135,7 @@ export async function igPopulateWorkflows() {
 }
 
 export async function igNewWorkflowClick() {
-    let name = await prompt("New workflow file name (e.g. 'my_flux.json'):");
+    let name = await askName("Name the new workflow", { html: "A file name, for example my_flux.json", ok: "Create" });
     if (!name) return; if (!name.toLowerCase().endsWith('.json')) name += '.json';
     try {
         const res = await fetch('/api/sd/comfy/save-workflow', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ file_name: name, workflow: '{}' }) });
@@ -143,7 +147,7 @@ export async function igNewWorkflowClick() {
 
 export async function igDeleteWorkflowClick() {
     const name = localProfile.imageGen.currentWorkflowName;
-    if (!name) return; if (!confirm(`Delete ${name}?`)) return;
+    if (!name) return; if (!(await confirmPopup(`Delete ${name}?`, "The workflow file is deleted from SillyTavern.", { ok: "Delete" }))) return;
     try {
         const res = await fetch('/api/sd/comfy/delete-workflow', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ file_name: name }) });
         if (!res.ok) throw new Error(await res.text());
@@ -263,12 +267,13 @@ export function addKazumaRetryButtons(msgIndex) {
         // Create the retry button
         const btn = document.createElement('div');
         btn.className = 'kazuma-regen-btn';
-        btn.title = 'Regenerate this image';
-        // On a device with no pointer there is no mouseenter, so a button that
-        // rests at opacity 0 can never be seen. Rest it at 0.85 instead.
+        btn.title = 'Draw this image again';
+        // Always visible (plan 020): small and faint at rest, so people find it
+        // without hovering; full strength when you point at the image. Touch
+        // screens have no hover, so they rest brighter.
         const kazumaCanHover = !window.matchMedia || window.matchMedia('(hover: hover)').matches;
-        const kazumaRestOpacity = kazumaCanHover ? '0' : '0.85';
-        btn.style.cssText = 'position:absolute; top:8px; right:8px; cursor:pointer; background:rgba(0,0,0,0.65); color:#ffcc00; border-radius:6px; padding:5px 8px; font-size:14px; z-index:10; border:1px solid rgba(255,204,0,0.5); opacity:' + kazumaRestOpacity + '; transition:opacity 0.2s ease; line-height:1;';
+        const kazumaRestOpacity = kazumaCanHover ? '0.45' : '0.85';
+        btn.style.cssText = 'position:absolute; top:6px; right:6px; cursor:pointer; background:rgba(0,0,0,0.65); color:#ffcc00; border-radius:6px; padding:4px 6px; font-size:12px; z-index:10; border:1px solid rgba(255,204,0,0.5); opacity:' + kazumaRestOpacity + '; transition:opacity 0.2s ease; line-height:1;';
         btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i>';
 
         // Show/hide on hover
@@ -627,7 +632,7 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
                         } else if (target && target.isInlineAuto && target.mode === "inline") {
                             const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
                             const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                            const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:#ef4444; font-style: italic; margin: 10px 0;"><span>[Image Generation Failed]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
+                            const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:var(--c-danger, #ef4444); font-style: italic; margin: 10px 0;"><span>[Image Generation Failed]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
                             
                             if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
                                 const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}" class="kazuma-img-placeholder"[^>]*>.*?<\\/div>`, "g");
@@ -659,7 +664,7 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
         } else if (target && target.isInlineAuto && target.mode === "inline") {
             const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
             const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-            const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:#ef4444; font-style: italic; margin: 10px 0;"><span>[Image Generation Failed: ${e.message}]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
+            const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:var(--c-danger, #ef4444); font-style: italic; margin: 10px 0;"><span>[Image Generation Failed: ${e.message}]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
             
             if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
                 const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}" class="kazuma-img-placeholder"[^>]*>.*?<\\/div>`, "g");

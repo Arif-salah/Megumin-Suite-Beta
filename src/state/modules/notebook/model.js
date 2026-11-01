@@ -9,7 +9,8 @@
 // The rules live here, not only in the prompt:
 //   - ids are ours: a new truth gets the next free id whatever the model wrote,
 //     and ids are never reused (a forgotten T2 stays gone);
-//   - at most LIVE_CAP truths are live; a new one past that is ignored;
+//   - at most ctx.liveCap truths are live (the user's setting, LIVE_CAP by
+//     default); a new one past that is ignored;
 //   - a truth written again word for word is the same truth, not a new one;
 //   - first wins: one clue, one Learned and one Truth- per truth per reply;
 //   - the model can't edit a truth. Only the user's ops (edit, forget, reveal,
@@ -22,11 +23,21 @@
 import { statKey } from "../stats/parse.js";
 
 export const LIVE_CAP = 3;
+// The user picks how many truths can be live (plan 020): 1 to MAX_LIVE_CAP.
+export const MAX_LIVE_CAP = 10;
+export const clampLiveCap = n => {
+    const v = Math.round(Number(n));
+    return Number.isFinite(v) && v >= 1 ? Math.min(v, MAX_LIVE_CAP) : LIVE_CAP;
+};
 
 export const emptyNotebook = () => ({ truths: {}, next: 1 });
 
 export const isLive = t => Boolean(t) && t.revealedSeq == null && !t.revealedHow;
 export const liveTruths = state => Object.values(state?.truths || {}).filter(isLive);
+// A truth the user added and hasn't written yet (plan 020: "Add a truth") is
+// live in the tab but not in the story: not sent, not counted, no setup skipped.
+export const isFilled = t => Boolean(t) && String(t.truth || "").trim() !== "";
+export const filledLiveTruths = state => liveTruths(state).filter(isFilled);
 export const pastTruths = state => Object.values(state?.truths || {}).filter(t => !isLive(t));
 
 const READER = new Set(["reader", "the reader"]);
@@ -54,10 +65,11 @@ const EDITABLE = ["truth", "hiddenFrom", "when", "changes", "clueIdeas", "clues"
 /**
  * @param {object} prev
  * @param {{ ops: object[] }} parsed
- * @param {{ seq?: number }} [ctx]
+ * @param {{ seq?: number, liveCap?: number }} [ctx]
  * @returns {{ state: object, applied: object[], notes: string[] }}
  */
 export function applyNotebook(prev, parsed, ctx = {}) {
+    const cap = ctx.liveCap === undefined ? LIVE_CAP : clampLiveCap(ctx.liveCap);
     const state = structuredClone(prev || emptyNotebook());
     state.truths = state.truths || {};
     state.next = state.next || 1;
@@ -74,7 +86,7 @@ export function applyNotebook(prev, parsed, ctx = {}) {
         if (op.op === "entry") {
             const same = Object.values(state.truths).find(t => statKey(t.truth) === statKey(op.truth));
             if (same) { if (op.id) idMap[op.id] = same.id; continue; }
-            if (liveTruths(state).length >= LIVE_CAP) { notes.push(`New truth left out: ${LIVE_CAP} are already live.`); continue; }
+            if (filledLiveTruths(state).length >= cap) { notes.push(`New truth left out: ${cap} are already live.`); continue; }
             const hiddenFrom = (op.hiddenFrom || []).filter(Boolean);
             if (!hiddenFrom.length) { notes.push("New truth left out: it is hidden from no one."); continue; }
             const id = `T${state.next++}`;
@@ -85,6 +97,18 @@ export function applyNotebook(prev, parsed, ctx = {}) {
                 clues: [], createdSeq: seq, revealedSeq: null, revealedHow: null
             };
             applied.push({ op: "entry", id, text: op.truth });
+            continue;
+        }
+
+        // The user's "Add a truth": an empty one to fill in the tab.
+        if (op.op === "add") {
+            const id = `T${state.next++}`;
+            state.truths[id] = {
+                id, truth: "", hiddenFrom: ["the reader"],
+                when: "", changes: "", clueIdeas: "",
+                clues: [], createdSeq: seq, revealedSeq: null, revealedHow: null
+            };
+            applied.push({ op: "add", id, text: "" });
             continue;
         }
 
@@ -110,7 +134,7 @@ export function applyNotebook(prev, parsed, ctx = {}) {
         }
         if (op.op === "restore") {
             if (!isLive(t)) {
-                if (liveTruths(state).length >= LIVE_CAP) { notes.push(`${id} stays in the past: ${LIVE_CAP} are already live.`); continue; }
+                if (filledLiveTruths(state).length >= cap) { notes.push(`${id} stays in the past: ${cap} are already live.`); continue; }
                 t.revealedSeq = null; t.revealedHow = null;
                 applied.push({ op: "restore", id, text: t.truth });
             }

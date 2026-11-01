@@ -88,7 +88,9 @@ import {
 } from "./src/features/blocks/registry.js";
 import { meguminCleanChatHistoryText, getChatForStoryDirector, getChatForNpcScan, escapeRegex, cleanAIOutput } from "./src/engine/chatText.js";
 import { useMeguminEngine, runWithChomusuke, chomusukeSessionPromise, setReplyHeld, stopJobsForOtherChats } from "./src/engine/tasks.js";
-import { initChomusukeIndicator } from "./src/features/blocks/chomusukeIndicator.js";
+import { initChomusukeIndicator, showWaitingLine, hideWaitingLine } from "./src/features/blocks/chomusukeIndicator.js";
+import { confirmPopup } from "./src/ui/controls.js";
+import { scopeNoun } from "./src/core/sync.js";
 import { warnChomusuke, answerKind } from "./src/engine/chomusukeNotice.js";
 import { escapeHtmlAttr } from "./src/utils/html.js";
 import { downloadJsonFile } from "./src/utils/download.js";
@@ -143,7 +145,7 @@ import { handlePromptInjection } from "./src/engine/injection.js";
 import { suiteEnabled, setSuiteEnabled, syncPowerUI } from "./src/core/power.js";
 import { updateLiveTokenCount } from "./src/core/tokens.js";
 import { initDraggableButton, updateCharacterDisplay, discoverDefaultImages } from "./src/ui/launcher.js";
-import { tabsUI, switchTab, updateGlobalSyncButton, toggleTabGlobalSync } from "./src/ui/tabs.js";
+import { tabsUI, switchTab, updateGlobalSyncButton, openScopeMenu } from "./src/ui/tabs.js";
 import { renderDevMode } from "./src/ui/devmode.js";
 
 // Refresh hooks for the features still living in this file. Each registration
@@ -238,7 +240,9 @@ $("body").off("click", "#ps_btn_dev_mode").on("click", "#ps_btn_dev_mode", funct
     e.preventDefault();
     if ($(this).text().includes("Exit Dev")) {
         if (isDevEngineDirty) {
-            if (!confirm("You have unsaved changes in your custom engine. Are you sure you want to exit? Changes will be lost.")) return;
+            confirmPopup("Leave without saving?", "Your custom preset has changes you haven't saved. Leaving loses them.", { ok: "Leave", cancel: "Stay" })
+                .then(ok => { if (!ok) return; setDevEngineDirty(false); switchTab(0); });
+            return;
         }
         setDevEngineDirty(false);
         switchTab(0);
@@ -289,7 +293,7 @@ jQuery(async () => {
         $(".ps-breadcrumbs").hide();
         $("#ps_btn_prev, #ps_btn_next").hide();
 
-        $("body").off("click", "#btn_apply_tab_all").on("click", "#btn_apply_tab_all", toggleTabGlobalSync);
+        $("body").off("click", "#btn_apply_tab_all").on("click", "#btn_apply_tab_all", openScopeMenu);
 
         $("body").on("mouseenter", ".ps-modern-tag", function () { const hint = $(this).attr("data-hint"); if (!hint) return; const title = $(this).text().trim(); $("#ps-global-tooltip").html(`<span class="ps-tooltip-title">${title}:</span> ${hint}`).addClass("visible"); });
         $("body").on("mouseenter", "#ps_live_token_count", function (e) {
@@ -310,112 +314,15 @@ jQuery(async () => {
         $("body").on("mousemove", ".ps-modern-tag", function (e) { if (!$(this).attr("data-hint")) return; const tooltip = $("#ps-global-tooltip"); let x = e.clientX + 15; let y = e.clientY + 15; if (x + tooltip.outerWidth() > window.innerWidth) x = e.clientX - tooltip.outerWidth() - 15; if (y + tooltip.outerHeight() > window.innerHeight) y = e.clientY - tooltip.outerHeight() - 15; tooltip.css({ left: x + 'px', top: y + 'px' }); });
         $("body").on("mouseleave", ".ps-modern-tag", function () { $("#ps-global-tooltip").removeClass("visible"); });
 
-                // ── Mobile Sidebar Drawer System ──
-        function closeMobileDrawer() {
-            $(".dock").removeClass("mobile-open");
-            $(".mobile-drawer-overlay").removeClass("open");
-            // Small delay then hide overlay to allow transition
-            setTimeout(() => {
-                if (!$(".dock").hasClass("mobile-open")) {
-                    $(".mobile-drawer-overlay").css("display", "none");
-                }
-            }, 350);
-        }
-
-        function openMobileDrawer() {
-            $(".mobile-drawer-overlay").css("display", "block");
-            // Force reflow before adding class so transition fires
-            $(".mobile-drawer-overlay")[0]?.offsetHeight;
-            $(".dock").addClass("mobile-open");
-            $(".mobile-drawer-overlay").addClass("open");
-        }
-
-        function toggleMobileDrawer() {
-            if ($(".dock").hasClass("mobile-open")) {
-                closeMobileDrawer();
-            } else {
-                openMobileDrawer();
-            }
-        }
-
-        function initMobileDrawer() {
-            const container = $(".ps-modern-modal.app-container");
-            if (!container.length) return;
-
-            // Only inject once
-            if (container.find(".mobile-drawer-overlay").length) return;
-
-            // 1. Inject the dark backdrop overlay into the modal container
-            container.append('<div class="mobile-drawer-overlay"></div>');
-
-            // 2. Inject the hamburger button into the top-app-bar (before .app-actions)
-            const topBar = container.find(".top-app-bar");
-            if (topBar.length && !topBar.find(".mobile-hamburger").length) {
-                topBar.prepend('<button class="mobile-hamburger" title="Menu"><i class="fa-solid fa-bars"></i></button>');
-            }
-
-            // 3. Inject a drawer header at top of dock (navigation label)
-            const dock = container.find(".dock");
-            if (dock.length && !dock.find(".mobile-drawer-header").length) {
-                dock.prepend('<div class="mobile-drawer-header"><h3><i class="fa-solid fa-wand-magic-sparkles" style="margin-right:8px;color:var(--gold)"></i>Navigation</h3></div>');
-            }
-
-            // 4. Inject drawer footer with Sync Global + Reset at bottom of dock
-            if (dock.length && !dock.find(".mobile-drawer-footer").length) {
-                dock.append(`
-                    <div class="mobile-drawer-footer">
-                        <button class="mobile-drawer-footer-btn sync-global" id="mobile_sync_global">
-                            <i class="fa-solid fa-earth-americas"></i> Global: ${meguminIsTabSynced((tabsUI[currentTab] || {}).title) ? "On" : "Off"}
-                        </button>
-                        <button class="mobile-drawer-footer-btn danger" id="mobile_reset">
-                            <i class="fa-solid fa-rotate-left"></i> Reset Profile
-                        </button>
-                    </div>
-                `);
-            }
-
-            // 5. Bind events
-            // Hamburger toggle
-            container.off("click.mobileHamburger").on("click.mobileHamburger", ".mobile-hamburger", function (e) {
-                e.stopPropagation();
-                toggleMobileDrawer();
-            });
-
-            // Backdrop click to close
-            container.off("click.mobileOverlay").on("click.mobileOverlay", ".mobile-drawer-overlay", function () {
-                closeMobileDrawer();
-            });
-
-            // Drawer footer buttons → trigger original buttons then close drawer
-            container.off("click.mobileSync").on("click.mobileSync", "#mobile_sync_global", function () {
-                closeMobileDrawer();
-                $("#btn_apply_tab_all").trigger("click");
-            });
-            container.off("click.mobileReset").on("click.mobileReset", "#mobile_reset", function () {
-                closeMobileDrawer();
-                $("#ps_btn_reset").trigger("click");
-            });
-        }
-
-        // Tab click → switch tab AND close drawer on mobile
+        // Tab click. (The old mobile drawer is gone, plan 020: phones use the
+        // bottom bar, and Global / Reset are in the top bar at every width.)
         $("body").on("click", ".sidebar-step", function () {
             const index = parseInt($(this).attr("id").replace("dot_", ""));
             if (!isNaN(index)) switchTab(index);
-            // Close drawer on mobile after switching tab
-            closeMobileDrawer();
         });
 
-        // Initialize drawer elements when modal opens
-        $("body").on("click", "#prompt-slot-fixed-btn", function () {
-            // Slight delay to let the modal render
-            setTimeout(initMobileDrawer, 100);
-        });
-
-        // Also init if already open (for reload scenarios)
-        setTimeout(initMobileDrawer, 500);
-
-        $("body").on("click", "#ps_btn_reset", function () {
-            if (confirm("Are you sure you want to completely reset this character's profile to the default template?")) {
+        $("body").on("click", "#ps_btn_reset", async function () {
+            if (await confirmPopup(`Reset this ${scopeNoun()}'s settings?`, `Every setting of this ${scopeNoun()} goes back to the defaults. Other ${scopeNoun()}s and tabs set to "Every ${scopeNoun()}" are not touched.`, { ok: "Reset", cancel: "Cancel" })) {
                 // A save debounced by an edit made just before the click would fire ~500ms
                 // from now, after the delete, and write the old profile straight back under
                 // the same live key. Drop it first, the same way the chat switch does.
@@ -425,7 +332,7 @@ jQuery(async () => {
             }
         });
 
-        $("body").on("click", "#ps_btn_save_close", function () { saveProfileToMemory(); $("#prompt-slot-modal-overlay").fadeOut(200); toastr.success("Workflow Configured & Applied Successfully!"); });
+        $("body").on("click", "#ps_btn_save_close", function () { saveProfileToMemory(); $("#prompt-slot-modal-overlay").fadeOut(200); toastr.success("Saved.", "Megumin Suite"); });
 
         if (typeof eventSource !== 'undefined' && typeof event_types !== 'undefined') {
             eventSource.on(event_types.APP_READY, () => {
@@ -480,7 +387,8 @@ jQuery(async () => {
                 if (dryRun || genType === "quiet") return;
                 const session = chomusukeSessionPromise();
                 if (!session) return;
-                toastr.info("Waiting a moment for Chomusuke to finish reading the last reply…", "Megumin Suite", { timeOut: 3000 });
+                // A line under the input, with Stop (plan 020); a toast if there is no input to put it under.
+                if (!showWaitingLine()) toastr.info("Waiting a moment for Chomusuke to finish reading the last reply…", "Megumin Suite", { timeOut: 3000 });
                 setReplyHeld(true);
                 try {
                     const gaveUp = await Promise.race([
@@ -488,7 +396,7 @@ jQuery(async () => {
                         new Promise(r => setTimeout(() => r(true), 30000))
                     ]);
                     if (gaveUp) console.warn("[Megumin-Suite] Send guard: Chomusuke still busy after 30s; sending anyway.");
-                } finally { setReplyHeld(false); }
+                } finally { setReplyHeld(false); hideWaitingLine(); }
             });
             eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
                 if (stateOnSwiped(mesId)) meguminScheduleBlocksRefresh();
@@ -908,10 +816,10 @@ jQuery(async () => {
         }
 
         $("body").on("click", "#prompt-slot-fixed-btn", function () { initProfile(); updateCharacterDisplay(); switchTab(0); $("#prompt-slot-modal-overlay").fadeIn(250).css("display", "flex"); });
-        $("body").off("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay").on("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay", function (e) {
+        $("body").off("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay").on("click", "#close-prompt-slot-modal, #prompt-slot-modal-overlay", async function (e) {
             if (e.target === this) {
                 if (isDevEngineDirty) {
-                    if (!confirm("You have unsaved changes in your custom engine. Are you sure you want to close? Changes will be lost.")) return;
+                    if (!(await confirmPopup("Close without saving?", "Your custom preset has changes you haven't saved. Closing loses them.", { ok: "Close", cancel: "Stay" }))) return;
                     setDevEngineDirty(false);
                 }
                 saveProfileToMemory();
@@ -924,7 +832,7 @@ jQuery(async () => {
                 clearInterval(int);
                 return;
             }
-            const b = `<div id="kazuma_quick_gen" class="interactable" title="Visualize Last Scene (Manual)" style="cursor: pointer; width: 35px; height: 35px; display: none; align-items: center; justify-content: center; margin-right: 5px; color: var(--gold);"><i class="fa-solid fa-image fa-lg"></i></div>`;
+            const b = `<div id="kazuma_quick_gen" class="interactable" title="Draw this scene now" style="cursor: pointer; width: 35px; height: 35px; display: none; align-items: center; justify-content: center; margin-right: 5px; color: var(--gold);"><i class="fa-solid fa-image fa-lg"></i></div>`;
             let t = $("#send_but_sheld");
             if (!t.length) t = $("#send_textarea");
             if (t.length) {

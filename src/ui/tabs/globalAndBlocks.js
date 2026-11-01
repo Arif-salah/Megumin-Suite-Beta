@@ -1,5 +1,6 @@
 // ────────────────────────────────────────────────────────────────────────────
-// Language & Add-ons — language, pronouns, sound effects and the gameplay add-ons.
+// Language & rules (a page of Writing Style) — language, pronouns, sound
+// effects and the gameplay add-ons.
 // ────────────────────────────────────────────────────────────────────────────
 
 import { Popup, POPUP_TYPE } from "../../st.js";
@@ -37,7 +38,7 @@ export function renderGlobalAndBlocks(c) {
     const addonDescriptions = {
         "death": "Enables permanent consequences. Characters — including yours — can die for real. No safety net, no plot armor.",
         "combat": "Activates a grounded, tactical combat layer. Actions have real weight, positioning matters, and you can lose badly.",
-        "direct": "Forces AI to say words like D and P. No dancing around the subject, no polite deflection. you know what i mean. <b>Not needed on V10</b> — that engine already writes this way, so switching it on just repeats the instruction.",
+        "direct": "Forces AI to say words like D and P. No dancing around the subject, no polite deflection. you know what i mean. <b>Not needed on V10</b> — that preset already writes this way, so switching it on just repeats the instruction.",
         "color": "Each character's dialogue is color-coded for easy visual parsing.",
         "npc_events": "Requires all new story events to grow naturally from prior context or environmental cues — no random drama out of nowhere. V6 only.",
         "html": "When a character reads something — a phone screen, a letter, a sign — the AI draws the thing itself as HTML instead of describing it. Rare by design: one per reply at most, and most replies have none.",
@@ -64,15 +65,15 @@ export function renderGlobalAndBlocks(c) {
     c.append(`
         <div class="mtab-header">
             <div class="mtab-header-left">
-                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #3b82f6, #10b981);">
+                <div class="mtab-header-icon" style="background: linear-gradient(135deg, #3b82f6, var(--c-live, #10b981));">
                     <i class="fa-solid fa-puzzle-piece"></i>
                 </div>
                 <div>
-                    <h2>Language & Add-ons</h2>
+                    <h2>Language & rules</h2>
                     <p>The story's language and your pronouns, plus the gameplay add-ons.</p>
                 </div>
             </div>
-            <div class="mtab-header-badge" style="background: rgba(59,130,246,0.12); color: #3b82f6; border: 1px solid rgba(59,130,246,0.25);">
+            <div class="mtab-header-badge" style="background: rgba(59,130,246,0.12); color: var(--c-info, #3b82f6); border: 1px solid rgba(59,130,246,0.25);">
                 <i class="fa-solid fa-gears" style="font-size:0.6rem;"></i> ${localProfile.addons.length + localProfile.blocks.length} Active Modules
             </div>
         </div>
@@ -96,13 +97,13 @@ export function renderGlobalAndBlocks(c) {
             ${isV9 ? `
             <div class="mtab-setting-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
                 <div class="set-info">
-                    <div class="set-label" style="color: #f43f5e;"><i class="fa-solid fa-layer-group"></i> V9 Dynamic Render Limits</div>
+                    <div class="set-label" style="color: var(--c-chomu, #f43f5e);"><i class="fa-solid fa-layer-group"></i> V9 Dynamic Render Limits</div>
                     <div class="set-desc">V9 switches between Lean (quick interactions) and Full (deep scenes). Set the word count ranges for each.</div>
                 </div>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                     <div style="flex: 1; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                         <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 2px;">LEAN RENDER</div>
-                        <div style="font-size: 0.6rem; color: #a855f7; margin-bottom: 6px; line-height: 1.2;">Triggered by the AI for fast dialogue, back-and-forth arguments, and quick actions.</div>
+                        <div style="font-size: 0.6rem; color: var(--c-ai, #a855f7); margin-bottom: 6px; line-height: 1.2;">Triggered by the AI for fast dialogue, back-and-forth arguments, and quick actions.</div>
                         <div style="display: flex; align-items: center; gap: 5px;">
                             <input type="number" id="ps_v9_lean_min" class="ps-modern-input" style="width: 100%; text-align: center;" value="${localProfile.v9Limits.leanMin}" />
                             <span style="color: var(--text-muted);">to</span>
@@ -111,7 +112,7 @@ export function renderGlobalAndBlocks(c) {
                     </div>
                     <div style="flex: 1; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                         <div style="font-size: 0.7rem; font-weight: bold; color: var(--text-muted); margin-bottom: 2px;">FULL RENDER</div>
-                        <div style="font-size: 0.6rem; color: #10b981; margin-bottom: 6px; line-height: 1.2;">Triggered by the AI for scene changes, deep immersion, and major plot events.</div>
+                        <div style="font-size: 0.6rem; color: var(--c-live, #10b981); margin-bottom: 6px; line-height: 1.2;">Triggered by the AI for scene changes, deep immersion, and major plot events.</div>
                         <div style="display: flex; align-items: center; gap: 5px;">
                             <input type="number" id="ps_v9_full_min" class="ps-modern-input" style="width: 100%; text-align: center;" value="${localProfile.v9Limits.fullMin}" />
                             <span style="color: var(--text-muted);">to</span>
@@ -169,7 +170,7 @@ export function renderGlobalAndBlocks(c) {
         if (a.id === "npc_events") {
             if (!isV6) {
                 extraClass = 'locked-card';
-                v6BadgeHtml = `<span class="ecard-badge" style="background:rgba(239,68,68,0.12);color:#ef4444;"><i class="fa-solid fa-lock"></i> Requires V6</span>`;
+                v6BadgeHtml = `<span class="ecard-badge" style="background:rgba(239,68,68,0.12);color:var(--c-danger, #ef4444);"><i class="fa-solid fa-lock"></i> Requires V6</span>`;
             } else {
                 v6BadgeHtml = `<span class="ecard-badge v6-active"><i class="fa-solid fa-unlock"></i> V6 Active</span>`;
             }
@@ -181,7 +182,7 @@ export function renderGlobalAndBlocks(c) {
                 <div class="ecard-body">
                     <div class="ecard-title">
                         <span>${a.label}</span>
-                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
+                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:var(--c-live, #10b981);"><i class="fa-solid fa-check"></i> On</span>` : ''}
                     </div>
                     <p class="ecard-desc">${addonDescriptions[a.id] || ""}</p>
                     ${badges || v6BadgeHtml ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">${badges}${v6BadgeHtml}</div>` : ''}
@@ -220,7 +221,7 @@ export function renderGlobalAndBlocks(c) {
             <div class="ecard-body">
                 <div class="ecard-title">
                     <span>Cinematic Sounds</span>
-                    ${isOno ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
+                    ${isOno ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:var(--c-live, #10b981);"><i class="fa-solid fa-check"></i> On</span>` : ''}
                     ${customBadge({ trigger: "[[onomato]]" })}
                 </div>
                 <p class="ecard-desc">Force the AI to use precise phonetic sound words (e.g., click, thud) instead of abstract descriptions.</p>
@@ -230,7 +231,7 @@ export function renderGlobalAndBlocks(c) {
                         <div style="font-size: 0.65rem; color: var(--text-muted);">Wrap in HTML tags. For capable AI only.</div>
                     </div>
                     <div class="ps-toggle-card ${isOnoStyle ? 'active' : ''}" id="ono_inner_toggle" style="padding: 4px; min-width: 44px; justify-content: center; background: transparent; border-color: ${isOnoStyle ? '#10b981' : 'var(--border-color)'};">
-                        <div class="ps-switch" style="transform: scale(0.75); ${isOnoStyle ? 'background: #10b981;' : ''}"></div>
+                        <div class="ps-switch" style="transform: scale(0.75); ${isOnoStyle ? 'background: var(--c-live, #10b981);' : ''}"></div>
                     </div>
                 </div>
             </div>
@@ -255,12 +256,12 @@ export function renderGlobalAndBlocks(c) {
             customSettings.forEach(cs => {
                 const isSel = !!localProfile.toggles[cs.id];
                 const tCard = $(`
-                    <div class="mtab-toggle-row ${isSel ? 'active' : ''}" style="${isSel ? 'border-color:#10b981;' : ''}">
+                    <div class="mtab-toggle-row ${isSel ? 'active' : ''}" style="${isSel ? 'border-color:var(--c-live, #10b981);' : ''}">
                         <div class="toggle-info">
-                            <div class="toggle-label" style="${isSel ? 'color:#10b981;' : ''}">${cs.name}</div>
+                            <div class="toggle-label" style="${isSel ? 'color:var(--c-live, #10b981);' : ''}">${cs.name}</div>
                             <div class="toggle-desc">Custom Module → [[${cs.attachPoint}]]</div>
                         </div>
-                        <div class="ps-switch" style="${isSel ? 'background:#10b981;' : ''}"></div>
+                        <div class="ps-switch" style="${isSel ? 'background:var(--c-live, #10b981);' : ''}"></div>
                     </div>
                 `);
                 tCard.on("click", () => { localProfile.toggles[cs.id] = !localProfile.toggles[cs.id]; saveProfileToMemory(); fireRefreshHook(REFRESH.SWITCH_TAB); });
@@ -286,11 +287,11 @@ export function renderGlobalAndBlocks(c) {
                 <div class="ecard-body">
                     <div class="ecard-title">
                         <span>${b.label}</span>
-                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="fa-solid fa-check"></i> On</span>` : ''}
+                        ${isSel ? `<span class="ecard-badge" style="background:rgba(16,185,129,0.15);color:var(--c-live, #10b981);"><i class="fa-solid fa-check"></i> On</span>` : ''}
                         ${customBadge(b)}
                     </div>
                     <p class="ecard-desc">${blockDescriptions[b.id] || ""}</p>
-                    ${isOverridden ? `<div style="margin-top:4px;"><span class="ecard-badge override"><i class="fa-solid fa-code-branch"></i> Engine Override</span></div>` : ''}
+                    ${isOverridden ? `<div style="margin-top:4px;"><span class="ecard-badge override"><i class="fa-solid fa-code-branch"></i> Preset Override</span></div>` : ''}
                 </div>
             </div>
         `);

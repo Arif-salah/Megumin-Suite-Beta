@@ -9,6 +9,88 @@ README on the stable branch.
 
 ---
 
+## 2026-11-01
+
+> A cleaner settings window: tab names you can read, one way to choose who a
+> tab's settings are for, a World State tab of its own, step-by-step setup for
+> Chomusuke and Images, and no more characters stuck in the scene.
+
+### The settings window
+
+- **Tab names are always shown.** The dock is a column with labels now, grouped into **Story** (Preset & Thinking, Writing Style, Blocks, World State, The Notebook) and **Helpers** (Images, NPC Bank, Chomusuke, Banned Phrases). Memory, Story Director, Side Panel and Persona sit in a folded **Legacy** group: older tools, kept for old chats. On narrow windows the dock goes back to icons, and phones keep the bottom bar.
+- **Language & Add-ons is now "Language & rules"**, a page of Writing Style. It keeps its own setting for who it's for.
+- **One name for each thing.** Preset (never "engine", Dev Mode too), Story settings (was Story Config), NPC Bank (the side panel said NPC Book), Choices (was CYOA), Dice. Closing the window just says "Saved."
+- **Every delete and every name is asked in the same popup**, the one SillyTavern uses. No more browser boxes, and no more "click again within 3 seconds" buttons. Importing memories or NPCs asks **Add to mine / Replace mine** instead of OK / Cancel.
+- **Blocks and NPC Bank keep your place.** An edit no longer jumps you back to the top, and NPC cards you opened stay open.
+
+### This character or every character
+
+- **One control on every tab: "This tab: This character only ▾ / Every character".** It replaces the old Global: On/Off button. Picking **Every character** asks first, because it replaces the other characters' settings for that tab. Going back to This character only changes nobody's settings.
+- Tabs that are always shared (Chomusuke, Settings, Side Panel) say **Shared by every character**.
+- In **Per Chat** mode every text says chat instead of character.
+- **Story settings: "Keep Story settings with this character".** Share the preset with everyone and keep the genre, POV and pace per character.
+- **Settings → Remember settings per: Character / Chat** asks before switching and says what happens, and lists the tabs shared by every character right now.
+- If you had a tab set to Global, it stays shared after the update.
+
+### Model Setup
+
+- **"Use this loadout" shows what it will change first** (Preset → V11 Тайна DeepSeek, Thinking → …) and for whom, then Use / Cancel.
+- **"Use it on: This character only / Every character"**, the same words as everywhere else.
+- Rows of a loadout you haven't used yet are marked **Preview**.
+
+### Preset & Thinking
+
+- **Picking a preset says what else it set**: "Also set: Thinking → …, Writing Style → …".
+- **A preset with its own thinking steps** greys out the thinking choices it doesn't use, with the reason, instead of leaving them clickable and ignored.
+
+### World State gets its own tab
+
+- **Everything about World State in one place**: on/off, **who writes the updates** (the story model, Chomusuke, or only you), what the model reads, and this chat's card as the chat draws it.
+- **"Change this chat's World State"** has a big Open the Editor button and short how-tos: take someone out of the scene, bring someone in, fix an outfit, undo your change.
+- **How each update is written: Only what changed / Full update each time.** Full update writes the whole World State every reply, for models that don't like to update it or that keep old characters in the scene. It has no limit on threads, seeds, timers or people off-screen. It uses more tokens.
+- The Blocks tab, the Chomusuke tab and the Images Version 2 note all link to it.
+
+### No more characters stuck in the scene
+
+- **An × on each character** in the last reply's World State card. It asks: **Left the scene** (kept, off-screen, comes back when the story brings them in) or **Forget them**. Undo it in the Editor's History.
+- **People the story stops naming leave the scene.** "Who's in the scene" in the World State tab: not named for 5, 8 or 12 replies (8 by default) and they're moved out, with their details kept. Never the last one left with you. The reply that moves someone says so in its card, and Revert brings them back.
+- **The model is told to say when someone leaves**, or doesn't come along to a new place.
+- The last reply's card shows the scene as it is now, so your own changes show straight away.
+- The Editor says **Left the scene** and **Off-screen**, like the card (was "Away").
+
+### The Notebook
+
+- **Choose how many truths the story keeps at once**, 1 to 10, 3 by default. Lowering it keeps the truths already in play.
+- **Add a truth yourself.** "+ Add a truth" adds an empty one to write. It reaches the story once you write it.
+- **Keep Secrets and Seeds in World State too.** Off by default: while the Notebook is on, World State leaves them to the Notebook. Turn it on to keep both.
+- **"Show it, don't ask again in this chat"** on the reply card's notebook.
+
+### Chomusuke and Images: step by step
+
+- **Chomusuke opens with three steps**: pick a connection, test it, choose what it does. Once they're done it's one line: "Ready · your connection".
+- **Test asks for one word and checks the answer.** It tells apart "it works", "it answered something else" (may write poor updates) and "empty answer" (this model may refuse adult stories: try GLM 5.3 Flash or DeepSeek 4.1 Flash).
+- **An empty answer during a reply warns once per chat**, not on every reply.
+- **Images opens with its steps too**: connect ComfyUI (the address and Test are right there), workflow and model, when to draw, and World State for Version 2.
+- **The Draw button next to the send button is always there while Images are on**, in every mode. It used to show only with "Only when I ask".
+
+### In the chat
+
+- **The World State tab on a reply's card says how many things it changed** ("World State · 3").
+- **Each choice has a send arrow.** Click the choice to put it in the input, the arrow to send it. Shift-click still works.
+- **The image redraw button is always visible**, faint until you point at the image.
+- **While a message waits for Chomusuke**, a line under the input says so, with Stop.
+
+### Fixes
+
+- **"Scene: Breather | Scene: Building"** on one line is read as two lines (the first wins), and old chats are re-read.
+- A full World State rewrite **replaces** Threads, Seeds and Timers instead of adding to them, and its card lists only real arrivals and departures.
+- A choice that starts with "/" says why it wasn't sent.
+- The Banned Phrases "AI Slop Detector" panel was never closed, so the rest of the tab sat inside it.
+- The old phone menu that added "Navigation", Global and Reset inside the dock is gone.
+- The Persona tab's placeholder text for Nora is replaced.
+
+---
+
 ## 2026-10-28
 
 > A Thinking Cap for every V11 Тайна preset, a World State that stops listing

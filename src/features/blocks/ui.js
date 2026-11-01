@@ -7,7 +7,7 @@
 // chat-side renderer has no need of.
 // ────────────────────────────────────────────────────────────────────────────
 
-import { getContext, Popup, POPUP_TYPE } from "../../st.js";
+import { Popup, POPUP_TYPE } from "../../st.js";
 import { localProfile } from "../../core/state.js";
 import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js";
 import { escapeHtmlAttr } from "../../utils/html.js";
@@ -19,8 +19,8 @@ import {
     normalizeBlockBody, blockTagFromName, validateCustomBlock, meguminSyncLegacyBlockIds,
 } from "./registry.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
-import { stateStore, worldUpdateMode } from "../../state/index.js";
-import { openWorldEditor } from "../worldstate/editor.js";
+import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
+import { keepScroll } from "../../ui/controls.js";
 import { meguminSlotByTrigger } from "../../../data/slots.js";
 import { hasSharedFragment } from "../../core/sharedFragments.js";
 
@@ -35,6 +35,11 @@ function editedFlag(b) {
 }
 
 export function renderBlocksTab(c) {
+    // An edit here redraws the tab: keep the scroll where it was (plan 020).
+    return keepScroll(() => drawBlocksTab(c));
+}
+
+function drawBlocksTab(c) {
     c.empty();
     const stack = localProfile.blockStack;
     const all = [...MEGUMIN_BLOCK_REGISTRY, ...(stack.custom || [])].filter(b => !b.system);
@@ -52,7 +57,7 @@ export function renderBlocksTab(c) {
                     <p>Everything in this list is sent as one master block at the end of the reply, and drawn in the chat as one collapsible card.</p>
                 </div>
             </div>
-            <div class="mtab-header-badge" style="background: rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.25);">
+            <div class="mtab-header-badge" style="background: rgba(245,158,11,0.12); color:var(--c-brand, #f59e0b); border:1px solid rgba(245,158,11,0.25);">
                 <i class="fa-solid fa-layer-group" style="font-size:0.6rem;"></i> ${inStack.length} in block
             </div>
         </div>
@@ -99,7 +104,7 @@ export function renderBlocksTab(c) {
                         ${BLOCK_VISIBILITY_CHOICES.map(o => `<option value="${o.v}" ${(visOf(b) === "hidden" ? "hidden" : "open") === o.v ? "selected" : ""} title="${o.hint}">${o.label}</option>`).join("")}
                     </select>
                     ${b.builtin ? "" : `<button class="ws-btn-small blk-edit" style="color:var(--gold);"><i class="fa-solid fa-pen"></i></button>`}
-                    <button class="ws-btn-small blk-remove" style="color:#ef4444;"><i class="fa-solid fa-xmark"></i></button>
+                    <button class="ws-btn-small blk-remove" style="color:var(--c-danger, #ef4444);"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
         `);
@@ -126,73 +131,16 @@ export function renderBlocksTab(c) {
         row.find(".blk-edit").on("click", () => renderCustomBlockEditor(c, b.id));
         list.append(row);
 
-        // World State settings ride under its own row: they mean nothing apart
-        // from this block. The state itself lives in the chat file; these are
-        // only how it is kept and how much of it the model reads.
+        // World State's settings live in its own tab (plan 020): here it is
+        // only ordered and shown or hidden, like every other block.
         if (b.id === "world") {
-            const ws = localProfile.worldState;
-            const hasChat = Boolean(getContext()?.chatId);
-            const pending = stateStore.isPendingFullRewrite("world");
             const sub = $(`
                 <div class="blk-sub blk-ws">
-                    <div class="blk-ws-grid">
-                        <label class="blk-ws-field">
-                            <span class="blk-sub-label">Updates</span>
-                            <select id="blk_ws_mode" class="ps-modern-input">
-                                <option value="inline" ${ws.updateMode !== "manual" ? "selected" : ""}>Automatic</option>
-                                <option value="manual" ${ws.updateMode === "manual" ? "selected" : ""}>Manual</option>
-                            </select>
-                            <span class="blk-sub-desc">${worldUpdateMode() === "sidemodel"
-                                ? "Automatic: Chomusuke reads each reply (set in the Chomusuke tab)."
-                                : "Automatic: each reply records what it changed. Chomusuke can take this over in its tab."} Manual: only read.</span>
-                        </label>
-                        <label class="blk-ws-field">
-                            <span class="blk-sub-label">Detail sent</span>
-                            <select id="blk_ws_detail" class="ps-modern-input">
-                                <option value="full" ${ws.injectionDetail === "full" ? "selected" : ""}>Full</option>
-                                <option value="scene" ${ws.injectionDetail === "scene" ? "selected" : ""}>Scene only</option>
-                            </select>
-                            <span class="blk-sub-desc">Scene only skips mood, agenda, secrets and threads to save tokens.</span>
-                        </label>
-                    </div>
-                    <div class="blk-ws-chips">
-                        <label class="blk-ws-chip" title="Show what each reply changed at the top of its World State card">
-                            <input type="checkbox" id="blk_ws_changes" ${ws.showChanges !== false ? "checked" : ""}/> Show what changed on cards
-                        </label>
-                        <label class="blk-ws-chip" title="When an absent character is mentioned again, remind the model how they last were">
-                            <input type="checkbox" id="blk_ws_returning" ${ws.showReturning !== false ? "checked" : ""}/> Remind the model of returning characters
-                        </label>
-                    </div>
-                    <div class="blk-ws-actions">
-                        <button id="blk_ws_editor" class="menu_button" ${hasChat ? "" : "disabled"} title="Edit this chat's World State and its history"><i class="fa-solid fa-pen"></i> Editor</button>
-                        <button id="blk_ws_rewrite" class="menu_button ${pending ? "is-on" : ""}" ${hasChat ? "" : "disabled"} title="Ask the next reply to write the whole state again"><i class="fa-solid ${pending ? "fa-check" : "fa-arrows-rotate"}"></i> ${pending ? "Rewrite queued" : "Rewrite next"}</button>
-                        <button id="blk_ws_reset" class="menu_button" ${hasChat ? "" : "disabled"} title="Clear this chat's World State"><i class="fa-solid fa-eraser"></i> Reset</button>
-                    </div>
+                    <button type="button" class="menu_button blk-ws-open"><i class="fa-solid fa-thumbtack"></i> World State settings <i class="fa-solid fa-arrow-right"></i></button>
+                    <span class="blk-sub-desc">Who writes the updates, how much the model reads, and this chat's Editor.</span>
                 </div>
             `);
-            sub.find("#blk_ws_mode").on("change", function () {
-                ws.updateMode = $(this).val(); saveProfileToMemory(); renderBlocksTab(c); meguminScheduleBlocksRefresh();
-            });
-            sub.find("#blk_ws_detail").on("change", function () {
-                ws.injectionDetail = $(this).val(); saveProfileToMemory();
-            });
-            sub.find("#blk_ws_changes").on("change", function () {
-                ws.showChanges = this.checked; saveProfileToMemory(); meguminScheduleBlocksRefresh();
-            });
-            sub.find("#blk_ws_returning").on("change", function () {
-                ws.showReturning = this.checked; saveProfileToMemory();
-            });
-            sub.find("#blk_ws_editor").on("click", () => openWorldEditor());
-            sub.find("#blk_ws_rewrite").on("click", () => {
-                stateStore.setPendingFullRewrite("world", !stateStore.isPendingFullRewrite("world"));
-                renderBlocksTab(c);
-            });
-            sub.find("#blk_ws_reset").on("click", () => {
-                if (!confirm("Clear this chat's World State? The next reply will describe the scene from scratch.")) return;
-                stateStore.reset("world");
-                meguminScheduleBlocksRefresh();
-                toastr.info("World State cleared for this chat.", "Megumin Suite");
-            });
+            sub.find(".blk-ws-open").on("click", () => fireRefreshHook(REFRESH.SWITCH_TAB, "world"));
             list.append(sub);
         }
 
@@ -251,7 +199,7 @@ export function renderStatFieldEditor(c, def) {
                 <input type="number" class="ps-modern-input sf-max" value="${f.max || 100}" title="Maximum" style="display:${f.type === "meter" ? "" : "none"};" />
                 <input type="number" class="ps-modern-input sf-start" value="${f.start !== undefined ? f.start : 0}" title="Starting value" style="display:${f.type === "meter" || f.type === "number" ? "" : "none"};" />
                 <button class="ws-btn-small sf-up" ${i === 0 ? "disabled" : ""}><i class="fa-solid fa-arrow-up"></i></button>
-                <button class="ws-btn-small sf-del" style="color:#ef4444;"><i class="fa-solid fa-xmark"></i></button>
+                <button class="ws-btn-small sf-del" style="color:var(--c-danger, #ef4444);"><i class="fa-solid fa-xmark"></i></button>
             </div>
         `);
         row.find(".sf-label").on("input", function () { f.label = $(this).val(); saveProfileDebounced(); });
@@ -401,7 +349,7 @@ export function renderCustomBlockEditor(c, editId) {
 
     const actions = $(`
         <div style="display:flex; gap:10px; margin-top:16px;">
-            <button class="ws-btn-small" id="blk_save" style="color:#10b981; border-color:rgba(16,185,129,0.4);"><i class="fa-solid fa-check"></i> Save</button>
+            <button class="ws-btn-small" id="blk_save" style="color:var(--c-live, #10b981); border-color:rgba(16,185,129,0.4);"><i class="fa-solid fa-check"></i> Save</button>
             <button class="ws-btn-small" id="blk_cancel"><i class="fa-solid fa-xmark"></i> Cancel</button>
         </div>
     `);

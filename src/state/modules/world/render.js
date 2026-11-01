@@ -59,7 +59,7 @@ export function findReturning(state, recentText) {
 
 /**
  * @param {object} state
- * @param {{ detail?: "full"|"scene", returning?: object[], pcName?: string, noSecret?: boolean }} [opts]
+ * @param {{ detail?: "full"|"scene", returning?: object[], pcName?: string, noSecret?: boolean, noLimits?: boolean }} [opts]
  *   noSecret — the Author's Notebook is on: hidden things (Secret, Seeds) live there, not here
  */
 export function renderWorldForPrompt(state, opts = {}) {
@@ -98,7 +98,7 @@ export function renderWorldForPrompt(state, opts = {}) {
     const offscreen = Object.values(state.cast || {}).filter(c => !c.present && c.offscreen);
     if (full && offscreen.length) {
         lines.push("");
-        lines.push(`Off-screen (${offscreen.length} of ${OFFSCREEN_LIMIT})`);
+        lines.push(opts.noLimits ? "Off-screen" : `Off-screen (${offscreen.length} of ${OFFSCREEN_LIMIT})`);
         for (const c of offscreen) lines.push(`  ${c.name}: ${c.offscreen}`);
     }
 
@@ -119,7 +119,7 @@ export function renderWorldForPrompt(state, opts = {}) {
             const items = state[key] || [];
             if (!items.length) return;
             lines.push("");
-            lines.push(`${title} (${items.length} of ${LIST_LIMITS[key]})`);
+            lines.push(opts.noLimits ? title : `${title} (${items.length} of ${LIST_LIMITS[key]})`);
             items.forEach((it, i) => lines.push(`  ${i + 1}. ${it}`));
         };
         list("threads", "Threads");
@@ -150,6 +150,12 @@ const WHO_COUNTS =
     "Only characters get a \"+ <Name>\" line: people, or beings the story treats as people, with a mind of their own who speak, plan or act. " +
     "Animals, mounts, pets, vehicles, objects, furniture and crowds never do; put them in someone's Position or Carrying instead (\"riding a grey mare\", \"leaning on the cart\").";
 
+// Models write "+ Name" on arrival but forget "- Name" on the way out (plan 020).
+const LEAVING_UPDATE =
+    "- Check everyone under Present in <Current_World_State> each time. Anyone who walked off, was sent away, stayed behind, " +
+    "or simply is no longer part of the scene gets a \"- <Name>: …\" line. When the scene moves to a new place or jumps ahead in time, " +
+    "write \"- <Name>: …\" for each person who did not come along.";
+
 const LISTS_UPDATE =
     `- Keep at most ${LIST_LIMITS.threads} Threads, ${LIST_LIMITS.seeds} Seeds and ${LIST_LIMITS.timers} Timers. ` +
     "When a list is full and you want to add one, first remove the one that matters least or the one the story has already answered. " +
@@ -173,14 +179,43 @@ export function withoutSecret(text) {
         .split("\n").filter(l => !/\.Secret:/.test(l)).join("\n");
 }
 
+// The whole scene every reply (plan 020, "V10 + V11"): the scene is written in
+// full again, starting from where it stood. Leaving someone out is how they
+// leave, so stale people can't linger.
+const carryOver = (noSecret, noLimits) =>
+    "<Current_World_State> is where the story stood before your reply. Start from it: copy every detail your reply did not change word for word, and change only what it did. " +
+    "Give \"+ <Name>\" only to the people physically present at the end of your reply; anyone you leave out has left the scene, so put them in an Offscreen line if the story will want them again. " +
+    (noLimits
+        ? (noSecret
+            ? "Write the Threads and Timers that still matter; the ones you leave out are closed."
+            : "Write the Threads, Seeds and Timers that still matter; the ones you leave out are closed.")
+        : noSecret
+            ? `Write the Threads and Timers that still matter, at most ${LIST_LIMITS.threads} and ${LIST_LIMITS.timers}; the ones you leave out are closed.`
+            : `Write the Threads, Seeds and Timers that still matter, at most ${LIST_LIMITS.threads}, ${LIST_LIMITS.seeds} and ${LIST_LIMITS.timers}; the ones you leave out are closed.`);
+
+// "Full update each time" (plan 020) has no limits: no "at most N" anywhere,
+// no "Keep at most …" rule lines. The rest of the text stays as written.
+export function withoutLimits(text) {
+    return String(text || "")
+        .split("\n").filter(l => !/^- Keep at most \d/.test(l)).join("\n")
+        .replace(/\s+\(at most \d+\)/g, "")
+        .replace(/, at most \d+ lines in all\]/g, "]")
+        .replace(/; at most \d+\]/g, "]");
+}
+
 /**
  * @param {"update"|"bootstrap"} mode
- * @param {{ noSecret?: boolean }} [opts]
+ * @param {{ noSecret?: boolean, carry?: boolean, noLimits?: boolean }} [opts]
+ *   carry: a full rewrite of a scene already on file (the "full update each
+ *   time" setting, or Rewrite next reply): start from the current state.
+ *   noLimits: "full update each time" is on, so no list or Off-screen limits.
  * @returns {{ rules: string, template: string }}
  */
-export function renderWorldInstructions(mode, { noSecret = false } = {}) {
-    const ins = worldInstructions(mode);
-    return noSecret ? { rules: withoutSecret(ins.rules), template: withoutSecret(ins.template) } : ins;
+export function renderWorldInstructions(mode, { noSecret = false, carry = false, noLimits = false } = {}) {
+    const base = worldInstructions(mode);
+    let ins = noSecret ? { rules: withoutSecret(base.rules), template: withoutSecret(base.template) } : base;
+    if (noLimits) ins = { rules: withoutLimits(ins.rules), template: withoutLimits(ins.template) };
+    return mode === "bootstrap" && carry ? { ...ins, rules: `${ins.rules}\n${carryOver(noSecret, noLimits)}` } : ins;
 }
 
 function worldInstructions(mode) {
@@ -231,7 +266,7 @@ function worldInstructions(mode) {
             "  Fields for {{user}}: Outfit, Position, Condition, Carrying",
             "  Fields for everyone else: Outfit, Position, Mood, Agenda, Secret",
             "+ <Name>                                someone enters the scene; follow with their Outfit, Position, Mood, Agenda, Secret lines",
-            "- <Name>: <where they went or what they are doing now>",
+            "- <Name>: <where they went or what they are doing now>   someone leaves the scene",
             "Offscreen: <Name> = <where they are / what they are doing>",
             "Offscreen-: <Name>                      remove their off-screen line",
             "Thread+: <new tension>        Thread-: <its number, or the resolved tension as written>",
@@ -242,6 +277,7 @@ function worldInstructions(mode) {
             "Scene: <Early Simmer/Building/Midpoint Tension/Climax/Breather>",
             "- Use names exactly as they appear in <Current_World_State>. {{user}} is written as {{user}}.",
             `- ${WHO_COUNTS}`,
+            LEAVING_UPDATE,
             "- Give the complete new value of a changed field. Never write \"unchanged\" or \"same\"; leave unchanged fields out.",
             "- Write each field at most once per character.",
             "- Clothing changes matter: if anyone's clothes changed at all (removed, torn, wet, swapped), write their new Outfit.",
@@ -350,8 +386,8 @@ export function describeWorldChange(ch, pcLabel = "{{user}}") {
  * Shared word for word by the Chomusuke read and the combined call.
  * @returns {{ rules: string, template: string, tag: string }}
  */
-export function renderWorldClerkTask(mode, { noSecret = false } = {}) {
-    const ins = renderWorldInstructions(mode, { noSecret });
+export function renderWorldClerkTask(mode, { noSecret = false, carry = false, noLimits = false } = {}) {
+    const ins = renderWorldInstructions(mode, { noSecret, carry, noLimits });
     const reword = t => t
         .replace(/before your reply/g, "before the latest exchange")
         .replace(/what your reply changed/g, "what the latest exchange changed")
@@ -372,8 +408,8 @@ export function renderClerkNotes(notes) {
  * @param {{ notes: string, exchange: string, mode: string, noSecret?: boolean, sheets?: string }} a
  *   sheets — the character card(s) and the persona, so the clerk knows who the people are
  */
-export function renderWorldExtractPrompt({ notes, exchange, mode, noSecret = false, sheets = "" }) {
-    const task = renderWorldClerkTask(mode, { noSecret });
+export function renderWorldExtractPrompt({ notes, exchange, mode, noSecret = false, sheets = "", carry = false, noLimits = false }) {
+    const task = renderWorldClerkTask(mode, { noSecret, carry, noLimits });
     const s = String(sheets || "").trim();
     const system =
         "You are a continuity clerk for an ongoing roleplay. You read the latest exchange and note what it changed: " +

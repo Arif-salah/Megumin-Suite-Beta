@@ -18,7 +18,7 @@ export function emptyWorld() {
     return {
         scene: { time: "", location: "", weather: "" },
         pc: { name: "", fields: {} },
-        cast: {},          // nameKey → { name, present, fields, offscreen, lastSeenSeq }
+        cast: {},          // nameKey → { name, present, fields, offscreen, lastSeenSeq, lastSeenReply }
         threads: [],
         seeds: [],
         timers: [],
@@ -180,11 +180,71 @@ function matchCastPrefix(state, text) {
     return best;
 }
 
+// ── Out of the scene when the story stops naming them (plan 020) ───────────
+//
+// Models write "+ Name" when someone arrives but often forget "- Name" when
+// they walk off, so people stayed "in the scene" for good. After each reply,
+// anyone in the scene whose name (or nickname) hasn't been in the story for
+// `staleAfter` replies is moved out of it. Their details are kept, so they
+// come back as they were.
+//
+// Counted from the message text (ctx.text: the reply and the user's message
+// before it, given by the store), so a swipe, a Revert or a rewind undoes it
+// like any other change, and the card lists it under "Changed in this reply".
+// Never the last one left: a scene with one other person names them "she".
+
+export const STALE_AFTER_DEFAULT = 8;
+
+/** The story text of a message: blocks, thinking and folded cards taken out. */
+export function proseOf(text) {
+    return String(text || "")
+        .replace(/<!--[\s\S]*?-->/g, " ")
+        .replace(/<(think|thinking|details)\b[^>]*>[\s\S]*?(<\/\1\s*>|$)/gi, " ")
+        .replace(/<([A-Z][\w-]*)\b[^>]*>[\s\S]*?<\/\1\s*>/g, " ")
+        .replace(/<Blocks\b[\s\S]*$/, " ");
+}
+
+const escapeRe = v => String(v).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Whether the prose names this character (name or nickname, whole words). */
+export function namedIn(prose, c) {
+    return [c.name, ...(c.aliases || [])].some(n => {
+        const t = String(n || "").trim();
+        return t.length > 1 && new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(t)}($|[^\\p{L}\\p{N}])`, "iu").test(prose);
+    });
+}
+
+function staleStep(state, ctx, seq, note) {
+    if (typeof ctx.text !== "string") return;   // your own edits, deleted messages
+    state.replies = (state.replies || 0) + 1;
+    const prose = proseOf(ctx.text);
+    for (const c of Object.values(state.cast)) {
+        // Touched by this reply's update, named in it, or from before this rule.
+        if (c.lastSeenSeq === seq || typeof c.lastSeenReply !== "number" || namedIn(prose, c)) c.lastSeenReply = state.replies;
+    }
+    const after = Number(ctx.staleAfter) || 0;
+    if (after <= 0) return;
+    const present = presentCast(state);
+    const stale = present.filter(c => state.replies - c.lastSeenReply >= after);
+    if (!stale.length) return;
+    // Never empty the scene this way: the one named most lately stays.
+    if (stale.length === present.length) {
+        stale.sort((a, b) => b.lastSeenReply - a.lastSeenReply);
+        stale.shift();
+    }
+    for (const c of stale) {
+        c.present = false;
+        note(`${c.name} left`, "present", `not named for ${after} replies`);
+    }
+}
+
 /**
  * Applies one parsed reply to a state.
  * @param {object} prev     world state (not mutated)
  * @param {{kind: string, changes: object[]}} parsed
- * @param {{seq?: number, userNames?: string[]}} [ctx]
+ * @param {{seq?: number, userNames?: string[], text?: string, staleAfter?: number, noLimits?: boolean}} [ctx]
+ *   text: the message (and the user's message before it) this entry belongs
+ *   to, for the "not named for N replies" step; absent for your own edits.
  * @returns {{ state: object, applied: Array<{label: string, before: string, after: string}>, notes: string[], unannounced: string[] }}
  *   unannounced: characters this reply created with no "+" line (the card
  *   asks whether one of them is someone already known)
@@ -195,12 +255,14 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
     const notes = [];
     const unannounced = [];
     const seq = typeof ctx.seq === "number" ? ctx.seq : 0;
-    if (!parsed || !Array.isArray(parsed.changes)) return { state, applied, notes, unannounced };
-    const startLists = Object.fromEntries(LISTS.map(k => [k, [...(state[k] || [])]]));
-
     const note = (label, before, after) => {
         if (before !== after) applied.push({ label, before: before || "", after: after || "" });
     };
+    if (!parsed || !Array.isArray(parsed.changes)) {
+        staleStep(state, ctx, seq, note);
+        return { state, applied, notes, unannounced };
+    }
+    const startLists = Object.fromEntries(LISTS.map(k => [k, [...(state[k] || [])]]));
 
     // When an off-screen line was written, so the oldest go first when there
     // are too many. Lines written in the same reply keep the order they were written in.
@@ -208,9 +270,17 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
     const offscreenStamp = () => seq + (++tick) / 1e6;
 
     // A full snapshot describes who is present now: everyone else has left.
-    if (parsed.kind === "snapshot") {
-        for (const c of Object.values(state.cast)) c.present = false;
+    // Who was there before, so the card lists only real comings and goings
+    // (with "the whole scene every reply" a snapshot comes every reply).
+    const snapshot = parsed.kind === "snapshot";
+    const wasHere = new Set();
+    if (snapshot) {
+        for (const c of Object.values(state.cast)) {
+            if (c.present) wasHere.add(c);
+            c.present = false;
+        }
     }
+    const arrived = entry => !wasHere.has(entry);
 
     // Items listed under a section header replace that list as a whole.
     const listItems = {};
@@ -277,7 +347,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 } else if (!entry.present) {
                     entry.present = true;
                     entry.offscreen = "";
-                    note(`${entry.name} entered`, "", "present");
+                    if (arrived(entry)) note(`${entry.name} entered`, "", "present");
                 }
                 if (!ch.keepPresence) entry.lastSeenSeq = seq;
                 const before = entry.fields[ch.field] || "";
@@ -295,7 +365,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 if (!entry.present) {
                     entry.present = true;
                     entry.offscreen = "";
-                    note(`${entry.name} entered`, "", "present");
+                    if (arrived(entry)) note(`${entry.name} entered`, "", "present");
                 }
                 break;
             }
@@ -393,7 +463,8 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 const list = state[ch.list];
                 const label = LIST_LABEL[ch.list];
                 const find = ch.list === "timers" ? findTimer : findListItem;
-                if (ch.op === "item") {
+                // In a full snapshot, "Thread+: …" lines are the whole list.
+                if (ch.op === "item" || (snapshot && ch.op === "add")) {
                     (listItems[ch.list] = listItems[ch.list] || []).push(ch.value);
                 } else if (ch.op === "add") {
                     // Held back until every removal in this reply has run, so
@@ -412,6 +483,11 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 break;
             }
         }
+    }
+
+    // A snapshot that left someone out: they left.
+    for (const c of wasHere) {
+        if (!c.present && Object.values(state.cast).includes(c)) note(`${c.name} left`, "present", c.offscreen || "gone");
     }
 
     for (const ch of pendingAdds) {
@@ -442,8 +518,9 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
     }
 
     // Over the limit, the oldest go. A list the reply wrote out whole (a first
-    // World State) keeps the first ones it wrote. The user's own edits aren't cut.
-    if (!parsed.byUser) {
+    // World State) keeps the first ones it wrote. The user's own edits aren't
+    // cut, and nothing is with "full update each time" (ctx.noLimits, plan 020).
+    if (!parsed.byUser && !ctx.noLimits) {
         for (const key of LISTS) {
             const list = state[key] || (state[key] = []);
             while (list.length > LIST_LIMITS[key]) {
@@ -463,6 +540,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
         }
     }
 
+    if (!parsed.byUser) staleStep(state, ctx, seq, note);
     return { state, applied, notes, unannounced };
 }
 

@@ -18,7 +18,7 @@ import { npcDecorateNewPane } from "../npc/newCard.js";
 import { worldCardTextAt, worldExtractMessage, blocksCardTextAt, notebookCardTextAt } from "../../state/index.js";
 import { blocksReadForReply } from "./worker.js";
 import { bondsDecoratePane, sheetDecoratePane } from "../bonds/overview.js";
-import { worldDecoratePane } from "../worldstate/card.js";
+import { worldDecoratePane, worldDecorateCast, worldTabCount } from "../worldstate/card.js";
 import { openWorldEditor } from "../worldstate/editor.js";
 import { NOTEBOOK_CARD_DEFS, notebookDecoratePane, notebookCardStamp } from "../notebook/card.js";
 import { notebookReadForReply } from "../notebook/worker.js";
@@ -58,7 +58,9 @@ function meguminApplyChoice(text, { send = false } = {}) {
     // do is send itself. Tested on the composed message rather than on the
     // choice, because a slash only commands when it leads the line.
     if (/^\s*\//.test(ta.value)) {
-        console.debug(`[${extensionName}] choice not sent: the message would lead with a slash command`);
+        // Said out loud now that the arrow sends (plan 020): a send that does
+        // nothing, with no word why, looks broken.
+        toastr.info("Not sent: it starts with \"/\", which SillyTavern reads as a command. It's in the input for you to change.", "Choices");
         return;
     }
 
@@ -184,11 +186,15 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
                     onReread: () => { notebookReadForReply(msgIndex, { force: true }); }
                 }));
             const wsPane = bodyEl.querySelector('.meg-block-body[data-block-id="world"]');
-            if (wsPane) worldDecoratePane(wsPane, msgIndex, {
-                onEdit: () => openWorldEditor(),
-                onChanged: () => meguminScheduleBlocksRefresh(),
-                onReread: () => { worldExtractMessage(msgIndex, { force: true }); }
-            });
+            if (wsPane) {
+                worldDecoratePane(wsPane, msgIndex, {
+                    onEdit: () => openWorldEditor(),
+                    onChanged: () => meguminScheduleBlocksRefresh(),
+                    onReread: () => { worldExtractMessage(msgIndex, { force: true }); }
+                });
+                worldDecorateCast(wsPane, msgIndex, () => meguminScheduleBlocksRefresh());
+                worldTabCount(bodyEl, msgIndex);
+            }
         }
     } catch (e) {
         // Fail visible: the reader keeps the raw block text, which is exactly
