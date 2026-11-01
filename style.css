@@ -3312,6 +3312,9 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 .nbx-cap label { flex: 1; display: flex; flex-direction: column; gap: 3px; font-size: .82rem; color: var(--text-main); }
 .nbx-cap small { font-size: .72rem; line-height: 1.4; color: var(--text-muted); }
 .nbx-cap input { width: 70px; text-align: center; }
+.nbx-keep { margin: 10px 0 0; }
+.meg-nb-add { float: right; margin: -4px 0 0 8px; font-size: .74rem; padding: 4px 10px; display: inline-flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; }
+.meg-nb-draft { padding: 1px 7px; border-radius: 999px; font-size: .62rem; font-weight: 800; color: #c4b5fd; background: rgba(139,92,246,.16); border: 1px solid rgba(139,92,246,.4); }
 
 /* Model Setup: a row of a loadout not in use yet (plan 020). */
 .msx-preview {

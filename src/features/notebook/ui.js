@@ -18,11 +18,11 @@ import {
     notebookEnabled, notebookComesWithEngine, notebookCurrentPhase, notebookState,
     notebookEdit, notebookTurnLabel, notebookCap, notebookNoteCap
 } from "../../state/index.js";
-import { liveTruths, pastTruths, MAX_LIVE_CAP, clampLiveCap } from "../../state/modules/notebook/model.js";
+import { liveTruths, filledLiveTruths, isFilled, pastTruths, MAX_LIVE_CAP, clampLiveCap } from "../../state/modules/notebook/model.js";
 import { truthCountWords } from "../../state/modules/notebook/render.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { splitNames } from "../../state/modules/notebook/parse.js";
-import { confirmPopup } from "../../ui/controls.js";
+import { confirmPopup, switchRow } from "../../ui/controls.js";
 
 const esc = v => String(v == null ? "" : v)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -71,6 +71,7 @@ function liveCard(t, isOpen) {
         <div class="meg-nb-truth nbx-row" data-id="${esc(t.id)}">
             <div class="meg-nb-truth-head">
                 <b>${esc(t.id)}</b>
+                ${isFilled(t) ? "" : `<span class="meg-nb-draft" title="Not given to the story until the Truth box is filled in">new, write it below</span>`}
                 <span class="meg-nb-turn">written ${esc(where(t.createdSeq))}</span>
                 <span class="meg-nb-turn">${t.clues.length} clue${t.clues.length === 1 ? "" : "s"}</span>
                 ${isOpen ? `
@@ -117,11 +118,15 @@ function pastItem(t) {
 function notebookSections(state, chatId, on) {
     const live = liveTruths(state).sort((a, b) => a.createdSeq - b.createdSeq);
     const past = pastTruths(state).sort((a, b) => (a.revealedSeq - b.revealedSeq) || (a.createdSeq - b.createdSeq));
-    if (!live.length && !past.length) return "";
+    if (!live.length && !past.length) return `
+        <section class="nbx-section">
+            <h3 class="nbx-heading purple"><button type="button" class="menu_button meg-nb-add" title="Add an empty truth to fill in yourself"><i class="fa-solid fa-plus"></i> Add a truth</button><i class="fa-solid fa-mask"></i> Active</h3>
+            <div class="meg-nb-none">No truths yet. The next reply writes them, or add one yourself.</div>
+        </section>`;
     const kept = on ? "" : `<div class="meg-nb-none">The notebook is off, so these are kept but not handed to the story.</div>`;
     return `
         <section class="nbx-section">
-            <h3 class="nbx-heading purple"><i class="fa-solid fa-mask"></i> Active <span class="meg-nb-count">${live.length} of ${notebookCap()} live</span></h3>
+            <h3 class="nbx-heading purple"><button type="button" class="menu_button meg-nb-add" title="Add an empty truth to fill in yourself"><i class="fa-solid fa-plus"></i> Add a truth</button><i class="fa-solid fa-mask"></i> Active <span class="meg-nb-count">${live.filter(isFilled).length} of ${notebookCap()} live</span></h3>
             ${kept}
             ${live.length ? `
             <p class="nbx-note warn"><i class="fa-solid fa-triangle-exclamation"></i> These are the truths the story is still hiding. Opening one spoils what the story is building toward.</p>
@@ -154,7 +159,7 @@ export function renderNotebookTab(c) {
     const phase = hasChat ? notebookCurrentPhase() : "off";
     const state = hasChat ? notebookState() : null;
     if (hasChat) at = notebookTurnLabel();
-    const live = state ? liveTruths(state).length : 0;
+    const live = state ? filledLiveTruths(state).length : 0;
     const past = state ? pastTruths(state).length : 0;
 
     const status = !on && v11 ? "The notebook is off. V11's preset still talks about its notebook, so edit the preset in Dev Mode and take out the lines about it."
@@ -170,7 +175,7 @@ export function renderNotebookTab(c) {
                     <div class="mtab-header-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);"><i class="fa-solid fa-book"></i></div>
                     <div>
                         <h2>The Notebook</h2>
-                        <p>The story decides a few hidden truths, keeps them from turn to turn, plants clues, and reveals them when the story is ready. World State stops asking for a Secret while this is on.</p>
+                        <p>The story decides a few hidden truths, keeps them from turn to turn, plants clues, and reveals them when the story is ready. While this is on, World State stops asking for Secrets and Seeds, unless you keep them below.</p>
                     </div>
                 </div>
                 <div class="mtab-toggle-row nbx-switch ${on ? "active" : ""}" id="nb_enable_card" title="${v11 ? "V11 is written with its notebook. Turning it off isn't recommended." : ""}">
@@ -183,6 +188,8 @@ export function renderNotebookTab(c) {
             <div class="nbx-status">
                 <span class="nbx-status-text"><i class="fa-solid fa-circle-info"></i> ${status}</span>
             </div>
+
+            <div class="nbx-keep"></div>
 
             <div class="nbx-cap">
                 <label for="nb_cap"><b>How many truths the story keeps at once</b>
@@ -214,6 +221,18 @@ export function renderNotebookTab(c) {
         meguminScheduleBlocksRefresh();
         renderNotebookTab(c);
     });
+    c.find(".nbx-keep").append(switchRow({
+        label: "Keep Secrets and Seeds in World State too",
+        desc: "Off (default): while the Notebook is on, World State stops asking for each character's Secret and for planted Seeds, because the Notebook keeps the hidden things. On: World State keeps them as well.",
+        on: Boolean(localProfile.notebook && localProfile.notebook.keepWorldSecrets),
+        onChange: v => {
+            localProfile.notebook = { ...(localProfile.notebook || {}), keepWorldSecrets: v };
+            saveProfileToMemory();
+            meguminScheduleBlocksRefresh();
+            fireRefreshHook(REFRESH.TOKEN_COUNT);
+        }
+    }));
+
     c.find("#nb_cap").on("change", function () {
         const n = clampLiveCap($(this).val());
         $(this).val(n);
@@ -266,7 +285,7 @@ function bindNotebook(c, state, chatId) {
         } else if (raw !== (t[key] || "")) {
             fields[key] = raw;
         }
-        if (fields.truth === "") {
+        if (fields.truth === "" && isFilled(t)) {
             toastr.warning("A truth can't be empty. Delete it instead.", "Megumin Suite");
             $(this).val(t.truth);
             return;
@@ -283,6 +302,12 @@ function bindNotebook(c, state, chatId) {
         commit({ op: "edit", id: t.id, fields: { clues: t.clues.filter((_, j) => j !== i) } });
     });
 
+    c.find(".meg-nb-add").on("click", function () {
+        // Opens straight away: the user is writing it, there is nothing to spoil.
+        opened.add(`${chatId}|T${state.next || 1}`);
+        commit({ op: "add" });
+    });
+
     c.find(".meg-nb-out").on("click", function () {
         const t = truthOf(this);
         if (t) commit({ op: "reveal", id: t.id });
@@ -291,7 +316,7 @@ function bindNotebook(c, state, chatId) {
     c.find(".meg-nb-restore").on("click", function () {
         const t = truthOf(this);
         if (!t) return;
-        if (liveTruths(state).length >= notebookCap()) {
+        if (filledLiveTruths(state).length >= notebookCap()) {
             toastr.warning(`${notebookCap()} truths are already live. Mark one revealed or delete one first, or raise the number above.`, "Megumin Suite");
             return;
         }

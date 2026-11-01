@@ -6,8 +6,8 @@ import assert from "node:assert/strict";
 import { parseWorldBlocks } from "../src/state/modules/world/parse.js";
 import { emptyWorld, applyWorldChanges, LIST_LIMITS } from "../src/state/modules/world/model.js";
 import { renderWorldInstructions, renderWorldForPrompt, renderWorldClerkTask, withoutLimits } from "../src/state/modules/world/render.js";
-import { applyNotebook, emptyNotebook, liveTruths, clampLiveCap, LIVE_CAP, MAX_LIVE_CAP } from "../src/state/modules/notebook/model.js";
-import { renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, truthCountWords } from "../src/state/modules/notebook/render.js";
+import { applyNotebook, emptyNotebook, liveTruths, filledLiveTruths, clampLiveCap, LIVE_CAP, MAX_LIVE_CAP } from "../src/state/modules/notebook/model.js";
+import { renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, truthCountWords, notebookPhase, describeNotebookChange } from "../src/state/modules/notebook/render.js";
 import { renderNotebookSetupTask } from "../src/state/modules/notebook/worker.js";
 
 const S = body => parseWorldBlocks(`<World_State>\n${body}\n</World_State>`);
@@ -64,4 +64,33 @@ test("notebook texts: word for word the same at 3, the number elsewhere", () => 
     const s = applyNotebook(emptyNotebook(), setup(2), { seq: 1 }).state;
     assert.match(renderNotebookForPrompt(s, { cap: 6 }), /Live truths: 2 of 6\./);
     assert.ok(truth);
+});
+
+test("Add a truth: an empty one to fill in, not sent or counted until written", () => {
+    const r = applyNotebook(emptyNotebook(), { ops: [{ op: "add" }] }, { seq: 1 });
+    const t = r.state.truths.T1;
+    assert.equal(t.truth, "");
+    assert.deepEqual(t.hiddenFrom, ["the reader"], "stays live until the user changes who it's hidden from");
+    assert.equal(describeNotebookChange(r.applied[0]), "T1 added by you");
+    assert.equal(liveTruths(r.state).length, 1);
+    assert.equal(filledLiveTruths(r.state).length, 0);
+    assert.equal(notebookPhase(r.state), "setup", "the next reply still writes the notebook");
+    assert.equal(renderNotebookForPrompt(r.state), "", "nothing empty reaches the story");
+
+    // The setup reply fills all the slots: the empty one doesn't take one.
+    const full = applyNotebook(r.state, setup(3), { seq: 2 }).state;
+    assert.equal(filledLiveTruths(full).length, 3);
+    assert.equal(full.truths.T1.truth, "", "the user's own truth is kept, ids go on from T2");
+
+    const written = applyNotebook(r.state, { ops: [{ op: "edit", id: "T1", fields: { truth: "Aqua owes the guild money." } }] }, { seq: 3 }).state;
+    assert.equal(notebookPhase(written), "running");
+    assert.match(renderNotebookForPrompt(written), /T1\nTruth: Aqua owes the guild money\.\nHidden from: the reader/);
+});
+
+test("World State keeps Secrets and Seeds when asked, even with the Notebook on", () => {
+    const keep = renderWorldInstructions("update", { noSecret: false }).rules;
+    const hide = renderWorldInstructions("update", { noSecret: true }).rules;
+    assert.match(keep, /Seed\+:/);
+    assert.match(keep, /Secret/);
+    assert.doesNotMatch(hide, /Seed\+:/);
 });

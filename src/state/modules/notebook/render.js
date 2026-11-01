@@ -9,7 +9,7 @@
 // Pure: no imports from SillyTavern. {{user}} is left for the caller.
 // ────────────────────────────────────────────────────────────────────────────
 
-import { LIVE_CAP, liveTruths, clampLiveCap } from "./model.js";
+import { LIVE_CAP, filledLiveTruths, clampLiveCap } from "./model.js";
 
 /** How many truths the setup asks for, in words: "two or three truths" at the
  *  default of 3, so the wording stays as written (plan 020). */
@@ -34,7 +34,7 @@ export const NOTEBOOK_TRUTH_FORM = [
 /** "setup" (no live truth: write the notebook), "running", or "off" (off or paused). */
 export function notebookPhase(state, { on = true, paused = false } = {}) {
     if (!on || paused) return "off";
-    return liveTruths(state).length ? "running" : "setup";
+    return filledLiveTruths(state).length ? "running" : "setup";
 }
 
 export function renderNotebookSetup({ cap = LIVE_CAP } = {}) {
@@ -68,7 +68,7 @@ function truthLines(t) {
 
 /** <Author_Notebook> for <Current_Info>: the live truths only. "" when none. */
 export function renderNotebookForPrompt(state, { cap = LIVE_CAP } = {}) {
-    const live = liveTruths(state);
+    const live = filledLiveTruths(state);
     if (!live.length) return "";
     const out = ["<Author_Notebook>"];
     live.forEach((t, i) => { if (i) out.push(""); out.push(...truthLines(t)); });
@@ -113,6 +113,7 @@ export function describeNotebookChange(ch) {
         case "edit": return `${ch.id} edited`;
         case "forget": return `${ch.id} deleted`;
         case "restore": return `${ch.id} activated again`;
+        case "add": return `${ch.id} added by you`;
         default: return "";
     }
 }

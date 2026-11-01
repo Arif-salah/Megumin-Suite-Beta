@@ -34,6 +34,10 @@ export const emptyNotebook = () => ({ truths: {}, next: 1 });
 
 export const isLive = t => Boolean(t) && t.revealedSeq == null && !t.revealedHow;
 export const liveTruths = state => Object.values(state?.truths || {}).filter(isLive);
+// A truth the user added and hasn't written yet (plan 020: "Add a truth") is
+// live in the tab but not in the story: not sent, not counted, no setup skipped.
+export const isFilled = t => Boolean(t) && String(t.truth || "").trim() !== "";
+export const filledLiveTruths = state => liveTruths(state).filter(isFilled);
 export const pastTruths = state => Object.values(state?.truths || {}).filter(t => !isLive(t));
 
 const READER = new Set(["reader", "the reader"]);
@@ -82,7 +86,7 @@ export function applyNotebook(prev, parsed, ctx = {}) {
         if (op.op === "entry") {
             const same = Object.values(state.truths).find(t => statKey(t.truth) === statKey(op.truth));
             if (same) { if (op.id) idMap[op.id] = same.id; continue; }
-            if (liveTruths(state).length >= cap) { notes.push(`New truth left out: ${cap} are already live.`); continue; }
+            if (filledLiveTruths(state).length >= cap) { notes.push(`New truth left out: ${cap} are already live.`); continue; }
             const hiddenFrom = (op.hiddenFrom || []).filter(Boolean);
             if (!hiddenFrom.length) { notes.push("New truth left out: it is hidden from no one."); continue; }
             const id = `T${state.next++}`;
@@ -93,6 +97,18 @@ export function applyNotebook(prev, parsed, ctx = {}) {
                 clues: [], createdSeq: seq, revealedSeq: null, revealedHow: null
             };
             applied.push({ op: "entry", id, text: op.truth });
+            continue;
+        }
+
+        // The user's "Add a truth": an empty one to fill in the tab.
+        if (op.op === "add") {
+            const id = `T${state.next++}`;
+            state.truths[id] = {
+                id, truth: "", hiddenFrom: ["the reader"],
+                when: "", changes: "", clueIdeas: "",
+                clues: [], createdSeq: seq, revealedSeq: null, revealedHow: null
+            };
+            applied.push({ op: "add", id, text: "" });
             continue;
         }
 
@@ -118,7 +134,7 @@ export function applyNotebook(prev, parsed, ctx = {}) {
         }
         if (op.op === "restore") {
             if (!isLive(t)) {
-                if (liveTruths(state).length >= cap) { notes.push(`${id} stays in the past: ${cap} are already live.`); continue; }
+                if (filledLiveTruths(state).length >= cap) { notes.push(`${id} stays in the past: ${cap} are already live.`); continue; }
                 t.revealedSeq = null; t.revealedHow = null;
                 applied.push({ op: "restore", id, text: t.truth });
             }

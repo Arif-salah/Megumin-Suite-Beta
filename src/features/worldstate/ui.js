@@ -20,7 +20,7 @@ import { localProfile } from "../../core/state.js";
 import { saveProfileToMemory } from "../../core/profile.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { scopeNoun } from "../../core/sync.js";
-import { stateStore, worldEnabled, worldCardTextAt, notebookEnabled } from "../../state/index.js";
+import { stateStore, worldEnabled, worldCardTextAt, worldHidesSecrets } from "../../state/index.js";
 import { STALE_AFTER_DEFAULT } from "../../state/modules/world/model.js";
 import { meguminSyncLegacyBlockIds, meguminRenderRegistry, meguminStatFieldMap } from "../blocks/registry.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
@@ -199,8 +199,10 @@ export function renderWorldStateTab(c) {
         on: cfg.showReturning !== false,
         onChange: v => { cfg.showReturning = v; saveProfileToMemory(); }
     }));
-    if (notebookEnabled()) {
-        reads.append(`<div class="igx-note"><i class="fa-solid fa-book"></i> The Notebook is on, so World State leaves out secrets and planted seeds: the Notebook keeps those.</div>`);
+    if (worldHidesSecrets()) {
+        const $nb = $(`<div class="igx-note"><i class="fa-solid fa-book"></i> The Notebook is on, so World State leaves out secrets and planted seeds: the Notebook keeps those. <button type="button" class="menu_button igx-btn">Keep them (The Notebook tab) <i class="fa-solid fa-arrow-right"></i></button></div>`);
+        $nb.find("button").on("click", () => fireRefreshHook(REFRESH.SWITCH_TAB, "notebook"));
+        reads.append($nb);
     }
     c.append(reads);
 

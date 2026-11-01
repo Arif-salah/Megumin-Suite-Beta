@@ -14,7 +14,7 @@
 import { Popup, POPUP_TYPE, substituteParams } from "../../st.js";
 import {
     getWorldState, worldEdit, worldHistory, worldSetEntryDisabled, worldRemoveUserEntry,
-    worldImportRange, worldChatOpen, stateStore, notebookEnabled, worldWritesFull
+    worldImportRange, worldChatOpen, stateStore, notebookEnabled, worldWritesFull, worldHidesSecrets
 } from "../../state/index.js";
 import { presentCast, fieldLabel, LIST_LIMITS } from "../../state/modules/world/model.js";
 import { PC_FIELDS, NPC_FIELDS } from "../../state/modules/world/render.js";
@@ -123,7 +123,7 @@ function renderStateView(state) {
 
         <div class="meg-wsed-section">
             <div class="meg-wsed-title"><i class="fa-solid fa-book-open"></i> Story threads</div>
-            ${LISTS.filter(l => !(l.key === "seeds" && notebookEnabled())).map(list).join("")}
+            ${LISTS.filter(l => !(l.key === "seeds" && worldHidesSecrets())).map(list).join("")}
         </div>`;
 }
 

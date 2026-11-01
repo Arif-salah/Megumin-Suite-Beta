@@ -27,7 +27,7 @@ import { notebookModule } from "./modules/notebook/index.js";
 import {
     notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler, truthCountWords
 } from "./modules/notebook/render.js";
-import { liveTruths, LIVE_CAP, clampLiveCap } from "./modules/notebook/model.js";
+import { filledLiveTruths, LIVE_CAP, clampLiveCap } from "./modules/notebook/model.js";
 import { parseNotebook } from "./modules/notebook/parse.js";
 import {
     replyWroteNotebookChanges, notebookAnswerBlock, joinNotebookRead, notebookReadPart, parseNotebookRead,
@@ -140,7 +140,7 @@ export function worldPromptBlock() {
     const cfg = worldSettings();
     const state = getWorldState();
     const returning = cfg.showReturning ? findReturning(state, recentText()) : [];
-    return sub(renderWorldForPrompt(state, { detail: cfg.injectionDetail, returning, noSecret: notebookEnabled(), noLimits: worldWritesFull() }));
+    return sub(renderWorldForPrompt(state, { detail: cfg.injectionDetail, returning, noSecret: worldHidesSecrets(), noLimits: worldWritesFull() }));
 }
 
 /**
@@ -153,7 +153,7 @@ export function worldBlockRequest() {
     if (worldUpdateMode() !== "inline") return null;
     const has = stateStore.hasState("world");
     const mode = !has || stateStore.isPendingFullRewrite("world") || worldWritesFull() ? "bootstrap" : "update";
-    const ins = renderWorldInstructions(mode, { noSecret: notebookEnabled(), carry: has, noLimits: worldWritesFull() });
+    const ins = renderWorldInstructions(mode, { noSecret: worldHidesSecrets(), carry: has, noLimits: worldWritesFull() });
     return { rules: sub(ins.rules), template: sub(ins.template), mode };
 }
 
@@ -177,7 +177,7 @@ export function worldCardTextAt(msgIndex) {
     const seq = msg?.extra?.megumin_seq;
     const state = typeof seq === "number" && !worldIsLatestReply(msgIndex) ? stateStore.getStateAt("world", seq) : getWorldState();
     if (isEmptyWorld(state)) return "";
-    return sub(renderWorldCard(state, { pcName: sub("{{user}}"), noSecret: notebookEnabled() }));
+    return sub(renderWorldCard(state, { pcName: sub("{{user}}"), noSecret: worldHidesSecrets() }));
 }
 
 /**
@@ -419,7 +419,7 @@ export function worldExtractMessage(index, { force = false } = {}) {
             const before = stateStore.getStateAt("world", st.seq - 0.5);
             const empty = isEmptyWorld(before);
             const mode = empty || worldWritesFull() ? "bootstrap" : "update";
-            const noSecret = notebookEnabled();
+            const noSecret = worldHidesSecrets();
             const noLimits = worldWritesFull();
             const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }));
             const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, empty ? "bootstrap" : "update"), mode, noSecret, carry: !empty, noLimits, sheets: worldSheets() });
@@ -510,7 +510,7 @@ export function worldReadInputs(token) {
     const before = stateStore.getStateAt("world", token.seq - 0.5);
     const empty = isEmptyWorld(before);
     const mode = empty || worldWritesFull() ? "bootstrap" : "update";
-    const noSecret = notebookEnabled();
+    const noSecret = worldHidesSecrets();
     const noLimits = worldWritesFull();
     const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }));
     return { mode, notes, noSecret, carry: !empty, noLimits, exchange: exchangeFor(token.index, token.text, empty ? "bootstrap" : "update"), sheets: worldSheets() };
@@ -652,6 +652,15 @@ export function notebookNoteCap() {
         meta.megumin_notebook.capHigh = cap;
         adapter.saveMeta();
     }
+}
+
+/**
+ * World State leaves out Secret and Seeds: the Notebook is on and the user
+ * didn't ask to keep them (The Notebook tab, plan 020).
+ */
+export function worldHidesSecrets() {
+    if (!notebookEnabled()) return false;
+    return !(localProfile && localProfile.notebook && localProfile.notebook.keepWorldSecrets);
 }
 
 export function notebookState() {
@@ -805,7 +814,7 @@ function fileNotebookRead(at, swipe, replyText, block) {
 // nothing (null).
 function readKindFor(seq, text) {
     if (text == null) return null;
-    if (liveTruths(stateStore.getStateAt("notebook", seq - 0.5)).length) {
+    if (filledLiveTruths(stateStore.getStateAt("notebook", seq - 0.5)).length) {
         return replyWroteNotebookChanges(text) ? null : "read";
     }
     return replyWroteTruths(text) ? null : "setup";

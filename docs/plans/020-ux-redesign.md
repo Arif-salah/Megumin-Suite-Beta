@@ -276,6 +276,14 @@ developer tests in SillyTavern and reports back.
   The replay uses the highest number a chat was run with
   (`megumin_notebook.capHigh`), so lowering it never drops truths already
   written. `tests/limits.test.mjs`.
+  Then: "Add a truth" (user op `add`): an empty truth, hidden from "the
+  reader", opened for writing; until its Truth box is filled it isn't sent,
+  doesn't count toward the number and doesn't skip the setup
+  (`filledLiveTruths`). "Keep Secrets and Seeds in World State too"
+  (`notebook.keepWorldSecrets`, The Notebook tab): World State uses
+  `worldHidesSecrets()` instead of `notebookEnabled()` everywhere. Checked:
+  nothing in the code holds the notebook at 3 (3 is only the default; the
+  setting goes 1–10).
 - [~] Phase 4: Setup checklists and the Draw button — built 2026-10-31,
   waiting for the developer's test. `ui/checklist.js` (+ pure
   `ui/checklistCore.js`, `tests/setup-checklist.test.mjs`). Chomusuke: the
