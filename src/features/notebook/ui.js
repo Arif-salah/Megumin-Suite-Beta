@@ -18,7 +18,7 @@ import {
     notebookEnabled, notebookComesWithEngine, notebookCurrentPhase, notebookState,
     notebookEdit, notebookTurnLabel, notebookCap, notebookNoteCap
 } from "../../state/index.js";
-import { liveTruths, filledLiveTruths, isFilled, pastTruths, MAX_LIVE_CAP, clampLiveCap } from "../../state/modules/notebook/model.js";
+import { liveTruths, filledLiveTruths, isFilled, pastTruths, MAX_LIVE_CAP, clampLiveCap, peekNextId } from "../../state/modules/notebook/model.js";
 import { truthCountWords } from "../../state/modules/notebook/render.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { splitNames } from "../../state/modules/notebook/parse.js";
@@ -78,7 +78,7 @@ function liveCard(t, isOpen) {
                 <span class="meg-nb-actions">
                     <button type="button" class="menu_button meg-nb-hide"><i class="fa-solid fa-eye-slash"></i> Hide</button>
                     <button type="button" class="menu_button meg-nb-out" title="The truth is out: it leaves the story's notebook and joins Past"><i class="fa-solid fa-flag-checkered"></i> Mark revealed</button>
-                    <button type="button" class="menu_button meg-nb-del" title="Delete this truth. Its id is never used again."><i class="fa-solid fa-trash"></i> Delete</button>
+                    <button type="button" class="menu_button meg-nb-del" title="Delete this truth. The next new truth takes its number."><i class="fa-solid fa-trash"></i> Delete</button>
                 </span>` : ""}
             </div>
             <div class="meg-nb-spoiler${isOpen ? "" : " is-hidden"}">
@@ -304,7 +304,7 @@ function bindNotebook(c, state, chatId) {
 
     c.find(".meg-nb-add").on("click", function () {
         // Opens straight away: the user is writing it, there is nothing to spoil.
-        opened.add(`${chatId}|T${state.next || 1}`);
+        opened.add(`${chatId}|${peekNextId(state)}`);
         commit({ op: "add" });
     });
 
@@ -329,6 +329,6 @@ function bindNotebook(c, state, chatId) {
         if (!t) return;
         if (!(await confirmPopup("Delete this truth for good?", "It leaves the notebook and the story stops keeping it. To take it out of the story but keep it, use Mark revealed instead.", { ok: "Delete" }))) return;
         opened.delete(`${chatId}|${t.id}`);
-        commit({ op: "forget", id: t.id });
+        commit({ op: "forget", id: t.id, reuse: true });
     });
 }
