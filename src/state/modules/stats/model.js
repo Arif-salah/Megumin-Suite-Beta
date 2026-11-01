@@ -75,6 +75,27 @@ export function unsentBondKeys(state, parsed, handed = []) {
     return out;
 }
 
+/**
+ * The names in a Bonds block that keep their bonds handed over next turn: lines
+ * that changed something on file, and lines skipped because the story could
+ * not see that character. A line copied back unchanged keeps nobody in, so a
+ * model that repeats everything it was handed can't hold the list open.
+ * @param {{ people: object }} prev  the bonds before that reply
+ * @param {{ people?: object[] }} parsed  that reply's Bonds block
+ * @param {{ unsent?: string[] }} [facts]  saved with the reply
+ * @returns {string[]} names as written
+ */
+export function movedBondNames(prev, parsed, facts) {
+    const unsent = new Set((facts && facts.unsent) || []);
+    const people = (prev && prev.people) || {};
+    const out = [];
+    for (const p of (parsed && parsed.people) || []) {
+        const k = findPersonKey(people, p.name);
+        if ((k && unsent.has(k)) || applyBonds(prev, { people: [p] }).applied.length) out.push(p.name);
+    }
+    return out;
+}
+
 export function applyBonds(prev, parsed, ctx = {}) {
     const state = structuredClone(prev || emptyBonds());
     // A character the story model could not see is skipped: it would have made

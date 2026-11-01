@@ -20,7 +20,7 @@ import { createStateStore } from "./store.js";
 import { worldModule } from "./modules/world/index.js";
 import { bondsModule, sheetModule, chatterModule, trackerModule, cyoaModule } from "./modules/stats/index.js";
 import { renderWorkerNotes, cleanWorkerAnswer, blockTextIn } from "./modules/stats/worker.js";
-import { pickBondsFor, unsentBondKeys } from "./modules/stats/model.js";
+import { pickBondsFor, unsentBondKeys, movedBondNames } from "./modules/stats/model.js";
 import { meguminCleanChatHistoryText } from "../engine/chatText.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast, findCast, castDisplayName, STALE_AFTER_DEFAULT } from "./modules/world/model.js";
@@ -991,10 +991,7 @@ function bondsFactsFor(index) {
     const present = worldEnabled() && stateStore.hasState("world")
         ? presentCast(stateStore.getStateAt("world", before)).flatMap(c => [c.name, ...(c.aliases || [])])
         : [];
-    const entries = stateStore.activeEntries("bonds").filter(e => !e.missing && e.seq < st.seq);
-    const last = entries[entries.length - 1];
-    const latestNames = (last && last.parsed && last.parsed.people || []).map(p => p.name);
-    const handed = pickBondsFor(state, { present, recentText: storyTextBefore(index), latestNames });
+    const handed = pickBondsFor(state, { present, recentText: storyTextBefore(index), latestNames: lastBondsNames(st.seq) });
     const unsent = unsentBondKeys(state, parsed, handed);
     return unsent.length ? { unsent } : undefined;
 }
@@ -1025,10 +1022,17 @@ function bondsInPlay(state, recentText) {
     const present = worldHasState()
         ? presentCast(getWorldState()).flatMap(c => [c.name, ...(c.aliases || [])])
         : [];
-    const entries = stateStore.activeEntries("bonds").filter(e => !e.missing);
+    return pickBondsFor(state, { present, recentText, latestNames: lastBondsNames() });
+}
+
+// The names from the last Bonds block before `beforeSeq` that still count for
+// the next turn: lines that changed something, or were skipped because the
+// story could not see that character (movedBondNames).
+function lastBondsNames(beforeSeq = Infinity) {
+    const entries = stateStore.activeEntries("bonds").filter(e => !e.missing && e.seq < beforeSeq);
     const last = entries[entries.length - 1];
-    const latestNames = (last && last.parsed && last.parsed.people || []).map(p => p.name);
-    return pickBondsFor(state, { present, recentText, latestNames });
+    if (!last || !last.parsed) return [];
+    return movedBondNames(stateStore.getStateAt("bonds", last.seq - 0.5), last.parsed, last.facts);
 }
 
 /**

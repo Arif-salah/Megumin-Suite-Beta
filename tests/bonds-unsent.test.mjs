@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createStateStore } from "../src/state/store.js";
 import { parseBonds } from "../src/state/modules/stats/parse.js";
-import { pickBondsFor, unsentBondKeys } from "../src/state/modules/stats/model.js";
+import { pickBondsFor, unsentBondKeys, movedBondNames } from "../src/state/modules/stats/model.js";
 import { bondsModule } from "../src/state/modules/stats/index.js";
 
 const reply = (prose, bonds) => `${prose}\n<Blocks>\n<Bonds>\n${bonds}\n</Bonds>\n</Blocks>`;
@@ -28,7 +28,7 @@ function handedFor(e, index) {
     const state = e.store.getStateAt("bonds", seq - 0.5);
     const entries = e.store.activeEntries("bonds").filter(x => !x.missing && x.seq < seq);
     const last = entries[entries.length - 1];
-    const latestNames = (last && last.parsed.people || []).map(p => p.name);
+    const latestNames = last ? movedBondNames(e.store.getStateAt("bonds", last.seq - 0.5), last.parsed, last.facts) : [];
     const recentText = e.chat.slice(Math.max(0, index - 3), index).map(prose).join("\n");
     return { state, keys: pickBondsFor(state, { recentText, latestNames }) };
 }
@@ -95,23 +95,33 @@ test("the decision survives a reload and a reparse", () => {
     assert.equal(again.store.getState("bonds").people.lona.fields.affection.text, "60/100");
 });
 
-test("a model that copies every handed line back does not grow the list on its own", () => {
+test("a model that copies every handed line back can't hold the list open: it shrinks to the scene", () => {
     const e = env();
-    e.chat.push(ai(reply("Everyone met.", "Lona: Affection: 60/100\nMaya: Affection: 30/100\nKade: Affection: 20/100")));
+    e.chat.push(ai(reply("Lona, Maya and Kade met at the gate.", "Lona: Affection: 60/100\nMaya: Affection: 30/100\nKade: Affection: 20/100")));
     e.store.recordMessage(0);
-    let sizes = [];
+    const handed = [];
     for (let i = 0; i < 6; i++) {
-        e.chat.push(user("I wait."));
+        e.chat.push(user("I wait with Maya."));
         e.chat.push(ai("placeholder"));
         const index = e.chat.length - 1;
         const { state, keys } = handedFor(e, index);
-        // The copying model writes back every line it was handed.
-        const text = reply("Time passes.", keys.map(k => `${state.people[k].name}: Affection: ${state.people[k].fields.affection.text} (=)`).join("\n"));
+        // The copying model writes back every line it was handed, unchanged.
+        const text = reply("Maya hums.", keys.map(k => `${state.people[k].name}: Affection: ${state.people[k].fields.affection.text} (=)`).join("\n"));
         e.chat[index].mes = text;
         e.chat[index].swipes[0] = text;
         e.store.recordMessage(index);
-        sizes.push(keys.length);
+        handed.push(keys.join(","));
     }
-    assert.ok(sizes.every(n => n <= 3), `never more than the three on file: ${sizes}`);
-    assert.ok(sizes.every((n, i) => i === 0 || n <= sizes[i - 1]), `never grows by itself: ${sizes}`);
+    assert.equal(handed[0], "lona,maya,kade", "everyone is fresh after the first meeting");
+    assert.deepEqual(handed.slice(-3), ["maya", "maya", "maya"], `copied lines keep nobody in: ${handed.join(" | ")}`);
+    assert.equal(affection(e, "lona"), "60/100", "Lona stays on file");
+});
+
+test("a line that moved a number keeps that character handed for one more turn", () => {
+    const e = env();
+    e.chat.push(ai(reply("Lona left.", "Lona: Affection: 60/100")));
+    e.store.recordMessage(0);
+    turn(e, "Later.", reply("Maya arrived.", "Lona: Affection: 64/100 (+4 a letter came)\nMaya: Affection: 30/100"));
+    const next = turn(e, "I read on.", reply("The day ends.", "Maya: Affection: 30/100 (=)"));
+    assert.ok(next.includes("lona"), "her number moved last turn, so she is handed");
 });
