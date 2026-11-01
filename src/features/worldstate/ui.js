@@ -143,7 +143,7 @@ export function renderWorldStateTab(c) {
     if (SHOW_WRITE_MODE && who !== "me") {
         const full = cfg.writeMode === "full";
         updates.append(field("How each update is written", full
-            ? "Every reply writes the whole scene again, so anyone left out has left the scene, and there's no limit on threads, seeds, timers or people off-screen. Costs more of each reply (a few hundred tokens in a busy scene), and small details can shift as they're copied over."
+            ? "Every reply writes the full World State. Helps with models that don't like to update it, or that keep old characters in the scene. Uses more tokens."
             : "Each reply writes only what it changed. Short, and details stay exactly as written. Keeps at most 3 threads, 3 seeds, 2 timers and 4 people off-screen.",
         segmented([
             { id: "changes", label: "Only what changed" },
