@@ -42,6 +42,34 @@ export function answerKind(raw) {
     return text ? "format" : "empty";
 }
 
+// Why a request failed, in the user's words. SillyTavern hands back no status
+// number, only words: the provider's status text ("Bad Gateway",
+// "Unauthorized") or the connection's own error ("fetch failed", "terminated":
+// SillyTavern answers 502 itself when it can't reach the provider at all).
+// [test, what happened, what to do]; the error's own words go in brackets.
+const FAILURE_REASONS = [
+    [/unauthori[sz]ed|forbidden|invalid[^.]*key|api key|authenticat|\b40[13]\b/i,
+        "The provider didn't accept the API key", "Check the key in Chomusuke's connection profile."],
+    [/too many requests|rate.?limit|quota|insufficient|\b429\b/i,
+        "The provider is limiting requests right now, or the credits are used up", "Wait a little, or check your plan with them."],
+    [/context length|too long|maximum context|payload too large|\b413\b/i,
+        "The request was too long for Chomusuke's model", "Pick a model that takes longer prompts."],
+    [/model[^.]*(not found|not exist|unavailable)|no such model|\b404\b|not found/i,
+        "The provider doesn't know the model set for Chomusuke", "Check the model in Chomusuke's connection profile."],
+    [/bad gateway|service unavailable|gateway timeout|internal server error|overloaded|\b5\d\d\b/i,
+        "The provider's server had a problem on their side", "This usually passes in a minute."],
+    [/fetch failed|terminated|socket hang up|econnreset|etimedout|timed? ?out|connection refused|econnrefused|enotfound|eai_again|network|other side closed/i,
+        "The provider couldn't be reached: the connection dropped or timed out", "This usually passes in a minute. If it keeps happening, check your internet or the provider's status page."]
+];
+
+/** The failure in plain words: "<what happened> (<the error's words>). <what to do>" */
+export function failureReason(error) {
+    const why = String(error?.message || error || "").trim().slice(0, 200);
+    const hit = why && FAILURE_REASONS.find(([re]) => re.test(why));
+    if (hit) return `${hit[1]} (${why}). ${hit[2]}`;
+    return why ? `The request failed (${why}).` : "The request failed.";
+}
+
 /**
  * @param {"failed"|"empty"|"format"} kind
  * @param {string[]} jobs  feature keys (worldState, blocks, …)
@@ -53,9 +81,8 @@ export function chomusukeProblemText(kind, jobs, { error, switchedBack = false }
     const what = joinJobNames(jobs);
     const readAgain = jobs.some(j => HAS_READ_AGAIN.has(j));
     if (kind === "failed") {
-        const why = String(error?.message || error || "").trim().slice(0, 200);
-        return `Chomusuke couldn't get an answer for ${what}${why ? `: ${why}` : ""}.`
-            + (readAgain ? " Use Read again on the card once the connection works." : "")
+        return `Chomusuke couldn't get an answer for ${what}. ${failureReason(error)}`
+            + (readAgain ? " Then use Read again on the card." : "")
             + (switchedBack ? " Your story connection is back." : "");
     }
     if (kind === "empty") {
@@ -105,6 +132,6 @@ export function warnChomusuke(kind, jobs, opts) {
     if (!jobs.length || typeof toastr === "undefined") return;
     if (!shouldWarn(kind, openChatId(), warnedEmpty)) return;
     const text = chomusukeProblemText(kind, jobs, opts);
-    if (kind === "failed") toastr.error(text, "Chomusuke", { timeOut: 8000 });
+    if (kind === "failed") toastr.error(text, "Chomusuke", { timeOut: 12000 });
     else toastr.warning(text, "Chomusuke", { timeOut: 7000 });
 }

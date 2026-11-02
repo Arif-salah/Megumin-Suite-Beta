@@ -21,7 +21,7 @@ test("job names read as a list", () => {
 
 test("each kind says what happened and what to do", () => {
     const failed = chomusukeProblemText("failed", ["worldState"], { error: new Error("401 Unauthorized") });
-    assert.match(failed, /couldn't get an answer for World State: 401 Unauthorized\./);
+    assert.match(failed, /couldn't get an answer for World State\. The provider didn't accept the API key \(401 Unauthorized\)\. Check the key/);
     assert.match(failed, /Read again/);
     assert.doesNotMatch(failed, /connection is back/); // nothing was switched
     assert.match(chomusukeProblemText("failed", ["memory"], { error: "x", switchedBack: true }), /Your story connection is back./);
@@ -55,4 +55,22 @@ test("a failed request is an error, the rest are warnings; nothing to name, noth
     } finally {
         delete globalThis.toastr;
     }
+});
+
+// A failed request says whose problem it is, from the error's words (no
+// status number reaches the browser).
+import { failureReason } from "../src/engine/chomusukeNotice.js";
+
+test("a failed request is explained in plain words, the error's own words kept", () => {
+    const r = e => failureReason(new Error(e));
+    assert.match(r("fetch failed"), /^The provider couldn't be reached: the connection dropped or timed out \(fetch failed\)\. This usually passes/);
+    assert.match(r("terminated"), /couldn't be reached/);
+    assert.match(r("Bad Gateway"), /^The provider's server had a problem on their side \(Bad Gateway\)\. This usually passes in a minute\./);
+    assert.match(r("Service Unavailable"), /on their side/);
+    assert.match(r("Unauthorized"), /didn't accept the API key/);
+    assert.match(r("Too Many Requests"), /limiting requests right now/);
+    assert.match(r("The model `glm-9` does not exist or you do not have access to it."), /doesn't know the model/);
+    assert.match(r("This model's maximum context length is 128000 tokens"), /too long/);
+    assert.equal(r("Response not OK"), "The request failed (Response not OK).");
+    assert.equal(failureReason(""), "The request failed.");
 });
