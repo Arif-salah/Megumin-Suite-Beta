@@ -110,3 +110,14 @@ test("knownNameList stops at the cap", () => {
     assert.equal(list.length, 30);
     assert.equal(list[0], "Person39");
 });
+
+test("knownNameList leaves out saved entries that are no name", () => {
+    const list = knownNameList([
+        { name: "Celeste's couriered four-page grievance" },
+        { name: "the old man by the window with a cane" },
+        { name: "Chloe von Einzbern" },
+        { name: "Dom (Dominic Morin)" },
+        { name: "Rowena Blythe" }
+    ]);
+    assert.deepEqual(list, ["Chloe", "Dom", "Rowena"]);
+});

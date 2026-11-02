@@ -119,6 +119,15 @@ export function namedIn(text, people) {
     return out;
 }
 
+// Something an older reply saved as a character that is no name: a
+// possessive with more after it ("Celeste's couriered four-page grievance"),
+// or more than four words. Kept on file, never handed to the story as a name.
+function looksLikeName(name) {
+    const s = String(name || "").replace(/\([^)]*\)/g, " ").trim();
+    if (/\p{L}['’]s\s+\S/u.test(s)) return false;
+    return s.split(/\s+/).filter(Boolean).length <= 4;
+}
+
 /**
  * The names for <Known_Names> (plan 022): every character on file, once,
  * joined across modules by whoIs, written the simplest way that finds only
@@ -131,7 +140,7 @@ export function knownNameList(sources, { first = [], cap = 30 } = {}) {
     const people = {};
     let n = 0;
     for (const s of sources || []) {
-        if (!s || !String(s.name || "").trim()) continue;
+        if (!s || !String(s.name || "").trim() || !looksLikeName(s.name)) continue;
         const k = whoIs(people, s.name) || [s.name, ...(s.aliases || [])].map(a => whoIs(people, a, { exactOnly: true })).find(Boolean);
         if (k) {
             const rec = people[k];
