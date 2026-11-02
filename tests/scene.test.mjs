@@ -111,3 +111,10 @@ test("a + copied into World Update field lines is a field line, not an arrival",
 test("a + copied into Bonds is not part of the name", () => {
     assert.equal(parseBonds("<Bonds>\n+Mira Vale: Affection: 20/100\n</Bonds>").people[0].name, "Mira Vale");
 });
+
+test("the first reply of a chat: nobody is asked 'Same person as', there was no one to be", () => {
+    const t = "x\n<World_State>\nDom.Outfit: apron\nCat.Outfit: sweater\n</World_State>" + S("Dom, Cat");
+    const r = applyWorldChanges(emptyWorld(), parseWorldBlocks(t), { seq: 1, userNames: ["Kazuma"], text: t });
+    assert.deepEqual(presentNames(r.state), ["Dom", "Cat"]);
+    assert.deepEqual(r.unannounced, []);
+});

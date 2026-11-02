@@ -233,8 +233,10 @@ function staleStep(state, ctx, seq, note, counted = false) {
 // to, and the model writes that itself). Remote people (on a call) are kept
 // apart: not in the scene, not drawn, but the story is talking with them.
 // `created`: characters this reply's lines brought in. Any of them the list
-// doesn't mark as new ("+Mira") is asked about on the card ("Same person as").
-function applyScene(state, scene, ctx, seq, note, unannounced, created) {
+// doesn't mark as new ("+Mira") is asked about on the card ("Same person as"),
+// unless nobody was known before the reply (\`knewAnyone\`): then there is no
+// one they could be, and no names were handed to mark against.
+function applyScene(state, scene, ctx, seq, note, unannounced, created, knewAnyone) {
     const here = new Set();
     const remote = new Set();
     const isNew = new Set();
@@ -269,7 +271,7 @@ function applyScene(state, scene, ctx, seq, note, unannounced, created) {
             note(`${c.name} · On a call`, "yes", "");
         }
     }
-    for (const c of created) if (!isNew.has(c) && state.cast[nameKey(c.name)] === c && !unannounced.includes(c.name)) unannounced.push(c.name);
+    if (knewAnyone) for (const c of created) if (!isNew.has(c) && state.cast[nameKey(c.name)] === c && !unannounced.includes(c.name)) unannounced.push(c.name);
 }
 
 /**
@@ -295,8 +297,9 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
     // The reply's scene list, when it wrote one (plan 022). Not for your own edits.
     const scene = !(parsed && parsed.byUser) && typeof ctx.text === "string" ? parseScene(ctx.text) : null;
     const created = new Set();
+    const knewAnyone = Object.keys(state.cast).length > 0;
     if (!parsed || !Array.isArray(parsed.changes)) {
-        if (scene) applyScene(state, scene, ctx, seq, note, unannounced, created);
+        if (scene) applyScene(state, scene, ctx, seq, note, unannounced, created, knewAnyone);
         staleStep(state, ctx, seq, note, Boolean(scene));
         return { state, applied, notes, unannounced };
     }
@@ -528,7 +531,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
         }
     }
 
-    if (scene) applyScene(state, scene, ctx, seq, note, unannounced, created);
+    if (scene) applyScene(state, scene, ctx, seq, note, unannounced, created, knewAnyone);
 
     // A snapshot that left someone out: they left.
     for (const c of wasHere) {
