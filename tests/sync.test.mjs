@@ -47,9 +47,9 @@ test("the tabs shared right now, in dock order", () => {
     assert.deepEqual(sharedTabIds(null, order), []);
 });
 
-test("tab names: a page is named with its tab", () => {
+test("tab names: Language & rules is a tab of its own, named alone", () => {
     assert.equal(tabTitle("addons"), "Language & rules");
-    assert.equal(tabPath("addons"), "Writing Style → Language & rules");
+    assert.equal(tabPath("addons"), "Language & rules");
     assert.equal(tabPath("images"), "Images");
     assert.equal(tabTitle("nope"), "");
 });

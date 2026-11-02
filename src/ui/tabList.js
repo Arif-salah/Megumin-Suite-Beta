@@ -6,8 +6,9 @@
 //
 // Dock order is array order. `group` puts a tab under a heading of the dock
 // (DOCK_GROUPS); `bottom` pins it under the spacer; `parent` makes it a page
-// of another tab: no dock entry of its own, a page bar on top of both (plan
-// 020: Language & rules is a page of Writing Style, with its own scope).
+// of another tab: no dock entry of its own, a page bar on top of both.
+// Language & rules was a page of Writing Style (plan 020); it has its own
+// dock entry again, since as a page its settings were easy to miss.
 // Find a tab by `id`, never by title or position. Since plan 020 the scope
 // setting is keyed by id too (core/syncKeys.js), so a title can change freely.
 // ────────────────────────────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ export const TAB_LIST = [
     { id: "setup", title: "Model Setup", sub: "Optional: the settings I tested for your model.", icon: "fa-compass" },
     { id: "preset", group: "story", title: "Preset & Thinking", sub: "Choose the preset, how it thinks, and the story's standing rules.", icon: "fa-server" },
     { id: "style", group: "story", title: "Writing Style", sub: "Pick the prose voice the story is told in.", icon: "fa-pen-nib" },
-    { id: "addons", parent: "style", title: "Language & rules", sub: "Language, pronouns, and the gameplay add-ons.", icon: "fa-language" },
+    { id: "addons", group: "story", title: "Language & rules", sub: "Language, pronouns, and the gameplay add-ons.", icon: "fa-language" },
     { id: "blocks", group: "story", title: "Blocks", sub: "What goes in the block under each reply, in what order, and how it looks.", icon: "fa-cubes" },
     { id: "world", group: "story", title: "World State", sub: "Keeps track of the scene: time, place, who is there, what they wear.", icon: "fa-thumbtack" },
     { id: "notebook", group: "story", title: "The Notebook", sub: "The truths the story is hiding, the clues it plants, and when they come out.", icon: "fa-book" },

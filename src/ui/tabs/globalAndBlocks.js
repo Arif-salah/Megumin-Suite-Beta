@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────────────
-// Language & rules (a page of Writing Style) — language, pronouns, sound
+// Language & rules (its own tab in the Story group) — language, pronouns, sound
 // effects and the gameplay add-ons.
 // ────────────────────────────────────────────────────────────────────────────
 
