@@ -29,9 +29,9 @@ export function nameWords(s) {
 
 // Every full spelling of a character: name, nicknames, the name with and
 // without its brackets, and the name in brackets.
-function formsOf(rec) {
+function formsOf(rec, { aliases = true } = {}) {
     const out = new Set();
-    for (const raw of [rec && rec.name, ...((rec && rec.aliases) || [])]) {
+    for (const raw of [rec && rec.name, ...((aliases && rec && rec.aliases) || [])]) {
         const s = String(raw || "");
         for (const f of [s, s.replace(/\([^)]*\)/g, " "), ...(s.match(/\(([^)]+)\)/g) || []).map(x => x.slice(1, -1))]) {
             const w = nameWords(f);
@@ -70,10 +70,14 @@ export function whoIs(people, name, opts = {}) {
     const n = nameWords(name);
     if (!n || !people) return null;
     const entries = Object.entries(people).filter(([, r]) => r && r.name);
-    const forms = entries.map(([k, r]) => [k, formsOf(r)]);
+    const forms = entries.map(([k, r]) => [k, formsOf(r), formsOf(r, { aliases: false })]);
     const steps = [
         () => forms.filter(([, f]) => f.includes(n)).map(([k]) => k),
-        () => forms.filter(([, f]) => f.some(x => prefixOf(x, n))).map(([k]) => k),
+        // A shorter name finds a longer one ("Matt" → Matt Reyes, by name or
+        // nickname). A longer name only finds the character whose OWN name
+        // starts it ("Resha Helios" → Resha): a nickname "Matt" never makes
+        // "Matt Cole" the same person as Matt Reyes.
+        () => forms.filter(([, f, own]) => f.some(x => prefixOf(x, n) && (n.length < x.length || own.includes(x)))).map(([k]) => k),
         () => !opts.nickname || n.length < 3 || n.includes(" ") ? [] : entries.filter(([, r]) => {
             const first = nameWords(r.name).split(" ")[0];
             return first !== n && first.startsWith(n);
@@ -169,5 +173,8 @@ export function shortName(people, key) {
     const plain = s => String(s || "").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
     const full = plain(rec.name);
     const tries = [full.split(" ")[0], full, ...(rec.aliases || []).map(plain), rec.name];
-    return tries.find(x => x && x.length > 2 && whoIs(people, x) === key) || rec.name;
+    // Not a name that also starts someone else's: with a Matt Cole around,
+    // Matt Reyes is "Matt Reyes" even when "Matt" is his nickname.
+    const clash = x => Object.entries(people).some(([k, r]) => k !== key && formsOf(r).some(f => f === nameWords(x) || f.startsWith(nameWords(x) + " ")));
+    return tries.find(x => x && x.length > 2 && whoIs(people, x) === key && !clash(x)) || rec.name;
 }

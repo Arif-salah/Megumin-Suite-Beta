@@ -476,7 +476,7 @@ export function meguminBuildBondsTemplate() {
     if (!fields.length) return "";
     const line = fields.map(meguminStatFieldSpec).join(" | ");
     return [
-        "[One line per named NPC present in the scene, plus any NPC whose numbers changed this scene. Nobody else.",
+        "[One line per named NPC in <Scene>, Here or Remote, plus any NPC whose numbers changed this scene. Nobody else.",
         meguminStatRules(fields, "Bonds", { perSubject: true, notesTag: "Bonds_Now" }),
         "- These are feelings, not bodies. Do not describe clothing, posture or location here.]",
         "",

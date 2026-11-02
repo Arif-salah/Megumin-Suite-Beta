@@ -121,3 +121,18 @@ test("knownNameList leaves out saved entries that are no name", () => {
     ]);
     assert.deepEqual(list, ["Chloe", "Dom", "Rowena"]);
 });
+
+// Live test 2026-11-02 (Chomusuke, GLM): "Matt" became Matt Reyes's nickname,
+// then "Matt Cole" was found through it and folded into him.
+test("a nickname never claims a longer name: Matt Cole is not Matt Reyes 'Matt'", () => {
+    const p = { "matt reyes": { name: "Matt Reyes", aliases: ["Matt"] } };
+    assert.equal(whoIs(p, "Matt Cole"), null);
+    assert.equal(whoIs(p, "Matt"), "matt reyes");
+    assert.equal(whoIs({ resha: { name: "Resha" } }, "Resha Helios"), "resha", "a character's own name still grows");
+});
+
+test("shortName: a nickname that starts someone else's name is not used", () => {
+    const p = { "matt reyes": { name: "Matt Reyes", aliases: ["Matt"] }, "matt cole": { name: "Matt Cole" } };
+    assert.equal(shortName(p, "matt reyes"), "Matt Reyes");
+    assert.equal(shortName(p, "matt cole"), "Matt Cole");
+});
