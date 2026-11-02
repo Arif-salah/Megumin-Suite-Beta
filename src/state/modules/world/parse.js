@@ -239,6 +239,10 @@ function parseLine({ t, bullet }, ctx, out) {
     if (isPlaceholder(t)) return true;
     if (/^\((repeat|include|add|if)\b/i.test(t)) return true;
 
+    // "+Mira.Outfit: …" is a field line with the scene list's "+" (someone
+    // new) copied in (plan 022), not an arrival.
+    if (/^\+\s*[^:=]{1,48}\.[\p{L} ]{2,24}:/u.test(t)) t = t.replace(/^\+\s*/, "");
+
     // ── Arrival: "+ Darkness" / "+ Darkness: Outfit=armor; Mood=eager"
     let m = t.match(/^\+\s*(.+)$/);
     if (m) return parseArrival(m[1], ctx, out);

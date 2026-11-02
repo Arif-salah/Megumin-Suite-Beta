@@ -121,7 +121,8 @@ export function cleanStatName(raw) {
         .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, "")
         .replace(/[*_`~]/g, "")
         .replace(/\s*["“][^"”]*["”]\s*/g, " ")
-        .replace(/^[\s\-—–:]+|[\s\-—–:]+$/g, "")
+        // A leading "+" is the scene list's mark for someone new, copied in (plan 022).
+        .replace(/^[\s\-—–:+]+|[\s\-—–:]+$/g, "")
         .replace(/\s+/g, " ")
         .trim();
     if (!n || /^\[.*\]$/.test(n) || n.length > 60) return "";

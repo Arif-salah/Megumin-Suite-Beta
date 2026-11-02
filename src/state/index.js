@@ -25,7 +25,8 @@ import { meguminCleanChatHistoryText } from "../engine/chatText.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast, remoteCast, findCast, castDisplayName, STALE_AFTER_DEFAULT } from "./modules/world/model.js";
 import { parseScene, sceneBlockOf } from "./scene.js";
-import { SCENE_RULES, SCENE_TEMPLATE } from "../prompts/scene.js";
+import { SCENE_RULES, SCENE_TEMPLATE, KNOWN_NAMES_LEAD, KNOWN_NAMES_TASK } from "../prompts/scene.js";
+import { knownNameList } from "./names.js";
 import { notebookModule } from "./modules/notebook/index.js";
 import {
     notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler, truthCountWords
@@ -103,6 +104,29 @@ function sceneNamesBefore(index) {
         if (scene) return [...scene.here, ...scene.remote].map(n => n.name);
     }
     return [];
+}
+
+/**
+ * <Known_Names> for <Current_Info>: every character on file once, in the one
+ * spelling to use, the scene first (at most 30). "" when no list is asked for.
+ */
+export function knownNamesBlock() {
+    if (!sceneWanted()) return "";
+    const world = worldEnabled() && stateStore.hasState("world") ? getWorldState() : null;
+    const bonds = stateStore.hasState("bonds") ? stateStore.getState("bonds") : null;
+    const sources = [
+        ...Object.values((world && world.cast) || {}).map(c => ({ name: c.name, aliases: c.aliases || [], seen: c.lastSeenSeq || 0 })),
+        ...Object.values((bonds && bonds.people) || {}).map(p => ({ name: p.name, seen: p.seq || 0 }))
+    ];
+    const first = world ? [...presentCast(world), ...remoteCast(world)].map(c => c.name) : sceneNamesBefore(adapter.getChat().length);
+    const list = knownNameList(sources, { first });
+    return list.length ? `<Known_Names>\n${KNOWN_NAMES_LEAD}\n${list.join(", ")}\n</Known_Names>` : "";
+}
+
+// The same list for Chomusuke, with the line that says what it is for.
+function knownNamesForReader() {
+    const block = knownNamesBlock();
+    return block ? `\n\n${block}\n${KNOWN_NAMES_TASK}` : "";
 }
 
 /** Each reply writes the whole scene again (the "V10 + V11" setting). */
@@ -471,7 +495,7 @@ export function worldExtractMessage(index, { force = false } = {}) {
             const mode = empty || worldWritesFull() ? "bootstrap" : "update";
             const noSecret = worldHidesSecrets();
             const noLimits = worldWritesFull();
-            const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }));
+            const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }) + knownNamesForReader());
             const built = renderWorldExtractPrompt({ notes, exchange: exchangeFor(index, text, empty ? "bootstrap" : "update"), mode, noSecret, carry: !empty, noLimits, sheets: worldSheets() });
             req = { system: sub(built.system), user: sub(built.user), prefill: built.prefill, job: "world" };
             // The marker is set only once this job has the worker. Chomusuke runs
@@ -562,7 +586,7 @@ export function worldReadInputs(token) {
     const mode = empty || worldWritesFull() ? "bootstrap" : "update";
     const noSecret = worldHidesSecrets();
     const noLimits = worldWritesFull();
-    const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }));
+    const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }) + knownNamesForReader());
     return { mode, notes, noSecret, carry: !empty, noLimits, exchange: exchangeFor(token.index, token.text, empty ? "bootstrap" : "update"), sheets: worldSheets() };
 }
 
@@ -1168,7 +1192,7 @@ export function blocksReadNotes(token, exchangeText = "") {
         bondsText = renderBondsNotes(bonds, pickBondsFor(bonds, { present, recentText: exchangeText }));
     }
     const sheetText = sheet ? renderSheetNotes(sheet) : "";
-    return sub(renderWorkerNotes({ bonds: bondsText, sheet: sheetText }));
+    return sub(renderWorkerNotes({ bonds: bondsText, sheet: sheetText }) + knownNamesForReader());
 }
 
 /**
@@ -1253,8 +1277,9 @@ export function statsEdit(moduleId, parsed) {
  * @param {{ recentText?: string }} opts  the last few messages, blocks removed
  */
 export function statsPromptParts({ recentText = "" } = {}) {
-    const out = { bonds: "", sheet: "", chatter: "", tracker: "" };
+    const out = { bonds: "", sheet: "", chatter: "", tracker: "", names: "" };
     if (!adapter.getMeta()) return out;
+    out.names = knownNamesBlock();
     if (statBlockOn("bonds") && stateStore.hasState("bonds")) {
         const state = stateStore.getState("bonds");
         out.bonds = renderBondsNotes(state, bondsInPlay(state, recentText));

@@ -97,3 +97,17 @@ test("a reply with a list but no World block still moves people", () => {
     const r = applyWorldChanges(tavern(), null, { seq: 2, text: "x" + S("Kade"), userNames: ["Kazuma"] });
     assert.deepEqual(presentNames(r.state), ["Kade"]);
 });
+
+// Live test 2026-11-02: the model copied the scene list's "+" into other blocks.
+import { parseBonds } from "../src/state/modules/stats/parse.js";
+
+test("a + copied into World Update field lines is a field line, not an arrival", () => {
+    const r = step(tavern(), "x" + U("+Mira Vale.Outfit: grey oilskin\n+Mira Vale.Mood: tired") + S("Lona, Kade, +Mira Vale"), 2);
+    assert.deepEqual(Object.values(r.state.cast).map(c => c.name), ["Lona", "Kade", "Mira Vale"]);
+    assert.equal(findCast(r.state, "Mira Vale").fields.outfit, "grey oilskin");
+    assert.deepEqual(r.unannounced, []);
+});
+
+test("a + copied into Bonds is not part of the name", () => {
+    assert.equal(parseBonds("<Bonds>\n+Mira Vale: Affection: 20/100\n</Bonds>").people[0].name, "Mira Vale");
+});

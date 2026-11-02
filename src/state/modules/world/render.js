@@ -274,7 +274,7 @@ function worldInstructions(mode) {
             "Timer-: <its number, or the consequence>   the timer fired or no longer applies",
             "Arc: <Setup/Escalation/Complication/Crisis/Resolution>",
             "Scene: <Early Simmer/Building/Midpoint Tension/Climax/Breather>",
-            "- Use names exactly as they appear in <Current_World_State>. {{user}} is written as {{user}}.",
+            "- Write names as they are written in <Known_Names>. {{user}} is written as {{user}}.",
             FROM_SCENE,
             "- Give the complete new value of a changed field. Never write \"unchanged\" or \"same\"; leave unchanged fields out.",
             "- Write each field at most once per character.",

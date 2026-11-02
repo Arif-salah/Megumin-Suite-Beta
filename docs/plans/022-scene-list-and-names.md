@@ -191,6 +191,18 @@ who walked out no longer pile up in Off-screen.
   the reply; Chomusuke's Bonds too). "Same person as" adds a linked Bonds
   edit (`mergeOf`) that is switched off and removed with the World State
   one. Image looks already follow World State's nicknames. Tested live.
-- [ ] Phase 3: the `<Scene>` block
-- [ ] Phase 4: World State rules
-- [ ] Phase 5: `<Known_Names>`
+- [x] Phase 3: the `<Scene>` block (`src/state/scene.js`, rules in
+  `src/prompts/scene.js`). World State presence follows the list when a
+  reply has one; Remote = `remote: true`, shown with the off-screen ones
+  as "on a call". Bonds and Chatter rules say "in <Scene>, Here or Remote".
+  Asked for when World State (not manual), Bonds or Chatter is on.
+- [x] Phase 4: World State rules (no `+`/`-` lines; "Offscreen is only
+  for…"; names "as written in <Known_Names>").
+- [x] Phase 5: `<Known_Names>` first in `<Current_Info>`, and in
+  Chomusuke's notes with its task line.
+- Found in the live test: the model copied the `+` into Bonds and World
+  Update lines. The rule now says "+ … here in <Scene> only", and both
+  parsers drop a copied `+`.
+- All tested live on the Rusty Anchor Test card (2026-11-02): presence from
+  the list, a phone call (Remote) and hanging up, "Cat" → Cathleen,
+  a new `+Mira` saved once.

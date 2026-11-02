@@ -927,6 +927,8 @@ function buildCurrentInfo(worldNotes) {
         console.warn("[Megumin Suite] Current Info: could not read the notebook.", e);
     }
     const sections = [];
+    // Plan 022: the names to write in <Scene> and every block.
+    if (parts.names) sections.push(parts.names);
     if (worldNotes) sections.push(worldNotes);
     if (notebook) sections.push(notebook);
     if (parts.bonds) sections.push(`<Bonds_Now>\n${parts.bonds}\n</Bonds_Now>`);

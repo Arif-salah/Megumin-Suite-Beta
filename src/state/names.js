@@ -120,6 +120,35 @@ export function namedIn(text, people) {
 }
 
 /**
+ * The names for <Known_Names> (plan 022): every character on file, once,
+ * joined across modules by whoIs, written the simplest way that finds only
+ * them. Those in the scene first, then the most recently seen.
+ * @param {Array<{ name: string, aliases?: string[], seen?: number }>} sources  World State's cast first, then Bonds
+ * @param {{ first?: string[], cap?: number }} [opts]  first: names in the scene
+ * @returns {string[]}
+ */
+export function knownNameList(sources, { first = [], cap = 30 } = {}) {
+    const people = {};
+    let n = 0;
+    for (const s of sources || []) {
+        if (!s || !String(s.name || "").trim()) continue;
+        const k = whoIs(people, s.name) || [s.name, ...(s.aliases || [])].map(a => whoIs(people, a, { exactOnly: true })).find(Boolean);
+        if (k) {
+            const rec = people[k];
+            rec.seen = Math.max(rec.seen, s.seen || 0);
+            for (const a of [s.name, ...(s.aliases || [])]) if (!formsOf(rec).includes(nameWords(a))) rec.aliases.push(a);
+            continue;
+        }
+        people[`p${n++}`] = { name: s.name, aliases: [...(s.aliases || [])], seen: s.seen || 0 };
+    }
+    const inScene = new Set(first.map(f => whoIs(people, f, { nickname: true })).filter(Boolean));
+    return Object.keys(people)
+        .sort((a, b) => (inScene.has(b) - inScene.has(a)) || (people[b].seen - people[a].seen))
+        .slice(0, cap)
+        .map(k => shortName(people, k));
+}
+
+/**
  * The simplest way to write a character that finds them and nobody else:
  * their first name, else their full name, else a nickname. "Lona", but
  * "Matt Reyes" when there is also a Matt Cole.

@@ -88,3 +88,25 @@ test("World State, Bonds and Image V2 agree on who a name is", () => {
     const cast = buildImageCast({ world, recentText: "Dominic's knife and Matt's coat." });
     assert.deepEqual(cast.filter(m => m.mentioned).map(m => m.name), ["Matt Reyes", "Dom (Dominic Morin)"]);
 });
+
+// Phase 5: the names the story is handed.
+import { knownNameList } from "../src/state/names.js";
+
+test("knownNameList: one name per person across modules, the scene first, then the latest seen", () => {
+    const list = knownNameList([
+        { name: "Cathleen Cairns", aliases: ["Cathleen"], seen: 3 },
+        { name: "Duncan Cairns", seen: 5 },
+        { name: "Matt Reyes", seen: 1 },
+        { name: "Matt Cole", seen: 2 },
+        { name: "Duncan", seen: 9 },          // Bonds' record for Duncan Cairns
+        { name: "Mira", seen: 4 }
+    ], { first: ["Matt Reyes", "Cat"] });
+    assert.deepEqual(list, ["Cathleen", "Matt Reyes", "Duncan", "Mira", "Matt Cole"]);
+});
+
+test("knownNameList stops at the cap", () => {
+    const many = Array.from({ length: 40 }, (_, i) => ({ name: `Person${i}`, seen: i }));
+    const list = knownNameList(many, { cap: 30 });
+    assert.equal(list.length, 30);
+    assert.equal(list[0], "Person39");
+});
