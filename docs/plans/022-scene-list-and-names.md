@@ -173,15 +173,18 @@ who walked out no longer pile up in Off-screen.
 - **Manual World State.** The scene list is still read from the reply; the
   user's edits win (user entries).
 
-## Open questions
+## Decided
 
-- Remote and World State: show Remote characters on the card ("On a call:
-  Mira")? Leaning yes, one line.
-- Inner Chatter: Remote characters' thoughts too? Leaning yes, they speak.
+- The World State card shows Remote characters on one line ("On a call:
+  Mira").
+- Inner Chatter includes Remote characters.
 
 ## Progress
 
-- [ ] Phase 1: one name finder
+- [x] Phase 1: one name finder (`src/state/names.js`). A surname alone
+  only counts when spotting names in text, never to pick a person:
+  "Emma" is not "Uncle Emma". Bonds no longer joins "Matt Cole" to
+  "Matt Reyes" by the first name. Waiting for the developer's test.
 - [ ] Phase 2: one list of people per chat
 - [ ] Phase 3: the `<Scene>` block
 - [ ] Phase 4: World State rules

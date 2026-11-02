@@ -11,6 +11,7 @@
 
 import { splitLookTags, sexOf } from "./lookParts.js";
 import { freshOutfitTags } from "./looksCore.js";
+import { whoIs, namedIn } from "../../../state/names.js";
 
 const key = s => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s'-]/gu, "").replace(/\s+/g, " ").trim();
 
@@ -48,10 +49,11 @@ export function needsLook(m, shot) {
  */
 export function buildImageCast({ looks = {}, world = null, npcs = [], userName = "", recentText = "", npcFirst = false, outfitTags = false } = {}) {
     const members = [];
+    // Names are found the way every module finds them (state/names.js).
+    const asPeople = list => Object.fromEntries(list.map((m, i) => [i, m]));
     const find = name => {
-        const k = key(name);
-        if (!k) return null;
-        return members.find(m => key(m.name) === k || m.aliases.some(a => key(a) === k)) || null;
+        const i = whoIs(asPeople(members), name, { exactOnly: true });
+        return i === null ? null : members[i];
     };
     const add = m => { members.push(m); return m; };
     const blank = (name, extra = {}) => ({
@@ -87,12 +89,10 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
     //    Exact names and nicknames first; then a look saved under a first name
     //    finds the full name World State uses ("Anno" ↔ "Anno Ryo"), when only
     //    one member without a look fits.
-    const firstWord = s => key(s).split(" ")[0];
     const byFirstName = name => {
-        const f = firstWord(name);
-        if (f.length < 3) return null;
-        const hits = members.filter(m => !m.lookKey && [m.name, ...m.aliases].some(n => firstWord(n) === f));
-        return hits.length === 1 ? hits[0] : null;
+        const free = members.filter(m => !m.lookKey);
+        const i = whoIs(asPeople(free), name);
+        return i === null ? null : free[i];
     };
     const pending = [];
     for (const [name, entry] of Object.entries(looks || {})) {
@@ -151,10 +151,9 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
     }
 
     // 5. Absent characters named in the recent text may be about to appear.
-    const text = " " + key(recentText) + " ";
-    for (const m of members) {
-        if (m.isPc || m.inScene) continue;
-        m.mentioned = [m.name, ...m.aliases].some(n => key(n) && text.includes(" " + key(n) + " "));
-    }
+    const named = new Set(namedIn(recentText, asPeople(members)).map(Number));
+    members.forEach((m, i) => {
+        if (!m.isPc && !m.inScene) m.mentioned = named.has(i);
+    });
     return members;
 }

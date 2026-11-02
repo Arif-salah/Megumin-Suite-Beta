@@ -11,6 +11,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { PC, nameKey } from "./parse.js";
+import { whoIs, namedIn as namesIn } from "../../names.js";
 
 const LISTS = ["threads", "seeds", "timers"];
 
@@ -102,29 +103,17 @@ function isPcName(state, who, ctx) {
     return (ctx.userNames || []).some(n => n && nameKey(n) === k);
 }
 
-// "resha" starts "resha helios" in whole words (either way round). Not
-// "lady mira" and "lady resha": neither is the start of the other.
-function namePrefixOf(a, b) {
-    const [short, long] = a.length <= b.length ? [a, b] : [b, a];
-    return short.length > 2 && short !== long && long.startsWith(short + " ");
-}
-
 /**
- * The cast key a name refers to: the character's own name first, then any
- * nickname they carry ('Matthew "Matt"' is found by "Matt" too), then the
- * one character whose name is the start of this one or starts with it
- * ("Resha" is "Resha Helios", when no one else fits). Unknown names map to
- * their own key, so a new character is created under it.
+ * The cast key a name refers to, found the way every module finds a name
+ * (state/names.js): the name or a nickname ('Matthew "Matt"' is found by
+ * "Matt" too), then the one character it fits ("Resha" is "Resha Helios",
+ * "Bathory" is Elizabeth Bathory, when no one else fits). Unknown names map
+ * to their own key, so a new character is created under it.
  */
 export function resolveCastKey(state, name) {
     const k = nameKey(name);
     if (!k || !state || !state.cast || state.cast[k]) return k;
-    for (const [key, c] of Object.entries(state.cast)) {
-        if ((c.aliases || []).some(a => nameKey(a) === k)) return key;
-    }
-    const hits = Object.entries(state.cast)
-        .filter(([, c]) => [c.name, ...(c.aliases || [])].some(n => namePrefixOf(nameKey(n), k)));
-    return hits.length === 1 ? hits[0][0] : k;
+    return whoIs(state.cast, name) || k;
 }
 
 // Gives a character their nicknames. If one of those nicknames already has a
@@ -204,23 +193,18 @@ export function proseOf(text) {
         .replace(/<Blocks\b[\s\S]*$/, " ");
 }
 
-const escapeRe = v => String(v).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-/** Whether the prose names this character (name or nickname, whole words). */
+/** Whether the prose names this character (state/names.js namedIn). */
 export function namedIn(prose, c) {
-    return [c.name, ...(c.aliases || [])].some(n => {
-        const t = String(n || "").trim();
-        return t.length > 1 && new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(t)}($|[^\\p{L}\\p{N}])`, "iu").test(prose);
-    });
+    return namesIn(prose, { c }).length > 0;
 }
 
 function staleStep(state, ctx, seq, note) {
     if (typeof ctx.text !== "string") return;   // your own edits, deleted messages
     state.replies = (state.replies || 0) + 1;
-    const prose = proseOf(ctx.text);
-    for (const c of Object.values(state.cast)) {
+    const named = new Set(namesIn(proseOf(ctx.text), state.cast));
+    for (const [k, c] of Object.entries(state.cast)) {
         // Touched by this reply's update, named in it, or from before this rule.
-        if (c.lastSeenSeq === seq || typeof c.lastSeenReply !== "number" || namedIn(prose, c)) c.lastSeenReply = state.replies;
+        if (c.lastSeenSeq === seq || typeof c.lastSeenReply !== "number" || named.has(k)) c.lastSeenReply = state.replies;
     }
     const after = Number(ctx.staleAfter) || 0;
     if (after <= 0) return;

@@ -12,6 +12,9 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { statKey } from "./parse.js";
+import { whoIs, namedIn, nameWords } from "../../names.js";
+
+export { nameWords };
 
 export const emptyBonds = () => ({ people: {} });
 export const emptySheet = () => ({ fields: {}, seq: 0 });
@@ -47,13 +50,11 @@ function applyField(target, f) {
     return b === next.text ? null : { label: next.label, before: b, after: next.text };
 }
 
-/** Finds the record for a name: exact, then a unique first-name match ("Matt" ↔ "Matt Reyes"). */
-export function findPersonKey(people, name) {
+/** Finds the record for a name (state/names.js: exact, then the one character it fits). */
+export function findPersonKey(people, name, opts) {
     const k = statKey(name);
     if (people[k]) return k;
-    const first = k.split(" ")[0];
-    const hits = Object.keys(people).filter(p => p.split(" ")[0] === first);
-    return hits.length === 1 && first.length > 2 ? hits[0] : null;
+    return whoIs(people, name, opts);
 }
 
 /**
@@ -161,69 +162,8 @@ export function pickBondsFor(state, { present = [], recentText = "", latestNames
     const people = (state && state.people) || {};
     const out = [];
     const add = k => { if (k && people[k] && !out.includes(k)) out.push(k); };
-    for (const n of present) add(findPersonKey(people, n) || findByNickname(people, n));
+    for (const n of present) add(findPersonKey(people, n, { nickname: true }));
     for (const n of latestNames) add(findPersonKey(people, n));
-    // Names and text are normalised the same way, so a possessive ("Chloe's",
-    // "Dom’s") or "O'Brien" still matches. It used to delete apostrophes,
-    // which turned "Chloe's" into "chloes" and missed her.
-    const text = ` ${nameWords(recentText)} `;
-    // A surname alone counts when only one character has it ("Bathory"), never
-    // when two share it ("Cairns" could be Duncan or Cathleen).
-    const surnames = {};
-    for (const [k, rec] of Object.entries(people)) {
-        const sn = surnameOf(rec.name);
-        if (sn) (surnames[sn] = surnames[sn] || []).push(k);
-    }
-    for (const [k, rec] of Object.entries(people)) {
-        const sn = surnameOf(rec.name);
-        const names = nameCandidates(rec.name);
-        if (sn && surnames[sn].length === 1) names.push(sn);
-        if (names.some(n => text.includes(` ${n} `))) add(k);
-    }
+    for (const k of namedIn(recentText, people)) add(k);
     return out;
-}
-
-// The last word of a name with two or more words, brackets left out:
-// "Elizabeth Bathory" → "bathory", "Dom (Dominic Morin)" → none ("Dom" alone).
-function surnameOf(name) {
-    const w = nameWords(String(name || "").replace(/\([^)]*\)/g, " ")).split(" ").filter(Boolean);
-    const last = w.length >= 2 ? w[w.length - 1] : "";
-    return last.length > 2 ? last : "";
-}
-
-/** Lowercase words, possessives dropped, every other mark a space. */
-export function nameWords(s) {
-    return String(s || "")
-        .toLowerCase()
-        .replace(/[’‘`´]/g, "'")
-        .replace(/(\p{L})'s\b/gu, "$1")
-        .replace(/[^\p{L}\p{N}]+/gu, " ")
-        .trim();
-}
-
-// What a character can be called in the story: the full name, the first name,
-// and a name in brackets ("Dom (Dominic Morin)" is also Dominic Morin, Dominic).
-function nameCandidates(name) {
-    const raw = String(name || "");
-    const forms = [raw, ...(raw.match(/\(([^)]+)\)/g) || []).map(x => x.slice(1, -1)), raw.replace(/\([^)]*\)/g, " ")];
-    const out = new Set();
-    for (const f of forms) {
-        const w = nameWords(f);
-        if (!w) continue;
-        out.add(w);
-        out.add(w.split(" ")[0]);
-    }
-    return [...out].filter(n => n.length > 2);
-}
-
-// A short name for someone in the scene ("Cat" for Cathleen Cairns): the one
-// character whose first name starts with it. Only for the scene's cast.
-function findByNickname(people, name) {
-    const n = nameWords(name);
-    if (n.length < 3 || n.includes(" ")) return null;
-    const hits = Object.keys(people).filter(k => {
-        const first = nameWords(people[k].name).split(" ")[0];
-        return first !== n && first.startsWith(n);
-    });
-    return hits.length === 1 ? hits[0] : null;
 }

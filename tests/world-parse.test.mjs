@@ -273,7 +273,7 @@ test("E4: **- Aqua** (storms off) is a departure", () => {
     const s = run(U("**- Aqua** (storms off)"), base()).state;
     assert.equal(findCast(s, "Aqua").present, false);
     assert.equal(findCast(s, "Aqua").offscreen, "storms off");
-    assert.equal(findCast(s, "- Aqua"), null);
+    assert.deepEqual(Object.values(s.cast).map(c => c.name).filter(n => n.includes("-")), [], "no character named \"- Aqua\"");
 });
 
 test("E5: - Aqua (left the tavern) removes Aqua", () => {
