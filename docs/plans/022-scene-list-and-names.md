@@ -185,7 +185,12 @@ who walked out no longer pile up in Off-screen.
   only counts when spotting names in text, never to pick a person:
   "Emma" is not "Uncle Emma". Bonds no longer joins "Matt Cole" to
   "Matt Reyes" by the first name. Waiting for the developer's test.
-- [ ] Phase 2: one list of people per chat
+- [x] Phase 1 tested live (Rusty Anchor Test card, 2026-11-02).
+- [x] Phase 2: Bonds follows World State. A name World State knows under
+  another spelling lands on that character's bonds (`facts.same`, saved with
+  the reply; Chomusuke's Bonds too). "Same person as" adds a linked Bonds
+  edit (`mergeOf`) that is switched off and removed with the World State
+  one. Image looks already follow World State's nicknames. Tested live.
 - [ ] Phase 3: the `<Scene>` block
 - [ ] Phase 4: World State rules
 - [ ] Phase 5: `<Known_Names>`

@@ -20,7 +20,7 @@ import { createStateStore } from "./store.js";
 import { worldModule } from "./modules/world/index.js";
 import { bondsModule, sheetModule, chatterModule, trackerModule, cyoaModule } from "./modules/stats/index.js";
 import { renderWorkerNotes, cleanWorkerAnswer, blockTextIn } from "./modules/stats/worker.js";
-import { pickBondsFor, unsentBondKeys, movedBondNames } from "./modules/stats/model.js";
+import { pickBondsFor, unsentBondKeys, movedBondNames, bondNamesFromCast } from "./modules/stats/model.js";
 import { meguminCleanChatHistoryText } from "../engine/chatText.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast, findCast, castDisplayName, STALE_AFTER_DEFAULT } from "./modules/world/model.js";
@@ -254,9 +254,21 @@ function newcomersOf(step) {
         .filter(n => n.others.length);
 }
 
-/** The user says `name` is `into`: one character from now on. */
+/**
+ * The user says `name` is `into`: one character from now on. Their bonds
+ * join too (plan 022), as a linked edit that goes when this one goes.
+ */
 export function worldSameCharacter(name, into) {
-    return worldEdit([{ type: "merge", who: name, into }]);
+    const entry = worldEdit([{ type: "merge", who: name, into }]);
+    if (entry && stateStore.hasState("bonds")) {
+        stateStore.addUserEntry("bonds", { people: [], merge: [{ who: name, into }], mergeOf: entry.id });
+    }
+    return entry;
+}
+
+// The Bonds edits that came with a World State "Same person as" (mergeOf).
+function linkedBondEdits(entryId) {
+    return stateStore.activeEntries("bonds").filter(e => e.source === "user" && e.parsed && e.parsed.mergeOf === entryId);
 }
 
 /** A manual edit from the editor. Returns the entry, or null with no chat open. */
@@ -277,10 +289,12 @@ export function worldRemoveFromScene(name, { forget = false } = {}) {
 }
 
 export function worldSetEntryDisabled(entryId, disabled) {
+    for (const e of linkedBondEdits(entryId)) stateStore.setDisabled(e.id, disabled);
     return stateStore.setDisabled(entryId, disabled);
 }
 
 export function worldRemoveUserEntry(entryId) {
+    for (const e of linkedBondEdits(entryId)) stateStore.removeUserEntry(e.id);
     return stateStore.removeUserEntry(entryId);
 }
 
@@ -975,25 +989,43 @@ function storyTextBefore(index, count = 3) {
     return out.join("\n");
 }
 
-// Whose bonds the story model was handed when it wrote the reply at `index`,
-// worked out again from what came before it. Characters on file the reply
-// wrote numbers for without seeing theirs are kept as `unsent`.
-function bondsFactsFor(index) {
+// What a reply's Bonds block means, saved with it so a reload reads it the
+// same way:
+//   same:   names World State knows under another spelling ("Duncan" is
+//           Duncan Cairns), so they land on that character's bonds
+//   unsent: characters on file the reply wrote numbers for without having
+//           been handed theirs (worked out again from what came before)
+// `parsed`: Chomusuke's Bonds block (it gets `same` only: what it was
+// handed is not the story's list).
+function bondsFactsFor(index, parsed = null) {
     const msg = adapter.getChat()[index];
-    const parsed = bondsModule.parse(String(msg.mes || ""));
+    if (!msg) return undefined;
+    const text = String(msg.mes || "");
+    const fromWorker = Boolean(parsed);
+    parsed = parsed || bondsModule.parse(text);
     if (!parsed || !Array.isArray(parsed.people) || !parsed.people.length) return undefined;
     const st = stateStore.stamp(msg);
     if (!st) return undefined;
     if (st.dirty) adapter.saveChat();
     const before = st.seq - 0.5;
     const state = stateStore.getStateAt("bonds", before);
-    if (!Object.keys((state && state.people) || {}).length) return undefined;
-    const present = worldEnabled() && stateStore.hasState("world")
-        ? presentCast(stateStore.getStateAt("world", before)).flatMap(c => [c.name, ...(c.aliases || [])])
-        : [];
-    const handed = pickBondsFor(state, { present, recentText: storyTextBefore(index), latestNames: lastBondsNames(st.seq) });
-    const unsent = unsentBondKeys(state, parsed, handed);
-    return unsent.length ? { unsent } : undefined;
+    const facts = {};
+    const world = worldEnabled() && stateStore.hasState("world") ? stateStore.getStateAt("world", before) : null;
+    if (world) {
+        // The reply's own World block counts: "+ Mira Vale" there and "Mira"
+        // in Bonds are one person.
+        const wp = worldModule.parse(text);
+        const cast = (wp ? worldModule.apply(world, wp, { seq: st.seq }).state : world).cast;
+        const same = bondNamesFromCast(state, parsed, cast);
+        if (Object.keys(same).length) facts.same = same;
+    }
+    if (!fromWorker && Object.keys((state && state.people) || {}).length) {
+        const present = world ? presentCast(world).flatMap(c => [c.name, ...(c.aliases || [])]) : [];
+        const handed = pickBondsFor(state, { present, recentText: storyTextBefore(index), latestNames: lastBondsNames(st.seq) });
+        const unsent = unsentBondKeys(state, parsed, handed, facts);
+        if (unsent.length) facts.unsent = unsent;
+    }
+    return Object.keys(facts).length ? facts : undefined;
 }
 
 function statsOnReceived(messageId) {
@@ -1125,7 +1157,8 @@ export function blocksFinishRead(token, raw) {
         const block = blockTextIn(cleaned, BLOCK_ROUTE_TAGS[id]);
         const parsed = block ? STAT_MODULE_DEFS[id].parse(block) : null;
         if (parsed) found.push(id);
-        stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: [id], swipe: token.swipe, parsed: parsed || null, raw: block });
+        const facts = id === "bonds" && parsed ? bondsFactsFor(at, parsed) : undefined;
+        stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: [id], swipe: token.swipe, parsed: parsed || null, raw: block, ...(facts ? { facts: { bonds: facts } } : {}) });
     }
     stateChangedHook();
     return { ok: found.length > 0, dropped: false, found };
