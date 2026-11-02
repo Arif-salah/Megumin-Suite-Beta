@@ -23,7 +23,9 @@ import { renderWorkerNotes, cleanWorkerAnswer, blockTextIn } from "./modules/sta
 import { pickBondsFor, unsentBondKeys, movedBondNames, bondNamesFromCast } from "./modules/stats/model.js";
 import { meguminCleanChatHistoryText } from "../engine/chatText.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
-import { presentCast, findCast, castDisplayName, STALE_AFTER_DEFAULT } from "./modules/world/model.js";
+import { presentCast, remoteCast, findCast, castDisplayName, STALE_AFTER_DEFAULT } from "./modules/world/model.js";
+import { parseScene, sceneBlockOf } from "./scene.js";
+import { SCENE_RULES, SCENE_TEMPLATE } from "../prompts/scene.js";
 import { notebookModule } from "./modules/notebook/index.js";
 import {
     notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler, truthCountWords
@@ -71,6 +73,36 @@ export function worldUpdateMode() {
     const c = localProfile && localProfile.chomusuke;
     if (c && c.enabled && c.profileId && c.features && c.features.worldState === true) return "sidemodel";
     return "inline";
+}
+
+// ── The scene list (plan 022) ─────────────────────────────────────────────
+
+/** Whether the story model writes a <Scene> list: a module that needs names is on. */
+export function sceneWanted() {
+    if (!adapter.getMeta()) return false;
+    return (worldEnabled() && worldUpdateMode() !== "manual") || statBlockOn("bonds") || statBlockOn("chatter");
+}
+
+/** The <Scene> rules and line to fill in, or null. */
+export function sceneBlockRequest() {
+    return sceneWanted() ? { rules: sub(SCENE_RULES), template: SCENE_TEMPLATE } : null;
+}
+
+// Everyone the story is with: in the scene and on a call, with their nicknames.
+function scenePeople(world) {
+    return [...presentCast(world), ...remoteCast(world)].flatMap(c => [c.name, ...(c.aliases || [])]);
+}
+
+// Without World State: the names in the last <Scene> list before `index`.
+function sceneNamesBefore(index) {
+    const chat = adapter.getChat();
+    for (let i = Math.min(index, chat.length) - 1; i >= 0; i--) {
+        const m = chat[i];
+        if (!m || m.is_user || m.is_system) continue;
+        const scene = parseScene(String(m.mes || ""));
+        if (scene) return [...scene.here, ...scene.remote].map(n => n.name);
+    }
+    return [];
 }
 
 /** Each reply writes the whole scene again (the "V10 + V11" setting). */
@@ -393,6 +425,9 @@ function exchangeFor(index, text, mode) {
         parts.unshift(`${m.name || (m.is_user ? sub("{{user}}") : "Narrator")}: ${proseOnly(m.mes)}`);
     }
     parts.push(`${adapter.getChat()[index]?.name || "Narrator"}: ${proseOnly(text)}`);
+    // The reply's scene list: who is there comes from it (plan 022).
+    const scene = sceneBlockOf(text);
+    if (scene) parts.push(scene);
     return parts.join("\n\n");
 }
 
@@ -1020,7 +1055,7 @@ function bondsFactsFor(index, parsed = null) {
         if (Object.keys(same).length) facts.same = same;
     }
     if (!fromWorker && Object.keys((state && state.people) || {}).length) {
-        const present = world ? presentCast(world).flatMap(c => [c.name, ...(c.aliases || [])]) : [];
+        const present = world ? scenePeople(world) : sceneNamesBefore(index);
         const handed = pickBondsFor(state, { present, recentText: storyTextBefore(index), latestNames: lastBondsNames(st.seq) });
         const unsent = unsentBondKeys(state, parsed, handed, facts);
         if (unsent.length) facts.unsent = unsent;
@@ -1051,9 +1086,7 @@ function statsOnChatLoaded() {
 
 // Whose bonds the story is handed right now (record keys).
 function bondsInPlay(state, recentText) {
-    const present = worldHasState()
-        ? presentCast(getWorldState()).flatMap(c => [c.name, ...(c.aliases || [])])
-        : [];
+    const present = worldHasState() ? scenePeople(getWorldState()) : sceneNamesBefore(adapter.getChat().length);
     return pickBondsFor(state, { present, recentText, latestNames: lastBondsNames() });
 }
 
@@ -1131,7 +1164,7 @@ export function blocksReadNotes(token, exchangeText = "") {
     const sheet = token.ids.includes("sheet") ? stateStore.getStateAt("sheet", token.seq - 0.5) : null;
     let bondsText = "";
     if (bonds && Object.keys(bonds.people || {}).length) {
-        const present = worldHasState() ? presentCast(getWorldState()).flatMap(c => [c.name, ...(c.aliases || [])]) : [];
+        const present = worldHasState() ? scenePeople(getWorldState()) : sceneNamesBefore(token.index + 1);
         bondsText = renderBondsNotes(bonds, pickBondsFor(bonds, { present, recentText: exchangeText }));
     }
     const sheetText = sheet ? renderSheetNotes(sheet) : "";

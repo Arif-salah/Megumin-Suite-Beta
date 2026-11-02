@@ -21,6 +21,7 @@ import { blocksBeginRead, blocksReadNotes, blocksFinishRead, blocksAbandonRead, 
 import { renderBlocksWorkerPrompt } from "../../state/modules/stats/worker.js";
 import { meguminBlockById, meguminBlockTemplateBody } from "./registry.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
+import { sceneBlockOf } from "../../state/scene.js";
 
 const sub = t => { try { return substituteParams(t); } catch (e) { return t; } };
 export const NOT_A_REPLY = new Set(["first_message", "command", "impersonate", "quiet"]);
@@ -34,6 +35,9 @@ export function exchangeText(index, replyText) {
         .map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`);
     const reply = chat[index];
     lines.push(`${reply ? reply.name : ""}: ${meguminCleanChatHistoryText(replyText)}`);
+    // The reply's scene list: who is there comes from it (plan 022).
+    const scene = sceneBlockOf(replyText);
+    if (scene) lines.push(scene);
     return lines.join("\n\n");
 }
 

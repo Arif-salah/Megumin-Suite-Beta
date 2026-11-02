@@ -12,7 +12,8 @@
 
 import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
-import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest } from "../../state/index.js";
+import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest, sceneBlockRequest } from "../../state/index.js";
+import { SCENE_TAG } from "../../state/scene.js";
 import { NOTEBOOK_TAGS } from "../../state/modules/notebook/parse.js";
 import {
     BLOCKS_HEAD_SPLIT, wrapBlockRules, shortRulesHeading, bondsRulesSplit, sheetRulesSplit,
@@ -254,14 +255,18 @@ export function blocksEnvelopeParts(dict) {
     // the envelope whenever it is on, even with no other block.
     let notebook = null;
     try { notebook = notebookBlockRequest(); } catch (e) { console.warn("[Megumin Suite] Notebook: could not build its request.", e); }
-    if (!active.length && !notebook) return { rules: [], parts: [], splitRules: [], splitParts: [] };
+    // Plan 022: the scene list comes first, so every block after it is written
+    // with the names already set. Asked for whenever a module needs names.
+    let scene = null;
+    try { scene = sceneBlockRequest(); } catch (e) { console.warn("[Megumin Suite] Scene: could not build its request.", e); }
+    if (!active.length && !notebook && !scene) return { rules: [], parts: [], splitRules: [], splitParts: [] };
 
-    const parts = [];
-    const rules = [];   // per-block rules, written above <Blocks>
+    const parts = scene ? [scene.template] : [];
+    const rules = scene ? [scene.rules] : [];   // per-block rules, written above <Blocks>
     // Plan 018: the V11 preset's copy. A block with `buildSplit` sends its rules
     // up top and only its lines to fill in the skeleton; the rest are the same.
-    const splitParts = [];
-    const splitRules = [];
+    const splitParts = scene ? [scene.template] : [];
+    const splitRules = scene ? [scene.rules] : [];
     active.forEach(b => {
         // A lead block is written before the prose, so it is deliberately not in
         // the envelope at all — the envelope is the last thing in the reply, and
@@ -526,7 +531,7 @@ export function meguminBlockById(id) {
 // block that silently leaks, which is why it is derived rather than typed out.
 export function meguminAllBlockTags() {
     const custom = (localProfile && localProfile.blockStack && localProfile.blockStack.custom) || [];
-    const tags = [...MEGUMIN_BLOCK_REGISTRY.map(b => b.tag), ...custom.map(b => b.tag), ...NOTEBOOK_TAGS];
+    const tags = [...MEGUMIN_BLOCK_REGISTRY.map(b => b.tag), ...custom.map(b => b.tag), ...NOTEBOOK_TAGS, SCENE_TAG];
     // Story_Tracker is stripped explicitly by the cleaner before this list is
     // used, and stripping it twice is harmless, but a duplicate here would build
     // the same RegExp twice on every cleaned message.
@@ -546,7 +551,7 @@ export const BLOCK_VISIBILITY_CHOICES = [
 export const RESERVED_BLOCK_TAGS = [
     "blocks", "details", "summary", "think", "thinking", "gametxt", "updatevariable",
     "combat_log", "location", "options", "disclaimer", "div", "span", "img", "p", "br",
-    "notebook", "notebook_update"
+    "notebook", "notebook_update", "scene"
 ];
 
 export function blockTagFromName(name) {

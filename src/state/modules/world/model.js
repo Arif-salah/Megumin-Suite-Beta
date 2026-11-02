@@ -12,6 +12,7 @@
 
 import { PC, nameKey } from "./parse.js";
 import { whoIs, namedIn as namesIn } from "../../names.js";
+import { parseScene } from "../../scene.js";
 
 const LISTS = ["threads", "seeds", "timers"];
 
@@ -142,8 +143,8 @@ function adoptAliases(state, entry, aliases) {
     }
 }
 
-function castEntry(state, name, seq, createPresent) {
-    const k = resolveCastKey(state, name);
+function castEntry(state, name, seq, createPresent, key) {
+    const k = key || resolveCastKey(state, name);
     if (!state.cast[k]) {
         state.cast[k] = { name, present: createPresent, fields: {}, offscreen: "", lastSeenSeq: seq };
         return { entry: state.cast[k], created: true };
@@ -198,7 +199,9 @@ export function namedIn(prose, c) {
     return namesIn(prose, { c }).length > 0;
 }
 
-function staleStep(state, ctx, seq, note) {
+// `counted`: the reply wrote a scene list, so nobody is moved out by this
+// guess; the counts still go on for a reply that writes none.
+function staleStep(state, ctx, seq, note, counted = false) {
     if (typeof ctx.text !== "string") return;   // your own edits, deleted messages
     state.replies = (state.replies || 0) + 1;
     const named = new Set(namesIn(proseOf(ctx.text), state.cast));
@@ -207,7 +210,7 @@ function staleStep(state, ctx, seq, note) {
         if (c.lastSeenSeq === seq || typeof c.lastSeenReply !== "number" || named.has(k)) c.lastSeenReply = state.replies;
     }
     const after = Number(ctx.staleAfter) || 0;
-    if (after <= 0) return;
+    if (after <= 0 || counted) return;
     const present = presentCast(state);
     const stale = present.filter(c => state.replies - c.lastSeenReply >= after);
     if (!stale.length) return;
@@ -220,6 +223,53 @@ function staleStep(state, ctx, seq, note) {
         c.present = false;
         note(`${c.name} left`, "present", `not named for ${after} replies`);
     }
+}
+
+// ── Who is in the scene, from the reply's <Scene> list (plan 022) ─────────
+//
+// The story model lists who is there at the end of every reply. With a list,
+// presence comes from it alone: anyone not on it has left, without being
+// moved off-screen (Off-screen is only for someone the story will come back
+// to, and the model writes that itself). Remote people (on a call) are kept
+// apart: not in the scene, not drawn, but the story is talking with them.
+// `created`: characters this reply's lines brought in. Any of them the list
+// doesn't mark as new ("+Mira") is asked about on the card ("Same person as").
+function applyScene(state, scene, ctx, seq, note, unannounced, created) {
+    const here = new Set();
+    const remote = new Set();
+    const isNew = new Set();
+    const place = (n, set) => {
+        if (isPcName(state, n.name, ctx)) return;
+        const key = whoIs(state.cast, n.name, { nickname: true }) || resolveCastKey(state, n.name);
+        const had = Boolean(state.cast[key]);
+        const { entry } = castEntry(state, n.name, seq, false, key);
+        if (!had) created.add(entry);
+        if (n.isNew) isNew.add(entry);
+        entry.lastSeenSeq = seq;
+        set.add(entry);
+    };
+    for (const n of scene.here) place(n, here);
+    for (const n of scene.remote) place(n, remote);
+    for (const c of Object.values(state.cast)) {
+        const inHere = here.has(c);
+        const onCall = !inHere && remote.has(c);
+        if (inHere && !c.present) {
+            c.present = true;
+            c.offscreen = "";
+            note(`${c.name} entered`, "", "present");
+        } else if (!inHere && c.present) {
+            c.present = false;
+            note(`${c.name} left`, "present", onCall ? "on a call" : "gone");
+        }
+        if (onCall && !c.remote) {
+            c.remote = true;
+            note(`${c.name} · On a call`, "", "yes");
+        } else if (!onCall && c.remote) {
+            delete c.remote;
+            note(`${c.name} · On a call`, "yes", "");
+        }
+    }
+    for (const c of created) if (!isNew.has(c) && state.cast[nameKey(c.name)] === c && !unannounced.includes(c.name)) unannounced.push(c.name);
 }
 
 /**
@@ -242,8 +292,12 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
     const note = (label, before, after) => {
         if (before !== after) applied.push({ label, before: before || "", after: after || "" });
     };
+    // The reply's scene list, when it wrote one (plan 022). Not for your own edits.
+    const scene = !(parsed && parsed.byUser) && typeof ctx.text === "string" ? parseScene(ctx.text) : null;
+    const created = new Set();
     if (!parsed || !Array.isArray(parsed.changes)) {
-        staleStep(state, ctx, seq, note);
+        if (scene) applyScene(state, scene, ctx, seq, note, unannounced, created);
+        staleStep(state, ctx, seq, note, Boolean(scene));
         return { state, applied, notes, unannounced };
     }
     const startLists = Object.fromEntries(LISTS.map(k => [k, [...(state[k] || [])]]));
@@ -258,7 +312,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
     // (with "the whole scene every reply" a snapshot comes every reply).
     const snapshot = parsed.kind === "snapshot";
     const wasHere = new Set();
-    if (snapshot) {
+    if (snapshot && !scene) {
         for (const c of Object.values(state.cast)) {
             if (c.present) wasHere.add(c);
             c.present = false;
@@ -321,10 +375,13 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 // `keepPresence` comes from the editor: fixing an away character's
                 // outfit must not walk them back into the scene. A reply writing a
                 // field for someone away DOES bring them back.
-                const { entry, created } = castEntry(state, ch.who, seq, !ch.keepPresence);
+                // With a scene list, presence comes from the list alone.
+                const { entry, created: isNewEntry } = castEntry(state, ch.who, seq, !ch.keepPresence && !scene);
                 if (ch.keepPresence) {
                     // presence stays exactly as it was
-                } else if (created) {
+                } else if (scene) {
+                    if (isNewEntry) created.add(entry);
+                } else if (isNewEntry) {
                     notes.push(`${entry.name} had no "+ ${entry.name}" line; treated as entering the scene.`);
                     unannounced.push(entry.name);
                     note(`${entry.name} entered`, "", "present");
@@ -346,6 +403,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                 adoptAliases(state, entry, ch.aliases);
                 if (wasPresent) entry.present = true;
                 entry.lastSeenSeq = seq;
+                if (scene) break;   // the list says who is there
                 if (!entry.present) {
                     entry.present = true;
                     entry.offscreen = "";
@@ -358,6 +416,7 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
                     notes.push(`Ignored "- ${ch.who}": the player character cannot leave the scene.`);
                     break;
                 }
+                if (scene) break;   // the list says who is there
                 const { entry } = castEntry(state, ch.who, seq, false);
                 const wasPresent = entry.present;
                 entry.present = false;
@@ -469,6 +528,8 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
         }
     }
 
+    if (scene) applyScene(state, scene, ctx, seq, note, unannounced, created);
+
     // A snapshot that left someone out: they left.
     for (const c of wasHere) {
         if (!c.present && Object.values(state.cast).includes(c)) note(`${c.name} left`, "present", c.offscreen || "gone");
@@ -524,13 +585,18 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
         }
     }
 
-    if (!parsed.byUser) staleStep(state, ctx, seq, note);
+    if (!parsed.byUser) staleStep(state, ctx, seq, note, Boolean(scene));
     return { state, applied, notes, unannounced };
 }
 
 /** Everyone currently in the scene, in insertion order. */
 export function presentCast(state) {
     return Object.values((state && state.cast) || {}).filter(c => c.present);
+}
+
+/** Everyone on a call with {{user}} (the scene list's Remote, plan 022). */
+export function remoteCast(state) {
+    return Object.values((state && state.cast) || {}).filter(c => !c.present && c.remote);
 }
 
 /** Looks a character up by any spelling of their name. */

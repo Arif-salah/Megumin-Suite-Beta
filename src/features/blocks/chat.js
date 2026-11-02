@@ -23,6 +23,9 @@ import { openWorldEditor } from "../worldstate/editor.js";
 import { NOTEBOOK_CARD_DEFS, notebookDecoratePane, notebookCardStamp } from "../notebook/card.js";
 import { notebookReadForReply } from "../notebook/worker.js";
 
+// The scene list (plan 022) is for the extension: taken out of the message, no tab.
+const SCENE_CARD_DEF = { id: "scene", tag: "Scene", label: "Scene", visibility: "hidden" };
+
 // ── Clicking a choice ────────────────────────────────────────────────────────
 //
 // The card renderer knows nothing about SillyTavern — it is handed a callback
@@ -149,7 +152,7 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
         if (nbText) storeBlocks.Notebook_Update = nbText;
         // The notebook is not a block in the stack, but its blocks are drawn
         // (behind a spoiler) on every reply that wrote one, on or off.
-        applyBlocksToMessage(bodyEl, mesText, [...meguminRenderRegistry(), ...NOTEBOOK_CARD_DEFS], {
+        applyBlocksToMessage(bodyEl, mesText, [...meguminRenderRegistry(), ...NOTEBOOK_CARD_DEFS, SCENE_CARD_DEF], {
             msgIndex,
             worldStateText: wsText,
             storeBlocks,

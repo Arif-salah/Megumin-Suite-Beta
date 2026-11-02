@@ -32,7 +32,8 @@ test("prompt D (bootstrap): placeholder notes and the full template", () => {
     assert.equal(d.tag, "World_State");
     assert.match(d.user, /Nothing has been noted about this story yet/);
     assert.match(d.user, /at the END of the latest exchange/);
-    assert.match(d.user, /\+ \[NPC Name\]/);
+    assert.match(d.user, /\[NPC Name\]\.Outfit/);
+    assert.match(d.user, /each character in <Scene>/);
 });
 
 test("an answer without its opening tag parses once the prefill is put back", () => {

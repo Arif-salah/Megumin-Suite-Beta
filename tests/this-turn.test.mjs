@@ -66,7 +66,7 @@ test("the Bonds rules up top follow the block's fields", () => {
         { label: "Desire", type: "meter", start: 0 },
     ];
     assert.equal(bondsRulesSplit(romance),
-        "## Bonds\nOne line for each named character in the scene, and for anyone whose numbers changed in it. " +
+        "## Bonds\nOne line for each character in <Scene>, Here or Remote, and for anyone whose numbers changed in this scene. " +
         "Start every number from <Bonds_Now> in <Current_Info>. A number moves only when something in this scene moved it: " +
         "write the change and its reason in brackets, like (-6 he apologised and she heard pity), or (=) when nothing moved it. " +
         "Affection, Trust and Desire move by 10 at most in one reply, unless the scene plainly earns more. " +
@@ -76,7 +76,7 @@ test("the Bonds rules up top follow the block's fields", () => {
     assert.ok(one.includes("Trust moves by 10 at most"));
     assert.ok(one.includes("starts at Trust 30, Gold 0."));
     assert.equal(bondsRulesSplit([{ label: "Mood", type: "text" }]),
-        "## Bonds\nOne line for each named character in the scene, and for anyone whose numbers changed in it. Bonds are feelings only: leave out clothes, posture and place.");
+        "## Bonds\nOne line for each character in <Scene>, Here or Remote, and for anyone whose numbers changed in this scene. Bonds are feelings only: leave out clothes, posture and place.");
 });
 
 test("the Character Sheet rules follow its fields too", () => {

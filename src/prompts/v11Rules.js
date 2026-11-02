@@ -41,7 +41,7 @@ export const shortRulesHeading = text => String(text || "").replace(/^(#{1,3} .+
 
 /** @param {Array<{label: string, type: string, start?: number}>} fields */
 export function bondsRulesSplit(fields) {
-    const lines = ["One line for each named character in the scene, and for anyone whose numbers changed in it."];
+    const lines = ["One line for each character in <Scene>, Here or Remote, and for anyone whose numbers changed in this scene."];
     if (tracked(fields).length) {
         lines.push("Start every number from <Bonds_Now> in <Current_Info>. A number moves only when something in this scene moved it: write the change and its reason in brackets, like (-6 he apologised and she heard pity), or (=) when nothing moved it.");
         const cap = meterCap(fields);
@@ -66,7 +66,7 @@ export function sheetRulesSplit(fields) {
 }
 
 export const CHATTER_RULES = `## Inner Chatter
-What the characters really think, which {{user}} never hears. With two or more characters in the scene, write a few lines they trade behind {{user}}'s back, with their public face dropped: what they really think, what they want, who they side with, what they hold against someone. With one, write a stray thought in their own head: a feeling, a regret, a judgment, a memory. 30 words at most, honest and unguarded, and different from what they show on the surface.
+What the characters really think, which {{user}} never hears. With two or more characters in <Scene>, Here or Remote, write a few lines they trade behind {{user}}'s back, with their public face dropped: what they really think, what they want, who they side with, what they hold against someone. With one, write a stray thought in their own head: a feeling, a regret, a judgment, a memory. 30 words at most, honest and unguarded, and different from what they show on the surface.
 Example, a father alone: "What a disappointment of a son... I miss my wife. She'd know what to say to him. I never did."`;
 
 export const CHATTER_SKELETON = "[Name]: [what they really think, or say behind {{user}}'s back]";

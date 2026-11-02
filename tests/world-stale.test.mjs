@@ -59,10 +59,12 @@ test("names inside blocks or thinking don't count", () => {
     assert.equal(namedIn("Aquarium.", { name: "Aqua" }), false, "whole words");
 });
 
-test("the update rules ask for a leave line, for the story model and for Chomusuke", () => {
+// Plan 022: who is in the scene comes from <Scene>; no arrive/leave lines.
+test("the update rules take the scene from <Scene>, for the story model and for Chomusuke", () => {
     for (const rules of [renderWorldInstructions("update").rules, renderWorldClerkTask("update").rules]) {
-        assert.match(rules, /Check everyone under Present/);
-        assert.match(rules, /did not come along/);
+        assert.match(rules, /Who is in the scene comes from <Scene>/);
+        assert.match(rules, /Offscreen is only for someone away from the scene/);
+        assert.doesNotMatch(rules, /\+ <Name>|- <Name>/);
     }
     assert.doesNotMatch(renderWorldInstructions("update").rules, /\b(extension|app|settings?)\b/i, "stays in-story");
 });
@@ -110,7 +112,7 @@ test("whole scene rules: start from the last scene; no Seeds while the Notebook 
     const again = renderWorldInstructions("bootstrap", { carry: true }).rules;
     assert.doesNotMatch(first, /Start from it/);
     assert.match(again, /Start from it: copy every detail your reply did not change/);
-    assert.match(again, /anyone you leave out has left the scene/);
+    assert.match(again, /Write the fields of everyone in <Scene>/);
     assert.match(renderWorldClerkTask("bootstrap", { carry: true }).rules, /before the latest exchange\. Start from it/);
     const nb = renderWorldInstructions("bootstrap", { carry: true, noSecret: true }).rules;
     assert.doesNotMatch(nb, /Seeds/);
