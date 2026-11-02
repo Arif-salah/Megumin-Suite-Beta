@@ -252,12 +252,13 @@ export function renderWorldStateTab(c) {
 // How long each list may get. "Full update each time" has no limits at all,
 // and says so here: most users never read the changelog.
 const LIMIT_ROWS = [
-    { key: "threads", label: "Unresolved threads", desc: "Open questions the story still has to answer." },
-    { key: "seeds", label: "Planted seeds", desc: "Small details that hint at something later." },
-    { key: "timers", label: "Timers", desc: "Things that happen in a set number of replies." },
-    { key: "offscreen", label: "People off-screen", desc: "Characters away from the scene, with what they are doing." }
+    { key: "threads", icon: "fa-fire", label: "Threads", desc: "Open questions the story still has to answer." },
+    { key: "seeds", icon: "fa-seedling", label: "Seeds", desc: "Small details that hint at something later." },
+    { key: "timers", icon: "fa-hourglass-half", label: "Timers", desc: "Things that happen in a set number of replies." },
+    { key: "offscreen", icon: "fa-satellite-dish", label: "Off-screen", desc: "People away from the scene, with what they are doing." }
 ];
 
+// One tile per list, side by side: the name, − number +, and a short line.
 function limitsCard(cfg, who, hasChat, onChange) {
     const full = cfg.writeMode === "full" && who !== "me";
     const box = card("Limits",
@@ -268,20 +269,32 @@ function limitsCard(cfg, who, hasChat, onChange) {
     }
     const lim = worldLimits();
     const seedsOff = worldHidesSecrets();
+    const $grid = $(`<div class="wsx-limits ${full ? "is-off" : ""}"></div>`);
     for (const row of LIMIT_ROWS) {
-        const $in = $(`<input type="number" class="text_pole wsx-limit" min="1" max="${WORLD_LIMITS_MAX}" step="1" value="${lim[row.key]}" style="width:5em;" ${full ? "disabled" : ""}>`);
-        $in.on("change", () => {
-            const n = Math.max(1, Math.min(WORLD_LIMITS_MAX, Math.round(Number($in.val())) || lim[row.key]));
-            $in.val(n);
+        const unused = row.key === "seeds" && seedsOff;
+        const $tile = $(`<div class="wsx-limit-tile ${unused ? "is-unused" : ""}">
+            <div class="wsx-limit-name"><i class="fa-solid ${row.icon}"></i> ${row.label}</div>
+            <div class="wsx-step">
+                <button type="button" class="wsx-step-btn" data-d="-1" title="One fewer" ${full ? "disabled" : ""}><i class="fa-solid fa-minus"></i></button>
+                <span class="wsx-step-val">${lim[row.key]}</span>
+                <button type="button" class="wsx-step-btn" data-d="1" title="One more" ${full ? "disabled" : ""}><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div class="wsx-limit-desc">${unused ? "Not used while the Notebook is on: it keeps those." : row.desc}</div>
+        </div>`);
+        $tile.find(".wsx-step-btn").on("click", function () {
+            const now = Number($tile.find(".wsx-step-val").text()) || lim[row.key];
+            const n = Math.max(1, Math.min(WORLD_LIMITS_MAX, now + Number(this.dataset.d)));
+            if (n === now) return;
+            $tile.find(".wsx-step-val").text(n);
             cfg.limits = { ...(cfg.limits || {}), [row.key]: n };
             saveProfileToMemory();
             fireRefreshHook(REFRESH.TOKEN_COUNT);
             meguminScheduleBlocksRefresh();
             onChange();
         });
-        const desc = row.key === "seeds" && seedsOff ? `${row.desc} Not used while the Notebook is on: the Notebook keeps those.` : row.desc;
-        box.append(field(row.label, desc, $in));
+        $grid.append($tile);
     }
+    box.append($grid);
     box.append(`<div class="igx-note">Lowering a number drops the oldest ones on the next reply. Your own edits in the Editor are never cut.</div>`);
     return box;
 }
