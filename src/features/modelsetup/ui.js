@@ -102,6 +102,7 @@ export function renderModelSetup(c) {
                 <div><h2>Model Setup</h2><p>Pick the model you play with, and use the settings I tested for it.</p></div>
             </div>
         </div>
+        <div class="mtab-callout green" style="margin-bottom: 16px;"><i class="fa-solid fa-circle-info"></i><span><b>This page is optional.</b> A loadout is just the settings I tested for that model. Skipping it, or using a model that isn't listed, won't break the preset. You can use any engine and set everything yourself in the other tabs.</span></div>
     `);
 
     // ── Pick your model ──
@@ -212,7 +213,7 @@ function settingRow(s, l, isChanged, draft, rerender) {
         ids.forEach(id => $sel.append(`<option value="${esc(id)}" ${id === value ? "selected" : ""}>${esc(engineLabel(id))}</option>`));
         $sel.on("change", () => set($sel.val()));
         $ctl.append($sel);
-    } else if (s.key === "thinking" || s.key === "html") {
+    } else if (s.key === "thinking" || s.key === "thinkingCap" || s.key === "html") {
         $ctl.append(switchRow({ label: value ? "On" : "Off", on: value, onChange: on => set(on) }));
     } else if (s.key === "length") {
         const $sel = $(`<select class="text_pole msx-select"></select>`);
@@ -238,7 +239,7 @@ function engineLabel(id) {
 // Use this loadout popup.
 function describe(key, v) {
     if (key === "mode") return engineLabel(v);
-    if (key === "thinking" || key === "html") return v ? "on" : "off";
+    if (key === "thinking" || key === "thinkingCap" || key === "html") return v ? "on" : "off";
     if (key === "banList") return { full: "the full list", short: "the short list", off: "only your phrases" }[v];
     if (key === "length") return v === "custom" ? "your own" : (v || "not set");
     if (key === "style") return styleName(v);
@@ -278,8 +279,8 @@ async function confirmLoadout(l, settings) {
 
 async function useLoadout(l, draft, rerender) {
     const settings = draft || l.settings;
-    // Same guard as Global sync: the page must belong to the chat that's open,
     if (!(await confirmLoadout(l, settings))) return;
+    // Same guard as Global sync: the page must belong to the chat that's open,
     // or this character's settings land on another one.
     const liveKey = getCharacterKey() || "default";
     if (_loadedProfileKey && liveKey !== _loadedProfileKey) {
@@ -294,8 +295,8 @@ async function useLoadout(l, draft, rerender) {
     const styleBefore = localProfile.activeStyleId;
     applyLoadout(localProfile, l, CTX, settings);
     delete drafts[l.id];
-    if (!onlyThisCharacter) {
     const noun = scopeNoun();
+    if (!onlyThisCharacter) {
         saveProfileToMemory();
         fireRefreshHook(REFRESH.TOKEN_COUNT);
         toastr.success(`${l.name} is in use on every ${noun}.`, "Megumin Suite");

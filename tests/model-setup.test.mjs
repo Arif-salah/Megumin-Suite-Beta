@@ -152,7 +152,7 @@ test("the ban list row: full, short, off", () => {
     assert.deepEqual([p.banListBuiltIn, p.banListShort, b.read(p, ctx)], [true, true, "short"]);
     b.write(p, "full", ctx);
     assert.equal(b.read(p, ctx), "full");
-    assert.equal(SETTINGS.length, 6);
+    assert.equal(SETTINGS.length, 7);
 });
 
 test("V11 Тайна DeepSeek: V11 Тайна with one line back in <reader>, and its thinking", () => {

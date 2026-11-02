@@ -102,7 +102,9 @@ const DESCRIPTIONS = {
 
 const COT_TYPES = [
     { id: "v11-voice", label: "CoT V11 Тайна", desc: "Five steps in order: read your turn and the history, decide what each other character does, decide what the turn adds and whether a hidden truth gets a clue, write, then check the draft. Made for V11 Тайна.", isNew: true },
+    { id: "v11-voice-cap", label: "CoT V11 Тайна — Thinking Cap", desc: "The same five steps with a hard ceiling on the thinking: one line of notes per step, and the reply is written only once, in the reply. For models that over-think, like DeepSeek, Kimi, GLM and Qwen.", isNew: true },
     { id: "v11-wr", label: "CoT V11 Тайна · Writers' Room", desc: "The same five steps, worked by the room: the director reads, the psychologist decides what each other character does, the story architect picks what the turn adds, the storyteller and dialogue writer write, and the director checks.", isNew: true },
+    { id: "v11-wr-cap", label: "CoT V11 Тайна · Writers' Room — Thinking Cap", desc: "The room's five steps with a hard ceiling on the thinking: one line of notes per role, and the reply is written only once, in the reply. For models that over-think, like DeepSeek, Kimi, GLM and Qwen.", isNew: true },
     { id: "v11", label: "CoT V11 Тайна Preview", desc: "The writers' room works the turn in order: the director reads the history, the psychologist decides what each character does, the story architect picks what is new and whether a hidden truth gets a clue or comes out, the writers draft, and the director checks it against the rules.", isNew: true },
     { id: "v11-cap", label: "CoT V11 Тайна Preview — Thinking Cap", desc: "The same five steps with a hard ceiling on the thinking: one line of notes per step, and the reply is written only once, in the reply. For models that over-think, like DeepSeek, Kimi, GLM and Qwen.", isNew: true },
     { id: "v10-ukiyo", label: "CoT V10 Ukiyo", desc: "The long-form reasoning built for Ukiyo. Thinks like a novelist muttering before a draft — present tense, a little messy, never a plan. No phases, no checklists, no audits.", isNew: true },
@@ -152,6 +154,8 @@ const LATEST = ["V11", "V10"];
 function parseCot(model) {
     const m = String(model || "");
     if (m.startsWith("cot-v11-cap-")) return { type: "v11-cap", lang: "english" };
+    if (m.startsWith("cot-v11-voice-cap-")) return { type: "v11-voice-cap", lang: "english" };
+    if (m.startsWith("cot-v11-wr-cap-")) return { type: "v11-wr-cap", lang: "english" };
     if (m.startsWith("cot-v11-voice-")) return { type: "v11-voice", lang: "english" };
     if (m.startsWith("cot-v11-wr-")) return { type: "v11-wr", lang: "english" };
     if (m.startsWith("cot-v11-")) return { type: "v11", lang: "english" };
@@ -167,8 +171,8 @@ function parseCot(model) {
 // The frameworks made for a preset; null = any (older and your own presets).
 function cotTypesFor(mode) {
     const m = String(mode || "");
-    if (m === "v11-voice" || m === "v11-deepseek") return ["v11-voice"];
-    if (m === "v11-writers-room") return ["v11-wr"];
+    if (m === "v11-voice" || m === "v11-deepseek") return ["v11-voice", "v11-voice-cap"];
+    if (m === "v11-writers-room") return ["v11-wr", "v11-wr-cap"];
     if (m.includes("v11")) return ["v11", "v11-cap"];
     if (m.includes("v10")) return ["v10-ukiyo", "v10-ukiyo-cap", "v10-shura", "v10-shura-cap"];
     if (m.includes("v6")) return ["v6", "v6-lite"];
@@ -265,17 +269,17 @@ export function renderCoreAndCot(c) {
 
 // ── Preset page ──────────────────────────────────────────────────────────
 
-function pickPreset(m) {
-    localProfile.mode = m.id;
-    // Same mapping the Writing Style tab uses when it finds a locked preset with
-    // no style set. One list, so the two cannot disagree. Your own style, or a
 // What picking a preset also changed (plan 020), shown under the picker
 // until another preset is picked: { presetId, text }.
 let alsoSet = null;
 
-    // style of the same generation (V11 Inside between the V11 engines), is
+function pickPreset(m) {
     const styleBefore = localProfile.activeStyleId;
     const cotBefore = localProfile.model;
+    localProfile.mode = m.id;
+    // Same mapping the Writing Style tab uses when it finds a locked preset with
+    // no style set. One list, so the two cannot disagree. Your own style, or a
+    // style of the same generation (V11 Inside between the V11 engines), is
     // kept, as Model Setup does.
     const isBuiltIn = hardcodedLogic.directStyles.some(x => x.id === localProfile.activeStyleId);
     const lockedStyle = styleAfterPicking(m, localProfile.activeStyleId, isBuiltIn);
@@ -290,10 +294,6 @@ let alsoSet = null;
     const targetCot = meguminCotForMode(m.id, currentLang);
     if (targetCot) localProfile.model = targetCot;
     saveProfileToMemory();
-}
-
-function badgesFor(m, isLocked) {
-    let b = "";
 
     const parts = [];
     if (localProfile.model !== cotBefore) {
@@ -305,6 +305,10 @@ function badgesFor(m, isLocked) {
         if (ds) parts.push(`Writing Style → ${ds.name}`);
     }
     alsoSet = parts.length ? { presetId: m.id, text: `Also set: ${parts.join(", ")}.` } : null;
+}
+
+function badgesFor(m, isLocked) {
+    let b = "";
     if (m.recommended) b += `<span class="ecard-badge rec"><i class="fa-solid fa-star"></i> Recommended</span>`;
     if (m.isNew && !isLocked) b += `<span class="ecard-badge new">New</span>`;
     if (isLocked) b += `<span class="ecard-badge locked"><i class="fa-solid fa-lock"></i> Coming Soon</span>`;
@@ -341,13 +345,13 @@ function renderPresetPage(c, { active, activeIsCustom, official, customModes, re
     // ── Choose a preset ──
     if (!presetFilter) presetFilter = activeIsCustom ? "mine" : (active && !LATEST.includes(versionOf(active)) ? "all" : "latest");
     const pick = pageCard("Choose a preset");
+    if (alsoSet && alsoSet.presetId === localProfile.mode) {
+        pick.append(`<div class="igx-note ptx-also"><i class="fa-solid fa-circle-info"></i> ${esc(alsoSet.text)} You can change them on their pages.</div>`);
+    }
     const latestCount = official.filter(m => LATEST.includes(versionOf(m))).length;
     pick.append(segmented([
         { id: "latest", label: `Latest (${latestCount})` },
         { id: "all", label: `All (${official.length})` },
-    if (alsoSet && alsoSet.presetId === localProfile.mode) {
-        pick.append(`<div class="igx-note ptx-also"><i class="fa-solid fa-circle-info"></i> ${esc(alsoSet.text)} You can change them on their pages.</div>`);
-    }
         { id: "mine", label: `Mine (${customModes.length})` }
     ], presetFilter, id => { presetFilter = id; rerender(); }));
 
@@ -419,11 +423,11 @@ function renderThinkingPage(c, { active, cot, rerender }) {
             </div>
         `);
     }
+    const unused = $el => (ownThinking ? $el.addClass("ptx-unused").attr("title", "This preset has its own thinking steps") : $el);
 
     // ── Framework ──
     const allowed = cotTypesFor(localProfile.mode);
     const fw = pageCard("How it thinks", allowed ? "The frameworks made for your preset." : "Your preset works with any of these.");
-    const unused = $el => (ownThinking ? $el.addClass("ptx-unused").attr("title", "This preset has its own thinking steps") : $el);
     const visible = COT_TYPES.filter(t => !allowed || showAllCot || allowed.includes(t.id) || t.id === cot.type);
     const $grid = $(`<div class="mtab-card-grid ptx-grid ptx-cot-grid"></div>`);
     visible.forEach(t => {

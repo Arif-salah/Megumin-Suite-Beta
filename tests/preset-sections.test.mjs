@@ -19,8 +19,8 @@ test("thinking off takes its header with it", () => {
 });
 
 test("formatting keeps the old order and drops parts that are off", () => {
-    const out = formattingSection({ dnratio: "- Ratio", color: "", rules: "- A\n- B", direct: "", dn: "- DN" });
-    assert.equal(out, `${FORMATTING_HEADER}\n\n- Ratio\n- A\n- B\n- DN`);
+    const out = formattingSection({ dnratio: "- Ratio", color: "", rules: "- A\n- B", direct: "" });
+    assert.equal(out, `${FORMATTING_HEADER}\n\n- Ratio\n- A\n- B`);
     assert.equal(formattingSection({}), "");
 });
 
