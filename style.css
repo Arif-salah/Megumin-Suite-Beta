@@ -3846,6 +3846,23 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 .wsx-actions .menu_button.is-on { color: #f59e0b; border-color: rgba(245,158,11,.5); }
 .wsx-actions .menu_button[disabled] { opacity: .45; cursor: not-allowed; }
 .wsx-preview { margin-top: 4px; }
+/* The tab's parts (plan 022): a small label over each choice, icon tiles, one row of actions */
+.wsx-sub { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); margin-top: 2px; }
+.wsx-choice .igx-tile b { display: inline-flex; align-items: center; gap: 7px; }
+.wsx-choice .igx-tile b i { color: #f59e0b; font-size: .8rem; width: 14px; text-align: center; }
+.wsx-choice .igx-tile[disabled] { opacity: .45; cursor: not-allowed; }
+.wsx-actions-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.wsx-actions-row .wsx-btn { margin: 0; display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 9px; font-weight: 600; }
+.wsx-actions-row .menu_button.wsx-btn-main { background-color: #f59e0b !important; color: #1c1206 !important; border-color: #f59e0b !important; opacity: 1; }
+.wsx-actions-row .menu_button.wsx-btn-main[disabled] { opacity: .45; }
+.wsx-actions-row .wsx-btn-main:hover:not([disabled]) { filter: brightness(1.08); }
+.wsx-actions-row .wsx-btn.is-on { color: #f59e0b; border-color: rgba(245,158,11,.5); }
+.wsx-actions-row .wsx-btn[disabled] { opacity: .45; cursor: not-allowed; }
+.wsx-howto-box { border: 1px solid var(--border-color); border-radius: 10px; background: rgba(0,0,0,.15); padding: 8px 12px; }
+.wsx-howto-box summary { cursor: pointer; font-size: .8rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 7px; list-style: none; }
+.wsx-howto-box summary::-webkit-details-marker { display: none; }
+.wsx-howto-box summary i { color: #f59e0b; }
+.wsx-howto-box[open] summary { margin-bottom: 2px; }
 /* Limits (plan 022): one tile per list, side by side, − number + */
 .wsx-limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .wsx-limit-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; background: rgba(0,0,0,.2); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 10px 11px; }

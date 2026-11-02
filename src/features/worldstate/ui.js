@@ -81,6 +81,29 @@ const WRITER_DESC = {
     me: "Nothing updates by itself. Change it yourself in the Editor."
 };
 
+// One-of-many as tiles, like the Limits: an icon, the name, one line.
+function choiceTiles(options, current, onPick) {
+    const $t = $(`<div class="igx-tiles wsx-choice"></div>`);
+    for (const o of options) {
+        const $b = $(`<button type="button" class="igx-tile ${String(o.id) === String(current) ? "on" : ""}" ${o.disabled ? "disabled" : ""}>
+            <b><i class="fa-solid ${o.icon}"></i> ${esc(o.label)}</b>${o.desc ? `<span>${o.desc}</span>` : ""}
+        </button>`);
+        $b.on("click", () => {
+            if (o.disabled || $b.hasClass("on")) return;
+            $t.children().removeClass("on");
+            $b.addClass("on");
+            onPick(o.id);
+        });
+        $t.append($b);
+    }
+    return $t;
+}
+
+const sub = text => `<div class="wsx-sub">${text}</div>`;
+
+// The order follows what people come here for: fix this chat first, then how
+// updates are written, how much is kept, who counts as in the scene, what the
+// model reads, and last the card as the chat draws it.
 export function renderWorldStateTab(c) {
     c.empty();
     const redraw = () => renderWorldStateTab(c);
@@ -88,6 +111,9 @@ export function renderWorldStateTab(c) {
     const cfg = ws();
     const noun = scopeNoun();
     const hasChat = Boolean(getContext()?.chatId);
+    const who = writer();
+    let $host = null;
+    const refreshPreview = () => { if ($host) drawPreview($host[0], worldEnabled(), hasChat); };
 
     // ── Title + on/off ──
     const $head = $(`
@@ -111,120 +137,19 @@ export function renderWorldStateTab(c) {
             <span>World State is off: nothing is tracked and nothing is sent. Your settings below are kept for when you turn it on.</span></div>`);
     }
 
-    // ── Edit this chat (its own section: users kept asking how) ──
-    const edit = card(`<span><i class="fa-solid fa-pen"></i> Change this chat's World State</span>`,
+    // ── 1. This chat: fix it yourself (users kept asking how) ──
+    const chatBox = card(`<span><i class="fa-solid fa-pen"></i> This chat's World State</span>`,
         "Someone is in the scene who shouldn't be, an outfit is wrong, the time is off? Fix it yourself. Your changes stay: swipes and rewinds never undo them.");
-    const $open = $(`<button type="button" class="menu_button wsx-open-editor" ${hasChat && on ? "" : "disabled"}>
-        <i class="fa-solid fa-pen-to-square"></i> Open the Editor</button>`);
-    $open.on("click", () => openWorldEditor());
-    edit.append($open);
-    if (!on) edit.append(`<div class="igx-note">Turn World State on to edit it.</div>`);
-    else if (!hasChat) edit.append(`<div class="igx-note">Open a chat first: each chat has its own World State.</div>`);
-    edit.append(`<ul class="wsx-howto">
-        <li><b>Take someone out of the scene:</b> click the <i class="fa-solid fa-xmark"></i> on them in the last reply's World State card. Or in the Editor, set them to <i>Left the scene</i>, or <i class="fa-solid fa-trash"></i> to forget them.</li>
-        <li><b>Bring someone in:</b> in the Editor, type their name under the people in the scene and press Enter.</li>
-        <li><b>Change an outfit, the place or the time:</b> in the Editor, change the text and click away.</li>
-        <li><b>Undo one of your changes:</b> the Editor's History, Delete on that change.</li>
-    </ul>`);
-    c.append(edit);
-
-    // ── Who writes the updates ──
-    const who = writer();
-    const updates = card("Who writes the updates");
-    updates.append(segmented([
-        { id: "story", label: "The story model" },
-        { id: "chomusuke", label: "Chomusuke" },
-        { id: "me", label: "Only me" }
-    ], who, id => { setWriter(id); redraw(); }));
-    updates.append(`<div class="igx-note">${WRITER_DESC[who]}</div>`);
-    // Plan 020: what each update holds. Not for "Only me": nothing is written.
-    // "Full update each time" also lifts every limit (threads, seeds, timers,
-    // Off-screen): the model writes what still matters, and that's the list.
-    if (SHOW_WRITE_MODE && who !== "me") {
-        const full = cfg.writeMode === "full";
-        const lim = worldLimits();
-        updates.append(field("How each update is written", full
-            ? "Every reply writes the full World State. Helps with models that don't like to update it, or that keep old characters in the scene. Uses more tokens. No limits: the lists keep whatever the story still needs."
-            : `Each reply writes only what it changed. Short, and details stay exactly as written. Keeps at most ${lim.threads} threads, ${lim.seeds} seeds, ${lim.timers} timers and ${lim.offscreen} people off-screen (change these under Limits).`,
-        segmented([
-            { id: "changes", label: "Only what changed" },
-            { id: "full", label: "Full update each time" }
-        ], full ? "full" : "changes", id => {
-            cfg.writeMode = id;
-            saveProfileToMemory();
-            fireRefreshHook(REFRESH.TOKEN_COUNT);
-            redraw();
-        })));
-    }
-    if (who === "chomusuke") {
-        updates.append(`<div class="igx-note"><i class="fa-solid fa-cat"></i> Chomusuke's jobs are the same for every ${noun}.</div>`);
-        if (!chomusukeReady()) {
-            const $warn = $(`<div class="igx-banner red"><i class="fa-solid fa-triangle-exclamation"></i>
-                <span><b>Chomusuke isn't set up yet.</b> Until it is, the story model writes the updates.</span>
-                <button type="button" class="menu_button igx-btn">Chomusuke tab <i class="fa-solid fa-arrow-right"></i></button></div>`);
-            $warn.find("button").on("click", () => fireRefreshHook(REFRESH.SWITCH_TAB, "chomusuke"));
-            updates.append($warn);
-        }
-    }
-    c.append(updates);
-
-    // ── Limits (plan 022) ──
-    c.append(limitsCard(cfg, who, hasChat, () => drawPreview($host[0], worldEnabled(), hasChat)));
-
-    // ── Who's in the scene (plan 020; plan 022: the reply's scene list comes first) ──
-    const scene = card("Who's in the scene",
-        "Each reply lists who is in the scene, and World State follows that list. When a reply leaves the list out, anyone the story hasn't named for a while is moved out of the scene instead, with their details kept. Never the last one left with you.");
-    const staleNow = cfg.staleAfter === undefined ? STALE_AFTER_DEFAULT : Number(cfg.staleAfter) || 0;
-    scene.append(field("Move them out when not named for", "",
-        segmented([
-            { id: 0, label: "Never" },
-            { id: 5, label: "5 replies" },
-            { id: 8, label: "8 replies" },
-            { id: 12, label: "12 replies" }
-        ], [0, 5, 8, 12].includes(staleNow) ? staleNow : 8, id => {
-            cfg.staleAfter = Number(id);
-            saveProfileToMemory();
-            meguminScheduleBlocksRefresh();
-            drawPreview($host[0], worldEnabled(), hasChat);
-        })));
-    scene.append(`<div class="igx-note">The reply that moves someone out says so in its card ("Changed in this reply"); Revert on that reply brings them back. Take someone out yourself with the <i class="fa-solid fa-xmark"></i> on them in the card.</div>`);
-    c.append(scene);
-
-    // ── What the model reads ──
-    const reads = card("What the story model reads");
-    reads.append(field("Detail sent", "Scene only skips mood, agenda, secrets and threads, to save tokens.",
-        segmented([
-            { id: "full", label: "Full" },
-            { id: "scene", label: "Scene only" }
-        ], cfg.injectionDetail === "scene" ? "scene" : "full", id => { cfg.injectionDetail = id; saveProfileToMemory(); fireRefreshHook(REFRESH.TOKEN_COUNT); })));
-    reads.append(switchRow({
-        label: "Remind the model of returning characters",
-        desc: "When someone who left the scene is mentioned again, the model is reminded how they last were.",
-        on: cfg.showReturning !== false,
-        onChange: v => { cfg.showReturning = v; saveProfileToMemory(); }
-    }));
-    if (worldHidesSecrets()) {
-        const $nb = $(`<div class="igx-note"><i class="fa-solid fa-book"></i> The Notebook is on, so World State leaves out secrets and planted seeds: the Notebook keeps those. <button type="button" class="menu_button igx-btn">Keep them (The Notebook tab) <i class="fa-solid fa-arrow-right"></i></button></div>`);
-        $nb.find("button").on("click", () => fireRefreshHook(REFRESH.SWITCH_TAB, "notebook"));
-        reads.append($nb);
-    }
-    c.append(reads);
-
-    // ── In the chat ──
-    const chat = card("In the chat");
-    chat.append(switchRow({
-        label: "Show what changed on cards",
-        desc: "The top of each reply's World State card lists what that reply changed.",
-        on: cfg.showChanges !== false,
-        onChange: v => { cfg.showChanges = v; saveProfileToMemory(); meguminScheduleBlocksRefresh(); }
-    }));
     const pending = hasChat && stateStore.isPendingFullRewrite("world");
     // With the whole scene written every reply, a one-off full rewrite adds nothing.
     const everyReply = cfg.writeMode === "full" && who !== "me";
-    const $actions = $(`<div class="igx-inline wsx-actions">
-        <button type="button" class="menu_button igx-btn wsx-rewrite ${pending ? "is-on" : ""}" ${hasChat && !everyReply ? "" : "disabled"} title="${everyReply ? "Every reply already writes the whole scene" : pending ? "Click to cancel" : "The next update describes the whole scene again, not just what changed"}"><i class="fa-solid ${pending ? "fa-check" : "fa-arrows-rotate"}"></i> ${pending ? "Full rewrite next reply" : "Rewrite next reply"}</button>
-        <button type="button" class="menu_button igx-btn wsx-reset" ${hasChat ? "" : "disabled"} title="Clear this chat's World State"><i class="fa-solid fa-eraser"></i> Reset</button>
+    const ready = hasChat && on;
+    const $actions = $(`<div class="wsx-actions-row">
+        <button type="button" class="menu_button wsx-btn wsx-btn-main wsx-open-editor" ${ready ? "" : "disabled"}><i class="fa-solid fa-pen-to-square"></i> Open the Editor</button>
+        <button type="button" class="menu_button wsx-btn wsx-rewrite ${pending ? "is-on" : ""}" ${ready && !everyReply ? "" : "disabled"} title="${everyReply ? "Every reply already writes the whole scene" : pending ? "Click to cancel" : "The next update describes the whole scene again, not just what changed"}"><i class="fa-solid ${pending ? "fa-check" : "fa-arrows-rotate"}"></i> ${pending ? "Full rewrite next reply" : "Rewrite next reply"}</button>
+        <button type="button" class="menu_button wsx-btn wsx-reset" ${ready ? "" : "disabled"} title="Clear this chat's World State"><i class="fa-solid fa-eraser"></i> Reset</button>
     </div>`);
+    $actions.find(".wsx-open-editor").on("click", () => openWorldEditor());
     $actions.find(".wsx-rewrite").on("click", () => {
         stateStore.setPendingFullRewrite("world", !stateStore.isPendingFullRewrite("world"));
         redraw();
@@ -238,12 +163,108 @@ export function renderWorldStateTab(c) {
         toastr.info("World State cleared for this chat.", "Megumin Suite");
         redraw();
     });
-    chat.append($actions);
-    c.append(chat);
+    chatBox.append($actions);
+    if (!on) chatBox.append(`<div class="igx-note">Turn World State on to edit it.</div>`);
+    else if (!hasChat) chatBox.append(`<div class="igx-note">Open a chat first: each chat has its own World State.</div>`);
+    chatBox.append(`<details class="wsx-howto-box">
+        <summary><i class="fa-solid fa-circle-question"></i> How do I…</summary>
+        <ul class="wsx-howto">
+            <li><b>Take someone out of the scene:</b> click the <i class="fa-solid fa-xmark"></i> on them in the last reply's World State card. Or in the Editor, set them to <i>Left the scene</i>, or <i class="fa-solid fa-trash"></i> to forget them.</li>
+            <li><b>Bring someone in:</b> in the Editor, type their name under the people in the scene and press Enter.</li>
+            <li><b>Change an outfit, the place or the time:</b> in the Editor, change the text and click away.</li>
+            <li><b>Undo one of your changes:</b> the Editor's History, Delete on that change.</li>
+            <li><b>Start the scene over:</b> Rewrite next reply describes it again from what is on file; Reset clears it, and the next reply starts from scratch.</li>
+        </ul>
+    </details>`);
+    c.append(chatBox);
 
-    // ── This chat's card ──
-    const preview = card("This chat now", "The World State card as the chat draws it after the last message.");
-    const $host = $(`<div class="blk-preview wsx-preview"></div>`);
+    // ── 2. Updates: who writes them, and what each one holds ──
+    const updates = card(`<span><i class="fa-solid fa-feather-pointed"></i> Updates</span>`);
+    updates.append(sub("Who writes them"));
+    updates.append(choiceTiles([
+        { id: "story", icon: "fa-book-open", label: "The story model", desc: WRITER_DESC.story },
+        { id: "chomusuke", icon: "fa-cat", label: "Chomusuke", desc: WRITER_DESC.chomusuke },
+        { id: "me", icon: "fa-hand", label: "Only me", desc: WRITER_DESC.me }
+    ], who, id => { setWriter(id); redraw(); }));
+    if (who === "chomusuke") {
+        updates.append(`<div class="igx-note"><i class="fa-solid fa-cat"></i> Chomusuke's jobs are the same for every ${noun}.</div>`);
+        if (!chomusukeReady()) {
+            const $warn = $(`<div class="igx-banner red"><i class="fa-solid fa-triangle-exclamation"></i>
+                <span><b>Chomusuke isn't set up yet.</b> Until it is, the story model writes the updates.</span>
+                <button type="button" class="menu_button igx-btn">Chomusuke tab <i class="fa-solid fa-arrow-right"></i></button></div>`);
+            $warn.find("button").on("click", () => fireRefreshHook(REFRESH.SWITCH_TAB, "chomusuke"));
+            updates.append($warn);
+        }
+    }
+    // Plan 020: what each update holds. Not for "Only me": nothing is written.
+    // "Full update each time" also lifts every limit (threads, seeds, timers,
+    // Off-screen): the model writes what still matters, and that's the list.
+    if (SHOW_WRITE_MODE && who !== "me") {
+        const full = cfg.writeMode === "full";
+        updates.append(sub("How each update is written"));
+        updates.append(choiceTiles([
+            { id: "changes", icon: "fa-pen-to-square", label: "Only what changed", desc: "Short, and details stay exactly as written. Keeps to the limits below." },
+            { id: "full", icon: "fa-rotate", label: "Full update each time", desc: "The whole World State every reply. Helps models that forget to update it or keep old characters in the scene. More tokens, and no limits." }
+        ], full ? "full" : "changes", id => {
+            cfg.writeMode = id;
+            saveProfileToMemory();
+            fireRefreshHook(REFRESH.TOKEN_COUNT);
+            redraw();
+        }));
+    }
+    c.append(updates);
+
+    // ── 3. Limits (plan 022) ──
+    c.append(limitsCard(cfg, who, hasChat, refreshPreview));
+
+    // ── 4. Who's in the scene (plan 020; plan 022: the reply's scene list comes first) ──
+    const scene = card(`<span><i class="fa-solid fa-users"></i> Who's in the scene</span>`,
+        "Each reply lists who is in the scene, and World State follows that list. When a reply leaves the list out, anyone the story hasn't named for a while is moved out of the scene instead, with their details kept. Never the last one left with you.");
+    const staleNow = cfg.staleAfter === undefined ? STALE_AFTER_DEFAULT : Number(cfg.staleAfter) || 0;
+    scene.append(field("Move them out when not named for", "",
+        segmented([
+            { id: 0, label: "Never" },
+            { id: 5, label: "5 replies" },
+            { id: 8, label: "8 replies" },
+            { id: 12, label: "12 replies" }
+        ], [0, 5, 8, 12].includes(staleNow) ? staleNow : 8, id => {
+            cfg.staleAfter = Number(id);
+            saveProfileToMemory();
+            meguminScheduleBlocksRefresh();
+            refreshPreview();
+        })));
+    scene.append(`<div class="igx-note">The reply that moves someone out says so in its card ("Changed in this reply"); Revert on that reply brings them back. Take someone out yourself with the <i class="fa-solid fa-xmark"></i> on them in the card.</div>`);
+    c.append(scene);
+
+    // ── 5. What the story model reads ──
+    const reads = card(`<span><i class="fa-solid fa-book-open-reader"></i> What the story model reads</span>`);
+    reads.append(sub("Detail sent"));
+    reads.append(choiceTiles([
+        { id: "full", icon: "fa-layer-group", label: "Full", desc: "Everything on file: the scene, each character's mood and agenda, and the threads." },
+        { id: "scene", icon: "fa-eye", label: "Scene only", desc: "Time, place, who is there, what they wear and where they are. Saves tokens." }
+    ], cfg.injectionDetail === "scene" ? "scene" : "full", id => { cfg.injectionDetail = id; saveProfileToMemory(); fireRefreshHook(REFRESH.TOKEN_COUNT); }));
+    reads.append(switchRow({
+        label: "Remind the model of returning characters",
+        desc: "When someone who left the scene is mentioned again, the model is reminded how they last were.",
+        on: cfg.showReturning !== false,
+        onChange: v => { cfg.showReturning = v; saveProfileToMemory(); }
+    }));
+    if (worldHidesSecrets()) {
+        const $nb = $(`<div class="igx-note"><i class="fa-solid fa-book"></i> The Notebook is on, so World State leaves out secrets and planted seeds: the Notebook keeps those. <button type="button" class="menu_button igx-btn">Keep them (The Notebook tab) <i class="fa-solid fa-arrow-right"></i></button></div>`);
+        $nb.find("button").on("click", () => fireRefreshHook(REFRESH.SWITCH_TAB, "notebook"));
+        reads.append($nb);
+    }
+    c.append(reads);
+
+    // ── 6. The card, as the chat draws it ──
+    const preview = card(`<span><i class="fa-solid fa-id-card"></i> The World State card</span>`, "As the chat draws it after the last message.");
+    preview.append(switchRow({
+        label: "Show what changed on cards",
+        desc: "The top of each reply's World State card lists what that reply changed.",
+        on: cfg.showChanges !== false,
+        onChange: v => { cfg.showChanges = v; saveProfileToMemory(); meguminScheduleBlocksRefresh(); }
+    }));
+    $host = $(`<div class="blk-preview wsx-preview"></div>`);
     preview.append($host);
     c.append(preview);
     drawPreview($host[0], on, hasChat);
@@ -261,7 +282,7 @@ const LIMIT_ROWS = [
 // One tile per list, side by side: the name, − number +, and a short line.
 function limitsCard(cfg, who, hasChat, onChange) {
     const full = cfg.writeMode === "full" && who !== "me";
-    const box = card("Limits",
+    const box = card(`<span><i class="fa-solid fa-sliders"></i> Limits</span>`,
         "How many of each the World State keeps. When a list is full, the oldest one is dropped to make room. Bigger lists remember more but cost more tokens every reply.");
     if (full) {
         box.append(`<div class="igx-banner"><i class="fa-solid fa-circle-info"></i>
