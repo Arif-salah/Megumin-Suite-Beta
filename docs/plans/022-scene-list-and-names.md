@@ -206,3 +206,13 @@ who walked out no longer pile up in Off-screen.
 - All tested live on the Rusty Anchor Test card (2026-11-02): presence from
   the list, a phone call (Remote) and hanging up, "Cat" → Cathleen,
   a new `+Mira` saved once.
+- After a 30-turn run on Chomusuke's combined call (GLM 5.3 Flash), fixed: a
+  nickname no longer claims a longer name (Matt Cole ≠ Matt Reyes "Matt");
+  an update's `Offscreen:` can't create a character ("Old man Cairns");
+  `(Remote)`-style labels stay out of names; non-names stay out of
+  `<Known_Names>`; Chomusuke writes `<Scene>` when the reply has none
+  (combined call only); the final check asks for `<Blocks>` on turns that
+  have it. World State limits are settings now (World State tab).
+- Left as is (the developer's call): Chomusuke still gives Off-screen lines
+  to most people who leave; the 4-slot limit keeps it in check.
+- Not tested yet: an older (non-V11) preset; manual World State mode.
