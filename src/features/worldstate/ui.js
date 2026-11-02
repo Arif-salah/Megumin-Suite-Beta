@@ -20,7 +20,7 @@ import { localProfile } from "../../core/state.js";
 import { saveProfileToMemory } from "../../core/profile.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { scopeNoun } from "../../core/sync.js";
-import { stateStore, worldEnabled, worldCardTextAt, worldHidesSecrets } from "../../state/index.js";
+import { stateStore, worldEnabled, worldCardTextAt, worldHidesSecrets, worldLimits, WORLD_LIMITS_MAX } from "../../state/index.js";
 import { STALE_AFTER_DEFAULT } from "../../state/modules/world/model.js";
 import { meguminSyncLegacyBlockIds, meguminRenderRegistry, meguminStatFieldMap } from "../blocks/registry.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
@@ -142,9 +142,10 @@ export function renderWorldStateTab(c) {
     // Off-screen): the model writes what still matters, and that's the list.
     if (SHOW_WRITE_MODE && who !== "me") {
         const full = cfg.writeMode === "full";
+        const lim = worldLimits();
         updates.append(field("How each update is written", full
-            ? "Every reply writes the full World State. Helps with models that don't like to update it, or that keep old characters in the scene. Uses more tokens."
-            : "Each reply writes only what it changed. Short, and details stay exactly as written. Keeps at most 3 threads, 3 seeds, 2 timers and 4 people off-screen.",
+            ? "Every reply writes the full World State. Helps with models that don't like to update it, or that keep old characters in the scene. Uses more tokens. No limits: the lists keep whatever the story still needs."
+            : `Each reply writes only what it changed. Short, and details stay exactly as written. Keeps at most ${lim.threads} threads, ${lim.seeds} seeds, ${lim.timers} timers and ${lim.offscreen} people off-screen (change these under Limits).`,
         segmented([
             { id: "changes", label: "Only what changed" },
             { id: "full", label: "Full update each time" }
@@ -167,9 +168,12 @@ export function renderWorldStateTab(c) {
     }
     c.append(updates);
 
-    // ── Who's in the scene (plan 020) ──
+    // ── Limits (plan 022) ──
+    c.append(limitsCard(cfg, who, hasChat, () => drawPreview($host[0], worldEnabled(), hasChat)));
+
+    // ── Who's in the scene (plan 020; plan 022: the reply's scene list comes first) ──
     const scene = card("Who's in the scene",
-        "Models often forget to say when someone walks off. With this on, anyone the story hasn't named for a while is moved out of the scene, with their details kept. Never the last one left with you.");
+        "Each reply lists who is in the scene, and World State follows that list. When a reply leaves the list out, anyone the story hasn't named for a while is moved out of the scene instead, with their details kept. Never the last one left with you.");
     const staleNow = cfg.staleAfter === undefined ? STALE_AFTER_DEFAULT : Number(cfg.staleAfter) || 0;
     scene.append(field("Move them out when not named for", "",
         segmented([
@@ -243,6 +247,43 @@ export function renderWorldStateTab(c) {
     preview.append($host);
     c.append(preview);
     drawPreview($host[0], on, hasChat);
+}
+
+// How long each list may get. "Full update each time" has no limits at all,
+// and says so here: most users never read the changelog.
+const LIMIT_ROWS = [
+    { key: "threads", label: "Unresolved threads", desc: "Open questions the story still has to answer." },
+    { key: "seeds", label: "Planted seeds", desc: "Small details that hint at something later." },
+    { key: "timers", label: "Timers", desc: "Things that happen in a set number of replies." },
+    { key: "offscreen", label: "People off-screen", desc: "Characters away from the scene, with what they are doing." }
+];
+
+function limitsCard(cfg, who, hasChat, onChange) {
+    const full = cfg.writeMode === "full" && who !== "me";
+    const box = card("Limits",
+        "How many of each the World State keeps. When a list is full, the oldest one is dropped to make room. Bigger lists remember more but cost more tokens every reply.");
+    if (full) {
+        box.append(`<div class="igx-banner"><i class="fa-solid fa-circle-info"></i>
+            <span><b>No limits right now.</b> "Full update each time" is on, so every reply writes the lists out whole and keeps whatever still matters. These numbers are used with "Only what changed".</span></div>`);
+    }
+    const lim = worldLimits();
+    const seedsOff = worldHidesSecrets();
+    for (const row of LIMIT_ROWS) {
+        const $in = $(`<input type="number" class="text_pole wsx-limit" min="1" max="${WORLD_LIMITS_MAX}" step="1" value="${lim[row.key]}" style="width:5em;" ${full ? "disabled" : ""}>`);
+        $in.on("change", () => {
+            const n = Math.max(1, Math.min(WORLD_LIMITS_MAX, Math.round(Number($in.val())) || lim[row.key]));
+            $in.val(n);
+            cfg.limits = { ...(cfg.limits || {}), [row.key]: n };
+            saveProfileToMemory();
+            fireRefreshHook(REFRESH.TOKEN_COUNT);
+            meguminScheduleBlocksRefresh();
+            onChange();
+        });
+        const desc = row.key === "seeds" && seedsOff ? `${row.desc} Not used while the Notebook is on: the Notebook keeps those.` : row.desc;
+        box.append(field(row.label, desc, $in));
+    }
+    box.append(`<div class="igx-note">Lowering a number drops the oldest ones on the next reply. Your own edits in the Editor are never cut.</div>`);
+    return box;
 }
 
 function drawPreview(host, on, hasChat) {

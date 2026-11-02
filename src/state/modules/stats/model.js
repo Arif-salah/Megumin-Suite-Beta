@@ -167,8 +167,9 @@ export function applyBonds(prev, parsed, ctx = {}) {
         if (known && unsent.has(known)) continue;
         const key = known || statKey(name);
         const rec = state.people[key] || (state.people[key] = { name, fields: {} });
-        // A longer name ("Matt Reyes" after "Matt") is the better one to show.
-        if (name.length > rec.name.length && statKey(name).startsWith(statKey(rec.name))) rec.name = name;
+        // A longer name ("Matt Reyes" after "Matt") is the better one to show;
+        // a bracket added after it ("Dom (Bartender)") is not.
+        if (name.length > rec.name.length && statKey(name).startsWith(statKey(rec.name)) && !/[(\[]/.test(name.slice(rec.name.length))) rec.name = name;
         rec.seq = typeof ctx.seq === "number" ? ctx.seq : rec.seq || 0;
         for (const f of p.fields) {
             const ch = applyField(rec.fields, f);

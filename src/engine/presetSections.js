@@ -14,6 +14,7 @@ import {
     THINKING_HEADER, FORMATTING_HEADER, REMINDER_HEADER, BANLIST_CHECK,
 } from "../prompts/presetFrame.js";
 import { wrapFormatting, wrapFinalCheck, FINAL_CHECK_HEAD } from "../prompts/v11Rules.js";
+import { BLOCKS_CHECK, BLOCKS_CHECK_SCENE } from "../prompts/scene.js";
 
 // frame "v11" (plan 018): an engine with the V11 Тайна turn frame. Its thinking
 // brings its own <think> tags, and formatting and the checks are tags.
@@ -52,12 +53,14 @@ function checkLines(text) {
 /**
  * [[reminder]]: the header and a numbered list, counted as it is built so a
  * check that is off leaves no gap. The ban list check is listed only while the
- * ban list is sent.
+ * ban list is sent. `blocks` (plan 022): the reply ends with a <Blocks>
+ * section this turn ("scene" when <Scene> opens it), so that is checked too.
  */
-export function reminderSection({ checks, banned, presetChecks, userLine, frame } = {}) {
+export function reminderSection({ checks, banned, presetChecks, userLine, frame, blocks = false } = {}) {
     const lines = [
         ...checkLines(checks),
         ...(banned ? [BANLIST_CHECK] : []),
+        ...(blocks ? [blocks === "scene" ? BLOCKS_CHECK_SCENE : BLOCKS_CHECK] : []),
         ...checkLines(presetChecks),
         ...checkLines(userLine),
     ];

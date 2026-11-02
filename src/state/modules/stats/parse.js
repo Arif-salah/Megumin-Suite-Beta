@@ -123,6 +123,8 @@ export function cleanStatName(raw) {
         .replace(/\s*["“][^"”]*["”]\s*/g, " ")
         // A leading "+" is the scene list's mark for someone new, copied in (plan 022).
         .replace(/^[\s\-—–:+]+|[\s\-—–:]+$/g, "")
+        // A label a model adds after the name: "Cathleen Cairns (Remote)" (plan 022).
+        .replace(/\s*[(\[]\s*(here|remote|on a call|on the call|on the phone|on the line|present|off-?screen|away)\s*[)\]]\s*$/i, "")
         .replace(/\s+/g, " ")
         .trim();
     if (!n || /^\[.*\]$/.test(n) || n.length > 60) return "";

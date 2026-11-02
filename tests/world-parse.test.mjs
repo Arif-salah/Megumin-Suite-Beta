@@ -200,9 +200,16 @@ test("both blocks: World_State first, World_Update on top", () => {
 });
 
 test("offscreen line", () => {
-    const s = run(U("Offscreen: Wiz = restocking her shop"), base()).state;
+    const s = run(U("Wiz.Outfit: purple robe\nOffscreen: Wiz = restocking her shop"), base()).state;
     assert.equal(findCast(s, "Wiz").present, false);
     assert.equal(findCast(s, "Wiz").offscreen, "restocking her shop");
+});
+
+// Plan 022: "Old man Cairns", only mentioned, became a character this way.
+test("an update's Offscreen line can't bring in someone new", () => {
+    const r = run(U("Offscreen: Old man Cairns = asleep in the parlor"), base());
+    assert.equal(findCast(r.state, "Old man Cairns"), null);
+    assert.ok(r.notes.some(n => /skipped/.test(n)));
 });
 
 test("Offscreen-: removes the off-screen line, keeps the character", () => {
@@ -224,7 +231,7 @@ test("Offscreen-: on someone with no line is noted", () => {
 test("at most 4 off-screen lines: the oldest go, the characters stay", () => {
     let s = base();
     ["Wiz", "Megumin", "Darkness", "Yunyun"].forEach((n, i) => {
-        s = applyWorldChanges(s, parseWorldBlocks(U(`Offscreen: ${n} = somewhere ${i}`)), { seq: i + 2 }).state;
+        s = applyWorldChanges(s, parseWorldBlocks(U(`${n}.Mood: calm\nOffscreen: ${n} = somewhere ${i}`)), { seq: i + 2 }).state;
     });
     s = applyWorldChanges(s, parseWorldBlocks(U("- Aqua: went to the bath")), { seq: 10 }).state;
     assert.equal(findCast(s, "Wiz").offscreen, "");
@@ -232,7 +239,7 @@ test("at most 4 off-screen lines: the oldest go, the characters stay", () => {
     assert.equal(findCast(s, "Megumin").offscreen, "somewhere 1");
     assert.equal(findCast(s, "Aqua").offscreen, "went to the bath");
     // two in one reply: the first written is the older
-    s = applyWorldChanges(s, parseWorldBlocks(U("Offscreen: Chris = a heist\nOffscreen: Sena = the guild")), { seq: 11 }).state;
+    s = applyWorldChanges(s, parseWorldBlocks(U("Chris.Mood: sly\nSena.Mood: busy\nOffscreen: Chris = a heist\nOffscreen: Sena = the guild")), { seq: 11 }).state;
     const away = Object.values(s.cast).filter(c => c.offscreen).map(c => c.name).sort();
     assert.deepEqual(away, ["Aqua", "Chris", "Sena", "Yunyun"]);
 });

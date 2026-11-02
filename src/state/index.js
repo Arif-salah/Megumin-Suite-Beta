@@ -23,7 +23,7 @@ import { renderWorkerNotes, cleanWorkerAnswer, blockTextIn } from "./modules/sta
 import { pickBondsFor, unsentBondKeys, movedBondNames, bondNamesFromCast } from "./modules/stats/model.js";
 import { meguminCleanChatHistoryText } from "../engine/chatText.js";
 import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
-import { presentCast, remoteCast, findCast, castDisplayName, STALE_AFTER_DEFAULT } from "./modules/world/model.js";
+import { presentCast, remoteCast, findCast, castDisplayName, STALE_AFTER_DEFAULT, LIST_LIMITS, OFFSCREEN_LIMIT } from "./modules/world/model.js";
 import { parseScene, sceneBlockOf } from "./scene.js";
 import { SCENE_RULES, SCENE_TEMPLATE, KNOWN_NAMES_LEAD, KNOWN_NAMES_TASK } from "../prompts/scene.js";
 import { knownNameList } from "./names.js";
@@ -41,6 +41,7 @@ import {
     renderWorldForPrompt, renderWorldInstructions, renderWorldCard, findReturning, isEmptyWorld, describeWorldChange,
     renderWorldExtractPrompt
 } from "./modules/world/render.js";
+import { setWorldLimits } from "./modules/world/render.js";
 
 // Settings only: the state itself lives in the chat file, never in settings.json.
 export const WORLD_SETTINGS_DEFAULTS = {
@@ -59,7 +60,25 @@ export const WORLD_SETTINGS_DEFAULTS = {
 };
 
 export function worldSettings() {
+    // The prompts read the limits from here, so they are set before any render.
+    setWorldLimits(worldLimits());
     return { ...WORLD_SETTINGS_DEFAULTS, ...((localProfile && localProfile.worldState) || {}) };
+}
+
+/** Limits picked in the World State tab, 1–20 each; the built-in numbers otherwise. */
+export const WORLD_LIMITS_MAX = 20;
+export function worldLimits() {
+    const l = (localProfile && localProfile.worldState && localProfile.worldState.limits) || {};
+    const pick = (k, d) => {
+        const n = Math.round(Number(l[k]));
+        return n >= 1 && n <= WORLD_LIMITS_MAX ? n : d;
+    };
+    return {
+        threads: pick("threads", LIST_LIMITS.threads),
+        seeds: pick("seeds", LIST_LIMITS.seeds),
+        timers: pick("timers", LIST_LIMITS.timers),
+        offscreen: pick("offscreen", OFFSCREEN_LIMIT)
+    };
 }
 
 /**
@@ -160,7 +179,7 @@ const adapter = {
         return names;
     },
     applyContext: mid => mid === "world"
-        ? { staleAfter: Number(worldSettings().staleAfter) || 0, noLimits: worldWritesFull() }
+        ? { staleAfter: Number(worldSettings().staleAfter) || 0, noLimits: worldWritesFull(), limits: worldLimits() }
         : mid === "notebook" ? { liveCap: notebookReplayCap() } : {}
 };
 
@@ -587,7 +606,9 @@ export function worldReadInputs(token) {
     const noSecret = worldHidesSecrets();
     const noLimits = worldWritesFull();
     const notes = empty ? "" : sub(renderWorldForPrompt(before, { detail: "full", noSecret, noLimits }) + knownNamesForReader());
-    return { mode, notes, noSecret, carry: !empty, noLimits, exchange: exchangeFor(token.index, token.text, empty ? "bootstrap" : "update"), sheets: worldSheets() };
+    // needScene (plan 022): the reply wrote no <Scene>, so Chomusuke writes it.
+    const needScene = sceneWanted() && !parseScene(String(token.text || ""));
+    return { mode, notes, noSecret, carry: !empty, noLimits, needScene, exchange: exchangeFor(token.index, token.text, empty ? "bootstrap" : "update"), sheets: worldSheets() };
 }
 
 // The card(s) (Description and Personality) and the persona, sent with every

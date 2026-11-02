@@ -16,8 +16,8 @@ import {
     getWorldState, worldEdit, worldHistory, worldSetEntryDisabled, worldRemoveUserEntry,
     worldImportRange, worldChatOpen, stateStore, notebookEnabled, worldWritesFull, worldHidesSecrets
 } from "../../state/index.js";
-import { presentCast, fieldLabel, LIST_LIMITS } from "../../state/modules/world/model.js";
-import { PC_FIELDS, NPC_FIELDS } from "../../state/modules/world/render.js";
+import { presentCast, fieldLabel } from "../../state/modules/world/model.js";
+import { PC_FIELDS, NPC_FIELDS, currentWorldLimits } from "../../state/modules/world/render.js";
 import { PC } from "../../state/modules/world/parse.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { confirmPopup } from "../../ui/controls.js";
@@ -78,7 +78,7 @@ function renderStateView(state) {
     const list = l => `
         <div class="meg-wsed-list">
             <div class="meg-wsed-sub"><i class="fa-solid ${l.icon}"></i> ${l.title}
-                ${worldWritesFull() ? "" : `<span class="meg-wsed-tag" title="When a reply leaves more than ${LIST_LIMITS[l.key]}, the oldest one is removed.">at most ${LIST_LIMITS[l.key]}</span>`}</div>
+                ${worldWritesFull() ? "" : `<span class="meg-wsed-tag" title="When a reply leaves more than ${currentWorldLimits()[l.key]}, the oldest one is removed. Change the number in the World State tab.">at most ${currentWorldLimits()[l.key]}</span>`}</div>
             ${(state[l.key] || []).map(item => `
                 <div class="meg-wsed-listrow">
                     ${input({ kind: "listitem", list: l.key }, item)}

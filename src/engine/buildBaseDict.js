@@ -853,10 +853,6 @@ export function buildBaseDict(isTokenCount = false) {
         direct: dict["[[Direct]]"], dn: dict["[[DN]]"], frame,
     });
     dict["[[banned]]"] = banned;
-    dict["[[reminder]]"] = reminderSection({
-        checks: slotText("[[final_checks]]"), banned: !!banned,
-        presetChecks: slotText("[[reminder_checks]]"), userLine: dict["[[user]]"], frame,
-    });
     dict["[[content]]"] = slotText("[[content]]");
 
     // --- MASTER BLOCK ENVELOPE ---
@@ -874,6 +870,14 @@ export function buildBaseDict(isTokenCount = false) {
     // this line.
     const envelope = blocksEnvelopeParts(dict);
     dict["[[blocks]]"] = buildBlocksEnvelope(envelope);
+
+    // After the envelope (plan 022): the final check asks for the <Blocks>
+    // section only on a turn that has one.
+    dict["[[reminder]]"] = reminderSection({
+        checks: slotText("[[final_checks]]"), banned: !!banned,
+        presetChecks: slotText("[[reminder_checks]]"), userLine: dict["[[user]]"], frame,
+        blocks: envelope.parts.length ? (/^<Scene>/.test(envelope.parts[0]) ? "scene" : true) : false,
+    });
 
     // --- PLAN 018: the V11 preset's two halves ---
     // [[block_rules]] goes up top with [[npc_dossier]], [[dice_rules]] and

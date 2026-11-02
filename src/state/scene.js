@@ -28,7 +28,7 @@ function names(value) {
     return String(value || "")
         .replace(/\[[^\]]*\]/g, " ")              // an unfilled "[names, or: nobody]"
         .split(/\s*(?:,|;|\/|\band\b|&)\s*/i)
-        .map(s => s.replace(/^[\s*_`"'“”•-]+|[\s*_`"'“”.]+$/g, "").trim())
+        .map(s => s.replace(/^[\s*_`"'“”•-]+|[\s*_`"'“”.]+$/g, "").replace(/\s*[(\[][^)\]]*[)\]]\s*$/, "").trim())
         .filter(s => s && !NOBODY.test(s))
         .map(s => {
             const isNew = s.startsWith("+");

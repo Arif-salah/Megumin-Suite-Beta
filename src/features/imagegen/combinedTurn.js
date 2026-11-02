@@ -38,6 +38,7 @@ import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { statsModuleParses } from "../../state/index.js";
 import { renderWorldClerkTask, renderClerkNotes } from "../../state/modules/world/render.js";
 import { worldModule } from "../../state/modules/world/index.js";
+import { SCENE_CLERK_RULES, SCENE_TEMPLATE } from "../../prompts/scene.js";
 import { igGenerateWithComfy } from "./comfy.js";
 import { imageViaChomusuke, dueNow, NOT_A_REPLY, insertPlaceholder, removePlaceholder, unwrapImgTag } from "./auto.js";
 import { classicImageParts, classicImageRulesBlock } from "./classic/prompt.js";
@@ -92,6 +93,16 @@ function earlierStory(index, count = 4) {
         .map(m => `${m.name}: ${meguminCleanChatHistoryText(m.mes)}`).join("\n\n");
 }
 
+// Plan 022: a reply that wrote no <Scene> gets one from Chomusuke, in the
+// same answer, right after the World block (filed with the World update).
+function withScene(task, needScene) {
+    if (!needScene) return task;
+    return { ...task, rules: `${task.rules}
+
+${sub(SCENE_CLERK_RULES)}`, template: `${task.template}
+${SCENE_TEMPLATE}` };
+}
+
 /**
  * Runs the combined call for one reply. Resolves when everything is filed and
  * the image (if any) has been sent to ComfyUI. Never throws.
@@ -131,7 +142,7 @@ export async function runCombinedTurn(messageId, type, plan) {
                 sheets: w ? w.sheets : "",
                 earlier: earlierStory(index),
                 exchange,
-                world: w ? renderWorldClerkTask(w.mode, { noSecret: w.noSecret, carry: w.carry, noLimits: w.noLimits }) : null,
+                world: w ? withScene(renderWorldClerkTask(w.mode, { noSecret: w.noSecret, carry: w.carry, noLimits: w.noLimits }), w.needScene) : null,
                 image: wantImage,
                 onlyIfPhoto: (ig.triggerMode || "always") === "conditional",
                 blocks: bToken ? { notes: blocksReadNotes(bToken, exchange), tasks: blocksTasksFor(bToken.ids) } : null,

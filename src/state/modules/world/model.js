@@ -295,7 +295,9 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
         if (before !== after) applied.push({ label, before: before || "", after: after || "" });
     };
     // The reply's scene list, when it wrote one (plan 022). Not for your own edits.
-    const scene = !(parsed && parsed.byUser) && typeof ctx.text === "string" ? parseScene(ctx.text) : null;
+    // The reply's own list first; Chomusuke writes one when the reply has none.
+    const scene = parsed && parsed.byUser ? null
+        : (typeof ctx.text === "string" ? parseScene(ctx.text) : null) || (parsed && parsed.scene) || null;
     const created = new Set();
     const knewAnyone = Object.keys(state.cast).length > 0;
     if (!parsed || !Array.isArray(parsed.changes)) {
@@ -469,6 +471,16 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
             case "offscreen": {
                 let entry = null;
                 let value = ch.value;
+                // An update's Offscreen line can't bring in someone new: that is
+                // how "Old man Cairns", only mentioned, became a character (plan
+                // 022). A first World State and your own edits still can.
+                if (!snapshot && !parsed.byUser) {
+                    const who = ch.who || ch.value.split(/\s+/)[0];
+                    if (!ch.who ? !matchCastPrefix(state, ch.value) && !state.cast[resolveCastKey(state, who)] : !state.cast[resolveCastKey(state, ch.who)]) {
+                        notes.push(`Offscreen line for "${ch.who || ch.value}" was skipped: nobody by that name is in the story yet.`);
+                        break;
+                    }
+                }
                 if (ch.who) {
                     entry = castEntry(state, ch.who, seq, false).entry;
                 } else {
@@ -569,19 +581,21 @@ export function applyWorldChanges(prev, parsed, ctx = {}) {
     // World State) keeps the first ones it wrote. The user's own edits aren't
     // cut, and nothing is with "full update each time" (ctx.noLimits, plan 020).
     if (!parsed.byUser && !ctx.noLimits) {
+        // The user's numbers (World State tab), else the built-in ones.
+        const lim = { ...LIST_LIMITS, offscreen: OFFSCREEN_LIMIT, ...(ctx.limits || {}) };
         for (const key of LISTS) {
             const list = state[key] || (state[key] = []);
-            while (list.length > LIST_LIMITS[key]) {
+            while (list.length > lim[key]) {
                 const gone = listItems[key] ? list.pop() : list.shift();
                 note(`${LIST_LABEL[key]} − (list full)`, gone, "");
             }
         }
         const away = Object.values(state.cast).filter(c => !c.present && c.offscreen);
-        if (away.length > OFFSCREEN_LIMIT) {
+        if (away.length > lim.offscreen) {
             // A line from before the stamp counts from when they were last seen.
             const at = c => c.offscreenAt ?? c.lastSeenSeq ?? 0;
             away.sort((a, b) => at(a) - at(b));
-            for (const c of away.slice(0, away.length - OFFSCREEN_LIMIT)) {
+            for (const c of away.slice(0, away.length - lim.offscreen)) {
                 note(`${c.name} · Off-screen (list full)`, c.offscreen, "");
                 c.offscreen = "";
             }
