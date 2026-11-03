@@ -186,6 +186,8 @@ function findPlacement(trigger, slot) {
 
 /** One sentence a non-technical reader can act on. */
 function describePlacement(slot) {
+    // A text with no tag in the preset (plan 024) says where it goes itself.
+    if (slot.placement) return esc(slot.placement);
     const carried = slot.carrier ? CARRIERS[slot.carrier] : null;
     const p = findPlacement(slot.trigger, slot);
     if (carried) {
@@ -222,6 +224,7 @@ function describePlacement(slot) {
 
 /** A little map of the outgoing messages with this slot's position marked. */
 function renderPlacementMap(slot) {
+    if (slot.placement) return $(`<div class="dev-map"></div>`);
     const p = findPlacement(slot.trigger, slot);
     const $map = $(`<div class="dev-map"></div>`);
 

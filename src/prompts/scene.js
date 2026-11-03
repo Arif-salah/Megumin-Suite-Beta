@@ -21,9 +21,10 @@ export const KNOWN_NAMES_TASK = "Write every name as it is written in <Known_Nam
 
 // When the reply wrote no <Scene>, Chomusuke writes it with the World update,
 // as a reader of the exchange rather than its writer.
-export const SCENE_CLERK_RULES = SCENE_RULES
+export const sceneClerkRules = rules => String(rules)
     .replace("## Scene", "## Scene (also write this block)")
     .split("at the end of your reply").join("at the end of the latest exchange");
+export const SCENE_CLERK_RULES = sceneClerkRules(SCENE_RULES);
 
 // The final check's line while the reply ends with a <Blocks> section.
 export const BLOCKS_CHECK = "The response ends with the <Blocks> section.";

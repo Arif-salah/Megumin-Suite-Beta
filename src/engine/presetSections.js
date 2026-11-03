@@ -15,6 +15,7 @@ import {
 } from "../prompts/presetFrame.js";
 import { wrapFormatting, wrapFinalCheck, FINAL_CHECK_HEAD } from "../prompts/v11Rules.js";
 import { BLOCKS_CHECK, BLOCKS_CHECK_SCENE } from "../prompts/scene.js";
+import { editable } from "../prompts/edits.js";
 
 // frame "v11" (plan 018): an engine with the V11 Тайна turn frame. Its thinking
 // brings its own <think> tags, and formatting and the checks are tags.
@@ -60,7 +61,7 @@ export function reminderSection({ checks, banned, presetChecks, userLine, frame,
     const lines = [
         ...checkLines(checks),
         ...(banned ? [BANLIST_CHECK] : []),
-        ...(blocks ? [blocks === "scene" ? BLOCKS_CHECK_SCENE : BLOCKS_CHECK] : []),
+        ...(blocks ? [blocks === "scene" ? editable("blocksCheckScene", BLOCKS_CHECK_SCENE) : editable("blocksCheck", BLOCKS_CHECK)] : []),
         ...checkLines(presetChecks),
         ...checkLines(userLine),
     ];
@@ -96,7 +97,8 @@ export const PRESET_SECTION_PARTS_V11 = {
     "[[thinking]]": "[[THINK]]",
     "[[formatting]]": "<formatting>\n[[DNRATIO]]\n[[COLOR]]\n[[Direct]]\n</formatting>",
     "[[banned]]": "<banlist>\n[[banlist_builtin]]\n\n[[banlist]]\n</banlist>",
-    "[[reminder]]": `<final_check>\n${FINAL_CHECK_HEAD}\n[[final_checks]]\n[[reminder_checks]]\n[[user]]\n</final_check>`,
+    // A getter, so a Dev Mode edit of the heading is read each time.
+    get "[[reminder]]"() { return `<final_check>\n${editable("v11FinalCheckHead", FINAL_CHECK_HEAD)}\n[[final_checks]]\n[[reminder_checks]]\n[[user]]\n</final_check>`; },
 };
 
 export function expandPresetSections(text, { frame } = {}) {

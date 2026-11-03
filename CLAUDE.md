@@ -141,7 +141,12 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
 - All "use Chomusuke for X" routes and the Combine-calls settings live in the
   Chomusuke tab, not scattered in feature tabs.
 
-### Dev Mode: rules the blocks build
+### Dev Mode: every prompt (plan 024)
+- Texts built in code are edited in Dev Mode too: read through
+  `editable(key, builtin, tokens)` / `editableTree` where they are built
+  (V11 rules, Scene, Notebook, Chomusuke, Image V2 groups; slots from
+  `text(...)` in `data/slots.js` with a `placement` sentence). Plan:
+  `docs/plans/024-dev-mode-every-prompt.md`.
 - (`src/prompts/edits.js`, pure:
   `setPromptEditReader(getSharedFragment)` in index.js, `promptEdit(key)`,
   `fillPromptTokens`): shared slots in `data/slots.js` with a name-only

@@ -11,6 +11,7 @@
 
 import { IMAGE_V2_PROMPTS as P } from "../../../prompts/imageGenV2.js";
 import { renderBlocksTasks } from "../../../state/modules/stats/worker.js";
+import { editable } from "../../../prompts/edits.js";
 
 // Every section a combined answer can carry besides the image prompt (plan 009
 // adds the blocks Chomusuke writes), so none of them leaks into the prompt.
@@ -153,6 +154,12 @@ export function renderV2InlineSplit({ conditionalText = "", castList = "", rules
 // prompt, as before. Sections come back as tags, not JSON: a broken section
 // loses only itself.
 
+// Dev Mode edits: {{names}} = the characters who need a look, {{who}} =
+// whose outfits (src/prompts/edits.js).
+export const V2_LOOKS_TASK = "- Appearance of {{names}} as 8 to 12 booru tags each. Someone with a sheet in <Character_Sheets> looks the way the sheet says; use the story only for what the sheet leaves out. Always start with sex (male or female) and an age tag (young adult, adult, mature female, mature male, old woman, old man; never a number like \"30s\"), then hair, eye colour, skin, build, permanent features. A feminine-looking man gets \"otoko no ko, flat chest\"; a masculine-looking woman gets \"tomboy\". One tag per thing, never two that fight (petite with tall), only real booru tags (\"mole under eye\", not \"moles\"), no small face details (nose, lips, eyelashes). No clothing, expressions, poses or count tags. Skip anyone the text does not describe.";
+export const V2_OUTFIT_TASK = "- Outfit tags {{who}}: main garments only, 3 to 6 booru tags, one tag per garment with its colour, material and print (\"oversized pink sweater\", \"white cat print bra\"; never two tags for one garment), plus one standout accessory; plain over detailed; keep the state of dress; clothing only, nothing the text does not say.";
+export const COMBINED_IMAGE_TASK = "The image shows the moment the latest exchange ends on; draw nothing that has already ended (someone who put an item away no longer holds it).";
+
 /**
  * The instructions for the extra sections (no heading, no answer shape).
  * @param {{ outfits?: Array<{ name: string, outfit: string }>, looks?: string[], followUpdate?: boolean }} needs
@@ -164,12 +171,12 @@ export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = fa
         const who = followUpdate
             ? `for every character whose Outfit your World_Update changes${outfits.length ? ", and for these outfits" : ""}`
             : "for these outfits";
-        parts.push(`- Outfit tags ${who}: main garments only, 3 to 6 booru tags, one tag per garment with its colour, material and print ("oversized pink sweater", "white cat print bra"; never two tags for one garment), plus one standout accessory; plain over detailed; keep the state of dress; clothing only, nothing the text does not say.`);
+        parts.push(editable("imageV2OutfitTask", V2_OUTFIT_TASK.replace("{{who}}", who), { who }));
         parts.push(...outfits.map(o => `  ${o.name}: ${o.outfit}`));
     }
     if (outfits.length || followUpdate || looks.length) parts.push(`- ${P.tagsInEnglish}`);
     if (looks.length) {
-        parts.push(`- Appearance of ${looks.join(", ")} as 8 to 12 booru tags each. Someone with a sheet in <Character_Sheets> looks the way the sheet says; use the story only for what the sheet leaves out. Always start with sex (male or female) and an age tag (young adult, adult, mature female, mature male, old woman, old man; never a number like "30s"), then hair, eye colour, skin, build, permanent features. A feminine-looking man gets "otoko no ko, flat chest"; a masculine-looking woman gets "tomboy". One tag per thing, never two that fight (petite with tall), only real booru tags ("mole under eye", not "moles"), no small face details (nose, lips, eyelashes). No clothing, expressions, poses or count tags. Skip anyone the text does not describe.`);
+        parts.push(editable("imageV2LooksTask", V2_LOOKS_TASK.replace("{{names}}", looks.join(", ")), { names: looks.join(", ") }));
     }
     return parts.join("\n");
 }
@@ -278,7 +285,7 @@ export function renderCombinedPrompt(a) {
                 : ` Where your ${tag} changes someone's clothing, draw them in the new clothing.`;
         tasks.push([
             `# Task ${++n}: Image prompt`,
-            `The image shows the moment the latest exchange ends on; draw nothing that has already ended (someone who put an item away no longer holds it).${follow}`,
+            `${editable("combinedImageTask", COMBINED_IMAGE_TASK)}${follow}`,
             a.imageRules,
             a.onlyIfPhoto ? "If nobody in the latest exchange takes, sends or shares a picture, write <Image_Prompt>NONE</Image_Prompt>." : ""
         ].filter(Boolean).join("\n"));
@@ -316,7 +323,26 @@ export function renderCombinedPrompt(a) {
 
 // The system line for whatever the call does. World State + image keeps the
 // original wording.
-function combinedSystem({ world, image, blocks, notebook = false }) {
+function combinedSystem(a) {
+    return editable("combinedSystem", builtinCombinedSystem(a), { jobs: combinedJobs(a) });
+}
+
+/** What the call does, as a list ("note what it changed in the world and write an image prompt…"). */
+function combinedJobs({ world, image, blocks, notebook = false }) {
+    const jobs = [];
+    if (world) jobs.push("note what it changed in the world");
+    if (blocks) jobs.push("keep the story's running notes (how the characters feel about {{user}}, {{user}}'s condition and belongings, their private thoughts, the choices open next)");
+    if (notebook === "setup") jobs.push("start the author's notebook (two or three truths the story keeps hidden)");
+    else if (notebook) jobs.push("keep the author's notebook (the clues it shows, who finds out a hidden truth, what comes out)");
+    if (image) jobs.push("write an image prompt for the moment it ends on");
+    const last = jobs.pop();
+    return jobs.length ? `${jobs.join(", ")} and ${last}` : last;
+}
+
+/** Dev Mode opens the combined call's opening with {{jobs}}. */
+export const COMBINED_SYSTEM_EDITABLE = "You follow an ongoing roleplay. You read the latest exchange and {{jobs}}. You never continue the story, never explain, and never add facts the exchange does not state or clearly show.";
+
+function builtinCombinedSystem({ world, image, blocks, notebook = false }) {
     if (world && image && !blocks && !notebook) return COMBINED_SYSTEM;
     const jobs = [];
     if (world) jobs.push("note what it changed in the world");

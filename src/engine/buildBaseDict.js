@@ -34,6 +34,7 @@ import {
 } from "../prompts/v11Rules.js";
 import { V11_BAN_LIST, SHORT_BAN_LIST } from "../../data/modes/v11taina.js";
 import { resolveSlot, getSharedFragment } from "../core/sharedFragments.js";
+import { editable } from "../prompts/edits.js";
 import { worldPromptBlock, statsPromptParts, notebookPromptBlock, notebookCurrentPhase } from "../state/index.js";
 import { NOTEBOOK_CRAFT } from "../prompts/notebook.js";
 import { meguminCleanChatHistoryText } from "./chatText.js";
@@ -331,7 +332,7 @@ export function buildBaseDict(isTokenCount = false) {
         // The V11 wording while the rules are the built-in ones; your own
         // rules are kept, pointed at <turn_notes>.
         dict["[[dice_rules]]"] = sameText(dict[item.trigger], item.content)
-            ? (aId === "dice_all" ? DICE_RULES_EVERYONE : DICE_RULES_PLAYER)
+            ? (aId === "dice_all" ? editable("v11DiceRulesEveryone", DICE_RULES_EVERYONE) : editable("v11DiceRulesPlayer", DICE_RULES_PLAYER))
             : dict[item.trigger].replace("[[dice_rolls]]", DICE_ROLLS_POINTER);
         diceRollsLine = diceTurnLine(rolls);
         dict[item.trigger] = dict[item.trigger].replace("[[dice_rolls]]", rolls.join(", "));
@@ -890,9 +891,9 @@ export function buildBaseDict(isTokenCount = false) {
     // and stays out.
     const addonBuiltin = id => (hardcodedLogic.addons.find(a => a.id === id) || {}).content;
     dict["[[addon_rules]]"] = [
-        ["[[onomato]]", "sound", onoBuiltin, (localProfile.onomatopoeia || {}).useStyling ? ADDON_RULES_SPLIT.onomatoStyled : ADDON_RULES_SPLIT.onomato],
-        ["[[death]]", "death", addonBuiltin("death"), ADDON_RULES_SPLIT.death],
-        ["[[combat]]", "combat", addonBuiltin("combat"), ADDON_RULES_SPLIT.combat],
+        ["[[onomato]]", "sound", onoBuiltin, (localProfile.onomatopoeia || {}).useStyling ? editable("v11AddonOnomatoStyled", ADDON_RULES_SPLIT.onomatoStyled) : editable("v11AddonOnomato", ADDON_RULES_SPLIT.onomato)],
+        ["[[death]]", "death", addonBuiltin("death"), editable("v11AddonDeath", ADDON_RULES_SPLIT.death)],
+        ["[[combat]]", "combat", addonBuiltin("combat"), editable("v11AddonCombat", ADDON_RULES_SPLIT.combat)],
         ["[[html]]", "render", addonBuiltin("html"), null],
     ].map(([trigger, tag, builtin, v11]) => {
         const now = dict[trigger];

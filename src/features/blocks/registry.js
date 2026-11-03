@@ -16,7 +16,7 @@ import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest, sceneBlockR
 import { normalizeCustomBlock, customBlockTags } from "../../state/modules/custom/model.js";
 import { customInfoTag, customFieldNotes, customBlockRules } from "../../state/modules/custom/render.js";
 import { CUSTOM_CHANGES_LINE, CUSTOM_FRESH_FIELDS_LINE } from "../../prompts/customBlocks.js";
-import { promptEdit, fillPromptTokens } from "../../prompts/edits.js";
+import { promptEdit, fillPromptTokens, editable } from "../../prompts/edits.js";
 import { SCENE_TAG } from "../../state/scene.js";
 import { NOTEBOOK_TAGS } from "../../state/modules/notebook/parse.js";
 import {
@@ -84,7 +84,7 @@ export const MEGUMIN_BLOCK_REGISTRY = [
         // and sits at the front of the strip unless they move it.
         preferFirst: true,
         source: "[[cyoa]]", legacyIds: ["cyoa"],
-        buildSplit: body => splitIfBuiltin(body, "cyoa", { rules: CHOICES_RULES, body })
+        buildSplit: body => splitIfBuiltin(body, "cyoa", { rules: editable("v11ChoicesRules", CHOICES_RULES), body })
     },
     {
         id: "world", tag: "World_State", label: "World State",
@@ -107,7 +107,7 @@ export const MEGUMIN_BLOCK_REGISTRY = [
         emoji: "💭", icon: "fa-comment-dots", color: "#a855f7",
         visibility: "open", builtin: true,
         source: "[[npc_inner_chatter]]", legacyIds: ["npc_inner_chatter", "npc_inner_chatter_v2"],
-        buildSplit: body => splitIfBuiltin(body, "npc_inner_chatter", { rules: CHATTER_RULES, body: CHATTER_SKELETON })
+        buildSplit: body => splitIfBuiltin(body, "npc_inner_chatter", { rules: editable("v11ChatterRules", CHATTER_RULES), body: editable("v11ChatterLine", CHATTER_SKELETON) })
     },
     {
         id: "bonds", tag: "Bonds", label: "Bonds",
@@ -171,7 +171,7 @@ export const MEGUMIN_BLOCK_REGISTRY = [
         visibility: "open", builtin: true, system: true,
         source: "[[storytracker]]",
         buildSplit: body => sameText(body, normalizeBlockBody(storyPlanPrompts.trackerTemplate, "Story_Tracker"))
-            ? { rules: TRACKER_RULES, body: TRACKER_SKELETON } : null,
+            ? { rules: editable("v11TrackerRules", TRACKER_RULES), body: editable("v11TrackerTemplate", TRACKER_SKELETON) } : null,
         requires: p => Boolean(p.storyPlan && p.storyPlan.enabled)
     }
 ];
@@ -355,7 +355,7 @@ export function blockRulesText(env) {
 export function blocksSkeletonSplit(env) {
     const parts = env.splitParts || [];
     if (!parts.length) return "";
-    return `${BLOCKS_HEAD_SPLIT}\n\n<Blocks>\n${parts.join("\n")}\n</Blocks>`;
+    return `${editable("v11BlocksHead", BLOCKS_HEAD_SPLIT)}\n\n<Blocks>\n${parts.join("\n")}\n</Blocks>`;
 }
 
 /** The output line and the <Blocks> skeleton, without the rules. */
@@ -535,7 +535,7 @@ export function meguminBuildSheetSplit() {
 // nowhere (it starts fresh).
 export function meguminBuildCustomTemplate(raw) {
     const b = normalizeCustomBlock(raw);
-    const head = b.when === "changes" ? [CUSTOM_CHANGES_LINE] : [];
+    const head = b.when === "changes" ? [editable("customChangesLine", CUSTOM_CHANGES_LINE)] : [];
     if (b.kind !== "fields") return [...head, b.content || ""].join("\n").trim();
     const fields = b.fields.filter(f => f && String(f.label || "").trim());
     if (!fields.length) return "";
@@ -543,7 +543,7 @@ export function meguminBuildCustomTemplate(raw) {
     const fromInfo = b.memory === "info" || (b.memory === "chat" && b.writer === "chomusuke");
     const rules = fromInfo ? meguminStatRules(fields, b.label, { notesTag: customInfoTag(b), cap: false })
         : b.memory === "chat" ? meguminStatRules(fields, b.label, { from: `your last <${b.tag}> block`, cap: false })
-        : CUSTOM_FRESH_FIELDS_LINE;
+        : editable("customFreshFieldsLine", CUSTOM_FRESH_FIELDS_LINE);
     // The user's rules for the whole block, then what each field means and how
     // it moves, in their words, before our rules.
     const blockRules = customBlockRules(b);

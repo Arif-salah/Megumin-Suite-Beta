@@ -38,7 +38,8 @@ import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { statsModuleParses } from "../../state/index.js";
 import { renderWorldClerkTask, renderClerkNotes } from "../../state/modules/world/render.js";
 import { worldModule } from "../../state/modules/world/index.js";
-import { SCENE_CLERK_RULES, SCENE_TEMPLATE } from "../../prompts/scene.js";
+import { SCENE_RULES, SCENE_TEMPLATE, sceneClerkRules } from "../../prompts/scene.js";
+import { editable } from "../../prompts/edits.js";
 import { igGenerateWithComfy } from "./comfy.js";
 import { imageViaChomusuke, dueNow, NOT_A_REPLY, insertPlaceholder, removePlaceholder, unwrapImgTag } from "./auto.js";
 import { classicImageParts, classicImageRulesBlock } from "./classic/prompt.js";
@@ -99,8 +100,8 @@ function withScene(task, needScene) {
     if (!needScene) return task;
     return { ...task, rules: `${task.rules}
 
-${sub(SCENE_CLERK_RULES)}`, template: `${task.template}
-${SCENE_TEMPLATE}` };
+${sub(sceneClerkRules(editable("sceneRules", SCENE_RULES)))}`, template: `${task.template}
+${editable("sceneTemplate", SCENE_TEMPLATE)}` };
 }
 
 /**

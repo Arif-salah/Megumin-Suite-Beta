@@ -23,6 +23,39 @@ export function promptEdit(key) {
     return String(v).trim() ? String(v) : "";
 }
 
+/**
+ * The text to send: the edit with its tokens filled, or the built-in text.
+ * @param {string} key
+ * @param {string} builtin  the built-in text, already filled
+ * @param {object} [tokens] what each {{token}} in an edit stands for
+ */
+export function editable(key, builtin, tokens) {
+    const t = promptEdit(key);
+    return t ? fillPromptTokens(t, tokens || {}) : builtin;
+}
+
+/**
+ * An object of prompt texts whose every string (or list of lines) can be
+ * edited under `${prefix}.${path}`. A list of lines is edited as one text,
+ * one line each.
+ */
+export function editableTree(tree, prefix) {
+    return new Proxy(tree, {
+        get(target, prop) {
+            const v = target[prop];
+            if (typeof prop !== "string") return v;
+            const key = `${prefix}.${prop}`;
+            if (typeof v === "string") return editable(key, v);
+            if (Array.isArray(v)) {
+                const t = promptEdit(key);
+                return t ? t.replace(/\r\n/g, "\n").split("\n") : v;
+            }
+            if (v && typeof v === "object") return editableTree(v, key);
+            return v;
+        }
+    });
+}
+
 /** Fills {{name}} for the names given; any other {{…}} ({{user}}) is left alone. */
 export function fillPromptTokens(text, values) {
     return String(text || "").replace(/\{\{(\w+)\}\}/g, (m, name) =>

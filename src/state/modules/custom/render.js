@@ -5,6 +5,7 @@
 
 import { renderSheetNotes } from "../stats/render.js";
 import { CUSTOM_LAST_NOTE } from "../../../prompts/customBlocks.js";
+import { editable } from "../../../prompts/edits.js";
 
 /**
  * What each field means, as the user wrote it: "- Trust: how much she…".
@@ -54,7 +55,7 @@ export function customInfoSections(state, blocks) {
             const tag = customInfoTag(b);
             return b.kind === "fields"
                 ? `<${tag}>\n${notes}\n</${tag}>`
-                : `<${tag}>\n${CUSTOM_LAST_NOTE}\n${notes}\n</${tag}>`;
+                : `<${tag}>\n${editable("customLastNote", CUSTOM_LAST_NOTE)}\n${notes}\n</${tag}>`;
         })
         .filter(Boolean);
 }

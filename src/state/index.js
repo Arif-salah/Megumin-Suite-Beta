@@ -26,6 +26,7 @@ import { renderBondsNotes, renderSheetNotes } from "./modules/stats/render.js";
 import { presentCast, remoteCast, findCast, castDisplayName, STALE_AFTER_DEFAULT, LIST_LIMITS, OFFSCREEN_LIMIT } from "./modules/world/model.js";
 import { parseScene, sceneBlockOf } from "./scene.js";
 import { SCENE_RULES, SCENE_TEMPLATE, KNOWN_NAMES_LEAD, KNOWN_NAMES_TASK } from "../prompts/scene.js";
+import { editable } from "../prompts/edits.js";
 import { knownNameList } from "./names.js";
 import { notebookModule } from "./modules/notebook/index.js";
 import { createCustomModule } from "./modules/custom/index.js";
@@ -109,7 +110,7 @@ export function sceneWanted() {
 
 /** The <Scene> rules and line to fill in, or null. */
 export function sceneBlockRequest() {
-    return sceneWanted() ? { rules: sub(SCENE_RULES), template: SCENE_TEMPLATE } : null;
+    return sceneWanted() ? { rules: sub(editable("sceneRules", SCENE_RULES)), template: editable("sceneTemplate", SCENE_TEMPLATE) } : null;
 }
 
 // Everyone the story is with: in the scene and on a call, with their nicknames.
@@ -143,13 +144,13 @@ export function knownNamesBlock() {
     ];
     const first = world ? [...presentCast(world), ...remoteCast(world)].map(c => c.name) : sceneNamesBefore(adapter.getChat().length);
     const list = knownNameList(sources, { first });
-    return list.length ? `<Known_Names>\n${KNOWN_NAMES_LEAD}\n${list.join(", ")}\n</Known_Names>` : "";
+    return list.length ? `<Known_Names>\n${editable("knownNamesLead", KNOWN_NAMES_LEAD)}\n${list.join(", ")}\n</Known_Names>` : "";
 }
 
 // The same list for Chomusuke, with the line that says what it is for.
 function knownNamesForReader() {
     const block = knownNamesBlock();
-    return block ? `\n\n${block}\n${KNOWN_NAMES_TASK}` : "";
+    return block ? `\n\n${block}\n${editable("knownNamesTask", KNOWN_NAMES_TASK)}` : "";
 }
 
 /** Each reply writes the whole scene again (the "V10 + V11" setting). */

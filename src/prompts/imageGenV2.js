@@ -10,7 +10,10 @@
 // "filling in" for it; @Name simply stands for a character.
 // ────────────────────────────────────────────────────────────────────────────
 
-export const IMAGE_V2_PROMPTS = {
+import { editableTree } from "./edits.js";
+
+// The built-in texts; IMAGE_V2_PROMPTS reads each one's Dev Mode edit.
+export const IMAGE_V2_BUILTIN = {
     system:
         "You write image prompts for moments from an ongoing story: who is in the shot, what they are doing, " +
         "their expressions and poses, the place, the light and the framing.",
@@ -105,3 +108,5 @@ export const IMAGE_V2_PROMPTS = {
     inlineHeadSplit: "### IMAGE\n{{conditionalText}}When <turn_notes> asks for an image, insert the image tag like this: <img prompt=\"...\"> at the moment the image shows.",
     inlineTail: "Inside prompt=\"...\", never use double quotes."
 };
+
+export const IMAGE_V2_PROMPTS = editableTree(IMAGE_V2_BUILTIN, "imageV2");

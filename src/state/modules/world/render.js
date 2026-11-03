@@ -13,7 +13,7 @@
 
 import { nameKey } from "./parse.js";
 import { fieldLabel, presentCast, castDisplayName, LIST_LIMITS, OFFSCREEN_LIMIT } from "./model.js";
-import { promptEdit, fillPromptTokens } from "../../../prompts/edits.js";
+import { promptEdit, fillPromptTokens, editable } from "../../../prompts/edits.js";
 
 // The limits as the user set them in the World State tab (the bridge sets
 // them before anything is rendered); the built-in numbers until then.
@@ -447,16 +447,20 @@ export function renderClerkNotes(notes) {
  * @param {{ notes: string, exchange: string, mode: string, noSecret?: boolean, sheets?: string }} a
  *   sheets — the character card(s) and the persona, so the clerk knows who the people are
  */
-export function renderWorldExtractPrompt({ notes, exchange, mode, noSecret = false, sheets = "", carry = false, noLimits = false }) {
-    const task = renderWorldClerkTask(mode, { noSecret, carry, noLimits });
-    const s = String(sheets || "").trim();
-    const system =
-        "You are a continuity clerk for an ongoing roleplay. You read the latest exchange and note what it changed: " +
+/** Chomusuke's built-in opening for the World State read (a Dev Mode edit replaces both forms). */
+export function worldClerkSystem(sheets) {
+    return "You are a continuity clerk for an ongoing roleplay. You read the latest exchange and note what it changed: " +
         "the physical scene, who is present and how they look, and the story's slow deep currents. " +
-        (s
+        (String(sheets || "").trim()
             ? "The character sheets tell you who the characters and {{user}} are; use them to understand the people. " +
               "You never write story, never explain, and never add facts that neither the exchange nor the sheets give you."
             : "You never write story, never explain, and never add facts the exchange does not state or clearly show.");
+}
+
+export function renderWorldExtractPrompt({ notes, exchange, mode, noSecret = false, sheets = "", carry = false, noLimits = false }) {
+    const task = renderWorldClerkTask(mode, { noSecret, carry, noLimits });
+    const s = String(sheets || "").trim();
+    const system = editable("worldClerkSystem", worldClerkSystem(s));
     const user = [
         ...(s ? [`<Character_Sheets>\n${s}\n</Character_Sheets>`, ""] : []),
         renderClerkNotes(notes),

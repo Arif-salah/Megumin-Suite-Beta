@@ -10,6 +10,8 @@
 // the V11 version is used only while the old one is the built-in default.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { editable } from "./edits.js";
+
 // "Affection, Trust and Desire"
 export const andList = items => items.length < 2
     ? items.join("")
@@ -46,7 +48,7 @@ export const BLOCK_RULES_LEAD = "These rules say how to fill the blocks <turn_no
 // The <Blocks> skeleton's opening in <turn_notes>: only the lines to fill in.
 export const BLOCKS_HEAD_SPLIT = "After the story, write one <Blocks> section holding the blocks below, in this order. Each block is its own plain tag, closed before the next one opens, never wrapped in <details>. Leave a block out when its rules say so this turn, and add no tags of your own.";
 
-export const wrapBlockRules = rules => `<block_rules>\n${BLOCK_RULES_LEAD}\n\n${rules.join("\n\n")}\n</block_rules>`;
+export const wrapBlockRules = rules => `<block_rules>\n${editable("v11BlockRulesLead", BLOCK_RULES_LEAD)}\n\n${rules.join("\n\n")}\n</block_rules>`;
 
 // World State and the Notebook write "## World State rules"; inside
 // <block_rules> the heading is just the block's name.
@@ -269,7 +271,7 @@ export const sameText = (a, b) => String(a || "").replace(/\s+/g, " ").trim() ==
 export const STORY_SETTINGS_PREAMBLE = "These settings hold for the whole story. Where one contradicts anything above, the setting wins.";
 
 export const storySettingsBlock = lines => lines.length
-    ? `<story_settings>\n${STORY_SETTINGS_PREAMBLE}\n${lines.join("\n")}\n</story_settings>`
+    ? `<story_settings>\n${editable("v11StorySettingsLead", STORY_SETTINGS_PREAMBLE)}\n${lines.join("\n")}\n</story_settings>`
     : "";
 
 export const wrapRepetition = text => {
@@ -280,7 +282,7 @@ export const wrapRepetition = text => {
 export const FINAL_CHECK_HEAD = "Before you output, check:";
 
 export const wrapFinalCheck = lines => lines.length
-    ? `<final_check>\n${FINAL_CHECK_HEAD}\n${lines.map((l, i) => `${i + 1}. ${l}`).join("\n")}\n</final_check>`
+    ? `<final_check>\n${editable("v11FinalCheckHead", FINAL_CHECK_HEAD)}\n${lines.map((l, i) => `${i + 1}. ${l}`).join("\n")}\n</final_check>`
     : "";
 
 export const wrapFormatting = parts => parts.length ? `<formatting>\n${parts.join("\n")}\n</formatting>` : "";

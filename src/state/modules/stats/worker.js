@@ -11,6 +11,10 @@
 // never told about an extension.
 // ────────────────────────────────────────────────────────────────────────────
 
+import { editable } from "../../../prompts/edits.js";
+
+export const BLOCKS_WORKER_TASK = "Write these blocks for the moment the latest exchange ends on, following the instructions inside each one:";
+
 export const BLOCKS_WORKER_SYSTEM =
     "You keep the running notes of an ongoing story: how each character feels about {{user}}, " +
     "{{user}}'s condition and belongings, what the characters privately think, and the choices open to {{user}} next. " +
@@ -39,7 +43,7 @@ export function renderBlocksTasks(tasks) {
     const text = list.map(t => `<${t.tag}>\n${String(t.body).trim()}\n</${t.tag}>`).join("\n\n");
     return {
         tasks: list.length
-            ? `Write these blocks for the moment the latest exchange ends on, following the instructions inside each one:\n\n${text}`
+            ? `${editable("blocksWorkerTask", BLOCKS_WORKER_TASK)}\n\n${text}`
             : "",
         shape: list.map(t => `<${t.tag}>…</${t.tag}>`)
     };
@@ -59,7 +63,7 @@ export function renderBlocksWorkerPrompt(a) {
         `# Task\n${t.tasks}`,
         `# Answer with these blocks, in this order, and nothing else\n${t.shape.join("\n")}`
     ].filter(s => String(s || "").trim()).join("\n\n");
-    return { system: BLOCKS_WORKER_SYSTEM, user };
+    return { system: editable("blocksWorkerSystem", BLOCKS_WORKER_SYSTEM), user };
 }
 
 /** The worker's answer, cleaned: no thinking, no code fences. */

@@ -10,6 +10,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { LIVE_CAP, filledLiveTruths, clampLiveCap, peekNextId } from "./model.js";
+import { editable } from "../../../prompts/edits.js";
 
 /** How many truths the setup asks for, in words: "two or three truths" at the
  *  default of 3, so the wording stays as written (plan 020). */
@@ -37,14 +38,28 @@ export function notebookPhase(state, { on = true, paused = false } = {}) {
     return filledLiveTruths(state).length ? "running" : "setup";
 }
 
+// Dev Mode edits (src/prompts/edits.js). {{truths}} = "two or three truths"
+// (from the number of truths), {{truth_form}} = the truth form, {{max}} = that
+// number.
+/** The truth form as sent: its edit, or the built-in lines. */
+export function truthFormText() {
+    return editable("notebookTruthForm", NOTEBOOK_TRUTH_FORM.join("\n"));
+}
+
 export function renderNotebookSetup({ cap = LIVE_CAP } = {}) {
+    return editable("notebookSetupRules", notebookSetupText(truthCountWords(cap), truthFormText()),
+        { truths: truthCountWords(cap), truth_form: truthFormText() });
+}
+
+/** The built-in setup rules; Dev Mode opens it with {{truths}} and {{truth_form}}. */
+export function notebookSetupText(truths, form) {
     return [
         "## Author's Notebook rules",
         "This story keeps an author's notebook, and it is empty, so you write it this turn.",
         "",
-        `Write your reply as usual. In <Blocks>, write the Notebook block with ${truthCountWords(cap)}, built from the character sheet, the setting, and the story so far. A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader. Write each one in this form:`,
+        `Write your reply as usual. In <Blocks>, write the Notebook block with ${truths}, built from the character sheet, the setting, and the story so far. A truth is about the world and the other characters. {{user}}'s own past and the reasons behind what they do belong to the reader. Write each one in this form:`,
         "",
-        ...NOTEBOOK_TRUTH_FORM,
+        form,
         "",
         "The Notebook block doesn't count toward the reply's length."
     ].join("\n");
@@ -82,6 +97,11 @@ export function renderNotebookForPrompt(state, { cap = LIVE_CAP } = {}) {
  */
 export function renderNotebookUpdateRules({ newOnly = false, cap = LIVE_CAP } = {}) {
     const n = clampLiveCap(cap);
+    return editable(newOnly ? "notebookUpdateRulesNewOnly" : "notebookUpdateRules", notebookUpdateText(newOnly, n), { max: n });
+}
+
+/** The built-in update rules; Dev Mode opens it with {{max}}. */
+export function notebookUpdateText(newOnly, n) {
     const lines = newOnly
         ? [`Truth+: T${n}      a new truth, only while fewer than ${n} are live, followed by its lines in the notebook's form`]
         : [
