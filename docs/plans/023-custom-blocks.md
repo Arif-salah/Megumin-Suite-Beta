@@ -199,7 +199,20 @@ size is the field list.
   Phase 3 note: the store keeps ONE `custom` entry per reply and swipe, so
   Chomusuke's answer must be joined with what the reply wrote (like the
   notebook's `raw` = reply + marker + answer), not filed beside it.
-- [ ] Phase 3
+- [x] Phase 3 (2026-11-03), waiting for the developer's test: "Who writes
+  it" in the editor and as ticks in the Chomusuke tab (one setting).
+  Custom ids join the blocks read (`routedBlockIds`, `customViaChomusuke`:
+  writer Chomusuke + Chomusuke on with a connection; the Blocks route switch
+  is not needed). The read runs as job `customBlocks` when it has no stat
+  block, so a Blocks route switched off can't send it to the story's
+  connection. Notes carry `<Name_Now>` / `<Last_Name>` from before the reply
+  (any memory but Starts fresh); a field block on "Stays in the chat" written
+  by Chomusuke points its rules at `<Name_Now>`. The answer is joined to the
+  reply in ONE `custom` entry (`joinCustomRead`, mark `<!--custom-read-->`,
+  `facts.custom = { read, missing }`); an edit keeps Chomusuke's part. Card:
+  pending / ok / "No change this reply." (Only when it changes) / missing
+  with Read again / "Not written: … Chomusuke is off" on the latest reply.
+  Fixed: "Every few replies" asked one reply late (3 → every 4th).
 - [ ] Phase 4
 - [ ] Phase 5
 

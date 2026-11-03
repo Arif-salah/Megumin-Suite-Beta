@@ -17,7 +17,7 @@ import { warnChomusuke, answerKind } from "../../engine/chomusukeNotice.js";
 import { setActiveWorldExtractRequest } from "../../core/activeRequests.js";
 import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
 import { buildBaseDict } from "../../engine/buildBaseDict.js";
-import { blocksBeginRead, blocksReadNotes, blocksFinishRead, blocksAbandonRead, BLOCK_ROUTE_TAGS, routedBlockIds } from "../../state/index.js";
+import { blocksBeginRead, blocksReadNotes, blocksFinishRead, blocksAbandonRead, routedBlockTag, routedBlockIds, blocksJobKey } from "../../state/index.js";
 import { renderBlocksWorkerPrompt } from "../../state/modules/stats/worker.js";
 import { meguminBlockById, meguminBlockTemplateBody } from "./registry.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
@@ -56,7 +56,7 @@ export function blocksTasksFor(ids) {
     try { dict = buildBaseDict(true); } catch (e) { console.warn("[Megumin-Suite] Blocks read: templates unavailable.", e); }
     return ids.map(id => {
         const def = meguminBlockById(id);
-        return { tag: BLOCK_ROUTE_TAGS[id], body: def ? sub(meguminBlockTemplateBody(def, dict)) : "" };
+        return { tag: routedBlockTag(id), body: def ? sub(meguminBlockTemplateBody(def, dict)) : "" };
     }).filter(t => t.body);
 }
 
@@ -74,10 +74,12 @@ export function blocksReadForReply(index, { force = false } = {}) {
     if (!token) return Promise.resolve(false);
     meguminScheduleBlocksRefresh();
 
+    // Plan 023: a read of custom blocks only has its own job name.
+    const job = blocksJobKey(token.ids);
     const run = async () => {
         let raw = "";
         try {
-            raw = await runWithChomusuke("blocks", async () => {
+            raw = await runWithChomusuke(job, async () => {
                 // Built when this job has the worker, so it sees whatever landed before it.
                 const exchange = exchangeText(token.index, token.text);
                 const built = renderBlocksWorkerPrompt({

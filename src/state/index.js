@@ -31,6 +31,7 @@ import { notebookModule } from "./modules/notebook/index.js";
 import { createCustomModule } from "./modules/custom/index.js";
 import { normalizeCustomBlock, customBlockDue, customTagsToHide, customTagsToKeep } from "./modules/custom/model.js";
 import { customInfoSections } from "./modules/custom/render.js";
+import { parseCustomBlocks, joinCustomRead, customReadPart } from "./modules/custom/parse.js";
 import {
     notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler, truthCountWords
 } from "./modules/notebook/render.js";
@@ -1027,14 +1028,48 @@ export function blockViaChomusuke(id) {
     return statBlockOn(id);
 }
 
-/** Does this text carry the module's block (the reply wrote it itself)? */
+/** Does this text carry the block (the reply wrote it itself)? Stat blocks and custom blocks (plan 023). */
 export function statsModuleParses(id, text) {
     const m = STAT_MODULE_DEFS[id];
-    return Boolean(m && m.parse(String(text || "")));
+    if (m) return Boolean(m.parse(String(text || "")));
+    const b = customBlocks().find(x => x.id === id);
+    return Boolean(b && parseCustomBlocks(String(text || ""), [b]));
 }
 
+/** Chomusuke is on and has a connection to send its jobs to. */
+export function chomusukeReady() {
+    const c = localProfile && localProfile.chomusuke;
+    return Boolean(c && c.enabled && c.profileId);
+}
+
+/**
+ * Plan 023: Chomusuke writes this custom block (set so in the block's editor,
+ * in the stack, Chomusuke ready). A block set to Chomusuke while Chomusuke
+ * can't run is left unwritten: the story model is never asked for it.
+ */
+export function customViaChomusuke(id) {
+    const b = customBlocksOn().find(x => x.id === id);
+    return Boolean(b && b.writer === "chomusuke" && chomusukeReady());
+}
+
+/** The blocks Chomusuke writes after each reply: stat blocks, then custom blocks. */
 export function routedBlockIds() {
-    return Object.keys(BLOCK_ROUTE_TAGS).filter(blockViaChomusuke);
+    return [
+        ...Object.keys(BLOCK_ROUTE_TAGS).filter(blockViaChomusuke),
+        ...customBlocksOn().filter(b => customViaChomusuke(b.id)).map(b => b.id)
+    ];
+}
+
+/** The tag a routed block is written under. */
+export function routedBlockTag(id) {
+    if (BLOCK_ROUTE_TAGS[id]) return BLOCK_ROUTE_TAGS[id];
+    const b = customBlocks().find(x => x.id === id);
+    return b ? b.tag : "";
+}
+
+/** A Chomusuke job made only of custom blocks runs under its own name, so the Blocks route being off doesn't send it to the story's connection. */
+export function blocksJobKey(ids) {
+    return (ids || []).some(id => id in BLOCK_ROUTE_TAGS) ? "blocks" : "customBlocks";
 }
 
 /** The block is switched on (the Story Tracker follows the Story Plan). */
@@ -1186,15 +1221,23 @@ export function blocksBeginRead(index, { force = false } = {}) {
     const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
     const text = swipeText(msg, swipe);
     if (text == null) return null;
-    // A reply that wrote every routed block itself needs no read.
-    const needed = ids.filter(id => !STAT_MODULE_DEFS[id].parse(text));
+    // A reply that wrote every routed block itself needs no read. A custom
+    // block on "Every few replies" is read only when it is due (plan 023).
+    const needed = ids.filter(id => !statsModuleParses(id, text) && (id in BLOCK_ROUTE_TAGS || force || customDueAfterReply(id)));
     if (!needed.length) return null;
     const key = st.uid + ":" + swipe;
     if (pendingBlocks.has(key)) return null;
-    if (!force && needed.every(id => stateStore.getEntryFor(id, st.uid, swipe))) return null;
+    if (!force && needed.every(id => blockReadFiled(id, st.uid, swipe))) return null;
     pendingBlocks.add(key);
     stateChangedHook();
     return { index, uid: st.uid, swipe, seq: st.seq, text, hash: hashText(text), key, chatId: getContext()?.chatId, ids: needed };
+}
+
+// Was this block already read for this reply's swipe?
+function blockReadFiled(id, uid, swipe) {
+    if (id in BLOCK_ROUTE_TAGS) return Boolean(stateStore.getEntryFor(id, uid, swipe));
+    const e = stateStore.getEntryFor("custom", uid, swipe);
+    return Boolean(e && e.source === "sidemodel" && e.facts && Array.isArray(e.facts.read) && e.facts.read.includes(id));
 }
 
 /** Is this reply's blocks read running now (for its card)? */
@@ -1220,7 +1263,12 @@ export function blocksReadNotes(token, exchangeText = "") {
         bondsText = renderBondsNotes(bonds, pickBondsFor(bonds, { present, recentText: exchangeText }));
     }
     const sheetText = sheet ? renderSheetNotes(sheet) : "";
-    return sub(renderWorkerNotes({ bonds: bondsText, sheet: sheetText }) + knownNamesForReader());
+    // Plan 023: custom blocks that carry forward get their values from before
+    // the reply, as <Name_Now> / <Last_Name>, whichever memory they use for
+    // the story (Chomusuke never reads the old replies' blocks).
+    const custom = customBlocks().filter(b => token.ids.includes(b.id) && b.memory !== "fresh");
+    const extra = custom.length ? customInfoSections(stateStore.getStateAt("custom", token.seq - 0.5), custom.map(b => ({ ...b, memory: "info" }))) : [];
+    return sub(renderWorkerNotes({ bonds: bondsText, sheet: sheetText, extra }) + knownNamesForReader());
 }
 
 /**
@@ -1238,7 +1286,26 @@ export function blocksFinishRead(token, raw) {
     }
     const cleaned = cleanWorkerAnswer(raw);
     const found = [];
+    // Plan 023: custom blocks go in ONE entry with what the reply wrote itself
+    // (the store keeps one per reply and swipe): the reply, a mark, the answer.
+    const customIds = token.ids.filter(id => !(id in BLOCK_ROUTE_TAGS));
+    let unchanged = 0;
+    if (customIds.length) {
+        const blocks = customBlocks().filter(b => customIds.includes(b.id));
+        const answer = blocks.map(b => blockTextIn(cleaned, b.tag)).filter(Boolean).join("\n");
+        const got = answer ? parseCustomBlocks(answer, blocks) : null;
+        const missing = customIds.filter(id => !(got && got.blocks[id]));
+        found.push(...customIds.filter(id => !missing.includes(id)));
+        // Left out on purpose: "Only when it changes".
+        unchanged = blocks.filter(b => missing.includes(b.id) && b.when === "changes").length;
+        const joined = joinCustomRead(token.text, answer);
+        stateStore.recordMessage(at, {
+            source: "sidemodel", expect: true, moduleIds: ["custom"], swipe: token.swipe,
+            parsed: customModule.parse(joined), raw: joined, facts: { custom: { read: customIds, missing } }
+        });
+    }
     for (const id of token.ids) {
+        if (!(id in BLOCK_ROUTE_TAGS)) continue;
         const block = blockTextIn(cleaned, BLOCK_ROUTE_TAGS[id]);
         const parsed = block ? STAT_MODULE_DEFS[id].parse(block) : null;
         if (parsed) found.push(id);
@@ -1246,7 +1313,7 @@ export function blocksFinishRead(token, raw) {
         stateStore.recordMessage(at, { source: "sidemodel", expect: true, moduleIds: [id], swipe: token.swipe, parsed: parsed || null, raw: block, ...(facts ? { facts: { bonds: facts } } : {}) });
     }
     stateChangedHook();
-    return { ok: found.length > 0, dropped: false, found };
+    return { ok: found.length + unchanged > 0, dropped: false, found };
 }
 
 /** Gives up a claimed read without filing anything. */
@@ -1280,7 +1347,33 @@ export function blocksCardTextAt(msgIndex) {
         else if (e && e.source === "sidemodel" && !e.missing && body) out[tag] = { id, status: "ok", body };
         else if (e && e.source === "sidemodel" && e.missing) out[tag] = { id, status: "missing", body: "" };
     }
+    // Plan 023: custom blocks set to Chomusuke. Its answer sits after the
+    // reply in the entry's raw text. On the latest reply, a block Chomusuke
+    // can't write (off, no connection) says so.
+    const ce = stateStore.getEntryFor("custom", uid, swipe);
+    const read = ce && ce.source === "sidemodel" && ce.facts && Array.isArray(ce.facts.read) ? ce.facts : null;
+    const answer = read ? customReadPart(ce.raw) : "";
+    const latest = isLatestReply(msgIndex);
+    for (const b of customBlocksOn()) {
+        if (b.writer !== "chomusuke" || parseCustomBlocks(text, [b])) continue;
+        const block = answer ? blockTextIn(answer, b.tag) : "";
+        const body = block.replace(new RegExp(`^\\s*<${b.tag}\\b[^>]*>\\s*`, "i"), "").replace(new RegExp(`\\s*<\\/${b.tag}\\s*>\\s*$`, "i"), "").trim();
+        if (pending && customViaChomusuke(b.id)) out[b.tag] = { id: b.id, status: "pending", body };
+        else if (read && read.read.includes(b.id) && body) out[b.tag] = { id: b.id, status: "ok", body };
+        else if (read && read.read.includes(b.id)) out[b.tag] = { id: b.id, status: b.when === "changes" ? "unchanged" : "missing", body: "" };
+        else if (latest && !chomusukeReady()) out[b.tag] = { id: b.id, status: "unavailable", body: "" };
+    }
     return out;
+}
+
+// The last reply in the chat (the one a block not written yet belongs to).
+function isLatestReply(msgIndex) {
+    const chat = adapter.getChat();
+    for (let i = chat.length - 1; i >= 0; i--) {
+        const m = chat[i];
+        if (m && !m.is_user && !m.is_system) return i === msgIndex;
+    }
+    return false;
 }
 
 // ── Bonds / Sheet editor (plan 008) ──────────────────────────────────────
@@ -1344,6 +1437,19 @@ function customInPlay() {
 function customRecord(index) {
     const msg = adapter.getChat()[index];
     if (!msg || msg.is_user || msg.is_system) return;
+    // Phase 3: what Chomusuke wrote for this reply stays, read again together
+    // with the reply's new text (an edit, a continue).
+    const uid = msg.extra?.megumin_uid;
+    const swipe = typeof msg.swipe_id === "number" ? msg.swipe_id : 0;
+    const e = uid ? stateStore.getEntryFor("custom", uid, swipe) : null;
+    if (e && e.source === "sidemodel") {
+        const joined = joinCustomRead(String(msg.mes || ""), customReadPart(e.raw));
+        stateStore.recordMessage(index, {
+            source: "sidemodel", expect: true, moduleIds: ["custom"],
+            parsed: customModule.parse(joined), raw: joined, ...(e.facts ? { facts: { custom: e.facts } } : {})
+        });
+        return;
+    }
     stateStore.recordMessage(index, { moduleIds: ["custom"] });
 }
 
@@ -1367,6 +1473,15 @@ export function customBlockDueNow(id) {
     let since = null;
     try { since = adapter.getMeta() ? customRepliesSince(id) : null; } catch (e) { since = null; }
     return customBlockDue(b, since);
+}
+
+// Is Chomusuke due to write this custom block for the reply just in?
+function customDueAfterReply(id) {
+    const b = customBlocks().find(x => x.id === id);
+    if (!b) return false;
+    let since = null;
+    try { since = customRepliesSince(id); } catch (e) { since = null; }
+    return customBlockDue(b, since, { afterReply: true });
 }
 
 /**

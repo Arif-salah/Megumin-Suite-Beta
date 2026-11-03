@@ -27,7 +27,7 @@ import { meguminCleanChatHistoryText } from "../../engine/chatText.js";
 import {
     worldEnabled, worldUpdateMode, worldBeginExternalRead, worldReadInputs, notebookCap,
     worldFinishExternalRead, worldRecordMissing, worldExtractMessage,
-    routedBlockIds, blocksBeginRead, blocksReadNotes, blocksFinishRead,
+    routedBlockIds, blocksBeginRead, blocksReadNotes, blocksFinishRead, blocksJobKey,
     notebookViaChomusuke, notebookBeginRead, notebookReadNotes, notebookFinishRead, notebookRecordMissing,
     notebookReadKind
 } from "../../state/index.js";
@@ -133,7 +133,7 @@ export async function runCombinedTurn(messageId, type, plan) {
     let failure = null;
     const parts = [token && "worldState", bToken && "blocks", nToken && "notebook", wantImage && "imageGen"].filter(Boolean);
     try {
-        raw = await runWithChomusuke(wantImage ? "imageGen" : token ? "worldState" : bToken ? "blocks" : "notebook", async () => {
+        raw = await runWithChomusuke(wantImage ? "imageGen" : token ? "worldState" : bToken ? blocksJobKey(bToken.ids) : "notebook", async () => {
             // Built when this job has the worker, so it sees whatever landed before it.
             const w = token ? worldReadInputs(token) : null;
             const exchange = w ? w.exchange : exchangeText(index, String((bToken && bToken.text) || (nToken && nToken.text) || message.mes || ""));

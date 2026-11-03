@@ -8,6 +8,22 @@
 import { parseFields, parseLatest } from "../stats/parse.js";
 import { customBlockTags } from "./model.js";
 
+// Chomusuke's custom blocks are kept in one entry with the reply's own (the
+// store has one entry per reply and swipe): the reply, this mark, the answer.
+export const CUSTOM_READ_MARK = "<!--custom-read-->";
+
+/** The reply's text and Chomusuke's blocks, as one entry's raw text. */
+export function joinCustomRead(replyText, answerBlocks) {
+    return `${String(replyText || "")}\n${CUSTOM_READ_MARK}\n${String(answerBlocks || "").trim()}`;
+}
+
+/** Chomusuke's part of a joined raw text ("" when there is none). */
+export function customReadPart(raw) {
+    const s = String(raw || "");
+    const at = s.indexOf(CUSTOM_READ_MARK);
+    return at < 0 ? "" : s.slice(at + CUSTOM_READ_MARK.length).trim();
+}
+
 /**
  * @param {string} text   a reply, or Chomusuke's answer
  * @param {object[]} blocks  normalized custom blocks

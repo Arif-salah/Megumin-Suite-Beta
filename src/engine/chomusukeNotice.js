@@ -14,6 +14,8 @@
 export const CHOMUSUKE_JOB_NAMES = {
     worldState: "World State",
     blocks: "Blocks",
+    // Plan 023: a read of custom blocks only (its own job name, same thing to the user).
+    customBlocks: "Blocks",
     notebook: "The Notebook",
     imageGen: "the image",
     memory: "the memory summary",
@@ -25,7 +27,7 @@ export const CHOMUSUKE_JOB_NAMES = {
 };
 
 // Jobs whose result has a card with a Read again button.
-const HAS_READ_AGAIN = new Set(["worldState", "blocks", "notebook"]);
+const HAS_READ_AGAIN = new Set(["worldState", "blocks", "customBlocks", "notebook"]);
 
 const nameOf = job => CHOMUSUKE_JOB_NAMES[job] || job;
 

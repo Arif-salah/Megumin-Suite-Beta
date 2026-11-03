@@ -18,12 +18,14 @@ export const BLOCKS_WORKER_SYSTEM =
 
 /**
  * The notes as they stood before the reply, wrapped as the story model sees them.
- * @param {{ bonds?: string, sheet?: string }} notes
+ * @param {{ bonds?: string, sheet?: string, extra?: string[] }} notes
+ *   extra: whole sections (custom blocks' <Name_Now> / <Last_Name>, plan 023)
  */
-export function renderWorkerNotes({ bonds = "", sheet = "" } = {}) {
+export function renderWorkerNotes({ bonds = "", sheet = "", extra = [] } = {}) {
     const parts = [];
     if (String(bonds).trim()) parts.push(`<Bonds_Now>\n${String(bonds).trim()}\n</Bonds_Now>`);
     if (String(sheet).trim()) parts.push(`<Character_Sheet_Now>\n${String(sheet).trim()}\n</Character_Sheet_Now>`);
+    for (const s of extra || []) if (String(s || "").trim()) parts.push(String(s).trim());
     return parts.length ? `<Current_Info>\n${parts.join("\n\n")}\n</Current_Info>` : "";
 }
 

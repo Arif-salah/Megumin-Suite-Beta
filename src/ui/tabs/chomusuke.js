@@ -417,6 +417,21 @@ function blockChips(cfg, redraw) {
         });
         $chips.append($chip);
     });
+    // Plan 023: custom blocks in the stack. The tick is the block's own "Who
+    // writes it" (the same setting as in its editor).
+    const custom = (localProfile.blockStack && localProfile.blockStack.custom) || [];
+    custom.filter(b => stack.includes(b.id)).forEach(b => {
+        const on = b.writer === "chomusuke";
+        const $chip = $(`<label class="chx-block ${on ? "on" : ""}" title="Also set in the block's editor: Who writes it">
+            <input type="checkbox" ${on ? "checked" : ""}/> <span>${esc(b.emoji || "📦")}</span> ${esc(b.label || b.tag)}
+        </label>`);
+        $chip.find("input").on("change", function () {
+            b.writer = this.checked ? "chomusuke" : "story";
+            saveProfileToMemory();
+            redraw();
+        });
+        $chips.append($chip);
+    });
     $chips.append($worldTab);
     return $chips;
 }

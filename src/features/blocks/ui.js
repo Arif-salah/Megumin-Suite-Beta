@@ -19,6 +19,7 @@ import {
     blockTagFromName, validateCustomBlock, meguminSyncLegacyBlockIds, meguminBlockTemplateBody,
 } from "./registry.js";
 import { normalizeCustomBlock } from "../../state/modules/custom/model.js";
+import { chomusukeReady } from "../../state/index.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { keepScroll } from "../../ui/controls.js";
@@ -355,6 +356,7 @@ export function renderCustomBlockEditor(c, editId) {
             <div style="font-size:0.68rem; color:var(--text-muted);">Tag: <code id="blk_tag_preview">&lt;${escapeHtmlAttr(draft.tag || "…")}&gt;</code></div>
             <div class="blk-ed-holds"></div>
             <div class="blk-ed-body"></div>
+            <div class="blk-ed-writer"></div>
             <div class="blk-ed-memory"></div>
             <div class="blk-ed-when"></div>
         </div>
@@ -419,6 +421,19 @@ export function renderCustomBlockEditor(c, editId) {
         host.append(add);
     };
 
+    // Who writes it (plan 023 phase 3).
+    const drawWriter = () => {
+        const host = form.find(".blk-ed-writer").empty();
+        host.append(sectionHead("Who writes it"));
+        host.append(choiceTiles([
+            { id: "story", icon: "fa-feather", label: "The story", desc: "The story model writes it at the end of its reply." },
+            { id: "chomusuke", icon: "fa-cat", label: "Chomusuke", desc: "Chomusuke reads each reply and writes it after, so the story model only writes the story." }
+        ], draft.writer, v => { draft.writer = v; drawWriter(); }));
+        if (draft.writer === "chomusuke" && !chomusukeReady()) {
+            host.append(`<div class="set-desc" style="margin-top:8px; color:var(--c-brand, #f59e0b);"><i class="fa-solid fa-triangle-exclamation"></i> Chomusuke is off or has no connection, so this block won't be written until you set it up in the Chomusuke tab.</div>`);
+        }
+    };
+
     // What the story remembers of it.
     const drawMemory = () => {
         const host = form.find(".blk-ed-memory").empty();
@@ -454,7 +469,7 @@ export function renderCustomBlockEditor(c, editId) {
         }
     };
 
-    drawHolds(); drawBody(); drawMemory(); drawWhen();
+    drawHolds(); drawBody(); drawWriter(); drawMemory(); drawWhen();
 
     const actions = $(`
         <div style="display:flex; gap:10px; margin-top:16px;">

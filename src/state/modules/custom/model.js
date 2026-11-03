@@ -76,14 +76,19 @@ export function applyCustom(prev, parsed, ctx = {}) {
 }
 
 /**
- * Is the story model asked for this block this turn?
+ * Is this block written this turn?
+ * Before the reply (the story model): `repliesSince` counts the replies already
+ * after its last copy, so the reply about to be written is one more. After the
+ * reply (Chomusuke reading it): the new reply is already counted.
  * @param {object} b               a normalized block
  * @param {number|null} repliesSince  replies since its last copy on file, null when it has none
+ * @param {{ afterReply?: boolean }} [opts]
  */
-export function customBlockDue(b, repliesSince) {
-    if (b.writer === "chomusuke") return false;
+export function customBlockDue(b, repliesSince, { afterReply = false } = {}) {
+    if (b.writer === "chomusuke" && !afterReply) return false;
     if (b.when !== "everyN") return true;
-    return repliesSince == null || repliesSince >= b.everyN;
+    if (repliesSince == null) return true;
+    return repliesSince + (afterReply ? 0 : 1) >= b.everyN;
 }
 
 /**

@@ -145,6 +145,9 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
         Object.entries(fromWorker).forEach(([tag, b]) => {
             storeBlocks[tag] = b.status === "ok" ? b.body
                 : b.status === "pending" ? (b.body || "*Writing this block…*")
+                // Plan 023: a custom block written "Only when it changes".
+                : b.status === "unchanged" ? "*No change this reply.*"
+                : b.status === "unavailable" ? "*Not written: Chomusuke writes this block, and Chomusuke is off or has no connection. Set it up in the Chomusuke tab, or have the story write this block (Blocks tab, edit the block).*"
                 : "*Nothing was written for this block. Use Read again.*";
         });
         // Plan 010: notebook lines Chomusuke wrote, on a reply that has no notebook block.
@@ -180,6 +183,7 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
             if (sheetPane) sheetDecoratePane(sheetPane);
             // Blocks Chomusuke wrote: a Read again button on each of their tabs.
             Object.values(fromWorker).forEach(b => {
+                if (b.status === "unavailable") return;   // nothing to read with
                 const pane = bodyEl.querySelector(`.meg-block-body[data-block-id="${b.id}"]`);
                 if (pane) blocksDecorateReadAgain(pane, msgIndex, b.status === "pending");
             });

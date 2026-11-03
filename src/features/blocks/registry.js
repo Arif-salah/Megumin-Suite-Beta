@@ -519,7 +519,9 @@ export function meguminBuildCustomTemplate(raw) {
     const head = b.when === "changes" ? [CUSTOM_CHANGES_LINE] : [];
     if (b.kind !== "fields") return [...head, b.content || ""].join("\n").trim();
     if (!b.fields.length) return "";
-    const rules = b.memory === "info" ? meguminStatRules(b.fields, b.label, { notesTag: customInfoTag(b) })
+    // Chomusuke never reads old replies: it gets the values in <Name_Now> either way.
+    const fromInfo = b.memory === "info" || (b.memory === "chat" && b.writer === "chomusuke");
+    const rules = fromInfo ? meguminStatRules(b.fields, b.label, { notesTag: customInfoTag(b) })
         : b.memory === "chat" ? meguminStatRules(b.fields, b.label, { from: `your last <${b.tag}> block` })
         : CUSTOM_FRESH_FIELDS_LINE;
     const inline = b.fields.filter(f => !f.ownLine).map(meguminStatFieldSpec).join(" | ");

@@ -4,7 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createStateStore } from "../src/state/store.js";
 import { createCustomModule } from "../src/state/modules/custom/index.js";
-import { parseCustomBlocks } from "../src/state/modules/custom/parse.js";
+import { parseCustomBlocks, joinCustomRead, customReadPart } from "../src/state/modules/custom/parse.js";
+import { renderWorkerNotes } from "../src/state/modules/stats/worker.js";
 import { normalizeCustomBlock, applyCustom, customBlockDue, customTagsToHide, customTagsToKeep } from "../src/state/modules/custom/model.js";
 import { customInfoSections, customInfoTag } from "../src/state/modules/custom/render.js";
 import { stripBlocksForModel } from "../src/engine/hideBlocks.js";
@@ -81,9 +82,31 @@ test("due: every reply, every N replies, and never in the reply when Chomusuke w
     assert.equal(customBlockDue(normalizeCustomBlock({}), 0), true);
     const n3 = normalizeCustomBlock({ when: "everyN", everyN: 3 });
     assert.equal(customBlockDue(n3, null), true, "never written yet");
-    assert.equal(customBlockDue(n3, 2), false);
-    assert.equal(customBlockDue(n3, 3), true);
-    assert.equal(customBlockDue(normalizeCustomBlock({ writer: "chomusuke" }), 5), false);
+    // Before the reply: written in reply 1, so replies 2 and 3 are coming; 4 is due.
+    assert.equal(customBlockDue(n3, 0), false, "asked for reply 2");
+    assert.equal(customBlockDue(n3, 1), false, "asked for reply 3");
+    assert.equal(customBlockDue(n3, 2), true, "asked for reply 4: every 3rd");
+    // After the reply (Chomusuke): the reply just in is already counted.
+    assert.equal(customBlockDue(n3, 2, { afterReply: true }), false);
+    assert.equal(customBlockDue(n3, 3, { afterReply: true }), true);
+    const chomu = normalizeCustomBlock({ writer: "chomusuke" });
+    assert.equal(customBlockDue(chomu, 5), false, "the story is never asked for it");
+    assert.equal(customBlockDue(chomu, 0, { afterReply: true }), true);
+});
+
+test("chomusuke: its blocks sit after the reply in one entry; the store reads both", () => {
+    const joined = joinCustomRead(reply("<Quest_Log>\nFind the key\n</Quest_Log>"), "<Trust>\nTrust: 45/100\n</Trust>");
+    assert.equal(customReadPart(joined), "<Trust>\nTrust: 45/100\n</Trust>");
+    assert.equal(customReadPart("a reply with no read"), "");
+    const p = parseCustomBlocks(joined, [trust, quest]);
+    assert.equal(p.blocks.blk_1.fields[0].text, "45/100");
+    assert.equal(p.blocks.blk_2.text, "Find the key");
+});
+
+test("chomusuke: its notes carry the custom blocks' values from before the reply", () => {
+    const notes = renderWorkerNotes({ bonds: "Anno: Trust: 40/100", extra: ["<Trust_Now>\nTrust: 40/100\n</Trust_Now>", ""] });
+    assert.equal(notes, "<Current_Info>\n<Bonds_Now>\nAnno: Trust: 40/100\n</Bonds_Now>\n\n<Trust_Now>\nTrust: 40/100\n</Trust_Now>\n</Current_Info>");
+    assert.equal(renderWorkerNotes({}), "");
 });
 
 // ── What the story reads ─────────────────────────────────────────────────
