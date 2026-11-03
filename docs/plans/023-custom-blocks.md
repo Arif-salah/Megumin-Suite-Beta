@@ -187,7 +187,7 @@ size is the field list.
   `stripBlocksForModel(text, tags, { keep, whole })` for the per-block memory
   choice. 12 tests in `tests/custom-blocks.test.mjs`. Not wired in yet:
   nothing changes for the user until phase 2.
-- [x] Phase 2 (2026-11-03), waiting for the developer's test: the editor
+- [x] Phase 2 (2026-11-03), tested by the developer: the editor
   (What it holds, the field list, What the story remembers of it, When the
   story writes it), `meguminBuildCustomTemplate` in registry.js (field
   blocks get the Sheet's rules, pointed at `<Name_Now>`, at "your last
@@ -199,7 +199,8 @@ size is the field list.
   Phase 3 note: the store keeps ONE `custom` entry per reply and swipe, so
   Chomusuke's answer must be joined with what the reply wrote (like the
   notebook's `raw` = reply + marker + answer), not filed beside it.
-- [x] Phase 3 (2026-11-03), waiting for the developer's test: "Who writes
+- [x] Phase 3 (2026-11-03), tested by the developer (the read, Read again,
+  Chomusuke off, every few replies, combined call, an edit keeps the block): "Who writes
   it" in the editor and as ticks in the Chomusuke tab (one setting).
   Custom ids join the blocks read (`routedBlockIds`, `customViaChomusuke`:
   writer Chomusuke + Chomusuke on with a connection; the Blocks route switch
