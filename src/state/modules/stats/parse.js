@@ -178,7 +178,16 @@ export function parseBonds(text) {
  * @returns {null | { kind: "delta", fields: object[] }}
  */
 export function parseSheet(text) {
-    const bodies = extractTagBodies(text, "Character_Sheet");
+    return parseFields(text, "Character_Sheet");
+}
+
+/**
+ * Any block of "Label: value" cells, by its tag: the Sheet, and custom blocks
+ * built from a field list (plan 023).
+ * @returns {null | { kind: "delta", fields: object[] }}
+ */
+export function parseFields(text, tag) {
+    const bodies = extractTagBodies(text, tag);
     if (!bodies.length) return null;
     const fields = [];
     for (const body of bodies) {
