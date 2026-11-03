@@ -141,6 +141,41 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
 - All "use Chomusuke for X" routes and the Combine-calls settings live in the
   Chomusuke tab, not scattered in feature tabs.
 
+### Custom blocks (plan 023)
+- **One list for every character**: `extension_settings[ext].customBlocks`,
+  linked as `localProfile.blockStack.custom` (`linkGlobalCustomBlocks` in
+  `core/profile.js`, run on every load: gathers each profile's copy with
+  `mergeCustomLibrary`, same id = same block, a taken tag gets `_2` and keeps
+  the old tag in `tags`; then drops the copies). Never stored in a profile:
+  `saveGlobalCustomBlocks` writes back only the linked array, so a replaced
+  `blockStack` can't wipe it. A character keeps only `order` + `overrides`.
+  Delete block in the editor = `deleteCustomBlockEverywhere`.
+- **A block's settings** (`normalizeCustomBlock`, old blocks = text / fresh /
+  story / every): `kind` text | fields (fields have `desc`, sent as
+  `- Label: desc` lines first in the rules, `customFieldNotes`), `memory`
+  fresh | chat | info, `writer` story | chomusuke, `when` every | changes |
+  everyN (`everyN` 2–20; "changes" not with fresh), `tags` (old tags).
+- **Store module `custom`** (`src/state/modules/custom/`, pure): one module for
+  all blocks, `createCustomModule(getBlocks)`; state `{ blocks: { id:
+  Sheet-shaped fields | { text } } }`; a field left out keeps its value.
+- **Sent**: `meguminBuildCustomTemplate` (registry.js; field blocks get the
+  Sheet's rules pointed at `<Tag_Now>`, "your last <Tag> block" or
+  `CUSTOM_FRESH_FIELDS_LINE`); the envelope asks only when `customBlockDueNow`;
+  Current Info `<Tag_Now>` / `<Last_Tag>` (memory info); `customHiding()` in
+  injection.js: each block's memory decides with "Hide old blocks" on or off
+  (`stripBlocksForModel(text, tags, { keep, whole })`). Texts in
+  `src/prompts/customBlocks.js`.
+- **Chomusuke**: custom ids join `routedBlockIds` (writer chomusuke +
+  `chomusukeReady()`, the Blocks route switch not needed); the read runs as job
+  `customBlocks` when it has no stat block (with the Blocks route off, job
+  `blocks` would go to the story's connection). Its answer joins the reply in
+  ONE `custom` entry (`joinCustomRead`, `<!--custom-read-->`, `facts.custom =
+  { read, missing }`); an edit or continue keeps it. Chomusuke off = unwritten
+  (the story is never asked), the latest reply's tab says so.
+- **Card**: field blocks `treatment: "sheet"` (render.js looks up
+  `def.treatment || def.id`); Edit button on every custom tab
+  (`features/blocks/customEditor.js`, `customEdit` = user entry).
+
 ## Gotchas
 
 - `CONNECTION_PROFILE_LOADED` fires before the backend handshake: also wait for

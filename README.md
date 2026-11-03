@@ -9,6 +9,26 @@ README on the stable branch.
 
 ---
 
+## 2026-11-03
+
+> Custom blocks can remember, can be written by Chomusuke, and have fields the story understands.
+
+### Custom blocks
+
+- **Fields or free text.** A custom block holds named fields (meters, numbers, short text, lists) or your own template. Fields are drawn like the Character Sheet, with bars for meters and chips for lists.
+- **Say what each field means.** Each field has a box for what it means and how it changes, in your words, and the story reads it, so a number like Trust moves for the reasons you chose.
+- **Choose what the story remembers.** A block can start fresh, stay in the chat (the story reads its old copies even while the other blocks are hidden), or put only its last copy in Current Info. Before, the story never saw its last custom block, so a number like Trust was made up every reply.
+- **Choose when it is written.** Every reply, only when something in it changes, or every few replies, which saves tokens on blocks that change slowly.
+- **Chomusuke can write it.** Set a block to Chomusuke in its editor or in the Chomusuke tab, and the story model only writes the story. If Chomusuke is off, the block stays unwritten and its tab tells you why.
+- **Edit the values by hand.** An Edit button on the block's tab changes its values, and swipes or rewinds never undo your edit.
+- **Kept like the other blocks.** Swiping or deleting a reply undoes what it wrote, and swiping back brings it back.
+- **Shared by every character.** A block you make in one character shows under Add a block for all of them. Delete block in its editor removes it everywhere.
+- **See what the story is told.** The block editor shows the exact template the story gets, updated as you type.
+
+### Also
+
+- **Language & rules is back in the dock**, right under Writing Style, so its settings are easy to find.
+
 ## 2026-11-01
 
 > A cleaner settings window: tab names you can read, one way to choose who a

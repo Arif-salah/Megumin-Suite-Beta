@@ -228,7 +228,16 @@ size is the field list.
   changes" (`desc`), sent as `- Label: desc` lines at the top of the block's
   rules (`customFieldNotes`), and the editor shows "What the story is told",
   the block's template, updated as you type.
-- [ ] Phase 5
+- [x] Shared by every character (2026-11-03, the developer's ask), waiting
+  for the developer's test: one install-wide list
+  (`extension_settings[ext].customBlocks`) linked as
+  `localProfile.blockStack.custom` (`linkGlobalCustomBlocks`, gathered from
+  every profile on load, `mergeCustomLibrary`), never stored in a profile;
+  Delete block in the editor removes it for every character
+  (`deleteCustomBlockEverywhere`). The × in the stack only takes it out for
+  this character.
+- [x] Phase 5 (2026-11-03): CLAUDE.md "Custom blocks (plan 023)", README entry
+  2026-11-03.
 
 ## Decided with the developer (2026-11-03)
 
