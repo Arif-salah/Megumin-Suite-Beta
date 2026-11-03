@@ -7,7 +7,7 @@ import { createCustomModule } from "../src/state/modules/custom/index.js";
 import { parseCustomBlocks, joinCustomRead, customReadPart } from "../src/state/modules/custom/parse.js";
 import { renderWorkerNotes } from "../src/state/modules/stats/worker.js";
 import { normalizeCustomBlock, applyCustom, customBlockDue, customTagsToHide, customTagsToKeep } from "../src/state/modules/custom/model.js";
-import { customInfoSections, customInfoTag } from "../src/state/modules/custom/render.js";
+import { customInfoSections, customInfoTag, customFieldNotes } from "../src/state/modules/custom/render.js";
 import { stripBlocksForModel } from "../src/engine/hideBlocks.js";
 import { parseSheet } from "../src/state/modules/stats/parse.js";
 
@@ -134,6 +134,16 @@ test("hiding: a block's own memory choice decides, with hiding on or off", () =>
     assert.equal(stripBlocksForModel(text, customTagsToHide(blocks), { whole: false }), "Prose here.\n<Blocks>\n<Bonds>\nAnno: Trust: 40/100\n</Bonds>\n<Diary>\nDay one.\n</Diary>\n\n</Blocks>");
     // Nothing kept: as before.
     assert.equal(stripBlocksForModel(text, ["Bonds", "Trust", "Diary"]), "Prose here.");
+});
+
+test("field notes: what each field means, one line each, safe inside the template's brackets", () => {
+    assert.deepEqual(customFieldNotes([
+        { label: "Trust", desc: "How much she trusts {{user}}.\nUp when he keeps his word [mostly]." },
+        { label: "Mood", desc: "  " },
+        { label: "", desc: "no name" },
+        { label: "Gold" }
+    ]), ["- Trust: How much she trusts {{user}}. Up when he keeps his word (mostly)."]);
+    assert.deepEqual(customFieldNotes(null), []);
 });
 
 // ── In the store ─────────────────────────────────────────────────────────

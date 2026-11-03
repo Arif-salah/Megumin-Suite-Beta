@@ -16,7 +16,7 @@ import { buildBaseDict } from "../../engine/buildBaseDict.js";
 import {
     MEGUMIN_BLOCK_REGISTRY, BLOCK_VISIBILITY_CHOICES, STAT_FIELD_PACKS, STAT_FIELD_TYPES,
     meguminRenderRegistry, meguminActiveBlocks, meguminBlockById, meguminStatFields, meguminStatFieldMap,
-    blockTagFromName, validateCustomBlock, meguminSyncLegacyBlockIds, meguminBlockTemplateBody,
+    blockTagFromName, validateCustomBlock, meguminSyncLegacyBlockIds, meguminBlockTemplateBody, meguminBuildCustomTemplate,
 } from "./registry.js";
 import { normalizeCustomBlock } from "../../state/modules/custom/model.js";
 import { chomusukeReady } from "../../state/index.js";
@@ -309,6 +309,14 @@ function choiceTiles(options, current, onPick) {
     return $t;
 }
 
+// The grey example in a field's description box, by type.
+const FIELD_DESC_EXAMPLE = {
+    meter: "What it means and how it moves, e.g. How much she trusts {{user}}. Goes up when he keeps his word, down when he lies or hides things.",
+    number: "What it counts and when it changes, e.g. Coins in {{user}}'s purse. Changes only when money changes hands.",
+    text: "What to write here, e.g. Her mood in a few words, as the scene leaves her.",
+    list: "What goes in the list, e.g. What {{user}} carries. Add or remove only when the story does."
+};
+
 const sectionHead = (label, desc) => `<div style="padding: 14px 0 6px;">
     <div class="set-label" style="margin-bottom:4px;">${label}</div>
     ${desc ? `<div class="set-desc">${desc}</div>` : ""}
@@ -359,9 +367,25 @@ export function renderCustomBlockEditor(c, editId) {
             <div class="blk-ed-writer"></div>
             <div class="blk-ed-memory"></div>
             <div class="blk-ed-when"></div>
+            <div class="blk-ed-preview"></div>
         </div>
     `);
     c.append(form);
+
+    // What the story is told for this block, as it stands in the form.
+    const drawPreview = () => {
+        const host = form.find(".blk-ed-preview").empty();
+        const label = String($("#blk_name").val() || "").trim() || "Block";
+        const tag = blockTagFromName(label) || "Block";
+        let body = "";
+        try { body = meguminBuildCustomTemplate({ ...draft, label, tag }); } catch (e) { body = ""; }
+        host.append(sectionHead("What the story is told", "The template sent for this block, updated as you type. Square brackets are filled in by the story."));
+        const $pre = $(`<pre class="ps-modern-input" style="white-space:pre-wrap; font-size:0.72rem; line-height:1.45; max-height:260px; overflow:auto; margin:0;"></pre>`);
+        $pre.text(body ? `<${tag}>\n${body}\n</${tag}>` : "Add a field or write a template to see it here.");
+        host.append($pre);
+    };
+    // Every box updates the draft in its own handler first, then this runs.
+    form.on("input change", () => drawPreview());
 
     form.find("#blk_name").on("input", function () {
         $("#blk_tag_preview").text(`<${blockTagFromName($(this).val()) || "…"}>`);
@@ -386,11 +410,13 @@ export function renderCustomBlockEditor(c, editId) {
             $ta.val(draft.content || "");
             $ta.on("input", function () { draft.content = $(this).val(); });
             host.append($ta);
+            drawPreview();
             return;
         }
-        host.append(sectionHead("Fields", "What the story keeps in this block. Every field costs tokens on every reply."));
+        host.append(sectionHead("Fields", "What the story keeps in this block. Say what each field means and how it changes: the story reads it. Every field costs tokens on every reply."));
         const rows = $(`<div class="stat-field-list"></div>`);
         draft.fields.forEach((f, i) => {
+            const item = $(`<div class="blk-field-item" style="margin-bottom:10px;"></div>`);
             const row = $(`
                 <div class="stat-field">
                     <input type="text" class="ps-modern-input sf-label" value="${escapeHtmlAttr(f.label)}" placeholder="Name" />
@@ -409,16 +435,23 @@ export function renderCustomBlockEditor(c, editId) {
             row.find(".sf-start").on("input", function () { f.start = parseInt($(this).val(), 10) || 0; });
             row.find(".sf-up").on("click", () => { draft.fields.splice(i - 1, 0, draft.fields.splice(i, 1)[0]); drawBody(); });
             row.find(".sf-del").on("click", () => { draft.fields.splice(i, 1); drawBody(); });
-            rows.append(row);
+            // What the field means and how it changes, in the user's words.
+            const $desc = $(`<textarea class="ps-modern-input sf-desc" rows="2" style="width:100%; resize:vertical; margin-top:4px; font-size:0.75rem;"
+                placeholder="${escapeHtmlAttr(FIELD_DESC_EXAMPLE[f.type] || FIELD_DESC_EXAMPLE.text)}"></textarea>`);
+            $desc.val(f.desc || "");
+            $desc.on("input", function () { f.desc = $(this).val(); });
+            item.append(row).append($desc);
+            rows.append(item);
         });
         if (!draft.fields.length) rows.append(`<div class="blk-empty">No fields yet.</div>`);
         host.append(rows);
         const add = $(`<button class="blk-add" style="margin-top:8px;"><i class="fa-solid fa-plus"></i> Add field</button>`);
         add.on("click", () => {
-            draft.fields.push({ id: "f_" + Date.now(), label: "New field", type: "meter", max: 100, start: 0 });
+            draft.fields.push({ id: "f_" + Date.now(), label: "New field", type: "meter", max: 100, start: 0, desc: "" });
             drawBody();
         });
         host.append(add);
+        drawPreview();
     };
 
     // Who writes it (plan 023 phase 3).
@@ -432,6 +465,7 @@ export function renderCustomBlockEditor(c, editId) {
         if (draft.writer === "chomusuke" && !chomusukeReady()) {
             host.append(`<div class="set-desc" style="margin-top:8px; color:var(--c-brand, #f59e0b);"><i class="fa-solid fa-triangle-exclamation"></i> Chomusuke is off or has no connection, so this block won't be written until you set it up in the Chomusuke tab.</div>`);
         }
+        drawPreview();
     };
 
     // What the story remembers of it.
@@ -447,6 +481,7 @@ export function renderCustomBlockEditor(c, editId) {
             if (v === "fresh" && draft.when === "changes") draft.when = "every";
             drawWhen();
         }));
+        drawPreview();
     };
 
     // When it is written.
@@ -467,6 +502,7 @@ export function renderCustomBlockEditor(c, editId) {
             $n.find("input").on("input", function () { draft.everyN = normalizeCustomBlock({ when: "everyN", everyN: $(this).val() }).everyN; });
             host.append($n);
         }
+        drawPreview();
     };
 
     drawHolds(); drawBody(); drawWriter(); drawMemory(); drawWhen();

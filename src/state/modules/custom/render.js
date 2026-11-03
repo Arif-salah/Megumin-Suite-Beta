@@ -6,6 +6,19 @@
 import { renderSheetNotes } from "../stats/render.js";
 import { CUSTOM_LAST_NOTE } from "../../../prompts/customBlocks.js";
 
+/**
+ * What each field means, as the user wrote it: "- Trust: how much she…".
+ * One line each (the template's rules are one bracketed paragraph, so line
+ * breaks and square brackets in a description would end it early).
+ * @param {object[]} fields  the block's fields ({ label, desc })
+ * @returns {string[]}
+ */
+export function customFieldNotes(fields) {
+    return (fields || [])
+        .filter(f => f && String(f.label || "").trim() && String(f.desc || "").trim())
+        .map(f => `- ${String(f.label).trim()}: ${String(f.desc).replace(/\s+/g, " ").replace(/\[/g, "(").replace(/\]/g, ")").trim()}`);
+}
+
 /** The tag a block's kept values or last copy go under in <Current_Info>. */
 export function customInfoTag(b) {
     return b.kind === "fields" ? `${b.tag}_Now` : `Last_${b.tag}`;

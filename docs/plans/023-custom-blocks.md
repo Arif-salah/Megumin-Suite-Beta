@@ -223,6 +223,11 @@ size is the field list.
   user entry. The popup says what the story sees of the values for the
   block's memory choice. Like the Sheet, the card draws what the reply
   wrote; the popup shows the kept values.
+  After the developer's first look: a field had only a name, so the story
+  guessed what it meant. Each field now has "what it means and how it
+  changes" (`desc`), sent as `- Label: desc` lines at the top of the block's
+  rules (`customFieldNotes`), and the editor shows "What the story is told",
+  the block's template, updated as you type.
 - [ ] Phase 5
 
 ## Decided with the developer (2026-11-03)

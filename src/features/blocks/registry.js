@@ -14,7 +14,7 @@ import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
 import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest, sceneBlockRequest, customBlockDueNow } from "../../state/index.js";
 import { normalizeCustomBlock, customBlockTags } from "../../state/modules/custom/model.js";
-import { customInfoTag } from "../../state/modules/custom/render.js";
+import { customInfoTag, customFieldNotes } from "../../state/modules/custom/render.js";
 import { CUSTOM_CHANGES_LINE, CUSTOM_FRESH_FIELDS_LINE } from "../../prompts/customBlocks.js";
 import { SCENE_TAG } from "../../state/scene.js";
 import { NOTEBOOK_TAGS } from "../../state/modules/notebook/parse.js";
@@ -524,15 +524,19 @@ export function meguminBuildCustomTemplate(raw) {
     const b = normalizeCustomBlock(raw);
     const head = b.when === "changes" ? [CUSTOM_CHANGES_LINE] : [];
     if (b.kind !== "fields") return [...head, b.content || ""].join("\n").trim();
-    if (!b.fields.length) return "";
+    const fields = b.fields.filter(f => f && String(f.label || "").trim());
+    if (!fields.length) return "";
     // Chomusuke never reads old replies: it gets the values in <Name_Now> either way.
     const fromInfo = b.memory === "info" || (b.memory === "chat" && b.writer === "chomusuke");
-    const rules = fromInfo ? meguminStatRules(b.fields, b.label, { notesTag: customInfoTag(b) })
-        : b.memory === "chat" ? meguminStatRules(b.fields, b.label, { from: `your last <${b.tag}> block` })
+    const rules = fromInfo ? meguminStatRules(fields, b.label, { notesTag: customInfoTag(b) })
+        : b.memory === "chat" ? meguminStatRules(fields, b.label, { from: `your last <${b.tag}> block` })
         : CUSTOM_FRESH_FIELDS_LINE;
-    const inline = b.fields.filter(f => !f.ownLine).map(meguminStatFieldSpec).join(" | ");
-    const own = b.fields.filter(f => f.ownLine).map(meguminStatFieldSpec);
-    const top = [...head, rules ? `[${b.label}.\n${rules}]` : ""].filter(Boolean);
+    // What each field means and how it moves, in the user's words, before the rules.
+    const notes = customFieldNotes(fields);
+    const inline = fields.filter(f => !f.ownLine).map(meguminStatFieldSpec).join(" | ");
+    const own = fields.filter(f => f.ownLine).map(meguminStatFieldSpec);
+    const paragraph = [...notes, rules].filter(Boolean).join("\n");
+    const top = [...head, paragraph ? `[${b.label}.\n${paragraph}]` : ""].filter(Boolean);
     const lines = [inline, ...own].filter(Boolean);
     return [...top, ...(top.length ? [""] : []), ...lines].join("\n");
 }
