@@ -36,6 +36,34 @@ export function normalizeCustomBlock(b) {
     return out;
 }
 
+/**
+ * Adds blocks to the shared list every character picks from (in place, so the
+ * list keeps its identity). A block already there (same id) is skipped. A
+ * block whose tag another block already uses is added as "Name (2)" with tag
+ * Name_2, keeping the old tag so its old copies still read as it.
+ * @param {object[]} library  the shared list
+ * @param {object[]} blocks   blocks from one character
+ * @returns {number} blocks added
+ */
+export function mergeCustomLibrary(library, blocks) {
+    let added = 0;
+    const tagTaken = t => library.some(x => String(x.tag || "").toLowerCase() === String(t || "").toLowerCase());
+    for (const b of blocks || []) {
+        if (!b || !b.id || library.some(x => x.id === b.id)) continue;
+        const copy = structuredClone(b);
+        if (copy.tag && tagTaken(copy.tag)) {
+            let n = 2;
+            while (tagTaken(`${b.tag}_${n}`)) n++;
+            copy.tags = [...(Array.isArray(copy.tags) ? copy.tags : []), b.tag];
+            copy.tag = `${b.tag}_${n}`;
+            copy.label = `${b.label || b.tag} (${n})`;
+        }
+        library.push(copy);
+        added++;
+    }
+    return added;
+}
+
 /** The tag and every old tag (after a rename), so old replies still read as this block. */
 export function customBlockTags(b) {
     return [b.tag, ...(b.tags || [])].filter(Boolean);

@@ -9,7 +9,7 @@
 
 import { Popup, POPUP_TYPE } from "../../st.js";
 import { localProfile } from "../../core/state.js";
-import { saveProfileToMemory, saveProfileDebounced } from "../../core/profile.js";
+import { saveProfileToMemory, saveProfileDebounced, deleteCustomBlockEverywhere } from "../../core/profile.js";
 import { escapeHtmlAttr } from "../../utils/html.js";
 import { buildBlocksCard, extractBlocks } from "../../blocks/render.js";
 import { buildBaseDict } from "../../engine/buildBaseDict.js";
@@ -22,7 +22,7 @@ import { normalizeCustomBlock } from "../../state/modules/custom/model.js";
 import { chomusukeReady } from "../../state/index.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
-import { keepScroll } from "../../ui/controls.js";
+import { keepScroll, confirmPopup } from "../../ui/controls.js";
 import { meguminSlotByTrigger } from "../../../data/slots.js";
 import { hasSharedFragment } from "../../core/sharedFragments.js";
 
@@ -106,7 +106,7 @@ function drawBlocksTab(c) {
                         ${BLOCK_VISIBILITY_CHOICES.map(o => `<option value="${o.v}" ${(visOf(b) === "hidden" ? "hidden" : "open") === o.v ? "selected" : ""} title="${o.hint}">${o.label}</option>`).join("")}
                     </select>
                     ${b.builtin ? "" : `<button class="ws-btn-small blk-edit" style="color:var(--gold);"><i class="fa-solid fa-pen"></i></button>`}
-                    <button class="ws-btn-small blk-remove" style="color:var(--c-danger, #ef4444);"><i class="fa-solid fa-xmark"></i></button>
+                    <button class="ws-btn-small blk-remove" style="color:var(--c-danger, #ef4444);" title="${b.builtin ? "Take this block out" : "Take this block out for this character. It stays under Add a block for every character."}"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
         `);
@@ -339,7 +339,7 @@ export function renderCustomBlockEditor(c, editId) {
                 <div class="mtab-header-icon" style="background: linear-gradient(135deg, #10b981, #047857);"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
                 <div>
                     <h2>${existing ? "Edit" : "New"} block</h2>
-                    <p>Give it a name, choose what it holds, and how the story keeps it.</p>
+                    <p>Give it a name, choose what it holds, and how the story keeps it. Your custom blocks are shared: every character can add them from Add a block, and a change here applies to all of them.</p>
                 </div>
             </div>
         </div>
@@ -511,9 +511,21 @@ export function renderCustomBlockEditor(c, editId) {
         <div style="display:flex; gap:10px; margin-top:16px;">
             <button class="ws-btn-small" id="blk_save" style="color:var(--c-live, #10b981); border-color:rgba(16,185,129,0.4);"><i class="fa-solid fa-check"></i> Save</button>
             <button class="ws-btn-small" id="blk_cancel"><i class="fa-solid fa-xmark"></i> Cancel</button>
+            ${existing ? `<button class="ws-btn-small" id="blk_delete" style="margin-left:auto; color:var(--c-danger, #ef4444); border-color:rgba(239,68,68,0.35);" title="Delete this block for every character"><i class="fa-solid fa-trash"></i> Delete block</button>` : ""}
         </div>
     `);
     actions.find("#blk_cancel").on("click", () => renderBlocksTab(c));
+    // Custom blocks are shared by every character (plan 023), so this is for all of them.
+    actions.find("#blk_delete").on("click", async () => {
+        const name = escapeHtmlAttr(existing.label || existing.tag);
+        if (!(await confirmPopup(`Delete "${name}"?`,
+            "It is deleted for every character and taken out of every character's blocks. What your chats already kept of it stays in them, but nothing shows or sends it any more.",
+            { ok: "Delete" }))) return;
+        deleteCustomBlockEverywhere(existing.id);
+        meguminScheduleBlocksRefresh();
+        toastr.success(`"${existing.label || existing.tag}" deleted.`);
+        renderBlocksTab(c);
+    });
     actions.find("#blk_save").on("click", () => {
         const label = String($("#blk_name").val() || "").trim();
         const tag = blockTagFromName(label);

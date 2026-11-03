@@ -6,7 +6,7 @@ import { createStateStore } from "../src/state/store.js";
 import { createCustomModule } from "../src/state/modules/custom/index.js";
 import { parseCustomBlocks, joinCustomRead, customReadPart } from "../src/state/modules/custom/parse.js";
 import { renderWorkerNotes } from "../src/state/modules/stats/worker.js";
-import { normalizeCustomBlock, applyCustom, customBlockDue, customTagsToHide, customTagsToKeep } from "../src/state/modules/custom/model.js";
+import { normalizeCustomBlock, applyCustom, customBlockDue, customTagsToHide, customTagsToKeep, mergeCustomLibrary } from "../src/state/modules/custom/model.js";
 import { customInfoSections, customInfoTag, customFieldNotes } from "../src/state/modules/custom/render.js";
 import { stripBlocksForModel } from "../src/engine/hideBlocks.js";
 import { parseSheet } from "../src/state/modules/stats/parse.js";
@@ -144,6 +144,18 @@ test("field notes: what each field means, one line each, safe inside the templat
         { label: "Gold" }
     ]), ["- Trust: How much she trusts {{user}}. Up when he keeps his word (mostly)."]);
     assert.deepEqual(customFieldNotes(null), []);
+});
+
+test("shared list: every character's blocks gathered once; same id is the same block; a taken tag gets (2)", () => {
+    const lib = [];
+    assert.equal(mergeCustomLibrary(lib, [{ id: "a", label: "Trust", tag: "Trust" }]), 1);
+    assert.equal(mergeCustomLibrary(lib, [{ id: "a", label: "Trust", tag: "Trust" }, { id: "b", label: "Trust", tag: "Trust", tags: ["Old"] }]), 1);
+    assert.deepEqual(lib.map(b => [b.id, b.label, b.tag, b.tags]), [["a", "Trust", "Trust", undefined], ["b", "Trust (2)", "Trust_2", ["Old", "Trust"]]]);
+    const before = lib;
+    mergeCustomLibrary(lib, [{ id: "c", label: "Trust", tag: "trust" }]);
+    assert.equal(lib, before, "the same list, so every character still holds it");
+    assert.equal(lib[2].tag, "trust_3");
+    assert.equal(mergeCustomLibrary(lib, null), 0);
 });
 
 // ── In the store ─────────────────────────────────────────────────────────
