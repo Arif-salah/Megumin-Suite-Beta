@@ -29,7 +29,7 @@ import {
     bondsRulesText, sheetRulesText,
     CHOICES_RULES, CHATTER_RULES, CHATTER_SKELETON, TRACKER_RULES, TRACKER_SKELETON,
     BLOCKS_HEAD_SPLIT, BLOCK_RULES_LEAD, STORY_SETTINGS_PREAMBLE, FINAL_CHECK_HEAD,
-    DICE_RULES_PLAYER, DICE_RULES_EVERYONE, ADDON_RULES_SPLIT, NPC_DOSSIER_RULES, GEMINI_JB,
+    DICE_RULES_PLAYER, DICE_RULES_EVERYONE, ADDON_RULES_SPLIT, NPC_DOSSIER_RULES, GEMINI_JB, GEMINI_CARET_LINE,
 } from "../src/prompts/v11Rules.js";
 import {
     SCENE_RULES, SCENE_TEMPLATE, KNOWN_NAMES_LEAD, KNOWN_NAMES_TASK, BLOCKS_CHECK, BLOCKS_CHECK_SCENE,
@@ -198,6 +198,7 @@ const EDITABLE_TEXTS = [
     text("v11AddonOnomato", "v11", "Onomatopoeia", PLACE.v11, "Used while the Onomatopoeia box is not edited, without styling.", () => ADDON_RULES_SPLIT.onomato),
     text("v11AddonOnomatoStyled", "v11", "Onomatopoeia (styled)", PLACE.v11, "Used while the Onomatopoeia box is not edited, with styling on.", () => ADDON_RULES_SPLIT.onomatoStyled),
     text("geminiJB", "v11", "Gemini Pro line", "Sent while the Gemini Pro loadout is in use, where your preset has [[GeminiJB]].", "", () => GEMINI_JB),
+    text("geminiCaret", "v11", "Gemini Pro: ^ before every word", "Sent while the Gemini Pro loadout is in use, as the last line of the formatting section.", "The ^ are taken out of each reply as soon as it arrives.", () => GEMINI_CARET_LINE),
     text("v11NpcDossierRules", "v11", "NPC Bank: new characters", PLACE.v11, "{{template}} is the dossier form from the NPC Bank tab, {{persistenceRule}} the line about fields that never change.", () => NPC_DOSSIER_RULES),
     text("v11StorySettingsLead", "v11", "Story settings: opening line", PLACE.v11Turn, "The line that opens <story_settings>.", () => STORY_SETTINGS_PREAMBLE),
     text("v11FinalCheckHead", "v11", "Final check: opening line", PLACE.v11Turn, "The line that opens <final_check>.", () => FINAL_CHECK_HEAD),

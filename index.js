@@ -143,6 +143,7 @@ import {
     combinedTurnWanted, runCombinedTurn,
 } from "./src/features/imagegen/index.js";
 import { buildBaseDict } from "./src/engine/buildBaseDict.js";
+import { usesCaretWords, stripMessageCarets } from "./src/engine/caretWords.js";
 import { handlePromptInjection } from "./src/engine/injection.js";
 import { suiteEnabled, setSuiteEnabled, syncPowerUI } from "./src/core/power.js";
 import { updateLiveTokenCount } from "./src/core/tokens.js";
@@ -409,6 +410,8 @@ jQuery(async () => {
                 if (stateOnSwipeDeleted(data)) meguminScheduleBlocksRefresh();
             });
             eventSource.on(event_types.MESSAGE_EDITED, (mesId) => {
+                // Gemini Pro: an edit keeps no ^ either, so the blocks read clean text.
+                if (usesCaretWords(localProfile) && stripMessageCarets((getContext().chat || [])[mesId])) saveChat();
                 if (stateOnEdited(mesId)) meguminScheduleBlocksRefresh();
             });
             // World State: stamp, reconcile and (once) import after the chat has
@@ -428,6 +431,14 @@ jQuery(async () => {
                 updateMemoryVisuals();
                 // Master switch off: nothing below runs (no reads, images, director, memory, NPC bank).
                 if (!suiteEnabled()) return;
+
+                // Gemini Pro asks for a ^ before every word: taken out of the
+                // saved reply first, so every block, read and image below sees
+                // clean text. SillyTavern saves the chat after this event.
+                if (usesCaretWords(localProfile)) {
+                    const chat = getContext().chat || [];
+                    stripMessageCarets(chat[typeof receivedId === "number" ? receivedId : chat.length - 1]);
+                }
 
                 // An empty reply (or one with only its thinking) has nothing for
                 // Chomusuke to read: no read, no blocks, no image for it.

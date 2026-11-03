@@ -30,10 +30,10 @@ export function thinkingSection(think, { frame } = {}) {
 }
 
 /** [[formatting]]: the header, then each part that is on, in the preset's old order. */
-export function formattingSection({ dnratio, color, rules, direct, frame } = {}) {
+export function formattingSection({ dnratio, color, rules, direct, extra, frame } = {}) {
     // V11 Тайна: no formatting rules line, its <repetition> says it.
-    if (frame === "v11") return wrapFormatting(filled([dnratio, color, direct]));
-    const parts = filled([dnratio, color, rules, direct]);
+    if (frame === "v11") return wrapFormatting(filled([dnratio, color, direct, extra]));
+    const parts = filled([dnratio, color, rules, direct, extra]);
     return parts.length ? `${FORMATTING_HEADER}\n\n${parts.join("\n")}` : "";
 }
 
