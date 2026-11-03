@@ -652,6 +652,13 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
                     }
                 }
             } catch (e) {
+                // Before the image is back, a failed check is simply tried
+                // again next second. After it, nothing would close the bar.
+                if (pollDone) {
+                    console.error("[Megumin-Suite] Image gen: the image came back but could not be added to the chat.", e);
+                    progress.close(); $("#kazuma_progress_overlay").hide();
+                    toastr.error("The image was made, but it could not be added to the chat. The browser console has the details.", "Image Gen");
+                }
             } finally {
                 pollBusy = false;
             }
