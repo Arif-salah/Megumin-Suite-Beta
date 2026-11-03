@@ -137,10 +137,7 @@ export const LOADOUTS = [
     {
         id: "gemini-flash", name: "Gemini Flash", icon: "fa-gem", models: "Gemini 3.5 – 3.8 Flash",
         why: "Set up like Gemini Pro, with custom thinking on: Flash plans the reply better when it writes its thinking out.",
-        notes: [
-            { tone: "gold", text: "Turn the prefill on only if you get refusals." },
-            CHOMUSUKE_OPTIONAL
-        ],
+        notes: [CHOMUSUKE_OPTIONAL],
         settings: { mode: "v11-voice", thinking: true, thinkingCap: false, length: LENGTH_FLEXIBLE, banList: "full", chomusuke: "story" }
     },
     {
