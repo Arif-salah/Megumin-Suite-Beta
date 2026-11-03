@@ -6,8 +6,9 @@ import { usesCaretWords, stripCarets, stripMessageCarets } from "../src/engine/c
 import { formattingSection } from "../src/engine/presetSections.js";
 import { GEMINI_CARET_LINE } from "../src/prompts/v11Rules.js";
 
-test("only the Gemini Pro loadout asks for the ^", () => {
+test("only the Gemini loadouts ask for the ^", () => {
     assert.equal(usesCaretWords({ loadout: "gemini-pro" }), true);
+    assert.equal(usesCaretWords({ loadout: "gemini-flash" }), true);
     assert.equal(usesCaretWords({ loadout: "claude" }), false);
     assert.equal(usesCaretWords({}), false);
     assert.equal(usesCaretWords(null), false);

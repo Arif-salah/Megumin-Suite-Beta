@@ -412,7 +412,7 @@ jQuery(async () => {
                 if (stateOnSwipeDeleted(data)) meguminScheduleBlocksRefresh();
             });
             eventSource.on(event_types.MESSAGE_EDITED, (mesId) => {
-                // Gemini Pro: an edit keeps no ^ either, so the blocks read clean text.
+                // Gemini loadouts: an edit keeps no ^ either, so the blocks read clean text.
                 if (usesCaretWords(localProfile) && stripMessageCarets((getContext().chat || [])[mesId])) saveChat();
                 if (stateOnEdited(mesId)) meguminScheduleBlocksRefresh();
             });
@@ -434,7 +434,7 @@ jQuery(async () => {
                 // Master switch off: nothing below runs (no reads, images, director, memory, NPC bank).
                 if (!suiteEnabled()) return;
 
-                // Gemini Pro asks for a ^ before every word: taken out of the
+                // The Gemini loadouts ask for a ^ before every word: taken out of the
                 // saved reply first, so every block, read and image below sees
                 // clean text. SillyTavern saves the chat after this event.
                 if (usesCaretWords(localProfile)) {

@@ -26,13 +26,13 @@ const profile = () => ({
     chomusuke: { enabled: true, profileId: "p1", features: { memory: true, blocks: false } }
 });
 
-test("four loadouts to use, three coming soon, each on an engine that exists", () => {
-    assert.deepEqual(LOADOUTS.map(l => l.id), ["gemini-pro", "claude", "big-open", "fast"]);
-    assert.deepEqual(COMING_SOON.map(l => l.name), ["Gemini Flash", "Overthinkers", "Local"]);
+test("five loadouts to use, two coming soon, each on an engine that exists", () => {
+    assert.deepEqual(LOADOUTS.map(l => l.id), ["gemini-pro", "gemini-flash", "claude", "big-open", "fast"]);
+    assert.deepEqual(COMING_SOON.map(l => l.name), ["Overthinkers", "Local"]);
     for (const l of LOADOUTS) {
         assert.ok(modes.some(m => m.id === l.settings.mode), l.id);
         for (const key of Object.keys(l.settings)) assert.ok(settingFor(key), `${l.id}: ${key}`);
-        assert.equal(l.settings.thinking, l.id === "fast", "only DeepSeek uses the Thinking prompt");
+        assert.equal(l.settings.thinking, l.id === "fast" || l.id === "gemini-flash", "only DeepSeek and Gemini Flash use the Thinking prompt");
         assert.doesNotMatch(l.why + l.notes.map(n => n.text).join(""), /\{\{|\[\[/, "no macros in what the user reads");
     }
 });
@@ -185,4 +185,11 @@ test("what Use this loadout would change: listed before, profile untouched (plan
     const l = loadoutById("gemini-pro");
     assert.deepEqual(loadoutChanges(p, l, ctx, { ...l.settings, banList: "short" }).map(c => c.key),
         ["mode", "thinking", "length", "chomusuke"], "the page's changes count");
+});
+
+test("Gemini Flash is Gemini Pro with custom thinking on", () => {
+    const pro = loadoutById("gemini-pro").settings, flash = loadoutById("gemini-flash").settings;
+    assert.deepEqual({ ...flash, thinking: false, thinkingCap: undefined }, { ...pro, thinkingCap: undefined });
+    assert.equal(flash.thinking, true);
+    assert.equal(flash.thinkingCap, false);
 });

@@ -135,6 +135,15 @@ export const LOADOUTS = [
         settings: { mode: "v11-voice", thinking: false, length: LENGTH_FLEXIBLE, banList: "full", chomusuke: "story" }
     },
     {
+        id: "gemini-flash", name: "Gemini Flash", icon: "fa-gem", models: "Gemini 3.5 – 3.8 Flash",
+        why: "Set up like Gemini Pro, with custom thinking on: Flash plans the reply better when it writes its thinking out.",
+        notes: [
+            { tone: "gold", text: "Turn the prefill on only if you get refusals." },
+            CHOMUSUKE_OPTIONAL
+        ],
+        settings: { mode: "v11-voice", thinking: true, thinkingCap: false, length: LENGTH_FLEXIBLE, banList: "full", chomusuke: "story" }
+    },
+    {
         id: "claude", name: "Claude", icon: "fa-feather", models: "Claude Opus 5.5",
         why: "The best prose of any model tested. Claude keeps its thinking to itself: asked to write it out, replies can get blocked after the first message.",
         notes: [PREFILL_OFF("Claude on OpenRouter often fails with it on."), CHOMUSUKE_OPTIONAL],
@@ -161,7 +170,6 @@ export const LOADOUTS = [
 ];
 
 export const COMING_SOON = [
-    { name: "Gemini Flash", icon: "fa-gem", models: "Gemini 3.5 – 3.8 Flash" },
     { name: "Overthinkers", icon: "fa-hourglass-half", models: "Kimi K3, Xiaomi MiMo V2.6" },
     { name: "Local", icon: "fa-house-laptop", models: "Gemma 4 31B, Qwen 3.8 27B" }
 ];

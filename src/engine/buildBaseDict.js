@@ -153,7 +153,7 @@ export function buildBaseDict(isTokenCount = false) {
         dict["[[prefill]]"] = "";
     }
 
-    // The Gemini Pro loadout's line; empty (and its line removed) otherwise.
+    // The Gemini loadouts' line (Pro or Flash); empty (and its line removed) otherwise.
     dict["[[GeminiJB]]"] = usesCaretWords(localProfile) ? editable("geminiJB", GEMINI_JB) : "";
 
     if (localProfile.dnRatio && localProfile.dnRatio.enabled) {
