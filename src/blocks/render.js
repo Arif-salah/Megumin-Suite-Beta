@@ -268,7 +268,8 @@ function renderChoicesInto(pane, parsed, doc, opts) {
 // caller falls back to renderBody — so a treatment that throws costs the reader
 // nothing but the nicety.
 function renderTreated(b, opts) {
-    const t = BLOCK_TREATMENTS[b.def.id];
+    // `treatment`: a block drawn like another (a custom field block like the Sheet, plan 023).
+    const t = BLOCK_TREATMENTS[b.def.treatment || b.def.id];
     if (!t) return "";
     // A block cut off mid-write is exactly the case a structural parser gets
     // wrong most confidently, so truncated bodies always take the prose path.
@@ -416,7 +417,7 @@ export function buildBlocksCard(blocks, opts = {}) {
             // drew something. Putting it on unconditionally would style a prose
             // fallback with the scene board's layout rules.
             if (treated) {
-                const t = BLOCK_TREATMENTS[b.def.id];
+                const t = BLOCK_TREATMENTS[b.def.treatment || b.def.id];
                 if (t && t.cls) pane.classList.add(t.cls);
                 pane.innerHTML = treated;
             } else {

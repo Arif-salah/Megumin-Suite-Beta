@@ -1499,6 +1499,17 @@ export function customBlockState(id) {
     return stateStore.getState("custom").blocks[id] || null;
 }
 
+/**
+ * The user's own change to one custom block (phase 4): fields to set or clear,
+ * or the whole text. Kept as a user entry, never undone by swipes.
+ * @param {string} id
+ * @param {{ kind: "fields", fields: object[] } | { kind: "text", text?: string, clear?: boolean }} part
+ */
+export function customEdit(id, part) {
+    if (!adapter.getMeta() || !id || !part) return null;
+    return stateStore.addUserEntry("custom", { kind: "delta", blocks: { [id]: part } });
+}
+
 // Manual mode: the state is read, never written by replies.
 function repliesUpdate() {
     return worldEnabled() && worldUpdateMode() !== "manual";

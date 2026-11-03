@@ -18,6 +18,7 @@ import { npcDecorateNewPane } from "../npc/newCard.js";
 import { worldCardTextAt, worldExtractMessage, blocksCardTextAt, notebookCardTextAt } from "../../state/index.js";
 import { blocksReadForReply } from "./worker.js";
 import { bondsDecoratePane, sheetDecoratePane } from "../bonds/overview.js";
+import { customDecoratePane } from "./customEditor.js";
 import { worldDecoratePane, worldDecorateCast, worldTabCount } from "../worldstate/card.js";
 import { openWorldEditor } from "../worldstate/editor.js";
 import { NOTEBOOK_CARD_DEFS, notebookDecoratePane, notebookCardStamp } from "../notebook/card.js";
@@ -181,6 +182,11 @@ export function meguminDecorateMessageBody(bodyEl, mesText, msgIndex) {
             if (bondsPane) bondsDecoratePane(bondsPane);
             const sheetPane = bodyEl.querySelector('.meg-block-body[data-block-id="sheet"]');
             if (sheetPane) sheetDecoratePane(sheetPane);
+            // Plan 023: an Edit button on each custom block's tab.
+            meguminRenderRegistry().filter(d => !d.builtin).forEach(d => {
+                const pane = bodyEl.querySelector(`.meg-block-body[data-block-id="${d.id}"]`);
+                if (pane) customDecoratePane(pane, d.id);
+            });
             // Blocks Chomusuke wrote: a Read again button on each of their tabs.
             Object.values(fromWorker).forEach(b => {
                 if (b.status === "unavailable") return;   // nothing to read with

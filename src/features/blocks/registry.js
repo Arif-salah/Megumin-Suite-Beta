@@ -377,7 +377,9 @@ export function meguminRenderRegistry() {
     const overrides = stack.overrides || {};
     return [...MEGUMIN_BLOCK_REGISTRY, ...(stack.custom || [])].map(def => {
         const o = overrides[def.id];
-        return o && o.visibility ? { ...def, visibility: o.visibility } : def;
+        // Plan 023: a custom field block is drawn like the Sheet (bars, chips).
+        const drawn = !def.builtin && def.kind === "fields" ? { ...def, treatment: "sheet" } : def;
+        return o && o.visibility ? { ...drawn, visibility: o.visibility } : drawn;
     });
 }
 
@@ -433,6 +435,10 @@ export function meguminStatFieldMap() {
     const out = {};
     Object.keys((localProfile && localProfile.statBlocks) || {}).forEach(id => {
         out[id] = meguminStatFields(id);
+    });
+    // Plan 023: custom field blocks, under their own id.
+    ((localProfile && localProfile.blockStack && localProfile.blockStack.custom) || []).forEach(b => {
+        if (b && b.kind === "fields" && Array.isArray(b.fields)) out[b.id] = b.fields.filter(f => f && f.label);
     });
     return out;
 }

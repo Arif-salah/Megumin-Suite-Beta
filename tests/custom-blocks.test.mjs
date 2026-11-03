@@ -170,6 +170,25 @@ test("store: a swipe undoes a custom block, swiping back brings it back; a reply
     assert.equal(e.store.getState("custom").blocks.blk_1.fields.trust.text, "55/100");
 });
 
+test("store: your own edit stays when the reply is swiped away, and the next reply builds on it", () => {
+    const e = env([trust]);
+    e.chat.push(ai(reply("<Trust>\nTrust: 40/100 | Mood: wary\n</Trust>")));
+    e.store.recordMessage(0);
+    e.store.addUserEntry("custom", { kind: "delta", blocks: { blk_1: { kind: "fields", fields: [{ key: "trust", label: "Trust", text: "70/100", value: 70, max: 100 }, { key: "mood", label: "Mood", remove: true }] } } });
+    const msg = e.chat[0];
+    msg.swipes.push("No block.");
+    msg.swipe_id = 1;
+    msg.mes = msg.swipes[1];
+    e.store.onSwiped(0);
+    const s = e.store.getState("custom").blocks.blk_1;
+    assert.equal(s.fields.trust.text, "70/100");
+    assert.equal(s.fields.mood, undefined);
+    e.chat.push({ is_user: true, mes: "hi", extra: {} });
+    e.chat.push(ai(reply("<Trust>\nTrust: +5 a kind word\n</Trust>")));
+    e.store.recordMessage(2);
+    assert.equal(e.store.getState("custom").blocks.blk_1.fields.trust.text, "75/100");
+});
+
 test("store: a block added later is read from the replies after it is set up", () => {
     const e = env([]);
     e.chat.push(ai(reply("<Trust>\nTrust: 40/100\n</Trust>")));

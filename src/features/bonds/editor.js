@@ -88,8 +88,8 @@ function renderSheetView() {
 
 // ── Popup ────────────────────────────────────────────────────────────────
 
-/** One edited value as a field change; "" clears it. A meter keeps its max. */
-function fieldChange(d, raw) {
+/** One edited value as a field change; "" clears it. A meter keeps its max. Also used by custom blocks (plan 023). */
+export function fieldChange(d, raw) {
     if (!raw) return { key: d.key, label: d.label, remove: true };
     const v = parseStatValue(raw);
     if (!v) return null;

@@ -214,7 +214,15 @@ size is the field list.
   pending / ok / "No change this reply." (Only when it changes) / missing
   with Read again / "Not written: … Chomusuke is off" on the latest reply.
   Fixed: "Every few replies" asked one reply late (3 → every 4th).
-- [ ] Phase 4
+- [x] Phase 4 (2026-11-03), waiting for the developer's test: a custom
+  field block is drawn like the Sheet (`treatment: "sheet"` on its def in
+  `meguminRenderRegistry`, its fields in `meguminStatFieldMap` under its id;
+  render.js looks up `def.treatment || def.id`). An Edit button on every
+  custom block's tab opens `features/blocks/customEditor.js`: one box per
+  field (cleared = removed) or the whole text, saved with `customEdit` as a
+  user entry. The popup says what the story sees of the values for the
+  block's memory choice. Like the Sheet, the card draws what the reply
+  wrote; the popup shows the kept values.
 - [ ] Phase 5
 
 ## Decided with the developer (2026-11-03)
