@@ -141,6 +141,18 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
 - All "use Chomusuke for X" routes and the Combine-calls settings live in the
   Chomusuke tab, not scattered in feature tabs.
 
+### Dev Mode: rules the blocks build
+- (`src/prompts/edits.js`, pure:
+  `setPromptEditReader(getSharedFragment)` in index.js, `promptEdit(key)`,
+  `fillPromptTokens`): shared slots in `data/slots.js` with a name-only
+  trigger and carrier `blockRules` / `blocks`. World State: `worldFullRules`,
+  `worldFullTemplate`, `worldUpdateRules`, `worldUpdateTemplate`
+  ({{threads}} {{seeds}} {{timers}} {{offscreen}} = the Limits; Chomusuke gets
+  the same text). Bonds / Sheet: `bondsRules`, `sheetRules` ({{start}},
+  {{meters}} from the fields), used by both the V11 split and the older
+  template. Not edited = the built-in text, byte for byte. The old
+  `[[infoblock]]` slot is hidden: nothing sends it.
+
 ### Custom blocks (plan 023)
 - **One list for every character**: `extension_settings[ext].customBlocks`,
   linked as `localProfile.blockStack.custom` (`linkGlobalCustomBlocks` in

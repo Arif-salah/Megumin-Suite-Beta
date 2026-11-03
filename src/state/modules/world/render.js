@@ -13,6 +13,7 @@
 
 import { nameKey } from "./parse.js";
 import { fieldLabel, presentCast, castDisplayName, LIST_LIMITS, OFFSCREEN_LIMIT } from "./model.js";
+import { promptEdit, fillPromptTokens } from "../../../prompts/edits.js";
 
 // The limits as the user set them in the World State tab (the bridge sets
 // them before anything is rendered); the built-in numbers until then.
@@ -172,14 +173,14 @@ const DEEP_CURRENTS_UPDATE =
 const FROM_SCENE =
     "- Who is in the scene comes from <Scene>. Someone new in <Scene> gets their Outfit, Position, Mood, Agenda, Secret lines here.";
 
-const listsUpdate = () =>
-    `- Keep at most ${limitsNow.threads} Threads, ${limitsNow.seeds} Seeds and ${limitsNow.timers} Timers. ` +
+const listsUpdate = lim =>
+    `- Keep at most ${lim.threads} Threads, ${lim.seeds} Seeds and ${lim.timers} Timers. ` +
     "When a list is full and you want to add one, first remove the one that matters least or the one the story has already answered. " +
     "<Current_World_State> numbers each Thread, Seed and Timer, so to remove one you can write its number.";
 
-const offscreenUpdate = () =>
+const offscreenUpdate = lim =>
     "- Offscreen is only for someone away from the scene who is doing something the story will come back to, and only for characters in <Known_Names> or <Scene>: someone the story mentions without a name gets none.\n" +
-    `- Keep at most ${limitsNow.offscreen} Off-screen lines. When ${limitsNow.offscreen} are listed and you want to add one ` +
+    `- Keep at most ${lim.offscreen} Off-screen lines. When ${lim.offscreen} are listed and you want to add one ` +
     "(with Offscreen:), first remove the one that matters least with Offscreen-: <Name>.";
 
 // While the Author's Notebook is on (plan 010), hidden things live in the
@@ -235,7 +236,32 @@ export function renderWorldInstructions(mode, { noSecret = false, carry = false,
     return mode === "bootstrap" && carry ? { ...ins, rules: `${ins.rules}\n${carryOver(noSecret, noLimits)}` } : ins;
 }
 
+// Dev Mode edits (src/prompts/edits.js): the full scene and the update, rules
+// and template apart, since they are sent in different places. The limits are
+// written as {{threads}}, {{seeds}}, {{timers}} and {{offscreen}} in an edit,
+// so the World State tab's Limits still reach it.
+export const WORLD_PROMPT_KEYS = {
+    bootstrap: { rules: "worldFullRules", template: "worldFullTemplate" },
+    update: { rules: "worldUpdateRules", template: "worldUpdateTemplate" }
+};
+const LIMIT_TOKENS = { threads: "{{threads}}", seeds: "{{seeds}}", timers: "{{timers}}", offscreen: "{{offscreen}}" };
+
+/** The built-in text with the limits as {{tokens}}: what Dev Mode opens for editing. */
+export function worldPromptDefault(mode, part) {
+    return builtinWorldInstructions(mode === "bootstrap" ? "bootstrap" : "update", LIMIT_TOKENS)[part] || "";
+}
+
 function worldInstructions(mode) {
+    const base = builtinWorldInstructions(mode, limitsNow);
+    const keys = WORLD_PROMPT_KEYS[mode === "bootstrap" ? "bootstrap" : "update"];
+    const edited = part => {
+        const t = promptEdit(keys[part]);
+        return t ? fillPromptTokens(t, limitsNow) : base[part];
+    };
+    return { rules: edited("rules"), template: edited("template") };
+}
+
+function builtinWorldInstructions(mode, lim) {
     if (mode === "bootstrap") {
         return {
             rules: [
@@ -260,10 +286,10 @@ function worldInstructions(mode) {
                 "[NPC Name].Agenda: [the big goal that drives them through the story, e.g. \"earn back her family's name\", never a small errand like \"order a drink\"]",
                 "[NPC Name].Secret: [something that would change how others see them, or shift the story, if it came out]",
                 "(repeat these fields for each character in <Scene>)",
-                `Offscreen: [NPC Name] = [where they are, what they are doing]   (at most ${limitsNow.offscreen})`,
-                `Thread+: [a major tension or open question the story will have to answer, at most ${limitsNow.threads} lines in all]`,
-                `Seed+: [foreshadowing detail, what it hints at; at most ${limitsNow.seeds}]`,
-                `Timer+: [consequence]: [turns remaining]   (at most ${limitsNow.timers})`,
+                `Offscreen: [NPC Name] = [where they are, what they are doing]   (at most ${lim.offscreen})`,
+                `Thread+: [a major tension or open question the story will have to answer, at most ${lim.threads} lines in all]`,
+                `Seed+: [foreshadowing detail, what it hints at; at most ${lim.seeds}]`,
+                `Timer+: [consequence]: [turns remaining]   (at most ${lim.timers})`,
                 "Arc: [Setup / Escalation / Complication / Crisis / Resolution]",
                 "Scene: [Early Simmer / Building / Midpoint Tension / Climax / Breather]",
                 "</World_State>"
@@ -295,8 +321,8 @@ function worldInstructions(mode) {
             "- Clothing changes matter: if anyone's clothes changed at all (removed, torn, wet, swapped), write their new Outfit.",
             "- An Outfit is the complete visible outfit, top to bottom, with colours and materials (\"grey hoodie, black joggers, white socks\"), never a summary like \"casual clothes\" or \"loungewear\".",
             DEEP_CURRENTS_UPDATE,
-            listsUpdate(),
-            offscreenUpdate(),
+            listsUpdate(lim),
+            offscreenUpdate(lim),
             "- If nothing changed, write exactly: No changes"
         ].join("\n"),
         template: "<World_Update>\n[change lines, or: No changes]\n</World_Update>"

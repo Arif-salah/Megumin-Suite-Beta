@@ -24,7 +24,14 @@ import {
     FORMATTING_RULES, FINAL_CHECKS, BUILTIN_BAN_LIST,
 } from "../src/prompts/presetFrame.js";
 
+import { worldPromptDefault } from "../src/state/modules/world/render.js";
+import { bondsRulesText, sheetRulesText } from "../src/prompts/v11Rules.js";
+
 const addonText = id => addons.find(a => a.id === id)?.content || "";
+const statFieldsOf = (p, id) => {
+    const cfg = (p && p.statBlocks && p.statBlocks[id]) || {};
+    return Array.isArray(cfg.fields) ? cfg.fields.filter(f => f && f.label) : [];
+};
 const blockText = id => blocks.find(b => b.id === id)?.content || "";
 
 // ── Scopes ───────────────────────────────────────────────────────────────────
@@ -64,6 +71,8 @@ const GATE = {
     dice:    gate(p => (p.addons || []).includes("dice")
                     || (p.addons || []).includes("dice_all"), "Dice", "Writing Style → Language & rules"),
     banBuiltIn: gate(p => p.banListBuiltIn !== false, "Built-in list", "Banned Phrases"),
+    world:   gate(p => (p.blocks || []).includes("info"), "World State", "Blocks"),
+    stat:    (id, label) => gate(p => ((p.blockStack && p.blockStack.order) || []).includes(id), label, "Blocks"),
 
     // The one gate keyed on the ENGINE rather than a switch the reader flips.
     // Every engine gets the "never write for {{user}}" rule except the Co-writer
@@ -201,9 +210,45 @@ export const MEGUMIN_SLOT_REGISTRY = [
       fallback: () => FORMATTING_RULES },
 
     // ── Shared fragments that happen to be output blocks ─────────────────────
-    { key: "info", trigger: "[[infoblock]]", carrier: "blocks", label: "World State Block", scope: "shared", group: "blocks",
+    // The old World State block text. Nothing sends it any more (World State
+    // writes its own rules, below), so it is hidden; the tag stays for the
+    // leak guard.
+    { key: "info", trigger: "[[infoblock]]", hidden: true, carrier: "blocks", label: "World State Block (old)", scope: "shared", group: "blocks",
       gate: GATE.block("info"), hint: "The scene board printed under each reply.",
       fallback: () => blockText("info") },
+
+    // ── Rules built by the blocks themselves (no tag of their own in the preset).
+    // The text is read where it is built (src/prompts/edits.js); the trigger is
+    // only a name. {{tokens}} are filled from your settings when it is sent.
+    { key: "worldFullRules", trigger: "[[world_full_rules]]", carrier: "blockRules", label: "World State: full scene rules",
+      scope: "shared", group: "blocks", gate: GATE.world,
+      hint: "Asked when the scene is written in full: the first reply, Rewrite next reply, or \"Full update each time\". Also given to Chomusuke when it writes World State. "
+          + "{{threads}}, {{seeds}}, {{timers}} and {{offscreen}} are filled in from the Limits in the World State tab.",
+      fallback: () => worldPromptDefault("bootstrap", "rules") },
+    { key: "worldFullTemplate", trigger: "[[world_full_template]]", carrier: "blocks", label: "World State: full scene template",
+      scope: "shared", group: "blocks", gate: GATE.world,
+      hint: "The <World_State> lines to fill in when the scene is written in full. Keep the labels as they are (Time:, Loc:, Name.Outfit:…): the story's answer is read by them. "
+          + "{{threads}}, {{seeds}}, {{timers}} and {{offscreen}} are filled in from the Limits.",
+      fallback: () => worldPromptDefault("bootstrap", "template") },
+    { key: "worldUpdateRules", trigger: "[[world_update_rules]]", carrier: "blockRules", label: "World Update rules",
+      scope: "shared", group: "blocks", gate: GATE.world,
+      hint: "Asked on the replies after the scene is on file: write only what changed. Also given to Chomusuke. Keep the line forms as they are (Name.Field:, Thread+:, Timer-:…): the answer is read by them. "
+          + "{{threads}}, {{seeds}}, {{timers}} and {{offscreen}} are filled in from the Limits.",
+      fallback: () => worldPromptDefault("update", "rules") },
+    { key: "worldUpdateTemplate", trigger: "[[world_update_template]]", carrier: "blocks", label: "World Update template",
+      scope: "shared", group: "blocks", gate: GATE.world,
+      hint: "The <World_Update> block the story fills in.",
+      fallback: () => worldPromptDefault("update", "template") },
+    { key: "bondsRules", trigger: "[[bonds_rules]]", carrier: "blockRules", label: "Bonds rules",
+      scope: "shared", group: "blocks", gate: GATE.stat("bonds", "Bonds"),
+      hint: "How the story writes Bonds. The line to fill in comes from the fields in the Blocks tab. "
+          + "{{start}} is filled with the starting values and {{meters}} with the meters' names, from those fields.",
+      fallback: p => bondsRulesText(statFieldsOf(p, "bonds"), { tokens: true }) },
+    { key: "sheetRules", trigger: "[[sheet_rules]]", carrier: "blockRules", label: "Character Sheet rules",
+      scope: "shared", group: "blocks", gate: GATE.stat("sheet", "Character Sheet"),
+      hint: "How the story writes {{user}}'s sheet. The lines to fill in come from the fields in the Blocks tab. "
+          + "{{start}} is filled with the starting values and {{meters}} with the meters' names, from those fields.",
+      fallback: p => sheetRulesText(statFieldsOf(p, "sheet"), { tokens: true }) },
     { key: "cyoa", trigger: "[[cyoa]]", carrier: "blocks", label: "Choices Block", scope: "shared", group: "blocks",
       gate: GATE.block("cyoa"), hint: "The numbered options offered at the end of a reply.",
       fallback: () => blockText("cyoa") },

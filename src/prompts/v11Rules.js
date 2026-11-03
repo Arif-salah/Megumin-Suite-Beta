@@ -18,13 +18,26 @@ export const andList = items => items.length < 2
 const startOf = f => `${f.label} ${f.start !== undefined ? f.start : 0}`;
 
 // The cap is for meters only: a counted field like Gold can jump by hundreds.
-function meterCap(fields) {
+// With tokens (the text Dev Mode opens), the names are {{meters}}.
+function meterCap(fields, tokens = false) {
     const meters = fields.filter(f => f.type === "meter").map(f => f.label);
     if (!meters.length) return "";
+    if (tokens) return "{{meters}} move by 10 at most in one reply, unless the scene plainly earns more.";
     return `${andList(meters)} ${meters.length === 1 ? "moves" : "move"} by 10 at most in one reply, unless the scene plainly earns more.`;
 }
 
 const tracked = fields => fields.filter(f => f.type === "meter" || f.type === "number");
+
+/**
+ * What {{start}} and {{meters}} stand for in Bonds / Sheet rules edited in Dev
+ * Mode: the starting values and the meters, from the fields as they are now.
+ */
+export function statRuleTokens(fields) {
+    return {
+        start: tracked(fields || []).map(startOf).join(", "),
+        meters: andList((fields || []).filter(f => f.type === "meter").map(f => f.label))
+    };
+}
 
 // ── <block_rules> ───────────────────────────────────────────────────────────
 
@@ -39,30 +52,46 @@ export const wrapBlockRules = rules => `<block_rules>\n${BLOCK_RULES_LEAD}\n\n${
 // <block_rules> the heading is just the block's name.
 export const shortRulesHeading = text => String(text || "").replace(/^(#{1,3} .+?) rules[ \t]*$/m, "$1");
 
-/** @param {Array<{label: string, type: string, start?: number}>} fields */
-export function bondsRulesSplit(fields) {
+/**
+ * @param {Array<{label: string, type: string, start?: number}>} fields
+ * @param {{ tokens?: boolean }} [opts]  tokens: {{start}} / {{meters}} in place of the values (Dev Mode)
+ */
+export function bondsRulesText(fields, { tokens = false } = {}) {
     const lines = ["One line for each character in <Scene>, Here or Remote, and for anyone whose numbers changed in this scene."];
     if (tracked(fields).length) {
         lines.push("Start every number from <Bonds_Now> in <Current_Info>. A number moves only when something in this scene moved it: write the change and its reason in brackets, like (-6 he apologised and she heard pity), or (=) when nothing moved it.");
-        const cap = meterCap(fields);
+        const cap = meterCap(fields, tokens);
         if (cap) lines.push(cap);
-        lines.push(`Someone with no numbers yet starts at ${tracked(fields).map(startOf).join(", ")}.`);
+        lines.push(`Someone with no numbers yet starts at ${tokens ? "{{start}}" : tracked(fields).map(startOf).join(", ")}.`);
     }
     lines.push("Bonds are feelings only: leave out clothes, posture and place.");
-    return `## Bonds\n${lines.join(" ")}`;
+    return lines.join(" ");
+}
+
+/** @param {Array<{label: string, type: string, start?: number}>} fields */
+export function bondsRulesSplit(fields) {
+    return `## Bonds\n${bondsRulesText(fields)}`;
+}
+
+/**
+ * @param {Array<{label: string, type: string, start?: number}>} fields
+ * @param {{ tokens?: boolean }} [opts]
+ */
+export function sheetRulesText(fields, { tokens = false } = {}) {
+    const lines = ["The sheet is {{user}}'s."];
+    if (tracked(fields).length) {
+        lines.push("Start every number from <Character_Sheet_Now> in <Current_Info>. A number moves only when something in this scene moved it: write the change and its reason in brackets, like (-8 a blade across the ribs), or (=) when nothing moved it.");
+        const cap = meterCap(fields, tokens);
+        if (cap) lines.push(cap);
+        lines.push(`With no sheet yet, it starts at ${tokens ? "{{start}}" : tracked(fields).map(startOf).join(", ")}.`);
+    }
+    lines.push("Inventory and skills change only when the story changes them; nothing comes back or gets equipped on its own.");
+    return lines.join(" ");
 }
 
 /** @param {Array<{label: string, type: string, start?: number}>} fields */
 export function sheetRulesSplit(fields) {
-    const lines = ["The sheet is {{user}}'s."];
-    if (tracked(fields).length) {
-        lines.push("Start every number from <Character_Sheet_Now> in <Current_Info>. A number moves only when something in this scene moved it: write the change and its reason in brackets, like (-8 a blade across the ribs), or (=) when nothing moved it.");
-        const cap = meterCap(fields);
-        if (cap) lines.push(cap);
-        lines.push(`With no sheet yet, it starts at ${tracked(fields).map(startOf).join(", ")}.`);
-    }
-    lines.push("Inventory and skills change only when the story changes them; nothing comes back or gets equipped on its own.");
-    return `## Character Sheet\n${lines.join(" ")}`;
+    return `## Character Sheet\n${sheetRulesText(fields)}`;
 }
 
 export const CHATTER_RULES = `## Inner Chatter

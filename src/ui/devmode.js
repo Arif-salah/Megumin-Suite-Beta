@@ -134,6 +134,12 @@ const CARRIERS = {
         text: "Wrapped in think tags and sent inside <b>Thinking Tags</b> — that is the tag your preset carries. "
             + "Whatever you write here lands where that add-on's <code>{Thinking}</code> marker sits.",
     },
+    // World State, Bonds and Sheet rules: built by the blocks, sent apart from
+    // the lines to fill in.
+    blockRules: {
+        tag: "[[blocks]]",
+        text: "Sent with the rules for the blocks: near the top of the prompt with a V11 preset, just above the <b>Blocks</b> section with older presets.",
+    },
 };
 
 const SCOPE_META = {
