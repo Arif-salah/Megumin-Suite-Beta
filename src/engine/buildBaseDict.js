@@ -922,7 +922,7 @@ function recentStoryText(count = 3) {
 
 // [[infoblockcurrent]]: one <Current_Info> section, or "" when nothing is on file.
 function buildCurrentInfo(worldNotes) {
-    let parts = { bonds: "", sheet: "", chatter: "", tracker: "" };
+    let parts = { bonds: "", sheet: "", chatter: "", tracker: "", custom: [] };
     try { parts = statsPromptParts({ recentText: recentStoryText() }); } catch (e) {
         console.warn("[Megumin Suite] Current Info: could not read the kept blocks.", e);
     }
@@ -941,6 +941,8 @@ function buildCurrentInfo(worldNotes) {
     // models copy it and add to it, so it grew every turn.
     if (parts.chatter) sections.push(`<Last_Inner_Chatter>\n<!-- The private thoughts from the last turn. Write new ones for this turn: never copy, repeat or add to these. -->\n${parts.chatter}\n</Last_Inner_Chatter>`);
     if (parts.tracker) sections.push(`<Last_Story_Tracker>\n${parts.tracker}\n</Last_Story_Tracker>`);
+    // Plan 023: custom blocks on "Last one in Current Info", in stack order.
+    for (const c of parts.custom || []) sections.push(c);
     if (!sections.length) return "";
     return [
         "<Current_Info>",

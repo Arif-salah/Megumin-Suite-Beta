@@ -16,8 +16,9 @@ import { buildBaseDict } from "../../engine/buildBaseDict.js";
 import {
     MEGUMIN_BLOCK_REGISTRY, BLOCK_VISIBILITY_CHOICES, STAT_FIELD_PACKS, STAT_FIELD_TYPES,
     meguminRenderRegistry, meguminActiveBlocks, meguminBlockById, meguminStatFields, meguminStatFieldMap,
-    normalizeBlockBody, blockTagFromName, validateCustomBlock, meguminSyncLegacyBlockIds,
+    blockTagFromName, validateCustomBlock, meguminSyncLegacyBlockIds, meguminBlockTemplateBody,
 } from "./registry.js";
+import { normalizeCustomBlock } from "../../state/modules/custom/model.js";
 import { meguminScheduleBlocksRefresh } from "./chat.js";
 import { fireRefreshHook, REFRESH } from "../../core/refreshHooks.js";
 import { keepScroll } from "../../ui/controls.js";
@@ -270,13 +271,7 @@ export function renderBlocksPreview(host) {
 
     const sample = "<Blocks>\n" + active.map(b => {
         // Same three sources the envelope uses, so the preview cannot drift.
-        let raw;
-        if (b.slot) raw = "[Only appears when the story introduces a new NPC.]";
-        else if (typeof b.build === "function") raw = b.build();
-        else if (b.source) raw = dict[b.source] || "";
-        else raw = b.content || "";
-        const body = b.slot ? raw : normalizeBlockBody(
-            String(raw).replace(/^#{1,3}\s*At the end of your response[^\n]*\n?/i, ""), b.tag);
+        const body = b.slot ? "[Only appears when the story introduces a new NPC.]" : meguminBlockTemplateBody(b, dict);
         return body ? `<${b.tag}>\n${body}\n</${b.tag}>` : "";
     }).filter(Boolean).join("\n") + "\n</Blocks>";
 
@@ -294,12 +289,39 @@ export function renderBlocksPreview(host) {
     host.appendChild(note);
 }
 
+// One-of-many as icon tiles (the World State tab's style). A disabled tile
+// says why in its own line.
+function choiceTiles(options, current, onPick) {
+    const $t = $(`<div class="igx-tiles wsx-choice"></div>`);
+    for (const o of options) {
+        const $b = $(`<button type="button" class="igx-tile ${o.id === current ? "on" : ""}" ${o.disabled ? "disabled" : ""}>
+            <b><i class="fa-solid ${o.icon}"></i> ${escapeHtmlAttr(o.label)}</b><span>${escapeHtmlAttr(o.disabled || o.desc)}</span>
+        </button>`);
+        $b.on("click", () => {
+            if (o.disabled || $b.hasClass("on")) return;
+            $t.children().removeClass("on");
+            $b.addClass("on");
+            onPick(o.id);
+        });
+        $t.append($b);
+    }
+    return $t;
+}
+
+const sectionHead = (label, desc) => `<div style="padding: 14px 0 6px;">
+    <div class="set-label" style="margin-bottom:4px;">${label}</div>
+    ${desc ? `<div class="set-desc">${desc}</div>` : ""}
+</div>`;
+
+// Plan 023: a custom block is a name and a look, what it holds (fields or
+// free text), what the story remembers of it, and when it is written.
 export function renderCustomBlockEditor(c, editId) {
     const stack = localProfile.blockStack;
     const existing = editId ? (stack.custom || []).find(b => b.id === editId) : null;
     const draft = existing
-        ? { ...existing }
-        : { id: "blk_" + Date.now(), label: "", tag: "", emoji: "📦", visibility: "collapsed", builtin: false, content: "" };
+        ? normalizeCustomBlock(structuredClone(existing))
+        : normalizeCustomBlock({ id: "blk_" + Date.now(), label: "", tag: "", emoji: "📦", visibility: "open", builtin: false, content: "" });
+    if (draft.visibility !== "hidden") draft.visibility = "open";
 
     c.empty();
     c.append(`
@@ -308,7 +330,7 @@ export function renderCustomBlockEditor(c, editId) {
                 <div class="mtab-header-icon" style="background: linear-gradient(135deg, #10b981, #047857);"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
                 <div>
                     <h2>${existing ? "Edit" : "New"} block</h2>
-                    <p>Give it a name, an emoji and the template the AI fills in.</p>
+                    <p>Give it a name, choose what it holds, and how the story keeps it.</p>
                 </div>
             </div>
         </div>
@@ -318,34 +340,121 @@ export function renderCustomBlockEditor(c, editId) {
         <div class="mtab-panel">
             <div class="mtab-setting-row">
                 <div class="set-info"><div class="set-label">Name</div><div class="set-desc">Shown as the header in chat</div></div>
-                <input type="text" id="blk_name" class="ps-modern-input" style="width:220px;" placeholder="e.g. Relationship Meter" value="${escapeHtmlAttr(draft.label)}" />
+                <input type="text" id="blk_name" class="ps-modern-input" style="width:220px;" placeholder="e.g. Relationship Meter" value="${escapeHtmlAttr(draft.label || "")}" />
             </div>
             <div class="mtab-setting-row">
                 <div class="set-info"><div class="set-label">Emoji</div><div class="set-desc">Sits before the header</div></div>
-                <input type="text" id="blk_emoji" class="ps-modern-input" style="width:70px; text-align:center;" value="${escapeHtmlAttr(draft.emoji)}" />
+                <input type="text" id="blk_emoji" class="ps-modern-input" style="width:70px; text-align:center;" value="${escapeHtmlAttr(draft.emoji || "📦")}" />
             </div>
             <div class="mtab-setting-row">
-                <div class="set-info"><div class="set-label">Shown as</div><div class="set-desc">Hidden blocks are still sent and still read by the side panel</div></div>
+                <div class="set-info"><div class="set-label">Shown as</div><div class="set-desc">Hidden blocks are still written and still kept</div></div>
                 <select id="blk_vis" class="ps-modern-input" style="width:150px;">
                     ${BLOCK_VISIBILITY_CHOICES.map(o => `<option value="${o.v}" ${draft.visibility === o.v ? "selected" : ""}>${o.label}</option>`).join("")}
                 </select>
             </div>
-            <div style="padding: 12px 0;">
-                <div class="set-label" style="margin-bottom:6px;">Template</div>
-                <div class="set-desc" style="margin-bottom:8px;">What the AI is told to write. Square brackets read as fill-me-in.</div>
-                <textarea id="blk_content" class="ps-modern-input" rows="8" style="width:100%; resize:vertical;" placeholder="e.g.&#10;**Trust:** [0-100] | **Tension:** [0-100]&#10;**Last shift:** [what moved it this scene]">${escapeHtmlAttr(draft.content)}</textarea>
-            </div>
             <div style="font-size:0.68rem; color:var(--text-muted);">Tag: <code id="blk_tag_preview">&lt;${escapeHtmlAttr(draft.tag || "…")}&gt;</code></div>
+            <div class="blk-ed-holds"></div>
+            <div class="blk-ed-body"></div>
+            <div class="blk-ed-memory"></div>
+            <div class="blk-ed-when"></div>
         </div>
     `);
     c.append(form);
 
-    const syncTag = () => {
-        const t = blockTagFromName($("#blk_name").val());
-        $("#blk_tag_preview").text(`<${t || "…"}>`);
-        return t;
+    form.find("#blk_name").on("input", function () {
+        $("#blk_tag_preview").text(`<${blockTagFromName($(this).val()) || "…"}>`);
+    });
+
+    // What it holds.
+    const drawHolds = () => {
+        const host = form.find(".blk-ed-holds").empty();
+        host.append(sectionHead("What it holds"));
+        host.append(choiceTiles([
+            { id: "fields", icon: "fa-sliders", label: "Fields", desc: "Named values like Trust or Gold. Meters are drawn as bars, lists as chips." },
+            { id: "text", icon: "fa-align-left", label: "Free text", desc: "Your own template, sent as you wrote it." }
+        ], draft.kind, v => { draft.kind = v; drawBody(); }));
     };
-    form.find("#blk_name").on("input", syncTag);
+
+    // The fields, or the template.
+    const drawBody = () => {
+        const host = form.find(".blk-ed-body").empty();
+        if (draft.kind === "text") {
+            host.append(sectionHead("Template", "What the story is told to write. Square brackets read as fill-me-in."));
+            const $ta = $(`<textarea class="ps-modern-input" rows="8" style="width:100%; resize:vertical;" placeholder="e.g.&#10;Goal: [what the party wants now]&#10;Next step: [what they do about it]"></textarea>`);
+            $ta.val(draft.content || "");
+            $ta.on("input", function () { draft.content = $(this).val(); });
+            host.append($ta);
+            return;
+        }
+        host.append(sectionHead("Fields", "What the story keeps in this block. Every field costs tokens on every reply."));
+        const rows = $(`<div class="stat-field-list"></div>`);
+        draft.fields.forEach((f, i) => {
+            const row = $(`
+                <div class="stat-field">
+                    <input type="text" class="ps-modern-input sf-label" value="${escapeHtmlAttr(f.label)}" placeholder="Name" />
+                    <select class="ps-modern-input sf-type">
+                        ${STAT_FIELD_TYPES.map(t => `<option value="${t.v}" ${f.type === t.v ? "selected" : ""} title="${t.hint}">${t.label}</option>`).join("")}
+                    </select>
+                    <input type="number" class="ps-modern-input sf-max" value="${f.max || 100}" title="Maximum" style="display:${f.type === "meter" ? "" : "none"};" />
+                    <input type="number" class="ps-modern-input sf-start" value="${f.start !== undefined ? f.start : 0}" title="Starting value" style="display:${f.type === "meter" || f.type === "number" ? "" : "none"};" />
+                    <button class="ws-btn-small sf-up" title="Move up" ${i === 0 ? "disabled" : ""}><i class="fa-solid fa-arrow-up"></i></button>
+                    <button class="ws-btn-small sf-del" title="Remove this field" style="color:var(--c-danger, #ef4444);"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            `);
+            row.find(".sf-label").on("input", function () { f.label = $(this).val(); });
+            row.find(".sf-type").on("change", function () { f.type = $(this).val(); f.ownLine = f.type === "list"; drawBody(); });
+            row.find(".sf-max").on("input", function () { f.max = parseInt($(this).val(), 10) || 100; });
+            row.find(".sf-start").on("input", function () { f.start = parseInt($(this).val(), 10) || 0; });
+            row.find(".sf-up").on("click", () => { draft.fields.splice(i - 1, 0, draft.fields.splice(i, 1)[0]); drawBody(); });
+            row.find(".sf-del").on("click", () => { draft.fields.splice(i, 1); drawBody(); });
+            rows.append(row);
+        });
+        if (!draft.fields.length) rows.append(`<div class="blk-empty">No fields yet.</div>`);
+        host.append(rows);
+        const add = $(`<button class="blk-add" style="margin-top:8px;"><i class="fa-solid fa-plus"></i> Add field</button>`);
+        add.on("click", () => {
+            draft.fields.push({ id: "f_" + Date.now(), label: "New field", type: "meter", max: 100, start: 0 });
+            drawBody();
+        });
+        host.append(add);
+    };
+
+    // What the story remembers of it.
+    const drawMemory = () => {
+        const host = form.find(".blk-ed-memory").empty();
+        host.append(sectionHead("What the story remembers of it", "Works the same with \"Hide old blocks from the AI\" on or off."));
+        host.append(choiceTiles([
+            { id: "fresh", icon: "fa-seedling", label: "Starts fresh", desc: "The story doesn't see the last one, so it writes this block new each time." },
+            { id: "chat", icon: "fa-comments", label: "Stays in the chat", desc: "The story reads its old copies in earlier replies, even while other blocks are hidden. Costs tokens on every old reply." },
+            { id: "info", icon: "fa-thumbtack", label: "Last one in Current Info", desc: "The story reads only the latest one, once, before it writes. A field the reply leaves out keeps its value." }
+        ], draft.memory, v => {
+            draft.memory = v;
+            if (v === "fresh" && draft.when === "changes") draft.when = "every";
+            drawWhen();
+        }));
+    };
+
+    // When it is written.
+    const drawWhen = () => {
+        const host = form.find(".blk-ed-when").empty();
+        host.append(sectionHead("When the story writes it"));
+        host.append(choiceTiles([
+            { id: "every", icon: "fa-rotate", label: "Every reply", desc: "Written at the end of each reply." },
+            { id: "changes", icon: "fa-pen-to-square", label: "Only when it changes", desc: "The story leaves it out when nothing in it changed.",
+              disabled: draft.memory === "fresh" ? "Needs the story to see the block. Pick \"Stays in the chat\" or \"Last one in Current Info\" above." : "" },
+            { id: "everyN", icon: "fa-forward", label: "Every few replies", desc: "Written once every few replies. Set how many below." }
+        ], draft.when, v => { draft.when = v; drawWhen(); }));
+        if (draft.when === "everyN") {
+            const $n = $(`<div class="mtab-setting-row">
+                <div class="set-info"><div class="set-label">How many replies</div><div class="set-desc">From 2 to 20</div></div>
+                <input type="number" min="2" max="20" class="ps-modern-input" style="width:80px;" value="${draft.everyN}" />
+            </div>`);
+            $n.find("input").on("input", function () { draft.everyN = normalizeCustomBlock({ when: "everyN", everyN: $(this).val() }).everyN; });
+            host.append($n);
+        }
+    };
+
+    drawHolds(); drawBody(); drawMemory(); drawWhen();
 
     const actions = $(`
         <div style="display:flex; gap:10px; margin-top:16px;">
@@ -359,17 +468,28 @@ export function renderCustomBlockEditor(c, editId) {
         const tag = blockTagFromName(label);
         const problem = validateCustomBlock(label, tag, draft.id);
         if (problem) { toastr.warning(problem); return; }
+        if (draft.kind === "fields" && !draft.fields.some(f => String(f.label || "").trim())) {
+            toastr.warning("Add at least one field, or pick Free text.");
+            return;
+        }
 
-        const entry = {
-            id: draft.id, label, tag,
+        // A renamed block keeps reading its old copies under the old tag.
+        const tags = [...(draft.tags || [])];
+        if (existing && existing.tag && existing.tag !== tag && !tags.includes(existing.tag)) tags.push(existing.tag);
+
+        const entry = normalizeCustomBlock({
+            ...draft,
+            label, tag,
+            tags: tags.filter(t => t !== tag),
             emoji: String($("#blk_emoji").val() || "📦").trim() || "📦",
             icon: "fa-cube", color: "#38bdf8",
             visibility: $("#blk_vis").val(),
             builtin: false,
-            content: String($("#blk_content").val() || "").trim(),
+            content: String(draft.content || "").trim(),
+            fields: draft.fields.filter(f => String(f.label || "").trim()).map(f => ({ ...f, label: String(f.label).trim() })),
             // Custom blocks carry their own body rather than reading a dict tag.
             source: null
-        };
+        });
 
         if (!stack.custom) stack.custom = [];
         const at = stack.custom.findIndex(b => b.id === entry.id);

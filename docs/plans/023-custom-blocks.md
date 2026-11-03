@@ -187,7 +187,18 @@ size is the field list.
   `stripBlocksForModel(text, tags, { keep, whole })` for the per-block memory
   choice. 12 tests in `tests/custom-blocks.test.mjs`. Not wired in yet:
   nothing changes for the user until phase 2.
-- [ ] Phase 2
+- [x] Phase 2 (2026-11-03), waiting for the developer's test: the editor
+  (What it holds, the field list, What the story remembers of it, When the
+  story writes it), `meguminBuildCustomTemplate` in registry.js (field
+  blocks get the Sheet's rules, pointed at `<Name_Now>`, at "your last
+  <Name> block", or `CUSTOM_FRESH_FIELDS_LINE`), the envelope asks for a
+  block only when `customBlockDueNow`, `<Name_Now>` / `<Last_Name>` in
+  Current Info, `customHiding()` in injection.js, recording on reply /
+  swipe / edit / chat load (+ one import per chat). The "Who writes it" row
+  waits for phase 3, so every custom block is written by the story for now.
+  Phase 3 note: the store keeps ONE `custom` entry per reply and swipe, so
+  Chomusuke's answer must be joined with what the reply wrote (like the
+  notebook's `raw` = reply + marker + answer), not filed beside it.
 - [ ] Phase 3
 - [ ] Phase 4
 - [ ] Phase 5

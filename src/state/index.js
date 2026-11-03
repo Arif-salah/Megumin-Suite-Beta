@@ -28,6 +28,9 @@ import { parseScene, sceneBlockOf } from "./scene.js";
 import { SCENE_RULES, SCENE_TEMPLATE, KNOWN_NAMES_LEAD, KNOWN_NAMES_TASK } from "../prompts/scene.js";
 import { knownNameList } from "./names.js";
 import { notebookModule } from "./modules/notebook/index.js";
+import { createCustomModule } from "./modules/custom/index.js";
+import { normalizeCustomBlock, customBlockDue, customTagsToHide, customTagsToKeep } from "./modules/custom/model.js";
+import { customInfoSections } from "./modules/custom/render.js";
 import {
     notebookPhase, renderNotebookSetup, renderNotebookForPrompt, renderNotebookUpdateRules, notebookTurnLabeler, truthCountWords
 } from "./modules/notebook/render.js";
@@ -183,9 +186,13 @@ const adapter = {
         : mid === "notebook" ? { liveCap: notebookReplayCap() } : {}
 };
 
+// Plan 023: the user's custom blocks, read from the profile each time (they
+// change under the store as the user edits them).
+const customModule = createCustomModule(() => (localProfile && localProfile.blockStack && localProfile.blockStack.custom) || []);
+
 export const stateStore = createStateStore({
     adapter,
-    modules: { world: worldModule, bonds: bondsModule, sheet: sheetModule, chatter: chatterModule, tracker: trackerModule, cyoa: cyoaModule, notebook: notebookModule },
+    modules: { world: worldModule, bonds: bondsModule, sheet: sheetModule, chatter: chatterModule, tracker: trackerModule, cyoa: cyoaModule, notebook: notebookModule, custom: customModule },
     journalDepth: () => worldSettings().journalDepth
 });
 
@@ -1298,7 +1305,7 @@ export function statsEdit(moduleId, parsed) {
  * @param {{ recentText?: string }} opts  the last few messages, blocks removed
  */
 export function statsPromptParts({ recentText = "" } = {}) {
-    const out = { bonds: "", sheet: "", chatter: "", tracker: "", names: "" };
+    const out = { bonds: "", sheet: "", chatter: "", tracker: "", names: "", custom: [] };
     if (!adapter.getMeta()) return out;
     out.names = knownNamesBlock();
     if (statBlockOn("bonds") && stateStore.hasState("bonds")) {
@@ -1308,7 +1315,73 @@ export function statsPromptParts({ recentText = "" } = {}) {
     if (statBlockOn("sheet") && stateStore.hasState("sheet")) out.sheet = renderSheetNotes(stateStore.getState("sheet"));
     if (statBlockOn("chatter") && stateStore.hasState("chatter")) out.chatter = stateStore.getState("chatter").text || "";
     if (statBlockOn("tracker") && stateStore.hasState("tracker")) out.tracker = stateStore.getState("tracker").text || "";
+    if (customInPlay() && stateStore.hasState("custom")) out.custom = customInfoSections(stateStore.getState("custom"), customBlocksOn());
     return out;
+}
+
+// ── Custom blocks (plan 023) ─────────────────────────────────────────────
+// Kept like the other blocks. Each block decides on its own what the story
+// sees of its old copies (memory), when it is asked for (when), and who
+// writes it (writer, phase 3).
+
+/** Every custom block the user made, settings filled in. */
+export function customBlocks() {
+    const list = (localProfile && localProfile.blockStack && localProfile.blockStack.custom) || [];
+    return list.map(normalizeCustomBlock);
+}
+
+/** The custom blocks in the stack, in stack order. */
+export function customBlocksOn() {
+    const order = (localProfile && localProfile.blockStack && localProfile.blockStack.order) || [];
+    const all = customBlocks();
+    return order.map(id => all.find(b => b.id === id)).filter(Boolean);
+}
+
+function customInPlay() {
+    return Boolean(adapter.getMeta()) && customBlocksOn().length > 0;
+}
+
+function customRecord(index) {
+    const msg = adapter.getChat()[index];
+    if (!msg || msg.is_user || msg.is_system) return;
+    stateStore.recordMessage(index, { moduleIds: ["custom"] });
+}
+
+// Replies since the block's last copy on file, or null when it has none.
+function customRepliesSince(id) {
+    const entries = stateStore.activeEntries("custom").filter(e => e.uid && !e.missing && e.parsed && e.parsed.blocks && e.parsed.blocks[id]);
+    const last = entries[entries.length - 1];
+    if (!last) return null;
+    const chat = adapter.getChat();
+    const at = chat.findIndex(m => m?.extra?.megumin_uid === last.uid);
+    if (at < 0) return null;
+    let n = 0;
+    for (let i = at + 1; i < chat.length; i++) if (chat[i] && !chat[i].is_user && !chat[i].is_system) n++;
+    return n;
+}
+
+/** Is the story model asked for this custom block this turn? */
+export function customBlockDueNow(id) {
+    const b = customBlocks().find(x => x.id === id);
+    if (!b) return false;
+    let since = null;
+    try { since = adapter.getMeta() ? customRepliesSince(id) : null; } catch (e) { since = null; }
+    return customBlockDue(b, since);
+}
+
+/**
+ * Which custom block tags come out of the replies the story reads, and which
+ * stay ("Stays in the chat"). Every custom block counts, in the stack or not.
+ */
+export function customHiding() {
+    const all = customBlocks();
+    return { hide: customTagsToHide(all), keep: customTagsToKeep(all) };
+}
+
+/** One custom block's state now (for the card and the editor), or null. */
+export function customBlockState(id) {
+    if (!adapter.getMeta() || !stateStore.hasState("custom")) return null;
+    return stateStore.getState("custom").blocks[id] || null;
 }
 
 // Manual mode: the state is read, never written by replies.
@@ -1322,6 +1395,10 @@ function repliesUpdate() {
  */
 export function stateOnMessageReceived(messageId, type, { skipSideRead = false } = {}) {
     statsOnReceived(messageId);
+    if (customInPlay()) {
+        stateStore.reconcile();
+        customRecord(typeof messageId === "number" ? messageId : adapter.getChat().length - 1);
+    }
     notebookOnReceived(messageId);
     if (!repliesUpdate() || !adapter.getMeta()) return false;
     const chat = adapter.getChat();
@@ -1357,6 +1434,7 @@ export function stateOnSwiped(messageId) {
     const index = typeof messageId === "number" ? messageId : chat.length - 1;
     if (statsInPlay()) stateStore.onSwiped(index, { moduleIds: STAT_MODULES });
     if (notebookInPlay()) stateStore.onSwiped(index, { moduleIds: ["notebook"] });
+    if (customInPlay()) stateStore.onSwiped(index, { moduleIds: ["custom"] });
     if (!inPlay()) return false;
     if (!repliesUpdate()) {
         stateStore.reconcile();
@@ -1376,6 +1454,7 @@ export function stateOnSwipeDeleted(data) {
 export function stateOnEdited(messageId) {
     if (statsInPlay()) statsRecord(messageId);
     if (notebookInPlay()) notebookRecord(messageId);
+    if (customInPlay()) customRecord(messageId);
     if (!repliesUpdate() || !adapter.getMeta()) return false;
     const msg = adapter.getChat()[messageId];
     if (!msg || msg.is_user) return false;
@@ -1407,6 +1486,12 @@ export function stateOnDeleted() {
 export function stateOnChatLoaded() {
     statsOnChatLoaded();
     if (notebookInPlay()) stateStore.reparseStale("notebook");
+    if (customInPlay()) {
+        stateStore.reparseStale("custom");
+        // Once per chat: a block made after the chat started finds the copies
+        // already written in it.
+        if (!stateStore.root()?.imported?.custom) stateStore.importFromChat("custom");
+    }
     if (!inPlay()) return false;
     if (worldEnabled()) stateStore.stampAll();
     stateStore.reconcile();

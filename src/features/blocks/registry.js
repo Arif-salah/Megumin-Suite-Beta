@@ -12,7 +12,10 @@
 
 import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
-import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest, sceneBlockRequest } from "../../state/index.js";
+import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest, sceneBlockRequest, customBlockDueNow } from "../../state/index.js";
+import { normalizeCustomBlock, customBlockTags } from "../../state/modules/custom/model.js";
+import { customInfoTag } from "../../state/modules/custom/render.js";
+import { CUSTOM_CHANGES_LINE, CUSTOM_FRESH_FIELDS_LINE } from "../../prompts/customBlocks.js";
 import { SCENE_TAG } from "../../state/scene.js";
 import { NOTEBOOK_TAGS } from "../../state/modules/notebook/parse.js";
 import {
@@ -237,7 +240,8 @@ export function meguminActiveBlocks() {
 // generated from a field list, or a custom block's own text.
 export function meguminBlockTemplateBody(b, dict) {
     let raw;
-    if (typeof b.build === "function") raw = b.build();
+    if (!b.builtin) raw = meguminBuildCustomTemplate(b);
+    else if (typeof b.build === "function") raw = b.build();
     else if (b.source) raw = (dict && dict[b.source]) || "";
     else raw = b.content || "";
     return normalizeBlockBody(
@@ -299,6 +303,8 @@ export function blocksEnvelopeParts(dict) {
 
         // Plan 009: Chomusuke writes this one after the reply.
         if (blockViaChomusuke(b.id)) return;
+        // Plan 023: a custom block is asked for only on the turns it is due.
+        if (!b.builtin && !customBlockDueNow(b.id)) return;
 
         const body = meguminBlockTemplateBody(b, dict);
         if (!body) return;
@@ -456,8 +462,9 @@ export function meguminStatRules(fields, subject, opts = {}) {
     // through its own old blocks (which are hidden from it), so that is where
     // it is told to start from.
     const notes = opts.notesTag || `${subject}_Now`;
+    const from = opts.from || `<${notes}> in <Current_Info>`;
     const lines = [
-        `- Start every number from <${notes}> in <Current_Info>. Never reset one, and never invent a value that is already there.`,
+        `- Start every number from ${from}. Never reset one, and never invent a value that is already there.`,
         `- A number moves only when something in THIS scene moved it. Write the change and the reason in brackets, e.g. (-6 he apologised and she heard pity). When nothing moved it, write (=).`
     ];
     // The cap is for meters only. A counted field like Gold legitimately jumps by
@@ -466,7 +473,7 @@ export function meguminStatRules(fields, subject, opts = {}) {
     if (meters.length) {
         lines.push(`- ${meters.map(f => f.label).join(", ")} move at most 10 in one reply unless the scene plainly earns more.`);
     }
-    lines.push(`- Starting values when <${notes}> has none${opts.perSubject ? " for that person" : ""}: ${seeds}.`);
+    lines.push(`- Starting values when ${opts.from || `<${notes}>`} has none${opts.perSubject ? " for that person" : ""}: ${seeds}.`);
     return lines.join("\n");
 }
 
@@ -503,6 +510,25 @@ export function meguminBuildSheetSplit() {
     return { rules: sheetRulesSplit(fields), body: [inline, ...own].filter(Boolean).join("\n") };
 }
 
+// A custom block's template (plan 023). Free text is the user's own, as
+// written. A field block is built like the Sheet, with the rules for where its
+// old values are: <Name_Now> in Current Info, its last copy in the chat, or
+// nowhere (it starts fresh).
+export function meguminBuildCustomTemplate(raw) {
+    const b = normalizeCustomBlock(raw);
+    const head = b.when === "changes" ? [CUSTOM_CHANGES_LINE] : [];
+    if (b.kind !== "fields") return [...head, b.content || ""].join("\n").trim();
+    if (!b.fields.length) return "";
+    const rules = b.memory === "info" ? meguminStatRules(b.fields, b.label, { notesTag: customInfoTag(b) })
+        : b.memory === "chat" ? meguminStatRules(b.fields, b.label, { from: `your last <${b.tag}> block` })
+        : CUSTOM_FRESH_FIELDS_LINE;
+    const inline = b.fields.filter(f => !f.ownLine).map(meguminStatFieldSpec).join(" | ");
+    const own = b.fields.filter(f => f.ownLine).map(meguminStatFieldSpec);
+    const top = [...head, rules ? `[${b.label}.\n${rules}]` : ""].filter(Boolean);
+    const lines = [inline, ...own].filter(Boolean);
+    return [...top, ...(top.length ? [""] : []), ...lines].join("\n");
+}
+
 // The Character Sheet template: {{user}} only, so nothing repeats.
 export function meguminBuildSheetTemplate() {
     const fields = meguminStatFields("sheet");
@@ -531,7 +557,8 @@ export function meguminBlockById(id) {
 // block that silently leaks, which is why it is derived rather than typed out.
 export function meguminAllBlockTags() {
     const custom = (localProfile && localProfile.blockStack && localProfile.blockStack.custom) || [];
-    const tags = [...MEGUMIN_BLOCK_REGISTRY.map(b => b.tag), ...custom.map(b => b.tag), ...NOTEBOOK_TAGS, SCENE_TAG];
+    // A renamed custom block's old tags too (plan 023).
+    const tags = [...MEGUMIN_BLOCK_REGISTRY.map(b => b.tag), ...custom.flatMap(b => customBlockTags(normalizeCustomBlock(b))), ...NOTEBOOK_TAGS, SCENE_TAG];
     // Story_Tracker is stripped explicitly by the cleaner before this list is
     // used, and stripping it twice is harmless, but a duplicate here would build
     // the same RegExp twice on every cleaned message.
