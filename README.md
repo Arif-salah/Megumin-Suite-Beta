@@ -12,11 +12,13 @@ README on the stable branch.
 ## 2026-11-03
 
 > Custom blocks can remember, can be written by Chomusuke, and have fields the story understands.
+> Dev Mode can edit every prompt and shows the full prompt your chat sends.
 
 ### Custom blocks
 
 - **Fields or free text.** A custom block holds named fields (meters, numbers, short text, lists) or your own template. Fields are drawn like the Character Sheet, with bars for meters and chips for lists.
 - **Say what each field means.** Each field has a box for what it means and how it changes, in your words, and the story reads it, so a number like Trust moves for the reasons you chose.
+- **Rules for the whole block.** A block also has a box for rules about all of it, and the story reads them first. Meters are no longer held to 10 points a reply; write your own limit there if you want one.
 - **Choose what the story remembers.** A block can start fresh, stay in the chat (the story reads its old copies even while the other blocks are hidden), or put only its last copy in Current Info. Before, the story never saw its last custom block, so a number like Trust was made up every reply.
 - **Choose when it is written.** Every reply, only when something in it changes, or every few replies, which saves tokens on blocks that change slowly.
 - **Chomusuke can write it.** Set a block to Chomusuke in its editor or in the Chomusuke tab, and the story model only writes the story. If Chomusuke is off, the block stays unwritten and its tab tells you why.
@@ -25,9 +27,59 @@ README on the stable branch.
 - **Shared by every character.** A block you make in one character shows under Add a block for all of them. Delete block in its editor removes it everywhere.
 - **See what the story is told.** The block editor shows the exact template the story gets, updated as you type.
 
+### Dev Mode
+
+- **Edit every prompt.** Dev Mode now has every text the story and Chomusuke get: the World State, World Update, Bonds and Character Sheet rules, the scene list, the Notebook, Chomusuke's reads and the image prompts. Before, some of these couldn't be changed at all, and the World State box held an old text that was never sent.
+- **Opens on your preset file.** Dev Mode finds the Universal preset file loaded in SillyTavern (V11 or V10) and shows its messages in order, each with the options sent inside it. You can switch to the other file. This is the .json preset you pick in SillyTavern itself; the Preset tab's presets are separate.
+- **Chomusuke and Images have their own doors.** Their texts are one click from the opening screen, apart from the story's.
+- **See the full prompt.** Preview full prompt shows what this chat would send right now, message by message, with your edited texts in one colour and the built-in ones in another. Click a piece to edit it, and Back takes you to the preview again.
+- **See why something isn't sent.** A part that sends nothing shows as a chip: red "Off" with the switch and tab that turn it on, or grey when there is nothing for it this turn. Block rules lists the blocks left out this turn and why, so you know what to turn on.
+
 ### Also
 
 - **Language & rules is back in the dock**, right under Writing Style, so its settings are easy to find.
+
+## 2026-11-02
+
+> World State, Bonds and images now agree on who is who, the story says who is
+> in the scene every reply, and you choose how much World State keeps.
+
+### Who is in the scene
+
+- **The story lists who is in the scene at the end of every reply.** Before, World State relied on the model writing "+ Name" when someone arrived and "- Name" when they left, and models often forgot the "- Name". People who walked out stayed in the scene for many replies. Now each reply ends with a short list of who is there (hidden in the chat), and World State follows it, so the scene is right after every reply.
+- **People on the phone are "on a call".** Someone talking with you by phone, video or text is listed apart from the people in the room. The card shows them with the off-screen people as "on a call", their bonds still move, and images don't draw them in the room.
+- **Walking out no longer fills Off-screen.** Before, everyone who left got an off-screen line, and the four slots filled up with people the story would never come back to. Now someone who leaves simply leaves, and Off-screen keeps the characters the story will return to.
+- **Only named characters get an off-screen line.** Before, a person the story only mentioned ("old man Cairns, asleep at home") could be saved as a character and turn up in later scenes. Now an off-screen line for someone the story never brought in is skipped.
+- **If the story forgets the list, Chomusuke writes it.** With Chomusuke and Combine calls on, Chomusuke adds the list to its answer when the reply has none. Without Chomusuke, the old rule takes over: anyone the story stops naming leaves after a while.
+
+### One name for each character
+
+- **The story is handed the names to use.** Each reply gets one name per character, the people in the scene first, written the shortest way that can't be mixed up ("Matt Reyes" and "Matt Cole", never just "Matt"). The story writes the same name in every block, so one character stays one character.
+- **World State, Bonds and images find people the same way.** Before, each one had its own rules, so a name could work in one and fail in another. Now a nickname, a name in brackets ("Dominic" for Dom (Dominic Morin)), a possessive ("Chloe's") or a first name finds the same person everywhere.
+- **Bonds use the names World State knows.** Before, "Duncan" in the Bonds block started new bonds next to Duncan Cairns's. Now it moves Duncan Cairns's numbers.
+- **"Same person as" fixes Bonds too.** Merging two characters on the World State card now joins their bonds as well, and undoing it splits both again.
+- **Two people with the same first name stay apart.** Before, a nickname like "Matt" could fold Matt Cole into Matt Reyes and mix their outfits and bonds. Now a nickname only ever means the one person who has it.
+- **Labels stay out of names.** A model that writes "Cathleen Cairns (Remote)" no longer renames her.
+- **A new chat no longer asks "Same person as" for everyone.** The first reply of a chat used to ask it for every character in the scene.
+
+### Bonds
+
+- **A character who comes back keeps their real bonds.** Before, someone who returned before the story named them could get made-up numbers over their real ones (60 affection became 10). Now those numbers are skipped, and their real bonds are sent the next turn.
+- **The bonds sent to the story stay short.** Before, a model that copied every Bonds line back kept everyone's bonds in the prompt for good. Now a line copied back unchanged doesn't keep anyone in, so only the people in the story right now are sent.
+- **Bonds reach the story for possessives, nicknames and surnames**: "Chloe's", "Cat" for Cathleen, or "Bathory" when only one character has that surname.
+
+### World State tab
+
+- **Choose your limits.** Threads, seeds, timers and people off-screen each have − and + buttons (1 to 20). Bigger lists remember more but cost more tokens every reply. With "Full update each time" there are no limits, and the tab says so.
+- **A clearer tab.** This chat's buttons come first (Open the Editor, Rewrite next reply, Reset), then how updates are written, the limits, who's in the scene, what the model reads, and the card. Every choice is a tile with one line on what it does.
+
+### Fixes
+
+- **Chomusuke's errors say whose problem it is.** Before, a failed request showed only the raw error ("fetch failed"). Now it says what happened and what to do: the provider couldn't be reached, their server had a problem, the key was refused, too many requests, the model doesn't exist, or the prompt was too long.
+- **The story is reminded to end with its blocks.** On turns with blocks, the final check before the reply asks for the blocks section, so fewer replies end without it.
+- **A deleted Notebook truth gives its number to the next one.** Delete T4 and the next new truth is T4 again.
+
+---
 
 ## 2026-11-01
 
