@@ -9,6 +9,21 @@ README on the stable branch.
 
 ---
 
+## 2026-11-04
+
+> Gemini Flash gets its own loadout, and images now work in group chats.
+
+### Model Setup
+
+- **A Gemini Flash loadout** for Gemini 3.5 to 3.8 Flash. It uses the Gemini Pro settings with custom thinking on, so Flash plans the reply before writing it.
+- **Fewer refusals on Gemini.** Both Gemini loadouts tell Gemini the story is adult fiction and ask for a ^ before every word. The extension takes the ^ out of each reply as soon as it arrives, so the chat, the blocks and World State all read normal text.
+- **Flash and the blocks.** Gemini 3.8 Flash writes the blocks well, but it can cut them off in heavy NSFW scenes. The card tells you to switch on Chomusuke and give it another model if that happens.
+
+### Fixes
+
+- **Images in group chats.** An image made in a group chat used to stop at "Downloading" and never arrive. It now lands in the message. The same fix covers everything else the extension saves in a group chat, like World State edits.
+- **No more stuck progress bar.** If an image can't be added to the chat, the bar closes and tells you so.
+
 ## 2026-11-03
 
 > Custom blocks can remember, can be written by Chomusuke, and have fields the story understands.
