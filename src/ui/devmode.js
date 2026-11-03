@@ -43,6 +43,7 @@ import { SKELETON as PRESET_SKELETON } from "../../data/skeleton.js";
 import { SKELETON as SKELETON_V10 } from "../../data/skeletonV10.js";
 import { buildBaseDict } from "../engine/buildBaseDict.js";
 import { fillPreview, previewText } from "../engine/promptPreview.js";
+import { blocksLeftOut } from "../features/blocks/registry.js";
 import { setPromptTrace } from "../prompts/edits.js";
 import { expandPresetSections } from "../engine/presetSections.js";
 import {
@@ -851,6 +852,29 @@ function renderPreviewNodes(nodes, $into, back, seen = new Set()) {
     });
 }
 
+// The blocks that could ride in the block rules but are not asked for this turn.
+const BLOCKS_TRIGGER = { v11: "[[block_rules]]", v10: "[[blocks]]" };
+const LEFT_OUT_WORDS = { off: "Off", elsewhere: "Written by someone else", empty: "Not this turn" };
+
+function hasTrigger(nodes, trigger) {
+    return nodes.some(n => ((n.type === "tag" || n.type === "empty") && n.trigger === trigger) || (n.children && hasTrigger(n.children, trigger)));
+}
+
+function renderLeftOutBlocks(nodes, json, dict) {
+    if (!hasTrigger(nodes, BLOCKS_TRIGGER[json])) return null;
+    let list = [];
+    try { list = blocksLeftOut(dict); } catch (e) { console.warn(`[${extensionName}] Dev Mode preview: could not list the blocks left out.`, e); }
+    if (!list.length) return null;
+    const $row = $(`<div class="dev-pv-chips dev-pv-leftout"><span class="dev-pv-note">Blocks not in this turn:</span></div>`);
+    list.forEach(b => {
+        const icon = b.kind === "off" ? "fa-power-off" : b.kind === "elsewhere" ? "fa-cat" : "fa-circle-minus";
+        const $chip = $(`<span class="dev-pv-empty is-${b.kind === "off" ? "off" : "empty"}"><i class="fa-solid ${icon}"></i> ${esc(b.label)} · ${esc(LEFT_OUT_WORDS[b.kind])}</span>`);
+        $chip.attr("title", b.why);
+        $row.append($chip);
+    });
+    return $row;
+}
+
 function renderPreview(c) {
     const json = session.json || detectJson();
     const f = JSON_FILES[json];
@@ -917,6 +941,8 @@ function renderPreview(c) {
                 else if (n.children) walk(n.children);
             });
             walk(nodes);
+            const $left = renderLeftOutBlocks(nodes, json, dict);
+            if ($left) $left.children().not(".dev-pv-note").appendTo($chips);
             if (!$chips.children().length) return;
             const $empty = $(`
                 <div class="dev-pv-card is-st is-disabled">
@@ -938,6 +964,8 @@ function renderPreview(c) {
                 <div class="dev-pv-body"></div>
             </div>`);
         renderPreviewNodes(nodes, $card.find(".dev-pv-body"), back);
+        const $left = renderLeftOutBlocks(nodes, json, dict);
+        if ($left) $card.append($left);
         c.append($card);
     });
 }

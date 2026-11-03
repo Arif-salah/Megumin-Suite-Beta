@@ -5901,3 +5901,4 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 .dev-pv-empty.is-link:hover { border-style: solid; }
 .dev-pv-card.is-disabled { opacity: 0.85; }
 .dev-pv-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px 10px 12px; }
+.dev-pv-leftout { align-items: center; }

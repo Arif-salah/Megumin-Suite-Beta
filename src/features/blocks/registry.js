@@ -12,7 +12,7 @@
 
 import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
-import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest, sceneBlockRequest, customBlockDueNow } from "../../state/index.js";
+import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest, sceneBlockRequest, customBlockDueNow, worldUpdateMode, notebookCurrentPhase } from "../../state/index.js";
 import { normalizeCustomBlock, customBlockTags } from "../../state/modules/custom/model.js";
 import { customInfoTag, customFieldNotes, customBlockRules } from "../../state/modules/custom/render.js";
 import { CUSTOM_CHANGES_LINE, CUSTOM_FRESH_FIELDS_LINE } from "../../prompts/customBlocks.js";
@@ -331,6 +331,47 @@ export function blocksEnvelopeParts(dict) {
 
     // No skeleton, no rules: rules for blocks that aren't asked for mean nothing.
     return parts.length ? { rules, parts, splitRules, splitParts } : { rules: [], parts: [], splitRules: [], splitParts: [] };
+}
+
+// Dev Mode's preview (plan 025): every block that could ride in the envelope but
+// is not asked for this turn, and why. `kind`: off | elsewhere | empty.
+export function blocksLeftOut(dict) {
+    const stack = (localProfile && localProfile.blockStack) || { order: [], custom: [] };
+    const order = stack.order || [];
+    const out = [];
+    const add = (label, kind, why) => out.push({ label, kind, why });
+    const gates = {
+        newNpc: "Turn on the NPC Bank to send it.",
+        npcUpdate: "Sent once the NPC Bank is on and has someone in it.",
+        tracker: "Turn on Story Plan to send it.",
+    };
+    [...MEGUMIN_BLOCK_REGISTRY, ...(stack.custom || [])].forEach(def => {
+        if (def.lead || def.id === "worldUpdate") return;
+        const b = meguminBlockById(def.id) || def;
+        const label = b.label || b.tag || b.id;
+        const on = typeof b.requires !== "function" || b.requires(localProfile);
+        if (b.system) {
+            if (!on) add(label, "off", gates[b.id] || "Its feature is off.");
+            else if (b.slot && typeof b.slotRequires === "function" && !b.slotRequires(dict || {})) add(label, "empty", "On, but not asked for this turn.");
+            return;
+        }
+        if (!order.includes(b.id) || !on) { add(label, "off", "Add it in the Blocks tab to send it."); return; }
+        if (b.id === "world") {
+            const mode = worldUpdateMode();
+            if (mode === "manual") add(label, "elsewhere", "Set to manual in the World State tab: you write it yourself.");
+            else if (mode === "sidemodel") add(label, "elsewhere", "Chomusuke writes it after the reply (Chomusuke tab).");
+            return;
+        }
+        if (blockViaChomusuke(b.id)) { add(label, "elsewhere", "Chomusuke writes it after the reply (Chomusuke tab)."); return; }
+        if (!b.builtin && !customBlockDueNow(b.id)) {
+            add(label, b.writer === "chomusuke" ? "elsewhere" : "empty",
+                b.writer === "chomusuke" ? "Chomusuke writes it after the reply." : "Not due this turn (its \"when\" setting).");
+        }
+    });
+    let phase = "off";
+    try { phase = notebookCurrentPhase(); } catch (e) { phase = "off"; }
+    if (phase === "off") add("Author's Notebook", "off", "Turn it on in The Notebook tab to send it.");
+    return out;
 }
 
 // The rules come FIRST and the "output" line sits right above the skeleton.
