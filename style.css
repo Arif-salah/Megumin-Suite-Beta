@@ -5878,3 +5878,26 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 .dev-pv-piece.is-link:hover { outline: 1px solid currentColor; }
 
 .dev-pv-off { font-size: 0.74rem; color: var(--text-muted); text-align: center; margin: 4px 0 10px 0; }
+
+/* Parts that send nothing: off, or empty this turn. */
+.dev-pv-empty {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 2px 4px 2px 0;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px dashed var(--border-color);
+    font-family: inherit;
+    font-size: 0.68rem;
+    line-height: 1.5;
+    white-space: nowrap;
+    vertical-align: middle;
+    color: var(--text-muted);
+}
+.dev-pv-empty i { font-size: 0.62rem; }
+.dev-pv-empty.is-off { color: #fca5a5; border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.07); }
+.dev-pv-empty.is-link { cursor: pointer; }
+.dev-pv-empty.is-link:hover { border-style: solid; }
+.dev-pv-card.is-disabled { opacity: 0.85; }
+.dev-pv-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px 10px 12px; }

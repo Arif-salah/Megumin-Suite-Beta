@@ -5,6 +5,7 @@
 //   { type: "text", text }                    the preset's own words, or plain text
 //   { type: "tag", trigger, children }        what a [[tag]] was filled with
 //   { type: "edit", key, children }           an editable text (traced while built)
+//   { type: "empty", trigger }                a [[tag]] that sends nothing (off, or empty this turn)
 //
 // Fills like the injector: a tag with no value or an empty one goes, with the
 // line it sits on; a value can hold more tags, filled in turn.
@@ -50,12 +51,16 @@ export function parseTraced(text) {
  * @returns {Array} nodes
  */
 export function fillPreview(content, dict, depth = 0) {
-    // A tag that fills with nothing takes its line with it.
-    const kept = String(content || "").split("\n").filter(line => {
+    // A tag that fills with nothing takes its line with it. The tag itself
+    // stays, so the preview can say it is off or empty.
+    const lines = String(content || "").split("\n");
+    let kept = "";
+    lines.forEach((line, i) => {
         const tags = line.match(TAG);
-        if (!tags || line.replace(TAG, "").replace(/[-]/g, "").trim()) return true;
-        return tags.some(t => String(dict[t] ?? "").trim());
-    }).join("\n");
+        const dropped = tags && !line.replace(TAG, "").replace(/[-]/g, "").trim()
+            && !tags.some(t => String(dict[t] ?? "").trim());
+        kept += dropped ? tags.join("") : line + (i < lines.length - 1 ? "\n" : "");
+    });
     // The marks first, so a tag inside an edited text stays inside it.
     const expand = nodes => nodes.flatMap(n => n.type === "edit"
         ? [{ ...n, children: expand(n.children) }]
@@ -72,6 +77,8 @@ function fillTags(text, dict, depth) {
         if (value != null && String(value).trim()) {
             const children = depth < MAX_DEPTH ? fillPreview(String(value), dict, depth + 1) : parseTraced(String(value));
             out.push({ type: "tag", trigger: m[0], children });
+        } else {
+            out.push({ type: "empty", trigger: m[0] });
         }
         last = m.index + m[0].length;
     }

@@ -45,6 +45,8 @@ test("fillPreview: fills like the injector, nested tags included, empty tags tak
     const b = a.children.find(n => n.type === "tag");
     assert.equal(b.trigger, "[[b]]");
     assert.deepEqual(b.children, [{ type: "edit", key: "bKey", children: [{ type: "text", text: "B" }] }]);
+    // What sends nothing stays in the tree, so the preview can say why.
+    assert.deepEqual(nodes.filter(n => n.type === "empty").map(n => n.trigger), ["[[empty]]", "[[missing]]"]);
 });
 
 test("fillPreview: a tag inside an edited text is filled too", () => {

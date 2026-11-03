@@ -804,10 +804,40 @@ function pieceInfo(node) {
 
 const PIECE_WORDS = { edited: "Your version", default: "Built-in, editable", preset: "From your story preset", auto: "Filled in automatically" };
 
-function renderPreviewNodes(nodes, $into, back) {
+// Why a [[tag]] sends nothing, or null when the preview says nothing about it.
+function emptyInfo(trigger) {
+    const slot = meguminSlotByTrigger(trigger);
+    if (!slot || slot.hidden) return null;
+    const key = slot.key && (slot.scope === "shared" || slot.overridable) ? slot.key : null;
+    if (!meguminSlotIsLive(slot, localProfile)) {
+        const g = slot.gate || {};
+        return { label: slot.label, kind: "off", word: "Off", why: `Turn on ${g.label || slot.label} in the ${g.where} tab to send it.`, key };
+    }
+    if (slot.scope === "engine") return { label: slot.label, kind: "empty", word: "Not in your story preset", why: "Your story preset leaves this part empty.", key: null };
+    return { label: slot.label, kind: "empty", word: "Nothing this turn", why: "On, but there is nothing to send for it right now.", key };
+}
+
+function renderEmptyChip(n, back) {
+    const info = emptyInfo(n.trigger);
+    if (!info) return null;
+    const $chip = $(`<span class="dev-pv-empty is-${info.kind}"><i class="fa-solid ${info.kind === "off" ? "fa-power-off" : "fa-circle-minus"}"></i> ${esc(info.label)} · ${esc(info.word)}</span>`);
+    $chip.attr("title", `${info.why}${info.key ? " Click to see its text." : ""}`);
+    if (info.key) $chip.addClass("is-link").on("click", e => { e.stopPropagation(); openAddon(info.key, back); });
+    return $chip;
+}
+
+// `seen`: one chip per part in a message, even when a text carries its tag again.
+function renderPreviewNodes(nodes, $into, back, seen = new Set()) {
     nodes.forEach(n => {
         if (n.type === "text") {
             $into.append(document.createTextNode(substituteParams(n.text)));
+            return;
+        }
+        if (n.type === "empty") {
+            if (seen.has(n.trigger)) return;
+            seen.add(n.trigger);
+            const $chip = renderEmptyChip(n, back);
+            if ($chip) $into.append($chip);
             return;
         }
         const info = pieceInfo(n);
@@ -816,7 +846,7 @@ function renderPreviewNodes(nodes, $into, back) {
         if (info.key) {
             $p.addClass("is-link").on("click", e => { e.stopPropagation(); openAddon(info.key, back); });
         }
-        renderPreviewNodes(n.children, $p, back);
+        renderPreviewNodes(n.children, $p, back, seen);
         $into.append($p);
     });
 }
@@ -842,7 +872,9 @@ function renderPreview(c) {
             <span class="dev-pv-piece is-default">Built-in, editable</span>
             <span class="dev-pv-piece is-preset">From your story preset</span>
             <span class="dev-pv-piece is-auto">Filled in automatically</span>
-            <small>Plain text is the file's own. Click a coloured piece to edit it. Dice and other random parts change each turn.</small>
+            <span class="dev-pv-empty is-off"><i class="fa-solid fa-power-off"></i> Off</span>
+            <span class="dev-pv-empty is-empty"><i class="fa-solid fa-circle-minus"></i> Nothing this turn</span>
+            <small>Plain text is the file's own. Click a coloured piece to edit it. Off and empty parts send nothing; hover one to see why. Dice and other random parts change each turn.</small>
         </div>
     `);
 
@@ -850,10 +882,18 @@ function renderPreview(c) {
     const raw = json === "v10" ? SKELETON_V10 : PRESET_SKELETON;
     let chatCount = 0;
     try { chatCount = (getContext().chat || []).filter(m => m && !m.is_system).length; } catch (e) { chatCount = 0; }
-    let off = 0;
-
     raw.forEach(card => {
-        if (card.enabled === false) { off++; return; }
+        if (card.enabled === false) {
+            c.append(`
+                <div class="dev-pv-card is-st is-disabled">
+                    <div class="dev-pv-head">
+                        <span class="dev-pv-name">${esc(card.name)}</span>
+                        <span class="dev-pv-empty is-off"><i class="fa-solid fa-power-off"></i> Off in the file</span>
+                        <span class="dev-pv-note">Switched off in SillyTavern's preset, so it is not sent.</span>
+                    </div>
+                </div>`);
+            return;
+        }
         if (card.marker) {
             const isChat = card.id === "chatHistory";
             c.append(`
@@ -868,7 +908,27 @@ function renderPreview(c) {
             return;
         }
         const nodes = fillPreview(card.content, dict);
-        if (!previewText(nodes).trim()) return;
+        // A message that sends nothing still shows, with what is off in it.
+        if (!previewText(nodes).trim()) {
+            const $chips = $(`<div class="dev-pv-chips"></div>`);
+            const seen = new Set();
+            const walk = list => list.forEach(n => {
+                if (n.type === "empty" && !seen.has(n.trigger)) { seen.add(n.trigger); const $ch = renderEmptyChip(n, back); if ($ch) $chips.append($ch); }
+                else if (n.children) walk(n.children);
+            });
+            walk(nodes);
+            if (!$chips.children().length) return;
+            const $empty = $(`
+                <div class="dev-pv-card is-st is-disabled">
+                    <div class="dev-pv-head">
+                        <span class="dev-pv-name">${esc(card.name)}</span>
+                        <span class="dev-pv-note">Not sent: everything in it is off or empty.</span>
+                    </div>
+                </div>`);
+            $empty.append($chips);
+            c.append($empty);
+            return;
+        }
         const $card = $(`
             <div class="dev-pv-card">
                 <div class="dev-pv-head">
@@ -880,7 +940,6 @@ function renderPreview(c) {
         renderPreviewNodes(nodes, $card.find(".dev-pv-body"), back);
         c.append($card);
     });
-    if (off) c.append(`<div class="dev-pv-off">${off} message${off === 1 ? " is" : "s are"} switched off in the file and not sent.</div>`);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
