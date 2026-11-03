@@ -30,7 +30,7 @@ import { thinkingSection, formattingSection, bannedSection, reminderSection, thi
 import { DICE_ROLLS_POINTER, IMAGE_ASK_OLD, IMAGE_ASK_NEW, diceTurnLine, imageTurnLine } from "../prompts/presetFrame.js";
 import {
     DICE_RULES_PLAYER, DICE_RULES_EVERYONE, wrapImageRules, wrapNpcRules, npcKnownNames,
-    ADDON_RULES_SPLIT, wrapAddon, sameText, wrapRepetition, languageLine, BAN_ADDITIONS,
+    ADDON_RULES_SPLIT, wrapAddon, sameText, wrapRepetition, languageLine, BAN_ADDITIONS, GEMINI_JB,
 } from "../prompts/v11Rules.js";
 import { V11_BAN_LIST, SHORT_BAN_LIST } from "../../data/modes/v11taina.js";
 import { resolveSlot, getSharedFragment } from "../core/sharedFragments.js";
@@ -151,6 +151,9 @@ export function buildBaseDict(isTokenCount = false) {
         dict["[[COT]]"] = "";
         dict["[[prefill]]"] = "";
     }
+
+    // The Gemini Pro loadout's line; empty (and its line removed) otherwise.
+    dict["[[GeminiJB]]"] = localProfile.loadout === "gemini-pro" ? editable("geminiJB", GEMINI_JB) : "";
 
     if (localProfile.dnRatio && localProfile.dnRatio.enabled) {
         const d = localProfile.dnRatio.dialogue;
