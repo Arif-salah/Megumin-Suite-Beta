@@ -413,6 +413,13 @@ export function renderCustomBlockEditor(c, editId) {
             drawPreview();
             return;
         }
+        // Rules for the whole block, in the user's words (sent before the fields' own notes).
+        host.append(sectionHead("Rules for this block", "How the story should write this block as a whole. Each line is sent as you wrote it."));
+        const $rules = $(`<textarea class="ps-modern-input blk-rules" rows="3" style="width:100%; resize:vertical; font-size:0.75rem;"
+            placeholder="e.g.&#10;Track only the party, never strangers.&#10;Numbers change slowly: a single scene rarely moves one by more than 5."></textarea>`);
+        $rules.val(draft.rules || "");
+        $rules.on("input", function () { draft.rules = $(this).val(); });
+        host.append($rules);
         host.append(sectionHead("Fields", "What the story keeps in this block. Say what each field means and how it changes: the story reads it. Every field costs tokens on every reply."));
         const rows = $(`<div class="stat-field-list"></div>`);
         draft.fields.forEach((f, i) => {
@@ -549,6 +556,7 @@ export function renderCustomBlockEditor(c, editId) {
             visibility: $("#blk_vis").val(),
             builtin: false,
             content: String(draft.content || "").trim(),
+            rules: String(draft.rules || "").trim(),
             fields: draft.fields.filter(f => String(f.label || "").trim()).map(f => ({ ...f, label: String(f.label).trim() })),
             // Custom blocks carry their own body rather than reading a dict tag.
             source: null

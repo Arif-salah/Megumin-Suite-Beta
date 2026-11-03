@@ -7,7 +7,7 @@ import { createCustomModule } from "../src/state/modules/custom/index.js";
 import { parseCustomBlocks, joinCustomRead, customReadPart } from "../src/state/modules/custom/parse.js";
 import { renderWorkerNotes } from "../src/state/modules/stats/worker.js";
 import { normalizeCustomBlock, applyCustom, customBlockDue, customTagsToHide, customTagsToKeep, mergeCustomLibrary } from "../src/state/modules/custom/model.js";
-import { customInfoSections, customInfoTag, customFieldNotes } from "../src/state/modules/custom/render.js";
+import { customInfoSections, customInfoTag, customFieldNotes, customBlockRules } from "../src/state/modules/custom/render.js";
 import { stripBlocksForModel } from "../src/engine/hideBlocks.js";
 import { parseSheet } from "../src/state/modules/stats/parse.js";
 
@@ -144,6 +144,12 @@ test("field notes: what each field means, one line each, safe inside the templat
         { label: "Gold" }
     ]), ["- Trust: How much she trusts {{user}}. Up when he keeps his word (mostly)."]);
     assert.deepEqual(customFieldNotes(null), []);
+});
+
+test("custom: the block's own rules are sent one line each, brackets made round", () => {
+    assert.deepEqual(customBlockRules({ rules: "Only the party.\r\n\n  Slow [rarely 5+]  " }), ["Only the party.", "Slow (rarely 5+)"]);
+    assert.deepEqual(customBlockRules({}), []);
+    assert.deepEqual(customBlockRules(null), []);
 });
 
 test("shared list: every character's blocks gathered once; same id is the same block; a taken tag gets (2)", () => {

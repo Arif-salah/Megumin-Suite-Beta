@@ -14,7 +14,7 @@ import { localProfile } from "../../core/state.js";
 import { getSidePanelSettings } from "../../sidepanel/panel.js";
 import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest, sceneBlockRequest, customBlockDueNow } from "../../state/index.js";
 import { normalizeCustomBlock, customBlockTags } from "../../state/modules/custom/model.js";
-import { customInfoTag, customFieldNotes } from "../../state/modules/custom/render.js";
+import { customInfoTag, customFieldNotes, customBlockRules } from "../../state/modules/custom/render.js";
 import { CUSTOM_CHANGES_LINE, CUSTOM_FRESH_FIELDS_LINE } from "../../prompts/customBlocks.js";
 import { SCENE_TAG } from "../../state/scene.js";
 import { NOTEBOOK_TAGS } from "../../state/modules/notebook/parse.js";
@@ -476,7 +476,8 @@ export function meguminStatRules(fields, subject, opts = {}) {
     // The cap is for meters only. A counted field like Gold legitimately jumps by
     // hundreds, and a rule that forbids it would either be broken every time it
     // mattered or quietly stop the story from paying anyone.
-    if (meters.length) {
+    // Custom blocks leave it out: the user says how a field moves in its own box.
+    if (meters.length && opts.cap !== false) {
         lines.push(`- ${meters.map(f => f.label).join(", ")} move at most 10 in one reply unless the scene plainly earns more.`);
     }
     lines.push(`- Starting values when ${opts.from || `<${notes}>`} has none${opts.perSubject ? " for that person" : ""}: ${seeds}.`);
@@ -528,14 +529,16 @@ export function meguminBuildCustomTemplate(raw) {
     if (!fields.length) return "";
     // Chomusuke never reads old replies: it gets the values in <Name_Now> either way.
     const fromInfo = b.memory === "info" || (b.memory === "chat" && b.writer === "chomusuke");
-    const rules = fromInfo ? meguminStatRules(fields, b.label, { notesTag: customInfoTag(b) })
-        : b.memory === "chat" ? meguminStatRules(fields, b.label, { from: `your last <${b.tag}> block` })
+    const rules = fromInfo ? meguminStatRules(fields, b.label, { notesTag: customInfoTag(b), cap: false })
+        : b.memory === "chat" ? meguminStatRules(fields, b.label, { from: `your last <${b.tag}> block`, cap: false })
         : CUSTOM_FRESH_FIELDS_LINE;
-    // What each field means and how it moves, in the user's words, before the rules.
+    // The user's rules for the whole block, then what each field means and how
+    // it moves, in their words, before our rules.
+    const blockRules = customBlockRules(b);
     const notes = customFieldNotes(fields);
     const inline = fields.filter(f => !f.ownLine).map(meguminStatFieldSpec).join(" | ");
     const own = fields.filter(f => f.ownLine).map(meguminStatFieldSpec);
-    const paragraph = [...notes, rules].filter(Boolean).join("\n");
+    const paragraph = [...blockRules, ...notes, rules].filter(Boolean).join("\n");
     const top = [...head, paragraph ? `[${b.label}.\n${paragraph}]` : ""].filter(Boolean);
     const lines = [inline, ...own].filter(Boolean);
     return [...top, ...(top.length ? [""] : []), ...lines].join("\n");

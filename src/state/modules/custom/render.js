@@ -19,6 +19,16 @@ export function customFieldNotes(fields) {
         .map(f => `- ${String(f.label).trim()}: ${String(f.desc).replace(/\s+/g, " ").replace(/\[/g, "(").replace(/\]/g, ")").trim()}`);
 }
 
+/**
+ * The user's rules for the whole block, one line each as written. The block's
+ * rules sit inside [ ], so their own brackets become round ones.
+ */
+export function customBlockRules(b) {
+    return String((b && b.rules) || "").split(/\r?\n/)
+        .map(l => l.replace(/\[/g, "(").replace(/\]/g, ")").trim())
+        .filter(Boolean);
+}
+
 /** The tag a block's kept values or last copy go under in <Current_Info>. */
 export function customInfoTag(b) {
     return b.kind === "fields" ? `${b.tag}_Now` : `Last_${b.tag}`;

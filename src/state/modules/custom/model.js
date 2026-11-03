@@ -4,7 +4,8 @@
 //   Block (the user's setup, in blockStack.custom):
 //     { id, tag, tags: [old tags], kind: "text" | "fields", fields: [],
 //       memory: "fresh" | "chat" | "info", writer: "story" | "chomusuke",
-//       when: "every" | "changes" | "everyN", everyN }
+//       when: "every" | "changes" | "everyN", everyN,
+//       rules: the user's rules for the whole block (field blocks) }
 //   State: { blocks: { <block id>: { kind: "fields", fields: { key: Field }, seq }
 //                                 | { kind: "text", text, seq } } }
 //

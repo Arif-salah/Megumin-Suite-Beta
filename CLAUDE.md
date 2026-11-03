@@ -153,7 +153,8 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
 - **A block's settings** (`normalizeCustomBlock`, old blocks = text / fresh /
   story / every): `kind` text | fields (fields have `desc`, sent as
   `- Label: desc` lines first in the rules, `customFieldNotes`), `memory`
-  fresh | chat | info, `writer` story | chomusuke, `when` every | changes |
+  fresh | chat | info, `rules` (the user's lines for the whole block, sent
+  first, `customBlockRules`; no "at most 10" cap line), `writer` story | chomusuke, `when` every | changes |
   everyN (`everyN` 2–20; "changes" not with fresh), `tags` (old tags).
 - **Store module `custom`** (`src/state/modules/custom/`, pure): one module for
   all blocks, `createCustomModule(getBlocks)`; state `{ blocks: { id:
