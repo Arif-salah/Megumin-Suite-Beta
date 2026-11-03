@@ -137,7 +137,9 @@ export const LOADOUTS = [
     {
         id: "gemini-flash", name: "Gemini Flash", icon: "fa-gem", models: "Gemini 3.5 – 3.8 Flash",
         why: "Set up like Gemini Pro, with custom thinking on: Flash plans the reply better when it writes its thinking out.",
-        notes: [CHOMUSUKE_OPTIONAL],
+        notes: [
+            { tone: "gold", chomusuke: true, text: "<b>Gemini 3.8 Flash writes the blocks fine</b>, but in heavy NSFW scenes it can cut them off. If that happens, turn Chomusuke on below and give it another model to write the blocks." }
+        ],
         settings: { mode: "v11-voice", thinking: true, thinkingCap: false, length: LENGTH_FLEXIBLE, banList: "full", chomusuke: "story" }
     },
     {
