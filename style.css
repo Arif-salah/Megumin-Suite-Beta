@@ -5731,6 +5731,9 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 
 /* ── Dev Mode: the preset file, the doors, the full prompt (plan 025) ───── */
 
+/* The stage is a scrolling flex column: these keep their height. */
+.dev-json, .dev-tools, .dev-json-doc-head, .dev-pv-legend, .dev-pv-card, .dev-pv-off { flex-shrink: 0; }
+
 .dev-json {
     border: 1px solid var(--border-color);
     border-radius: 14px;
@@ -5857,17 +5860,18 @@ body.meg-chomu-busy #chat .mes.last_mes .meg-chomu + .meg-blocks-collapse { marg
 }
 
 .dev-pv-piece {
-    border-radius: 4px;
-    padding: 0 2px;
+    border-radius: 3px;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
 }
 
 .dev-pv-legend .dev-pv-piece { padding: 2px 8px; font-family: inherit; }
 
-.dev-pv-piece.is-edited { background: rgba(244, 114, 182, 0.16); box-shadow: inset 0 -2px 0 rgba(244, 114, 182, 0.75); }
-.dev-pv-piece.is-default { background: rgba(16, 185, 129, 0.12); box-shadow: inset 0 -2px 0 rgba(16, 185, 129, 0.6); }
-.dev-pv-piece.is-preset { background: rgba(245, 158, 11, 0.11); box-shadow: inset 0 -2px 0 rgba(245, 158, 11, 0.55); }
+.dev-pv-piece.is-edited { background: rgba(244, 114, 182, 0.18); text-decoration: underline rgba(244, 114, 182, 0.8); }
+.dev-pv-piece.is-default { background: rgba(16, 185, 129, 0.13); text-decoration: underline rgba(16, 185, 129, 0.6); }
+.dev-pv-piece.is-preset { background: rgba(245, 158, 11, 0.11); text-decoration: underline rgba(245, 158, 11, 0.5); }
 .dev-pv-piece.is-auto { background: rgba(161, 161, 170, 0.1); }
 
 .dev-pv-piece.is-link { cursor: pointer; }

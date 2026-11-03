@@ -52,7 +52,8 @@ export const wrapBlockRules = rules => `<block_rules>\n${editable("v11BlockRules
 
 // World State and the Notebook write "## World State rules"; inside
 // <block_rules> the heading is just the block's name.
-export const shortRulesHeading = text => String(text || "").replace(/^(#{1,3} .+?) rules[ \t]*$/m, "$1");
+// (A Dev Mode preview mark, key, may open the line.)
+export const shortRulesHeading = text => String(text || "").replace(/^((?:[^]*)*#{1,3} .+?) rules[ \t]*$/m, "$1");
 
 /**
  * @param {Array<{label: string, type: string, start?: number}>} fields

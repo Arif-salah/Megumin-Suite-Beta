@@ -267,9 +267,10 @@ export const SLOT_IN_TAG = {
     v11AddonOnomatoStyled: { v11: "[[addon_rules]]" },
     v11NpcDossierRules: { v11: "[[npc_rules]]" },
     v11StorySettingsLead: { v11: "[[config]]" },
-    v11FinalCheckHead: { v11: "[[reminder]]" },
-    blocksCheck: { v11: "[[reminder]]" },
-    blocksCheckScene: { v11: "[[reminder]]" },
+    // Dev Mode draws V11's [[reminder]] as its lines, so these sit with the checks.
+    v11FinalCheckHead: { v11: "[[final_checks]]" },
+    blocksCheck: { v11: "[[final_checks]]" },
+    blocksCheckScene: { v11: "[[final_checks]]" },
     "imageV2.inlineHeadSplit": { v11: "[[img_rules]]" },
     "imageV2.inlineHead": { v10: "[[img1]]" },
     "imageV2.inlineTail": { v11: "[[img_rules]]", v10: "[[img1]]" },
