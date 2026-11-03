@@ -254,11 +254,7 @@ export function worldPromptDefault(mode, part) {
 function worldInstructions(mode) {
     const base = builtinWorldInstructions(mode, limitsNow);
     const keys = WORLD_PROMPT_KEYS[mode === "bootstrap" ? "bootstrap" : "update"];
-    const edited = part => {
-        const t = promptEdit(keys[part]);
-        return t ? fillPromptTokens(t, limitsNow) : base[part];
-    };
-    return { rules: edited("rules"), template: edited("template") };
+    return { rules: editable(keys.rules, base.rules, limitsNow), template: editable(keys.template, base.template, limitsNow) };
 }
 
 function builtinWorldInstructions(mode, lim) {

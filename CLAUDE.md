@@ -158,6 +158,14 @@ Ban List, Side Panel, Chomusuke worker…) is an optional module.
   template. Not edited = the built-in text, byte for byte. The old
   `[[infoblock]]` slot is hidden: nothing sends it.
 
+### Dev Mode opening (plan 025)
+- Opens on the Universal .json SillyTavern has loaded (`detectJson`, V11 / V10
+  cards), its skeleton with every option nested under its tag
+  (`meguminSlotInTag`, `data/skeletonV10.js` from git history), doors
+  Chomusuke / Images (V2) / Presets, and Preview full prompt: `buildBaseDict(true)`
+  with `setPromptTrace(true)`, filled by `engine/promptPreview.js` (pure).
+  Plan: `docs/plans/025-dev-mode-navigation.md`.
+
 ### Custom blocks (plan 023)
 - **One list for every character**: `extension_settings[ext].customBlocks`,
   linked as `localProfile.blockStack.custom` (`linkGlobalCustomBlocks` in

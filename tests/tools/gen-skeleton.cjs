@@ -1,36 +1,44 @@
-// Writes data/skeleton.js from the shipped preset (Dev Mode's Document view).
+// Writes the skeletons Dev Mode draws, one per Universal preset file:
 //
 //     node tests/tools/gen-skeleton.cjs
 //
-// Replaces the old tools/gen-skeleton.py. Run it again whenever the preset's
-// messages change. Order = the preset's prompt_order for character 100001,
-// the order SillyTavern sends them in.
+//   data/skeleton.js     from Presets/Megumin Suite V11 Universal.json
+//   data/skeletonV10.js  from Megumin Suite V10 Universal.json, read out of
+//                        git history (the file left the repo with V11, but
+//                        people still run it, and the extension still fills it)
+//
+// Run it again whenever the V11 preset's messages change. Order = the preset's
+// prompt_order for character 100001, the order SillyTavern sends them in.
 const fs = require("fs");
 const path = require("path");
+const { execFileSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..", "..");
-const SOURCE = "Megumin Suite V11 Universal.json";
-const preset = JSON.parse(fs.readFileSync(path.join(ROOT, "Presets", SOURCE), "utf8"));
 
-const order = (preset.prompt_order.find(o => String(o.character_id) === "100001") || preset.prompt_order[0]).order;
-const byId = Object.fromEntries(preset.prompts.map(p => [p.identifier, p]));
+// The last commit that still had the V10 Universal file.
+const V10_COMMIT = "a3873d3^";
 
-const cards = order.map(entry => {
-    const p = byId[entry.identifier] || { identifier: entry.identifier };
-    return {
-        id: p.identifier,
-        name: p.name || p.identifier,
-        role: p.role || "system",
-        marker: !!p.marker,
-        enabled: entry.enabled !== false,
-        content: (p.content || "").replace(/\r\n/g, "\n"),
-    };
-});
+function cardsOf(preset) {
+    const order = (preset.prompt_order.find(o => String(o.character_id) === "100001") || preset.prompt_order[0]).order;
+    const byId = Object.fromEntries(preset.prompts.map(p => [p.identifier, p]));
+    return order.map(entry => {
+        const p = byId[entry.identifier] || { identifier: entry.identifier };
+        return {
+            id: p.identifier,
+            name: p.name || p.identifier,
+            role: p.role || "system",
+            marker: !!p.marker,
+            enabled: entry.enabled !== false,
+            content: (p.content || "").replace(/\r\n/g, "\n"),
+        };
+    });
+}
 
 // One card per line, spaced like the old Python output so diffs stay readable.
 const cardLine = c => "{" + Object.entries(c).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(", ") + "}";
 
-const out = `// ─────────────────────────────────────────────────────────────────────────────
+function write(outFile, source, cards, withTriggers) {
+    const out = `// ─────────────────────────────────────────────────────────────────────────────
 // SKELETON — the real shape of the outgoing prompt.
 //
 // GENERATED FILE. Do not edit by hand; run:
@@ -46,15 +54,15 @@ const out = `// ─────────────────────�
 // character description). We neither own nor fill those, so the editor renders
 // them greyed out as fixed landmarks.
 //
-// Source: ${SOURCE}
+// Source: ${source}
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const SKELETON_SOURCE = ${JSON.stringify(SOURCE)};
+export const SKELETON_SOURCE = ${JSON.stringify(source)};
 
 export const SKELETON = [
 ${cards.map(c => "    " + cardLine(c) + ",").join("\n")}
 ];
-
+${withTriggers ? `
 /** Every [[trigger]] the skeleton actually contains, in the order it hits them. */
 export function skeletonTriggersInOrder() {
     const seen = new Set();
@@ -69,7 +77,14 @@ export function skeletonTriggersInOrder() {
     });
     return out;
 }
-`;
+` : ""}`;
+    fs.writeFileSync(path.join(ROOT, "data", outFile), out.replace(/\n/g, "\r\n"));
+    console.log(`data/${outFile}: ${cards.length} cards from ${source}`);
+}
 
-fs.writeFileSync(path.join(ROOT, "data", "skeleton.js"), out.replace(/\n/g, "\r\n"));
-console.log(`data/skeleton.js: ${cards.length} cards from ${SOURCE}`);
+const V11 = "Megumin Suite V11 Universal.json";
+write("skeleton.js", V11, cardsOf(JSON.parse(fs.readFileSync(path.join(ROOT, "Presets", V11), "utf8"))), true);
+
+const V10 = "Megumin Suite V10 Universal.json";
+const v10Text = execFileSync("git", ["show", `${V10_COMMIT}:Presets/${V10}`], { cwd: ROOT, stdio: ["ignore", "pipe", "ignore"] }).toString("utf8");
+write("skeletonV10.js", V10, cardsOf(JSON.parse(v10Text)), false);

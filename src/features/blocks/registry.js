@@ -16,11 +16,11 @@ import { worldBlockRequest, blockViaChomusuke, notebookBlockRequest, sceneBlockR
 import { normalizeCustomBlock, customBlockTags } from "../../state/modules/custom/model.js";
 import { customInfoTag, customFieldNotes, customBlockRules } from "../../state/modules/custom/render.js";
 import { CUSTOM_CHANGES_LINE, CUSTOM_FRESH_FIELDS_LINE } from "../../prompts/customBlocks.js";
-import { promptEdit, fillPromptTokens, editable } from "../../prompts/edits.js";
+import { promptEdit, fillPromptTokens, editable, traced } from "../../prompts/edits.js";
 import { SCENE_TAG } from "../../state/scene.js";
 import { NOTEBOOK_TAGS } from "../../state/modules/notebook/parse.js";
 import {
-    BLOCKS_HEAD_SPLIT, wrapBlockRules, shortRulesHeading, bondsRulesSplit, sheetRulesSplit, statRuleTokens,
+    BLOCKS_HEAD_SPLIT, wrapBlockRules, shortRulesHeading, bondsRulesSplit, sheetRulesSplit, bondsRulesText, sheetRulesText, statRuleTokens,
     CHATTER_RULES, CHATTER_SKELETON, CHOICES_RULES, TRACKER_RULES, TRACKER_SKELETON,
     NEW_NPC_SLOT, NPC_UPDATE_SLOT, sameText,
 } from "../../prompts/v11Rules.js";
@@ -498,7 +498,7 @@ export function meguminBuildBondsTemplate() {
     if (!fields.length) return "";
     const line = fields.map(meguminStatFieldSpec).join(" | ");
     const edited = editedStatRules("bondsRules", fields);
-    if (edited) return [`[${edited}]`, "", `[NPC Name]: ${line}`].join("\n");
+    if (edited) return [`[${traced("bondsRules", edited)}]`, "", `[NPC Name]: ${line}`].join("\n");
     return [
         "[One line per named NPC in <Scene>, Here or Remote, plus any NPC whose numbers changed this scene. Nobody else.",
         meguminStatRules(fields, "Bonds", { perSubject: true, notesTag: "Bonds_Now" }),
@@ -515,7 +515,7 @@ export function meguminBuildBondsSplit() {
     if (!fields.length) return null;
     const edited = editedStatRules("bondsRules", fields);
     return {
-        rules: edited ? `## Bonds\n${edited}` : bondsRulesSplit(fields),
+        rules: `## Bonds\n${traced("bondsRules", edited || bondsRulesText(fields))}`,
         body: `[NPC Name]: ${fields.map(meguminStatFieldSpec).join(" | ")}`
     };
 }
@@ -526,7 +526,7 @@ export function meguminBuildSheetSplit() {
     const inline = fields.filter(f => !f.ownLine).map(meguminStatFieldSpec).join(" | ");
     const own = fields.filter(f => f.ownLine).map(meguminStatFieldSpec);
     const edited = editedStatRules("sheetRules", fields);
-    return { rules: edited ? `## Character Sheet\n${edited}` : sheetRulesSplit(fields), body: [inline, ...own].filter(Boolean).join("\n") };
+    return { rules: `## Character Sheet\n${traced("sheetRules", edited || sheetRulesText(fields))}`, body: [inline, ...own].filter(Boolean).join("\n") };
 }
 
 // A custom block's template (plan 023). Free text is the user's own, as
@@ -563,7 +563,7 @@ export function meguminBuildSheetTemplate() {
     const inline = fields.filter(f => !f.ownLine).map(meguminStatFieldSpec).join(" | ");
     const own = fields.filter(f => f.ownLine).map(meguminStatFieldSpec);
     const edited = editedStatRules("sheetRules", fields);
-    if (edited) return [`[${edited}]`, "", inline, ...own].filter(Boolean).join("\n");
+    if (edited) return [`[${traced("sheetRules", edited)}]`, "", inline, ...own].filter(Boolean).join("\n");
     return [
         "[{{user}}'s sheet.",
         meguminStatRules(fields, "Character Sheet", { notesTag: "Character_Sheet_Now" }),

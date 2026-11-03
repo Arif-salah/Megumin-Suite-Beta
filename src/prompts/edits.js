@@ -31,7 +31,21 @@ export function promptEdit(key) {
  */
 export function editable(key, builtin, tokens) {
     const t = promptEdit(key);
-    return t ? fillPromptTokens(t, tokens || {}) : builtin;
+    return traced(key, t ? fillPromptTokens(t, tokens || {}) : builtin);
+}
+
+// ── Tracing, for Dev Mode's full prompt preview (plan 025) ───────────────────
+// While the preview builds the prompt, each editable text is wrapped in
+// private-use marks with its key, so the preview can colour it and open its
+// box. Only ever on for that one synchronous build; a real prompt never has them.
+export const TRACE = { open: "", mid: "", close: "" };
+let tracing = false;
+
+export function setPromptTrace(on) { tracing = Boolean(on); }
+
+/** The text, marked with its key while the preview is building. */
+export function traced(key, text) {
+    return tracing && text ? `${TRACE.open}${key}${TRACE.mid}${text}${TRACE.close}` : text;
 }
 
 /**

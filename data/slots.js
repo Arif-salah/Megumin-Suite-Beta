@@ -237,6 +237,50 @@ const EDITABLE_TEXTS = [
     ...imageV2Texts(IMAGE_V2_BUILTIN),
 ];
 
+// Where each text sits in each Universal .json (plan 025): Dev Mode draws it
+// under that tag in the file's skeleton. The V11 file sends the rules up top
+// in [[block_rules]] and the lines to fill in [[this_turn]]; the V10 file
+// sends both inside [[blocks]]. No entry = not in the preset file (Chomusuke,
+// Images), or not in that file.
+const RULES = { v11: "[[block_rules]]", v10: "[[blocks]]" };
+const LINES = { v11: "[[this_turn]]", v10: "[[blocks]]" };
+export const SLOT_IN_TAG = {
+    worldFullRules: RULES, worldUpdateRules: RULES, bondsRules: RULES, sheetRules: RULES,
+    worldFullTemplate: LINES, worldUpdateTemplate: LINES,
+    sceneRules: RULES, sceneTemplate: LINES,
+    notebookSetupRules: RULES, notebookTruthForm: RULES, notebookUpdateRules: RULES, notebookUpdateRulesNewOnly: RULES,
+    customChangesLine: LINES, customFreshFieldsLine: LINES,
+    customLastNote: { v11: "[[infoblockcurrent]]", v10: "[[infoblockcurrent]]" },
+    knownNamesLead: { v11: "[[infoblockcurrent]]", v10: "[[infoblockcurrent]]" },
+    v11BlockRulesLead: { v11: "[[block_rules]]" },
+    v11ChoicesRules: { v11: "[[block_rules]]" },
+    v11ChatterRules: { v11: "[[block_rules]]" },
+    v11TrackerRules: { v11: "[[block_rules]]" },
+    v11BlocksHead: { v11: "[[this_turn]]" },
+    v11ChatterLine: { v11: "[[this_turn]]" },
+    v11TrackerTemplate: { v11: "[[this_turn]]" },
+    v11DiceRulesPlayer: { v11: "[[dice_rules]]" },
+    v11DiceRulesEveryone: { v11: "[[dice_rules]]" },
+    v11AddonDeath: { v11: "[[addon_rules]]" },
+    v11AddonCombat: { v11: "[[addon_rules]]" },
+    v11AddonOnomato: { v11: "[[addon_rules]]" },
+    v11AddonOnomatoStyled: { v11: "[[addon_rules]]" },
+    v11NpcDossierRules: { v11: "[[npc_rules]]" },
+    v11StorySettingsLead: { v11: "[[config]]" },
+    v11FinalCheckHead: { v11: "[[reminder]]" },
+    blocksCheck: { v11: "[[reminder]]" },
+    blocksCheckScene: { v11: "[[reminder]]" },
+    "imageV2.inlineHeadSplit": { v11: "[[img_rules]]" },
+    "imageV2.inlineHead": { v10: "[[img1]]" },
+    "imageV2.inlineTail": { v11: "[[img_rules]]", v10: "[[img1]]" },
+};
+
+/** The tag a text slot sits in for one .json ("v11" | "v10"), or null. */
+export function meguminSlotInTag(slot, json) {
+    const m = slot && slot.key ? SLOT_IN_TAG[slot.key] : null;
+    return (m && m[json]) || null;
+}
+
 export const MEGUMIN_SLOT_REGISTRY = [
     // ── The engine's own voice ───────────────────────────────────────────────
     { key: "p1", trigger: "[[prompt1]]", structural: true, label: "Prompt 1", scope: "engine", group: "engine",
