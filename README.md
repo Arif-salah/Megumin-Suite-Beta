@@ -16,7 +16,7 @@ README on the stable branch.
 ### Model Setup
 
 - **A Gemini Flash loadout** for Gemini 3.5 to 3.8 Flash. It uses the Gemini Pro settings with custom thinking on, so Flash plans the reply before writing it.
-- **Fewer refusals on Gemini.** Both Gemini loadouts tell Gemini the story is adult fiction and ask for a ^ before every word. The extension takes the ^ out of each reply as soon as it arrives, so the chat, the blocks and World State all read normal text.
+- **Gemini JB, a new add-on.** It helps Gemini get through gritty and heavy NSFW scenes without cutting the reply off. Switch it on in Language & rules, or let a loadout do it: the Gemini Pro and Gemini Flash loadouts turn it on, the others turn it off, and each loadout has its own switch for it. Not for NSFL.
 - **Flash and the blocks.** Gemini 3.8 Flash writes the blocks well, but it can cut them off in heavy NSFW scenes. The card tells you to switch on Chomusuke and give it another model if that happens.
 
 ### Fixes
