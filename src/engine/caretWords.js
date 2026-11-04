@@ -1,13 +1,13 @@
 // ────────────────────────────────────────────────────────────────────────────
-// The Gemini loadouts ask for a ^ before every word of the reply. The
+// The Gemini JB add-on asks for a ^ before every word of the reply. The
 // user's SillyTavern regex hides them in the chat, but our blocks are read
 // from the saved text, so the reply is cleaned here as soon as it lands.
 // Pure: no SillyTavern imports.
 // ────────────────────────────────────────────────────────────────────────────
 
-/** True while this profile uses a Gemini loadout (Pro or Flash): the story
- *  is asked for ^ before every word, and gets the [[GeminiJB]] line. */
-export const usesCaretWords = p => Boolean(p) && (p.loadout === "gemini-pro" || p.loadout === "gemini-flash");
+/** True while the Gemini JB add-on is on (the Gemini loadouts turn it on):
+ *  the story is asked for ^ before every word, and gets the [[GeminiJB]] line. */
+export const usesCaretWords = p => Boolean(p) && Array.isArray(p.addons) && p.addons.includes("gemini_jb");
 
 export const stripCarets = text => String(text ?? "").replace(/\^/g, "");
 

@@ -53,14 +53,10 @@ export const SETTINGS = [
             if (v !== "off") p.banListShort = v === "short";
         }
     },
+    { key: "html", label: "Immersive HTML", tab: "addons", ...addonRow("html") },
     {
-        key: "html", label: "Immersive HTML", tab: "addons",
-        read: p => Array.isArray(p.addons) && p.addons.includes("html"),
-        write: (p, on) => {
-            const list = (Array.isArray(p.addons) ? p.addons : []).filter(id => id !== "html");
-            if (on) list.push("html");
-            p.addons = list;
-        }
+        key: "geminiJB", label: "Gemini JB", tab: "addons", ...addonRow("gemini_jb"),
+        desc: "Helps Gemini get through gritty and heavy NSFW scenes without cutting the reply off."
     },
     {
         // Who writes what comes after the story: the blocks, World State, the
@@ -85,6 +81,18 @@ export const SETTINGS = [
         }
     }
 ];
+
+// A row that switches one add-on (Language & rules tab) on or off.
+function addonRow(id) {
+    return {
+        read: p => Array.isArray(p.addons) && p.addons.includes(id),
+        write: (p, on) => {
+            const list = (Array.isArray(p.addons) ? p.addons : []).filter(a => a !== id);
+            if (on) list.push(id);
+            p.addons = list;
+        }
+    };
+}
 
 // The blocks Chomusuke can write (the Chomusuke tab's block switches).
 const BLOCK_IDS = ["bonds", "sheet", "chatter", "cyoa"];
@@ -132,7 +140,7 @@ export const LOADOUTS = [
             { tone: "gold", text: "<b>Gemini 4:</b> keep custom thinking off. <b>Gemini 3.1 Pro and 2.5 Pro:</b> turn custom thinking on. Turn the prefill on only if you get refusals." },
             CHOMUSUKE_OPTIONAL
         ],
-        settings: { mode: "v11-voice", thinking: false, length: LENGTH_FLEXIBLE, banList: "full", chomusuke: "story" }
+        settings: { mode: "v11-voice", thinking: false, length: LENGTH_FLEXIBLE, banList: "full", geminiJB: true, chomusuke: "story" }
     },
     {
         id: "gemini-flash", name: "Gemini Flash", icon: "fa-gem", models: "Gemini 3.5 – 3.8 Flash",
@@ -140,13 +148,13 @@ export const LOADOUTS = [
         notes: [
             { tone: "gold", chomusuke: true, text: "<b>Gemini 3.8 Flash writes the blocks fine</b>, but in heavy NSFW scenes it can cut them off. If that happens, turn Chomusuke on below and give it another model to write the blocks." }
         ],
-        settings: { mode: "v11-voice", thinking: true, thinkingCap: false, length: LENGTH_FLEXIBLE, banList: "full", chomusuke: "story" }
+        settings: { mode: "v11-voice", thinking: true, thinkingCap: false, length: LENGTH_FLEXIBLE, banList: "full", geminiJB: true, chomusuke: "story" }
     },
     {
         id: "claude", name: "Claude", icon: "fa-feather", models: "Claude Opus 5.5",
         why: "The best prose of any model tested. Claude keeps its thinking to itself: asked to write it out, replies can get blocked after the first message.",
         notes: [PREFILL_OFF("Claude on OpenRouter often fails with it on."), CHOMUSUKE_OPTIONAL],
-        settings: { mode: "v11-voice", thinking: false, length: LENGTH_FLEXIBLE, banList: "full", chomusuke: "story" }
+        settings: { mode: "v11-voice", thinking: false, length: LENGTH_FLEXIBLE, banList: "full", geminiJB: false, chomusuke: "story" }
     },
     {
         id: "big-open", name: "Big open models", icon: "fa-dragon", models: "GLM 5.3, GLM 5.3 Flash",
@@ -156,7 +164,7 @@ export const LOADOUTS = [
             PREFILL_OFF("GLM thinks on its own and doesn't need it."),
             CHOMUSUKE_OPTIONAL
         ],
-        settings: { mode: "v11-voice", thinking: false, thinkingCap: false, length: LENGTH_SHORT, banList: "short", html: false, chomusuke: "story" }
+        settings: { mode: "v11-voice", thinking: false, thinkingCap: false, length: LENGTH_SHORT, banList: "short", html: false, geminiJB: false, chomusuke: "story" }
     },
     {
         id: "fast", name: "Fast models", icon: "fa-bolt", models: "DeepSeek",
@@ -164,7 +172,7 @@ export const LOADOUTS = [
         notes: [
             { tone: "red", chomusuke: true, text: "<b>DeepSeek needs Chomusuke.</b> It leaves out everything after the story: the blocks, World State, the notebook and the image tags. Chomusuke writes them for it." }
         ],
-        settings: { mode: "v11-deepseek", thinking: true, thinkingCap: false, length: LENGTH_SHORT, banList: "short", html: false, chomusuke: "chomusuke" }
+        settings: { mode: "v11-deepseek", thinking: true, thinkingCap: false, length: LENGTH_SHORT, banList: "short", html: false, geminiJB: false, chomusuke: "chomusuke" }
     }
 ];
 

@@ -6,10 +6,9 @@ import { usesCaretWords, stripCarets, stripMessageCarets } from "../src/engine/c
 import { formattingSection } from "../src/engine/presetSections.js";
 import { GEMINI_CARET_LINE } from "../src/prompts/v11Rules.js";
 
-test("only the Gemini loadouts ask for the ^", () => {
-    assert.equal(usesCaretWords({ loadout: "gemini-pro" }), true);
-    assert.equal(usesCaretWords({ loadout: "gemini-flash" }), true);
-    assert.equal(usesCaretWords({ loadout: "claude" }), false);
+test("only the Gemini JB add-on asks for the ^", () => {
+    assert.equal(usesCaretWords({ addons: ["html", "gemini_jb"] }), true);
+    assert.equal(usesCaretWords({ addons: ["html"], loadout: "gemini-pro" }), false, "switched off by hand");
     assert.equal(usesCaretWords({}), false);
     assert.equal(usesCaretWords(null), false);
 });

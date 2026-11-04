@@ -152,7 +152,7 @@ test("the ban list row: full, short, off", () => {
     assert.deepEqual([p.banListBuiltIn, p.banListShort, b.read(p, ctx)], [true, true, "short"]);
     b.write(p, "full", ctx);
     assert.equal(b.read(p, ctx), "full");
-    assert.equal(SETTINGS.length, 7);
+    assert.equal(SETTINGS.length, 8);
 });
 
 test("V11 Тайна DeepSeek: V11 Тайна with one line back in <reader>, and its thinking", () => {
@@ -184,7 +184,7 @@ test("what Use this loadout would change: listed before, profile untouched (plan
     assert.deepEqual(loadoutChanges(p, loadoutById("fast"), ctx), [], "nothing left to change");
     const l = loadoutById("gemini-pro");
     assert.deepEqual(loadoutChanges(p, l, ctx, { ...l.settings, banList: "short" }).map(c => c.key),
-        ["mode", "thinking", "length", "chomusuke"], "the page's changes count");
+        ["mode", "thinking", "length", "geminiJB", "chomusuke"], "the page's changes count");
 });
 
 test("Gemini Flash is Gemini Pro with custom thinking on", () => {
@@ -192,4 +192,13 @@ test("Gemini Flash is Gemini Pro with custom thinking on", () => {
     assert.deepEqual({ ...flash, thinking: false, thinkingCap: undefined }, { ...pro, thinkingCap: undefined });
     assert.equal(flash.thinking, true);
     assert.equal(flash.thinkingCap, false);
+});
+
+test("the Gemini loadouts turn the Gemini JB add-on on, the others turn it off", () => {
+    for (const l of LOADOUTS) assert.equal(l.settings.geminiJB, l.id.startsWith("gemini-"), l.id);
+    const p = profile();
+    applyLoadout(p, loadoutById("gemini-flash"), ctx);
+    assert.ok(p.addons.includes("gemini_jb") && p.addons.includes("html"), "other add-ons kept");
+    applyLoadout(p, loadoutById("claude"), ctx);
+    assert.ok(!p.addons.includes("gemini_jb"));
 });

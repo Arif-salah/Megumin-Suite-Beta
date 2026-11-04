@@ -213,7 +213,7 @@ function settingRow(s, l, isChanged, draft, rerender) {
         ids.forEach(id => $sel.append(`<option value="${esc(id)}" ${id === value ? "selected" : ""}>${esc(engineLabel(id))}</option>`));
         $sel.on("change", () => set($sel.val()));
         $ctl.append($sel);
-    } else if (s.key === "thinking" || s.key === "thinkingCap" || s.key === "html") {
+    } else if (s.key === "thinking" || s.key === "thinkingCap" || s.key === "html" || s.key === "geminiJB") {
         $ctl.append(switchRow({ label: value ? "On" : "Off", on: value, onChange: on => set(on) }));
     } else if (s.key === "length") {
         const $sel = $(`<select class="text_pole msx-select"></select>`);
@@ -239,7 +239,7 @@ function engineLabel(id) {
 // Use this loadout popup.
 function describe(key, v) {
     if (key === "mode") return engineLabel(v);
-    if (key === "thinking" || key === "thinkingCap" || key === "html") return v ? "on" : "off";
+    if (key === "thinking" || key === "thinkingCap" || key === "html" || key === "geminiJB") return v ? "on" : "off";
     if (key === "banList") return { full: "the full list", short: "the short list", off: "only your phrases" }[v];
     if (key === "length") return v === "custom" ? "your own" : (v || "not set");
     if (key === "style") return styleName(v);
