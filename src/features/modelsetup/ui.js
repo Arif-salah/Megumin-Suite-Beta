@@ -25,7 +25,7 @@ import { chomusukeSetupHtml } from "../../ui/modelGuide.js";
 import { chomusukeSwitches } from "../../engine/tasks.js";
 import { card, segmented, switchRow, field, esc } from "../../ui/controls.js";
 import {
-    LOADOUTS, COMING_SOON, V11_STYLE_IDS, loadoutById, settingFor, applyLoadout, changedFromLoadout, loadoutChanges
+    LOADOUTS, COMING_SOON, V11_STYLE_IDS, loadoutById, settingFor, applyLoadout, changedFromLoadout, loadoutChanges, loadoutWrites
 } from "./loadouts.js";
 
 
@@ -302,7 +302,7 @@ async function useLoadout(l, draft, rerender) {
         toastr.success(`${l.name} is in use on every ${noun}.`, "Megumin Suite");
     } else {
         // A tab set to "Every character" still goes to every character, as an edit there would.
-        const sent = saveFor(...tabsOf(Object.keys(settings), styleBefore));
+        const sent = saveFor(...tabsOf(Object.keys(loadoutWrites(settings)), styleBefore));
         const also = sent.length
             ? ` ${listNames(sent)} ${sent.length > 1 ? "are" : "is"} set to "Every ${noun}", so ${sent.length > 1 ? "their" : "its"} settings went to every ${noun}.`
             : "";

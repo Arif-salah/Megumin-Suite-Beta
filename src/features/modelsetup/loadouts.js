@@ -55,7 +55,9 @@ export const SETTINGS = [
     },
     { key: "html", label: "Immersive HTML", tab: "addons", ...addonRow("html") },
     {
-        key: "geminiJB", label: "Gemini JB", tab: "addons", ...addonRow("gemini_jb"),
+        // Only the Gemini loadouts have this row; using any other loadout
+        // switches it off (offElsewhere).
+        key: "geminiJB", label: "Gemini JB", tab: "addons", ...addonRow("gemini_jb"), offElsewhere: true,
         desc: "Helps Gemini get through gritty and heavy NSFW scenes without cutting the reply off."
     },
     {
@@ -154,7 +156,7 @@ export const LOADOUTS = [
         id: "claude", name: "Claude", icon: "fa-feather", models: "Claude Opus 5.5",
         why: "The best prose of any model tested. Claude keeps its thinking to itself: asked to write it out, replies can get blocked after the first message.",
         notes: [PREFILL_OFF("Claude on OpenRouter often fails with it on."), CHOMUSUKE_OPTIONAL],
-        settings: { mode: "v11-voice", thinking: false, length: LENGTH_FLEXIBLE, banList: "full", geminiJB: false, chomusuke: "story" }
+        settings: { mode: "v11-voice", thinking: false, length: LENGTH_FLEXIBLE, banList: "full", chomusuke: "story" }
     },
     {
         id: "big-open", name: "Big open models", icon: "fa-dragon", models: "GLM 5.3, GLM 5.3 Flash",
@@ -164,7 +166,7 @@ export const LOADOUTS = [
             PREFILL_OFF("GLM thinks on its own and doesn't need it."),
             CHOMUSUKE_OPTIONAL
         ],
-        settings: { mode: "v11-voice", thinking: false, thinkingCap: false, length: LENGTH_SHORT, banList: "short", html: false, geminiJB: false, chomusuke: "story" }
+        settings: { mode: "v11-voice", thinking: false, thinkingCap: false, length: LENGTH_SHORT, banList: "short", html: false, chomusuke: "story" }
     },
     {
         id: "fast", name: "Fast models", icon: "fa-bolt", models: "DeepSeek",
@@ -172,7 +174,7 @@ export const LOADOUTS = [
         notes: [
             { tone: "red", chomusuke: true, text: "<b>DeepSeek needs Chomusuke.</b> It leaves out everything after the story: the blocks, World State, the notebook and the image tags. Chomusuke writes them for it." }
         ],
-        settings: { mode: "v11-deepseek", thinking: true, thinkingCap: false, length: LENGTH_SHORT, banList: "short", html: false, geminiJB: false, chomusuke: "chomusuke" }
+        settings: { mode: "v11-deepseek", thinking: true, thinkingCap: false, length: LENGTH_SHORT, banList: "short", html: false, chomusuke: "chomusuke" }
     }
 ];
 
@@ -183,12 +185,19 @@ export const COMING_SOON = [
 
 export const loadoutById = id => LOADOUTS.find(l => l.id === id);
 
+/** What Use this loadout writes: the loadout's settings, plus off for every
+ *  offElsewhere row it doesn't have (Gemini JB on a non-Gemini loadout). */
+export function loadoutWrites(settings) {
+    const off = SETTINGS.filter(s => s.offElsewhere && !(s.key in settings)).map(s => [s.key, false]);
+    return { ...settings, ...Object.fromEntries(off) };
+}
+
 /** Writes a loadout's settings into one profile (or `settings`, the
  *  loadout's settings as changed on the page before using it). Containers a
  *  profile lacks are made. `skipGlobal`: leave out the rows stored once for
  *  every character (written through the profile on screen). */
 export function applyLoadout(p, loadout, ctx, settings = loadout.settings, { skipGlobal = false } = {}) {
-    for (const [key, value] of Object.entries(settings)) {
+    for (const [key, value] of Object.entries(loadoutWrites(settings))) {
         const s = settingFor(key);
         if (!(skipGlobal && s.global)) s.write(p, value, ctx);
     }
@@ -203,7 +212,7 @@ export function loadoutChanges(p, loadout, ctx, settings = loadout.settings) {
     const after = JSON.parse(JSON.stringify(p));
     applyLoadout(after, loadout, ctx, settings);
     const out = [];
-    for (const key of Object.keys(settings)) {
+    for (const key of Object.keys(loadoutWrites(settings))) {
         const s = settingFor(key);
         const from = s.read(p, ctx);
         const to = s.read(after, ctx);

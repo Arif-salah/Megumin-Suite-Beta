@@ -194,11 +194,14 @@ test("Gemini Flash is Gemini Pro with custom thinking on", () => {
     assert.equal(flash.thinkingCap, false);
 });
 
-test("the Gemini loadouts turn the Gemini JB add-on on, the others turn it off", () => {
-    for (const l of LOADOUTS) assert.equal(l.settings.geminiJB, l.id.startsWith("gemini-"), l.id);
+test("only the Gemini loadouts have Gemini JB; using another one turns it off", () => {
+    for (const l of LOADOUTS) assert.equal(l.settings.geminiJB, l.id.startsWith("gemini-") ? true : undefined, l.id);
     const p = profile();
     applyLoadout(p, loadoutById("gemini-flash"), ctx);
     assert.ok(p.addons.includes("gemini_jb") && p.addons.includes("html"), "other add-ons kept");
+    assert.deepEqual(loadoutChanges(p, loadoutById("claude"), ctx).find(c => c.key === "geminiJB"),
+        { key: "geminiJB", label: "Gemini JB", from: true, to: false }, "listed before Use this loadout");
     applyLoadout(p, loadoutById("claude"), ctx);
     assert.ok(!p.addons.includes("gemini_jb"));
+    assert.ok(p.addons.includes("html"), "other add-ons kept");
 });
