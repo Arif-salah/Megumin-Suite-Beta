@@ -42,7 +42,7 @@ import {
 import { BLOCKS_WORKER_SYSTEM, BLOCKS_WORKER_TASK } from "../src/state/modules/stats/worker.js";
 import { worldClerkSystem } from "../src/state/modules/world/render.js";
 import {
-    V2_LOOKS_TASK, V2_OUTFIT_TASK, COMBINED_IMAGE_TASK, COMBINED_SYSTEM_EDITABLE,
+    V2_LOOKS_TASK, V2_OUTFIT_TASK, V2_OUTFIT_TASK_QWEN, COMBINED_IMAGE_TASK, COMBINED_SYSTEM_EDITABLE,
 } from "../src/features/imagegen/v2/prompt.js";
 import { IMAGE_V2_BUILTIN } from "../src/prompts/imageGenV2.js";
 
@@ -160,6 +160,16 @@ const IMAGE_V2_LABELS = {
     "system": "Opening (who writes the image prompt)",
     "style.tags": "Style guide: tags",
     "style.natural": "Style guide: natural sentences",
+    "style.qwen": "Style guide: Qwen Image",
+    "artStyleLine": "Qwen Image: art style line",
+    "shotQwen.cinematic": "Qwen Image shot: cinematic",
+    "shotQwen.pov": "Qwen Image shot: point of view",
+    "shotQwen.portrait": "Qwen Image shot: portrait",
+    "qwenLook.system": "Qwen Image looks: opening",
+    "qwenLook.task": "Qwen Image looks: task",
+    "qwenOutfit.system": "Qwen Image outfits: opening",
+    "qwenOutfit.task": "Qwen Image outfits: task",
+    "descriptionsInEnglish": "Descriptions in English",
     "shot.cinematic": "Shot: cinematic",
     "shot.pov": "Shot: point of view",
     "shot.portrait": "Shot: portrait",
@@ -233,6 +243,7 @@ const EDITABLE_TEXTS = [
     text("combinedSystem", "chomusuke", "Combined call: opening", PLACE.chomusuke, "Your text replaces every form of it. {{jobs}} is what the call does this time (\"note what it changed in the world and write an image prompt…\").", () => COMBINED_SYSTEM_EDITABLE),
     text("combinedImageTask", "chomusuke", "Combined call: image task", PLACE.chomusuke, "The first line of the image task.", () => COMBINED_IMAGE_TASK),
     text("imageV2OutfitTask", "imagev2", "Outfit tags task", PLACE.chomusuke, "{{who}} is whose outfits.", () => V2_OUTFIT_TASK),
+    text("imageV2OutfitTaskQwen", "imagev2", "Qwen Image: outfit task", PLACE.chomusuke, "{{who}} is whose outfits.", () => V2_OUTFIT_TASK_QWEN),
     text("imageV2LooksTask", "imagev2", "Looks task", PLACE.chomusuke, "{{names}} is the characters who need a look.", () => V2_LOOKS_TASK),
 
     // Image V2

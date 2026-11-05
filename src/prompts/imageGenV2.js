@@ -66,7 +66,65 @@ export const IMAGE_V2_BUILTIN = {
             "On the left is @Mira. She sits at the bar, laughing, holding a mug.",
             "On the right is @Theo. He leans on the counter, smiling at her.",
             "Shelves of bottles line the wall behind them, rain runs down the window, and warm lamplight fills the room."
+        ].join("\n"),
+        // Plan 026: Qwen Image, from Qwen's own prompt-rewriting guide. One long
+        // paragraph describing the finished image; @Name still carries the look.
+        qwen: [
+            "## How to write the image prompt",
+            "Write one long paragraph in English that describes the finished image as if you were looking at it: present tense, third person, plain statements. About twenty sentences, 300 to 450 words.",
+            "",
+            "1. **The opening sentence**, about twenty words: what kind of image it is, the art style below in a few words, ONE framing (close-up, medium shot, full-body shot, wide shot), who is there in plain words (a young woman, two people, never @Name), what is happening, and the background with its palette. \"The image is a medium-shot anime illustration of two people laughing at a tavern bar at night, the room glowing in warm amber tones.\"",
+            "2. **Right after, the background and the place**: what the back of the frame is and what stands in it.",
+            "3. **Walk the frame.** For a scene: the top of the frame, then the left side, the centre and the right side, then the foreground along the lower edge. For one person: the background and how it falls away, their pose and where they sit in the frame, their face and expression, then what they hold. Start about a third of your sentences on a place in the frame: \"On the right side of the frame, …\", \"In the upper-left corner, …\", \"Along the lower edge, …\".",
+            "4. **Each character where they stand**: the place in the frame, then @Name (\"On the left side of the frame sits @Mira.\"). @Name carries that character's whole look and clothing. Then, starting with He, She or They, what only they are doing: posture, where they look, their expression, their hands and what they hold. The one the moment is about comes first. Three characters at most; mention anyone else briefly as people in the background.",
+            "5. **Text that can be read**, only when the moment has some (a phone screen, a letter, a sign): where it sits, what it looks like and what it says, in double quotes, in its own script. Text too far away or too small to read is blurred. With nothing to read, write no text.",
+            "6. **The light, in a sentence of its own**: \"The lighting is …\", with its source, direction and softness, and the shadows it leaves.",
+            "7. **One closing sentence on the whole frame**: \"The overall composition …\", with its balance, palette and mood. Only one.",
+            "",
+            "Rules:",
+            "- <Cast> is reference only. Never write hair, eyes, face shape, skin, body or clothing for a @Name character. The one exception: when <Cast> explicitly says \"wearing: not noted\", describe what they wear right after their @Name.",
+            "- Write each @Name once, where that character stands, and nowhere else: not in the opening sentence, not later. After it, use he, she or they: \"her hand\", not \"Mira's hand\"; \"the bedroom\", not \"Theo's bedroom\".",
+            "- The image is one frozen instant. Write what is true at that instant: \"her eyes flick toward the bedroom doors\", not \"her gaze darts to the doors before snapping back\".",
+            "- Draw the moment, not the story. Show feelings as what the face and body do: \"laughing with her head tipped back\", not \"happy because he joked\"; \"a forced, too-wide smile\", not \"a strained grin\". Describe what can be seen: \"a picture frame lying face down\", not \"hiding the photograph\".",
+            "- Everything holds together physically: windows and doors sit in walls, shadows fall away from the light, and things keep their size next to each other.",
+            "- Give every colour a modifier (deep navy, pale cream, warm terracotta) and every object its material (weathered wood, frosted glass, dented pewter). Name each thing: \"two green bottles and a chipped clay bowl\", never \"various items\". Write small counts as words.",
+            "- Small details belong: a chipped mug, steam rising from a cup, a ring on a finger.",
+            "- For background things you can't be sure of, you may hedge: \"appears to be\", \"wood or dark laminate\". Never for the characters.",
+            "- No quality words (masterpiece, 8K, highly detailed), no ratio, no resolution.",
+            "- Output the paragraph only, on one line: no heading, no quotation marks around it, nothing before or after.",
+            "",
+            "Example (made-up characters; use the names from <Cast>):",
+            "The image is a medium-shot anime illustration of a man and a woman sharing a laugh at a crowded tavern bar at night, the room glowing in warm amber and deep brown tones. Behind them, the back wall is lined with dark wooden shelves holding rows of green and amber glass bottles, a few of them dusty and half-empty. Across the top of the frame, heavy oak beams cross the ceiling, with a wrought-iron lantern hanging from the one on the left. On the left side of the frame sits @Mira. She sits sideways on a tall stool with one elbow on the bar, laughing with her head tipped back and her eyes half closed, both hands wrapped around a dented pewter mug. In the centre of the bar top, a wooden board holds a heel of crusty bread and a small wedge of pale yellow cheese beside a chipped clay bowl. On the right side of the frame stands @Theo. He leans forward on the counter on both forearms, smiling at her with one eyebrow raised, a folded cloth tucked over his shoulder. In the background between them, a few blurred patrons sit at round tables, their faces softened by a haze of pipe smoke. On the far right, a rain-streaked window shows a dark street and the smeared glow of a lamppost outside. Along the lower edge of the frame, the bar's scarred surface catches the light in a long glossy streak, with two damp rings left by earlier mugs. A small chalkboard propped against the bottles reads \"ALE 2 COPPER\" in uneven white letters. The lighting is warm and low, coming mostly from the lantern above and to the left, casting soft shadows to the right across the bar and leaving the corners of the room in deep brown shade. The overall composition is balanced between the two figures, framed by the shelves behind them, with a warm, cosy palette and a lively, friendly mood."
         ].join("\n")
+    },
+
+    // Plan 026: the art style picked on the V2 tab, sent after the Qwen guide.
+    // {{artStyle}} = the style's description (QWEN_ART_STYLES) or your own text.
+    artStyleLine: "Art style: {{artStyle}}. Name it in a few words in the opening sentence, and let the rest show in how you describe surfaces, colour and light.",
+
+    // The shot lines for the Qwen style: no tags ("pov"), and the opening
+    // sentence names the framing, which decides whether a body is shown.
+    shotQwen: {
+        cinematic: "Shot: a film still of the moment. Pick a wide, medium or close shot to suit it, and say which in the opening sentence.",
+        pov: "Shot: seen through {{user}}'s eyes. {{user}} is the viewer: write \"the viewer\" for them (looking at the viewer, reaching toward the viewer), never their name. They are never in the frame, except their hands when they touch something. The opening sentence says the image is seen from the viewer's point of view.",
+        portrait: "Shot: one character, a close-up from the chest up, walked as a single subject: the background and how it falls out of focus, their pose, their face and expression, and the clothing at the edge of the frame."
+    },
+
+    // Qwen's looks: the saved tags turned into one detailed phrase each.
+    qwenLook: {
+        system: "You turn booru appearance tags into detailed plain descriptions for an image model that reads long paragraphs.",
+        task: [
+            "For each character, turn the tags into ONE descriptive phrase (30 to 60 words) that starts with \"a\" or \"an\".",
+            "Give their life stage (a young adult, in her thirties, elderly), build, skin tone, hair with its colour, length and style, eye colour, and permanent marks with where they sit. Give every colour a modifier: deep auburn, pale ivory, steel grey.",
+            "Describe only their permanent appearance: no clothing, no names, no actions. State it plainly.",
+            "Example: <Character_Qwen name=\"Mira\">a slender young woman in her twenties with pale, lightly freckled skin, long wavy deep auburn hair falling past her shoulders, bright emerald-green eyes and a small mole under her left eye</Character_Qwen>"
+        ].join("\n")
+    },
+
+    // Qwen's outfits: World State's outfit text as one phrase, once per outfit.
+    qwenOutfit: {
+        system: "You turn clothing descriptions into detailed plain descriptions for an image model that reads long paragraphs.",
+        task: "Describe each outfit as one phrase: one part per garment, the main garments first, each with its colour, material and cut or print (\"a loose cream cable-knit wool sweater\", \"faded light-blue denim jeans\"), plus one standout accessory, joined with commas and a final \"and\". Keep the state of dress (sleeves rolled up, unbuttoned, barefoot). Clothing only, nothing the text does not say."
     },
 
     shot: {
@@ -99,6 +157,7 @@ export const IMAGE_V2_BUILTIN = {
     // prompts and tags. Blocks and World State keep the story's language.
     inEnglish: "Write the image prompt in English, whatever language the story is told in.",
     tagsInEnglish: "Write the tags in English, whatever language the story is told in.",
+    descriptionsInEnglish: "Write the descriptions in English, whatever language the story is told in.",
 
     manualTask: "The image shows the moment <Last_Message> ends on. <Earlier_Story> is only there so you understand it: draw nothing that has already ended (someone who put an item away no longer holds it). Write the image prompt for that moment. Output only the prompt, nothing else.",
     manualTaskWithExtras: "The image shows the moment <Last_Message> ends on. <Earlier_Story> is only there so you understand it: draw nothing that has already ended (someone who put an item away no longer holds it). Write the image prompt for that moment.",
@@ -110,3 +169,23 @@ export const IMAGE_V2_BUILTIN = {
 };
 
 export const IMAGE_V2_PROMPTS = editableTree(IMAGE_V2_BUILTIN, "imageV2");
+
+// Plan 026: the Qwen style's art styles. `text` fills {{artStyle}}; "custom"
+// sends the user's own text instead.
+export const QWEN_ART_STYLES = [
+    { id: "anime", label: "Anime illustration", text: "anime illustration with clean, confident line art, cel shading with soft gradient highlights, vivid saturated colours and expressive faces with large, detailed eyes" },
+    { id: "semireal", label: "Semi-realistic anime", text: "semi-realistic digital painting with an anime influence, painterly blended shading, realistic proportions and lighting, fine hair strands and soft fabric folds" },
+    { id: "webtoon", label: "Webtoon", text: "full-colour webtoon illustration with crisp line art, smooth cel shading, clean bright colours and soft glowing highlights" },
+    { id: "photo", label: "Realistic photograph", text: "realistic photograph taken with a full-frame camera and a prime lens, natural skin texture, true-to-life colour and a shallow depth of field with soft bokeh" },
+    { id: "film", label: "Cinematic film still", text: "cinematic film still with wide framing, moody colour grading, gentle film grain and dramatic light from real sources in the scene" },
+    { id: "watercolour", label: "Watercolour", text: "watercolour illustration on textured paper, soft bleeding washes, visible pigment granulation and loose ink outlines" },
+    { id: "render3d", label: "Stylised 3D render", text: "stylised 3D render with soft global illumination, smooth skin with gentle subsurface glow and slightly exaggerated proportions" },
+    { id: "custom", label: "Your own", text: "" },
+];
+
+/** The art style text sent for a pick: the list's description, or your own text. Empty = Anime illustration. */
+export function qwenArtStyleText(id, custom = "") {
+    if (id === "custom" && String(custom || "").trim()) return String(custom).trim();
+    const s = QWEN_ART_STYLES.find(x => x.id === id && x.text) || QWEN_ART_STYLES[0];
+    return s.text;
+}

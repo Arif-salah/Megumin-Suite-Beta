@@ -137,6 +137,48 @@ export function parseLookBlocks(text) {
     return out;
 }
 
+// ── Qwen Image (plan 026): looks and outfits as detailed phrases ───────────
+
+/** @param {Array<{ name: string, tags: string }>} looks */
+export function renderQwenLookPrompt(looks) {
+    return [
+        IMAGE_V2_PROMPTS.qwenLook.task,
+        IMAGE_V2_PROMPTS.descriptionsInEnglish,
+        "",
+        ...looks.map(l => `${l.name}: ${l.tags}`),
+        "",
+        "Output one block per character and nothing else:",
+        "<Character_Qwen name=\"Name\">a …</Character_Qwen>"
+    ].join("\n");
+}
+
+/** @returns {Array<{ name: string, qwen: string }>} */
+export function parseQwenLookBlocks(text) {
+    return blocks(text, "Character_Qwen")
+        .map(b => ({ name: splitName(b.rawName).name, qwen: b.body.replace(/\s+/g, " ").trim().replace(/^["']|["']$/g, "") }))
+        .filter(x => x.name && x.qwen);
+}
+
+/** @param {Array<{ name: string, outfit: string }>} items */
+export function renderQwenOutfitPrompt(items) {
+    return [
+        IMAGE_V2_PROMPTS.qwenOutfit.task,
+        IMAGE_V2_PROMPTS.descriptionsInEnglish,
+        "",
+        ...items.map(i => `${i.name}: ${i.outfit}`),
+        "",
+        "Output one block per character and nothing else:",
+        "<Outfit_Qwen name=\"Name\">a …, … and …</Outfit_Qwen>"
+    ].join("\n");
+}
+
+/** @returns {Array<{ name: string, outfit: string }>} */
+export function parseQwenOutfitBlocks(text) {
+    return blocks(text, "Outfit_Qwen")
+        .map(b => ({ name: splitName(b.rawName).name, outfit: b.body.replace(/\s+/g, " ").trim().replace(/^["']|["']$/g, "").replace(/^wearing\s+/i, "").replace(/\.$/, "") }))
+        .filter(x => x.name && x.outfit);
+}
+
 /** @returns {Array<{ name: string, natural: string }>} */
 export function parseNaturalBlocks(text) {
     return blocks(text, "Character_Natural")
