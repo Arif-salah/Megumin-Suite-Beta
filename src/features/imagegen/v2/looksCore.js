@@ -276,6 +276,12 @@ export function freshOutfitTags(cached, outfitText) {
     return cached.from === outfitHash(outfitText) ? cached.tags : null;
 }
 
+/** A Qwen description ({ from, text }) still made from this source text, or null. */
+export function freshQwenText(cached, source) {
+    if (!cached || !String(cached.text || "").trim()) return null;
+    return cached.from === outfitHash(source) ? cached.text : null;
+}
+
 export const OUTFIT_SYSTEM = "You turn clothing descriptions into booru tags for an image model.";
 
 /** @param {Array<{ name: string, outfit: string }>} items */

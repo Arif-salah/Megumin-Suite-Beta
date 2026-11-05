@@ -10,7 +10,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { splitLookTags, sexOf } from "./lookParts.js";
-import { freshOutfitTags } from "./looksCore.js";
+import { freshOutfitTags, freshQwenText, outfitHash } from "./looksCore.js";
 import { whoIs, namedIn } from "../../../state/names.js";
 
 const key = s => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s'-]/gu, "").replace(/\s+/g, " ").trim();
@@ -42,12 +42,13 @@ export function needsLook(m, shot) {
  *   recentText?: string,           // for "mentioned" (absent but just named)
  *   npcFirst?: boolean,            // NPC Bank Image Tags win over a stored look
  *   outfitTags?: boolean           // use detailed outfit tags when they are fresh
+ *   qwen?: boolean                 // Qwen Image: use the look and outfit descriptions when they are fresh
  * }} src
  * @returns {Array<{ name: string, aliases: string[], look: string, body: string, sex: string, lookNatural: string,
  *                   outfit: string, isPc: boolean, inScene: boolean, mentioned: boolean, lookSource: string }>}
  *   look = the always part; body = build and proportions (full-body shots only)
  */
-export function buildImageCast({ looks = {}, world = null, npcs = [], userName = "", recentText = "", npcFirst = false, outfitTags = false } = {}) {
+export function buildImageCast({ looks = {}, world = null, npcs = [], userName = "", recentText = "", npcFirst = false, outfitTags = false, qwen = false } = {}) {
     const members = [];
     // Names are found the way every module finds them (state/names.js).
     const asPeople = list => Object.fromEntries(list.map((m, i) => [i, m]));
@@ -59,6 +60,7 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
     const blank = (name, extra = {}) => ({
         name, aliases: [], look: "", body: "", sex: "", lookNatural: "", outfit: "", position: "",
         lookKey: "", outfitText: "", outfitStale: false, outfitCache: null,
+        lookQwen: "", lookQwenStale: false, lookQwenCache: null, outfitQwenStale: false, outfitQwenCache: null,
         isPc: false, inScene: false, mentioned: false, lookSource: "", ...extra
     });
 
@@ -112,6 +114,8 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
     function attachLook(m, name, entry) {
         m.lookKey = name;
         m.outfitCache = entry.outfitTags || null;
+        m.lookQwenCache = entry.qwen || null;
+        m.outfitQwenCache = entry.outfitQwen || null;
         const parts = lookParts(entry);
         if (parts.always || parts.body || String(entry.natural || "").trim()) {
             m.look = parts.always;
@@ -147,6 +151,20 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
             const tags = freshOutfitTags(m.outfitCache, m.outfit);
             m.outfitText = m.outfit;
             if (tags) m.outfit = tags; else m.outfitStale = true;
+        }
+        // Qwen Image (plan 026): the descriptions made from THIS look and THIS
+        // outfit. Otherwise the tags / World State text stand in until they
+        // are made, right before the image.
+        if (qwen) {
+            if (String(m.look || "").trim()) {
+                m.lookQwen = freshQwenText(m.lookQwenCache, m.look) || "";
+                m.lookQwenStale = !m.lookQwen;
+            }
+            if (String(m.outfit || "").trim()) {
+                const text = freshQwenText(m.outfitQwenCache, m.outfit);
+                m.outfitText = m.outfit;
+                if (text) m.outfit = text; else m.outfitQwenStale = true;
+            }
         }
     }
 

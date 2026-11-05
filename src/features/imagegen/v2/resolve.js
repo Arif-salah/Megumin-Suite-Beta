@@ -123,6 +123,7 @@ function skipParens(text, at) {
  * @returns {{ prompt: string, filled: Array<{name: string, part: string}>, unknown: string[], noLook: string[] }}
  */
 export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
+    if (style === "qwen") return resolveQwenPrompt(prompt, cast);
     const text = String(prompt || "");
     const index = nameIndex(cast);
     const showBody = framingShowsBody(text);
@@ -221,6 +222,113 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
     } else {
         result = result.replace(/\s+,/g, ",").replace(/,\s*,/g, ",").replace(/[ \t]{2,}/g, " ").trim();
     }
+    return { prompt: result, filled, unknown, noLook };
+}
+
+// ── Qwen Image (plan 026) ────────────────────────────────────────────────
+// One long paragraph. @Name becomes the character's description with no name
+// (Qwen doesn't know names): "On the left sits @Mira." → "On the left sits a
+// slender young woman with …, wearing …". The guide asks for @Name once, where
+// the character stands; a model that also writes it in the opening sentence
+// or later gets the short form there ("a young woman in her twenties", "the
+// young woman's"), and the full description stays where they stand.
+
+const SEX_NOUN = { female: "a woman", male: "a man" };
+
+// The description's head: "a young woman in her early twenties" from
+// "a young woman in her early twenties with fair skin, …".
+function qwenShort(m) {
+    const d = String(m.lookQwen || m.lookNatural || "").trim();
+    const head = d.split(/\s+with\s+|,|\s+who\s+/i)[0].trim();
+    return /^(a|an)\s/i.test(head) ? head : (SEX_NOUN[m.sex] || "a person");
+}
+
+// "the young woman": the head without what follows its noun.
+const qwenThe = short => short.replace(/^(a|an)\s+/i, "the ").split(/\s+(?:in|of|from|at)\s+/i)[0];
+
+function qwenFull(m, showBody) {
+    const tags = stripCountTags(m.look || "");
+    const desc = String(m.lookQwen || m.lookNatural || "").trim()
+        || (tags ? `${SEX_NOUN[m.sex] || "a person"} with ${tags}` : (SEX_NOUN[m.sex] || "a person"));
+    const body = showBody ? stripCountTags(m.body || "") : "";
+    return [desc, body, wearingPhrase(m.outfit)].filter(Boolean).join(", ");
+}
+
+/** @returns {{ prompt: string, filled: Array<{name: string, part: string}>, unknown: string[], noLook: string[] }} */
+export function resolveQwenPrompt(prompt, cast = []) {
+    const text = String(prompt || "");
+    const index = nameIndex(cast);
+    const lower = text.toLowerCase();
+    const tokens = [];
+    for (let i = text.indexOf("@"); i >= 0; i = text.indexOf("@", i + 1)) {
+        if (i > 0 && isNameChar(text[i - 1])) continue;
+        const hit = index.find(e => lower.slice(i + 1, i + 1 + e.len).replace(/\s+/g, " ") === e.key && endsName(text, i + 1 + e.len));
+        let end;
+        let member = null;
+        let word = "";
+        if (hit) { member = hit.member; end = i + 1 + hit.len; }
+        else {
+            let j = i + 1;
+            while (j < text.length && isNameChar(text[j])) j++;
+            if (j === i + 1) continue;
+            word = text.slice(i + 1, j);
+            end = j;
+        }
+        const pos = text.slice(end).match(POSSESSIVE);
+        const possessive = pos ? pos[0] : "";
+        if (pos) end += pos[0].length;
+        const suffix = text.slice(end).match(/^\.([A-Za-z]+)/);
+        if (suffix && PART_SYNONYMS[suffix[1].toLowerCase()]) end += suffix[0].length;
+        tokens.push({ at: i, end, member, word, possessive });
+        i = end - 1;
+    }
+
+    // The opening sentence ends at the first full stop outside a @Name ("@Dr. Patel").
+    let masked = text;
+    for (const t of tokens) masked = masked.slice(0, t.at) + "x".repeat(t.end - t.at) + masked.slice(t.end);
+    const stop = masked.search(/[.!?](\s|$)/);
+    const openEnd = stop < 0 ? text.length : stop + 1;
+    const showBody = framingShowsBody(text.slice(0, openEnd));
+
+    // Each character's full description goes on their first plain mention
+    // after the opening sentence, else on their first plain mention.
+    const fullAt = new Map();
+    for (const t of tokens) {
+        if (!t.member || t.possessive || fullAt.has(t.member)) continue;
+        if (t.at >= openEnd) fullAt.set(t.member, t);
+    }
+    for (const t of tokens) {
+        if (t.member && !t.possessive && !fullAt.has(t.member)) fullAt.set(t.member, t);
+    }
+
+    const filled = [];
+    const unknown = [];
+    const noLook = [];
+    let out = "";
+    let i = 0;
+    for (const t of tokens) {
+        out += text.slice(i, t.at);
+        let rep;
+        if (!t.member) {
+            unknown.push(t.word);
+            rep = t.word + t.possessive;
+        } else if (fullAt.get(t.member) === t) {
+            const m = t.member;
+            if (!String(m.look || m.body || m.lookQwen || m.lookNatural || "").trim() && !noLook.includes(m.name)) noLook.push(m.name);
+            rep = qwenFull(m, showBody);
+            filled.push({ name: m.name, part: "all" });
+        } else {
+            const full = fullAt.get(t.member);
+            const short = qwenShort(t.member);
+            rep = t.possessive ? `${qwenThe(short)}'s` : (full && full.at < t.at ? qwenThe(short) : short);
+        }
+        // A sentence that starts on the description starts with a capital.
+        if (/(^|[.!?]\s+)$/.test(out)) rep = rep.charAt(0).toUpperCase() + rep.slice(1);
+        out += rep;
+        i = t.end;
+    }
+    out += text.slice(i);
+    const result = out.replace(/\s+,/g, ",").replace(/,\s*,/g, ",").replace(/,\s*\./g, ".").replace(/[ \t]{2,}/g, " ").trim();
     return { prompt: result, filled, unknown, noLook };
 }
 

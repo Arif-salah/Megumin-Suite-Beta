@@ -20,10 +20,12 @@ import { splitLookTags } from "./lookParts.js";
 import { inImage, needsLook } from "./cast.js";
 import { loreForNames, loreBlock } from "../../../core/lore.js";
 import { imageViaChomusuke } from "../auto.js";
+import { IMAGE_V2_PROMPTS } from "../../../prompts/imageGenV2.js";
 import {
     LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey, sheetNames, lookSourceFor,
     NATURAL_SYSTEM, renderNaturalPrompt, parseNaturalBlocks, matchScanToTargets,
-    OUTFIT_SYSTEM, renderOutfitTagsPrompt, parseOutfitBlocks, outfitHash
+    OUTFIT_SYSTEM, renderOutfitTagsPrompt, parseOutfitBlocks, outfitHash,
+    renderQwenLookPrompt, parseQwenLookBlocks, renderQwenOutfitPrompt, parseQwenOutfitBlocks
 } from "./looksCore.js";
 
 const esc = v => String(v == null ? "" : v)
@@ -354,4 +356,78 @@ export function refreshOutfitTags() {
     })().catch(e => { console.error("[Megumin-Suite] Outfit tags failed", e); return 0; })
         .finally(() => { outfitRefresh = null; });
     return outfitRefresh;
+}
+
+// ── Qwen Image descriptions (plan 026) ───────────────────────────────────
+// Qwen reads long paragraphs, so a character's look and outfit go in as
+// detailed phrases. Made right before an image (never inside a Chomusuke job),
+// only for the people in the shot whose look or outfit changed since: one call
+// for the looks, one for the outfits, each kept until its source changes.
+
+let qwenRefresh = null;
+
+const memberFor = (list, name) => list.find(x => [x.name, ...(x.aliases || [])].some(a => a.toLowerCase() === name.toLowerCase()));
+
+function lookEntryFor(looks, m) {
+    const k = m.lookKey || findLookKey(looks, m.name, m.aliases || []) || m.name;
+    if (!looks[k]) looks[k] = { tags: "", body: "", natural: "", aliases: [], locked: false, source: "manual" };
+    return looks[k];
+}
+
+/** Saves <Character_Qwen> blocks for the members they were asked for. No calls. @returns {number} */
+export function storeQwenLooks(members, raw) {
+    const looks = getLooks();
+    let n = 0;
+    for (const r of parseQwenLookBlocks(raw)) {
+        const m = memberFor(members, r.name);
+        if (!m) continue;
+        lookEntryFor(looks, m).qwen = { from: outfitHash(m.look), text: r.qwen };
+        n++;
+    }
+    if (n) saveProfileToMemory();
+    return n;
+}
+
+/** Saves <Outfit_Qwen> blocks for the members they were asked for. No calls. @returns {number} */
+export function storeQwenOutfits(members, raw) {
+    const looks = getLooks();
+    let n = 0;
+    for (const r of parseQwenOutfitBlocks(raw)) {
+        const m = memberFor(members, r.name);
+        if (!m) continue;
+        lookEntryFor(looks, m).outfitQwen = { from: outfitHash(m.outfitText), text: r.outfit };
+        n++;
+    }
+    if (n) saveProfileToMemory();
+    return n;
+}
+
+/** Makes the missing or out-of-date Qwen descriptions of the people in the shot. */
+export function refreshQwenDescriptions() {
+    if (qwenRefresh) return qwenRefresh;
+    const cfg = v2Settings();
+    if (cfg.style !== "qwen") return Promise.resolve(0);
+    const shown = currentImageCast().filter(m => inImage(m, cfg.shot));
+    const looksDue = shown.filter(m => m.lookQwenStale);
+    const outfitsDue = shown.filter(m => m.outfitQwenStale);
+    if (!looksDue.length && !outfitsDue.length) return Promise.resolve(0);
+
+    const chatAtStart = getContext()?.chatId;
+    const P = IMAGE_V2_PROMPTS;
+    qwenRefresh = (async () => {
+        let n = 0;
+        if (looksDue.length) {
+            const raw = await ask(P.qwenLook.system, renderQwenLookPrompt(looksDue.map(m => ({ name: m.name, tags: m.look }))));
+            if (getContext()?.chatId !== chatAtStart) return n;
+            n += storeQwenLooks(looksDue, raw);
+        }
+        if (outfitsDue.length) {
+            const raw = await ask(P.qwenOutfit.system, renderQwenOutfitPrompt(outfitsDue.map(m => ({ name: m.name, outfit: m.outfitText }))));
+            if (getContext()?.chatId !== chatAtStart) return n;
+            n += storeQwenOutfits(outfitsDue, raw);
+        }
+        return n;
+    })().catch(e => { console.error("[Megumin-Suite] Qwen descriptions failed", e); return 0; })
+        .finally(() => { qwenRefresh = null; });
+    return qwenRefresh;
 }

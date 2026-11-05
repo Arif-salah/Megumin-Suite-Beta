@@ -15,15 +15,18 @@ import { bgPreviewOpen } from "../../../engine/bgPrompts.js";
 import { waitUnlessStuck } from "./waitFor.js";
 import { buildImageCast, inImage, needsLook } from "./cast.js";
 import { resolveImagePrompt } from "./resolve.js";
-import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2InlineSplit, renderV2Extras, splitCombinedAnswer } from "./prompt.js";
-import { refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSourceFor, looksSettled, looksBeingRead } from "./looks.js";
+import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2InlineSplit, renderV2Extras, splitCombinedAnswer, v2Method } from "./prompt.js";
+import { qwenArtStyleText } from "../../../prompts/imageGenV2.js";
+import { refreshQwenDescriptions, refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSourceFor, looksSettled, looksBeingRead } from "./looks.js";
 
 export const V2_DEFAULTS = {
     style: "tags", shot: "cinematic", extra: "", method: "placeholders",
     autoLooks: true,          // a character entering the scene gets a look read from the chat
     lookPriority: "v2",       // "v2" | "npc": which wins when the NPC Bank also has Image Tags
     outfitTags: false,        // Tags style: turn World State outfits into detailed tags (once per outfit)
-    focus: "3"                // characters with a line of their own: "2" | "3" | "4" | "all"
+    focus: "3",               // characters with a line of their own: "2" | "3" | "4" | "all"
+    artStyle: "anime",        // Qwen Image: QWEN_ART_STYLES id, or "custom"
+    artStyleCustom: ""        // Qwen Image: your own art style, with "custom"
 };
 
 // ── The previous image prompt (Reference method) ─────────────────────────
@@ -43,7 +46,10 @@ function setLastImagePrompt(prompt) {
 }
 
 export function v2Settings() {
-    return { ...V2_DEFAULTS, ...((localProfile && localProfile.imageGen && localProfile.imageGen.v2) || {}) };
+    const cfg = { ...V2_DEFAULTS, ...((localProfile && localProfile.imageGen && localProfile.imageGen.v2) || {}) };
+    // Qwen Image has no "Edit last prompt" (plan 026).
+    cfg.method = v2Method(cfg.style, cfg.method);
+    return cfg;
 }
 
 const sub = t => { try { return substituteParams(t); } catch (e) { return t; } };
@@ -83,7 +89,8 @@ export function currentImageCast() {
         userName: sub("{{user}}"),
         recentText: recent,
         npcFirst: v2Settings().lookPriority === "npc" && Boolean(localProfile && localProfile.npcBank && localProfile.npcBank.enabled),
-        outfitTags: v2Settings().outfitTags && v2Settings().style === "tags"
+        outfitTags: v2Settings().outfitTags && v2Settings().style === "tags",
+        qwen: v2Settings().style === "qwen"
     });
 }
 
@@ -96,7 +103,8 @@ function sceneLine() {
 function rules(extraInstruction = "") {
     const cfg = v2Settings();
     const extra = [cfg.extra, extraInstruction].filter(s => String(s || "").trim()).join(" ");
-    return sub(renderV2Rules({ style: cfg.style, shot: cfg.shot, extra, method: cfg.method, focus: cfg.focus }));
+    return sub(renderV2Rules({ style: cfg.style, shot: cfg.shot, extra, method: cfg.method, focus: cfg.focus,
+        artStyle: qwenArtStyleText(cfg.artStyle, cfg.artStyleCustom) }));
 }
 
 // ── The manual button ────────────────────────────────────────────────────
@@ -242,6 +250,7 @@ export async function v2ResolveForComfy(prompt) {
     // outfit tags up to date. Each is a no-op when nothing is pending.
     await waitForImageInputs();
     await refreshOutfitTags();
+    await refreshQwenDescriptions();
     const r = resolveImagePrompt(prompt, { cast: currentImageCast(), style: v2Settings().style });
     lastResolution = { input: String(prompt || ""), ...r };
     // Reference method edits this next time. Kept on both methods, so switching

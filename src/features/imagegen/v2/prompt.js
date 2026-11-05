@@ -18,7 +18,7 @@ import { editable } from "../../../prompts/edits.js";
 const SECTION_TAGS = ["Outfit_Tags", "Character_Visual", "World_Update", "World_State", "Bonds", "Character_Sheet", "NPC_Inner_Chatter", "CYOA", "Notebook_Update", "Notebook"];
 const ANY_SECTION = SECTION_TAGS.join("|");
 
-export const V2_STYLES = ["tags", "natural"];
+export const V2_STYLES = ["tags", "natural", "qwen"];
 export const V2_SHOTS = ["cinematic", "pov", "portrait"];
 export const V2_METHODS = ["placeholders", "reference"];
 
@@ -81,11 +81,27 @@ function focusRule(guide, focus) {
         .replace("Three characters at most; anyone else goes in as background tags (people in background, crowd).",
             "Every named character in the moment gets a line of their own; unnamed people go in as background tags (people in background, crowd).")
         .replace("Three characters at most; mention anyone else briefly as background.",
-            "Every named character in the moment gets a sentence of their own; mention unnamed people briefly as background.");
+            "Every named character in the moment gets a sentence of their own; mention unnamed people briefly as background.")
+        .replace("Three characters at most; mention anyone else briefly as people in the background.",
+            "Every named character in the moment gets their own place in the frame; mention unnamed people briefly as people in the background.");
 }
 
+/** Qwen Image has no "Edit last prompt": its prompt is always written fresh. */
+export const v2Method = (style, method) => (style === "qwen" ? "placeholders" : method || "placeholders");
+
 /** The style guide (structure + example + rules), the shot line, extra instructions. */
-export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", method = "placeholders", focus = "3" } = {}) {
+export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", method = "placeholders", focus = "3", artStyle = "" } = {}) {
+    // Plan 026: Qwen Image has its own guide, art style line and shot lines.
+    if (style === "qwen") {
+        const parts = [
+            focusRule(P.style.qwen, String(focus)),
+            P.artStyleLine.replace("{{artStyle}}", String(artStyle || "").trim().replace(/\.$/, "")),
+            P.shotQwen[shot] || P.shotQwen.cinematic,
+            P.inEnglish
+        ];
+        if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
+        return parts.join("\n\n");
+    }
     const guide = focusRule(method === "reference"
         ? [P.reference.head, P.reference[style] || P.reference.tags].join("\n")
         : (P.style[style] || P.style.tags), String(focus));
@@ -158,8 +174,6 @@ export function renderV2InlineSplit({ conditionalText = "", castList = "", rules
 // whose outfits (src/prompts/edits.js).
 export const V2_LOOKS_TASK = "- Appearance of {{names}} as 8 to 12 booru tags each. Someone with a sheet in <Character_Sheets> looks the way the sheet says; use the story only for what the sheet leaves out. Always start with sex (male or female) and an age tag (young adult, adult, mature female, mature male, old woman, old man; never a number like \"30s\"), then hair, eye colour, skin, build, permanent features. A feminine-looking man gets \"otoko no ko, flat chest\"; a masculine-looking woman gets \"tomboy\". One tag per thing, never two that fight (petite with tall), only real booru tags (\"mole under eye\", not \"moles\"), no small face details (nose, lips, eyelashes). No clothing, expressions, poses or count tags. Skip anyone the text does not describe.";
 export const V2_OUTFIT_TASK = "- Outfit tags {{who}}: main garments only, 3 to 6 booru tags, one tag per garment with its colour, material and print (\"oversized pink sweater\", \"white cat print bra\"; never two tags for one garment), plus one standout accessory; plain over detailed; keep the state of dress; clothing only, nothing the text does not say.";
-// Plan 026: the same task for the Qwen style, as one detailed phrase per outfit.
-export const V2_OUTFIT_TASK_QWEN = "- Outfit of {{who}}: one phrase per garment, the main garments first, each with its colour, material and cut or print (\"a loose cream cable-knit wool sweater\", \"faded light-blue denim jeans\"), plus one standout accessory, joined with commas and a final \"and\"; keep the state of dress (sleeves rolled up, unbuttoned, barefoot); clothing only, nothing the text does not say.";
 export const COMBINED_IMAGE_TASK = "The image shows the moment the latest exchange ends on; draw nothing that has already ended (someone who put an item away no longer holds it).";
 
 /**
