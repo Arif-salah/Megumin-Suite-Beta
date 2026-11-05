@@ -9,7 +9,7 @@ import { saveProfileToMemory } from "../../../core/profile.js";
 import { Popup, POPUP_TYPE } from "../../../st.js";
 import { v2Settings, currentImageCast, getLooks } from "./index.js";
 import { scanLooks, describeLooks, sheetSource } from "./looks.js";
-import { findLookKey, outfitHash } from "./looksCore.js";
+import { findLookKey, outfitHash, qwenFrom } from "./looksCore.js";
 import { card, busy, esc, confirmPopup } from "../../../ui/controls.js";
 
 const SOURCE_LABEL = { npc: "from the NPC Bank", sheet: "read from the card", chat: "read from the chat", manual: "written by you" };
@@ -52,7 +52,7 @@ export function renderCharacters(c, { redraw }) {
     const cardFor = m => {
         const k = findLookKey(looks, m.name, m.aliases || []);
         const stored = k ? looks[k] : null;
-        const lookText = m.look || (cfg.style === "natural" ? m.lookNatural : "") || "";
+        const lookText = (cfg.style === "qwen" ? m.lookQwen : "") || m.look || (cfg.style === "natural" ? m.lookNatural : "") || "";
         const $c = $(`<button type="button" class="igx-char ${inStory(m) ? "" : "is-away"}">
             <span class="igx-char-head"><b>${esc(m.name)}</b><span class="igx-chip ${whereClass(m)}">${whereOf(m)}</span></span>
             <span class="igx-char-line"><em>Look</em>${lookText ? esc(lookText) : `<i>none yet</i>`}</span>
@@ -120,6 +120,7 @@ async function openLookEditor(name, redraw) {
         const k = findLookKey(looks, member.name, member.aliases || []);
         const stored = k ? looks[k] : null;
         const detailed = cfg.outfitTags && cfg.style === "tags";
+        const qwen = cfg.style === "qwen";
         const outfitLocked = Boolean(stored && stored.outfitTags && stored.outfitTags.locked);
         const nicknames = [...new Set([...(stored ? stored.aliases || [] : []), ...(member.aliases || [])])].join(", ");
         // A card can describe more than its own character, so the button shows whenever there is one.
@@ -139,8 +140,14 @@ async function openLookEditor(name, redraw) {
             ${cfg.style === "natural" ? `
             <label class="igx-field"><div class="igx-field-label">Description <small>The look in plain sentences, for the Plain sentences style</small></div>
                 <textarea class="ps-modern-input igx-ed-natural" rows="2" placeholder="a slender young woman with long blue hair">${esc(stored ? stored.natural : "")}</textarea></label>` : ""}
+            ${qwen && member.look ? `
+            <label class="igx-field"><div class="igx-field-label">Qwen description <small>${member.lookQwenStale ? "Made from the look above before the next image" : "Made from the look above. Made again when the look changes."}</small></div>
+                <textarea class="ps-modern-input igx-ed-qwen" rows="3" placeholder="made before the next image">${esc(member.lookQwenStale ? "" : member.lookQwen)}</textarea></label>` : ""}
             <div class="igx-field"><div class="igx-field-label">Wearing now <small>From World State. It changes when the story changes it.</small></div>
                 <div class="igx-readonly">${member.outfitText || member.outfit ? esc(member.outfitText || member.outfit) : `<i>Nothing in World State yet, so the model describes it.</i>`}</div></div>
+            ${qwen && member.outfitText ? `
+            <label class="igx-field"><div class="igx-field-label">Qwen outfit <small>${member.outfitQwenStale ? "Made from the outfit above before the next image" : "Made from the outfit above. Made again when the story changes it."}</small></div>
+                <textarea class="ps-modern-input igx-ed-qwen-outfit" rows="2" placeholder="made before the next image">${esc(member.outfitQwenStale ? "" : member.outfit)}</textarea></label>` : ""}
             ${detailed && member.outfitText ? `
             <div class="igx-field"><div class="igx-field-label">Outfit tags <small>${member.outfitStale ? "Remade before the next image" : "Made from the outfit above"}</small></div>
                 <div class="igx-inline">
@@ -171,6 +178,20 @@ async function openLookEditor(name, redraw) {
         $root.find(".igx-ed-natural").on("change", function () {
             const { look } = lookFor(member);
             look.natural = String($(this).val() || "").trim();
+            saveProfileToMemory();
+        });
+        // Qwen descriptions edited by hand count as made from the current look
+        // and outfit: kept until those change. Emptied = made again.
+        $root.find(".igx-ed-qwen").on("change", function () {
+            const { look } = lookFor(member);
+            const text = String($(this).val() || "").trim();
+            look.qwen = text ? { from: qwenFrom(member.look), text } : null;
+            saveProfileToMemory();
+        });
+        $root.find(".igx-ed-qwen-outfit").on("change", function () {
+            const { look } = lookFor(member);
+            const text = String($(this).val() || "").trim().replace(/^wearing\s+/i, "");
+            look.outfitQwen = text ? { from: qwenFrom(member.outfitText), text } : null;
             saveProfileToMemory();
         });
         $root.find(".igx-ed-aliases").on("change", function () {
