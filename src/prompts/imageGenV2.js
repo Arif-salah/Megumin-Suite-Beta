@@ -106,7 +106,7 @@ export const IMAGE_V2_BUILTIN = {
     // sentence names the framing, which decides whether a body is shown.
     shotQwen: {
         cinematic: "Shot: a film still of the moment. Pick a wide, medium or close shot to suit it, and say which in the opening sentence.",
-        pov: "Shot: seen through {{user}}'s eyes. {{user}} is the viewer: write \"the viewer\" for them (looking at the viewer, reaching toward the viewer), never their name. They are never in the frame, except their hands when they touch something. The opening sentence says the image is seen from the viewer's point of view.",
+        pov: "Shot: seen through {{user}}'s eyes. {{user}} is the viewer: write \"the viewer\" for them (looking at the viewer, reaching toward the viewer), never their name. The viewer is behind the camera, so describe only what is in front of them. Never describe the viewer's own face, head, hair, glasses, bandages or injuries: the image model would draw them on someone in the frame. A character who touches the viewer's face is shown reaching toward the viewer. The viewer's hands or knees may show at the lower edge only when they touch something. The opening sentence says the image is seen from the viewer's point of view.",
         portrait: "Shot: one character, a close-up from the chest up, walked as a single subject: the background and how it falls out of focus, their pose, their face and expression, and the clothing at the edge of the frame."
     },
 
@@ -124,7 +124,7 @@ export const IMAGE_V2_BUILTIN = {
     // Qwen's outfits: World State's outfit text as one phrase, once per outfit.
     qwenOutfit: {
         system: "You turn clothing descriptions into detailed plain descriptions for an image model that reads long paragraphs.",
-        task: "Describe each outfit as one phrase: one part per garment, the main garments first, each with its colour, material and cut or print (\"a loose cream cable-knit wool sweater\", \"faded light-blue denim jeans\"), plus one standout accessory, joined with commas and a final \"and\". Keep the state of dress (sleeves rolled up, unbuttoned, barefoot). Clothing only, nothing the text does not say."
+        task: "Describe each outfit as one phrase: one part per garment, the main garments first, each with its colour, material and cut or print (\"a loose cream cable-knit wool sweater\", \"faded light-blue denim jeans\"), plus one standout accessory, joined with commas and a final \"and\". Keep the state of dress (sleeves rolled up, unbuttoned, barefoot). Clothing only, nothing the text does not say. List only what they wear: never \"and nothing else\" or what they are not wearing, unless the text says they are partly undressed."
     },
 
     shot: {

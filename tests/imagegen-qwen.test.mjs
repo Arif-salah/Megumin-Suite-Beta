@@ -70,7 +70,7 @@ test("every new Qwen text can be edited in Dev Mode, under its own label", () =>
 import { renderV2Rules, v2Method } from "../src/features/imagegen/v2/prompt.js";
 import { resolveImagePrompt } from "../src/features/imagegen/v2/resolve.js";
 import { buildImageCast } from "../src/features/imagegen/v2/cast.js";
-import { outfitHash, freshQwenText } from "../src/features/imagegen/v2/looksCore.js";
+import { outfitHash, freshQwenText, qwenFrom } from "../src/features/imagegen/v2/looksCore.js";
 
 test("Qwen rules: its guide, the art style, its shot line, and Characters in focus", () => {
     const r = renderV2Rules({ style: "qwen", shot: "pov", artStyle: "ink wash painting.", focus: "all", method: "reference" });
@@ -118,8 +118,8 @@ test("Qwen fill-in: a full stop inside a name, a look with no description yet, a
 
 test("Qwen descriptions are used only while made from the same look and outfit", () => {
     const looks = { Jenny: { tags: "female, short hair", body: "", natural: "", aliases: [],
-        qwen: { from: outfitHash("female, short hair"), text: "a young woman with short hair" },
-        outfitQwen: { from: outfitHash("grey tee"), text: "a heather-grey cotton tee" } } };
+        qwen: { from: qwenFrom("female, short hair"), text: "a young woman with short hair" },
+        outfitQwen: { from: qwenFrom("grey tee"), text: "a heather-grey cotton tee" } } };
     const world = { pc: { name: "Kazuma" }, cast: { jenny: { name: "Jenny", present: true, fields: { outfit: "grey tee" } } } };
     const fresh = buildImageCast({ looks, world, qwen: true }).find(m => m.name === "Jenny");
     assert.equal(fresh.lookQwen, "a young woman with short hair");
@@ -135,6 +135,7 @@ test("Qwen descriptions are used only while made from the same look and outfit",
     const other = buildImageCast({ looks, world, qwen: false }).find(m => m.name === "Jenny");
     assert.equal(other.lookQwen, "", "other styles never see the Qwen text");
     assert.equal(freshQwenText(null, "x"), null);
+    assert.equal(freshQwenText({ from: outfitHash("grey tee"), text: "old" }, "grey tee"), null, "made with older texts: made again");
 });
 
 // ── Phase 3 ──
@@ -145,4 +146,11 @@ test("picking Qwen Image takes the quality tags out of the prefix and keeps your
     assert.ok(V2_STYLES.includes("qwen"));
     assert.equal(prefixForStyle("qwen", `${QUALITY_TAGS}, my lora trigger`), "my lora trigger");
     assert.equal(prefixForStyle("qwen", "my lora trigger"), "my lora trigger");
+});
+
+test("POV keeps the viewer's own face, glasses and bandages out; outfits never say 'and nothing else'", () => {
+    const pov = IMAGE_V2_BUILTIN.shotQwen.pov;
+    assert.match(pov, /Never describe the viewer's own face, head, hair, glasses, bandages or injuries/);
+    assert.match(pov, /reaching toward the viewer/);
+    assert.match(IMAGE_V2_BUILTIN.qwenOutfit.task, /never "and nothing else"/);
 });

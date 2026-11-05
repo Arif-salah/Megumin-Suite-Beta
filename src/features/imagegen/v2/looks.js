@@ -24,7 +24,7 @@ import { IMAGE_V2_PROMPTS } from "../../../prompts/imageGenV2.js";
 import {
     LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey, sheetNames, lookSourceFor,
     NATURAL_SYSTEM, renderNaturalPrompt, parseNaturalBlocks, matchScanToTargets,
-    OUTFIT_SYSTEM, renderOutfitTagsPrompt, parseOutfitBlocks, outfitHash,
+    OUTFIT_SYSTEM, renderOutfitTagsPrompt, parseOutfitBlocks, outfitHash, qwenFrom,
     renderQwenLookPrompt, parseQwenLookBlocks, renderQwenOutfitPrompt, parseQwenOutfitBlocks
 } from "./looksCore.js";
 
@@ -381,7 +381,7 @@ export function storeQwenLooks(members, raw) {
     for (const r of parseQwenLookBlocks(raw)) {
         const m = memberFor(members, r.name);
         if (!m) continue;
-        lookEntryFor(looks, m).qwen = { from: outfitHash(m.look), text: r.qwen };
+        lookEntryFor(looks, m).qwen = { from: qwenFrom(m.look), text: r.qwen };
         n++;
     }
     if (n) saveProfileToMemory();
@@ -395,7 +395,7 @@ export function storeQwenOutfits(members, raw) {
     for (const r of parseQwenOutfitBlocks(raw)) {
         const m = memberFor(members, r.name);
         if (!m) continue;
-        lookEntryFor(looks, m).outfitQwen = { from: outfitHash(m.outfitText), text: r.outfit };
+        lookEntryFor(looks, m).outfitQwen = { from: qwenFrom(m.outfitText), text: r.outfit };
         n++;
     }
     if (n) saveProfileToMemory();

@@ -276,10 +276,17 @@ export function freshOutfitTags(cached, outfitText) {
     return cached.from === outfitHash(outfitText) ? cached.tags : null;
 }
 
+// Raised when the Qwen look or outfit texts change, so descriptions made with
+// the old texts are made again (2: no "and nothing else" in outfits).
+const QWEN_TEXTS_VERSION = 2;
+
+/** What a Qwen description was made from: the source text and the texts' version. */
+export const qwenFrom = source => `q${QWEN_TEXTS_VERSION}:${outfitHash(source)}`;
+
 /** A Qwen description ({ from, text }) still made from this source text, or null. */
 export function freshQwenText(cached, source) {
     if (!cached || !String(cached.text || "").trim()) return null;
-    return cached.from === outfitHash(source) ? cached.text : null;
+    return cached.from === qwenFrom(source) ? cached.text : null;
 }
 
 export const OUTFIT_SYSTEM = "You turn clothing descriptions into booru tags for an image model.";
