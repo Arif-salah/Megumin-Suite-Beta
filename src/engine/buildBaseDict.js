@@ -20,7 +20,7 @@ import { applyEnhancedDialogue } from "../../data/modes/v10.js";
 import { blocksEnvelopeParts, buildBlocksEnvelope, blockRulesText, blocksSkeletonSplit } from "../features/blocks/registry.js";
 import { buildConfigBlock } from "../features/storyconfig/config.js";
 import { npcBuildTextFromData } from "../features/npc/data.js";
-import { imageInjectionNpcTags, imageV2InlineInstruction, imageV2InlineSplit, imageViaChomusuke } from "../features/imagegen/index.js";
+import { imageInjectionNpcTags, imageV2InlineInstruction, imageV2InlineSplit, imageViaChomusuke, imageStoryModelBlocked } from "../features/imagegen/index.js";
 import { npcBuildDossierPrompt, npcBuildUpdatePrompt, npcBuildDossierPromptSplit, npcBuildUpdatePromptSplit } from "../features/npc/fields.js";
 import { memGetCachedKeywords } from "../features/memory/keywords.js";
 import { memGetRelevantVaultEntries } from "../features/memory/index.js";
@@ -464,8 +464,11 @@ export function buildBaseDict(isTokenCount = false) {
 
         // Chomusuke writes the automatic images after the reply (imagegen/auto.js),
         // so the story model is not asked for an <img> tag at all.
-        if (imageViaChomusuke()) shouldInject = false;
-        const storyModelDraws = ["always", "frequency", "conditional"].includes(mode) && !imageViaChomusuke();
+        // Qwen Image (plan 026): its prompts are too long for the reply, so the
+        // story model never writes them; Chomusuke or the Draw button does.
+        const storyModelOff = imageViaChomusuke() || imageStoryModelBlocked();
+        if (storyModelOff) shouldInject = false;
+        const storyModelDraws = ["always", "frequency", "conditional"].includes(mode) && !storyModelOff;
 
         if (shouldInject || storyModelDraws) {
             const customIg = localProfile.imageGen.customPromptsEnabled ? (localProfile.imageGen.customPrompts || {}) : {};

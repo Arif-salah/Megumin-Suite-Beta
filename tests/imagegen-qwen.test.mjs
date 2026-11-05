@@ -136,3 +136,13 @@ test("Qwen descriptions are used only while made from the same look and outfit",
     assert.equal(other.lookQwen, "", "other styles never see the Qwen text");
     assert.equal(freshQwenText(null, "x"), null);
 });
+
+// ── Phase 3 ──
+import { prefixForStyle, QUALITY_TAGS } from "../src/features/imagegen/qualityPrefix.js";
+import { V2_STYLES } from "../src/features/imagegen/v2/prompt.js";
+
+test("picking Qwen Image takes the quality tags out of the prefix and keeps your own words", () => {
+    assert.ok(V2_STYLES.includes("qwen"));
+    assert.equal(prefixForStyle("qwen", `${QUALITY_TAGS}, my lora trigger`), "my lora trigger");
+    assert.equal(prefixForStyle("qwen", "my lora trigger"), "my lora trigger");
+});

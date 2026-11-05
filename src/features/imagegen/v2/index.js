@@ -45,6 +45,11 @@ function setLastImagePrompt(prompt) {
     saveMetadataDebounced();
 }
 
+/** The settings as saved (no Qwen override), for the tab to write back. */
+export function v2StoredSettings() {
+    return { ...V2_DEFAULTS, ...((localProfile && localProfile.imageGen && localProfile.imageGen.v2) || {}) };
+}
+
 export function v2Settings() {
     const cfg = { ...V2_DEFAULTS, ...((localProfile && localProfile.imageGen && localProfile.imageGen.v2) || {}) };
     // Qwen Image has no "Edit last prompt" (plan 026).

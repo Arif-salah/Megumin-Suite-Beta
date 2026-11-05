@@ -16,7 +16,7 @@ import { showKazumaProgress } from "../../ui/progress.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
 import { igGenerateWithComfy, setImagePromptResolver } from "./comfy.js";
 import { classicGenerateImagePromptText, classicInlineNpcTags } from "./classic/prompt.js";
-import { v2GenerateImagePromptText, v2InlineInstruction, v2InlineSplit, v2ResolveForComfy, v2PrepareImagePrompt } from "./v2/index.js";
+import { v2GenerateImagePromptText, v2InlineInstruction, v2InlineSplit, v2ResolveForComfy, v2PrepareImagePrompt, v2Settings } from "./v2/index.js";
 import { imageGenEngine } from "./engineChoice.js";
 
 export {
@@ -52,6 +52,11 @@ export { v2LooksForArrivals } from "./v2/looks.js";
 /** The NPC tag section for the Classic inline [[img1]] instruction. */
 export function imageInjectionNpcTags() {
     return imageGenEngine() === "v2" ? "" : classicInlineNpcTags();
+}
+
+/** Qwen Image prompts are too long for the story model to write in its reply (plan 026). */
+export function imageStoryModelBlocked() {
+    return imageGenEngine() === "v2" && v2Settings().style === "qwen";
 }
 
 /** V2 replaces the whole inline instruction; null on Classic. */
