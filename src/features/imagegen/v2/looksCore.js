@@ -9,6 +9,7 @@
 import { stripCountTags, dedupeTags, splitTags } from "./resolve.js";
 import { IMAGE_V2_PROMPTS } from "../../../prompts/imageGenV2.js";
 import { parseRegionLines, joinRegions, LOOK_REGIONS, OUTFIT_REGIONS } from "./regions.js";
+import { whoIs } from "../../../state/names.js";
 
 // Plan 027: where each part of a look shows on the body. Shared by the scan
 // and by the one-time sorting of looks saved before.
@@ -248,7 +249,12 @@ export function matchScanToTargets(scanned, targets) {
     const out = [];
     for (const s of scanned) {
         const said = [s.name, ...(s.aliases || [])].map(k);
-        const t = targets.find(t => [t.name, ...(t.aliases || [])].map(k).some(n => said.includes(n)));
+        // Exact name or nickname first; then the one character the name
+        // starts or is started by ("Koromi Hazami" asked for as "Koromi").
+        const people = Object.fromEntries(targets.map((t, i) => [i, t]));
+        const loose = [s.name, ...(s.aliases || [])].map(n => whoIs(people, n)).find(i => i !== null);
+        const t = targets.find(t => [t.name, ...(t.aliases || [])].map(k).some(n => said.includes(n)))
+            || (loose != null ? targets[loose] : undefined);
         if (!t || out.some(o => k(o.name) === k(t.name))) continue;
         const aliases = [...new Set([...(s.aliases || []), s.name].filter(a => k(a) !== k(t.name)))];
         out.push({ ...s, name: t.name, aliases });

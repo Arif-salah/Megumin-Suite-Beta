@@ -82,6 +82,18 @@ test("a scan's sorting reaches the look it adds", () => {
     assert.equal(plan.add[0].regions.upper, "large breasts");
 });
 
+import { matchScanToTargets } from "../src/features/imagegen/v2/looksCore.js";
+
+test("a look written under the full name lands on the character asked for by first name, and back", () => {
+    const [k] = parseLookBlocks('<Character_Visual name="Koromi Hazami">\nCore: female, mature female\nHead: brown hair\n</Character_Visual>');
+    const [hit] = matchScanToTargets([k], [{ name: "Koromi" }]);
+    assert.equal(hit.name, "Koromi");
+    assert.deepEqual(hit.aliases, ["Koromi Hazami"], "the full name is kept as a nickname");
+    assert.equal(matchScanToTargets([{ name: "Koromi", aliases: [], tags: "x" }], [{ name: "Koromi Hazami" }])[0].name, "Koromi Hazami");
+    assert.deepEqual(matchScanToTargets([k], [{ name: "Koromi Ito" }, { name: "Koromi" }]).map(x => x.name), ["Koromi"]);
+    assert.deepEqual(matchScanToTargets([k], [{ name: "Hazami" }]), [], "a surname alone never picks");
+});
+
 test("the look scan and the image call ask for the parts", () => {
     assert.match(renderLookScanPrompt({ source: "x" }), /\nUpper: chest, shoulders, arms and hands/);
     const extras = renderV2Extras({ outfits: [{ name: "Jenny", outfit: "grey tee" }], looks: ["Hana"] });
