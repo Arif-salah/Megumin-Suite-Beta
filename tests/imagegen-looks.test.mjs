@@ -100,12 +100,15 @@ import { parseWorldBlocks } from "../src/state/modules/world/parse.js";
 import { emptyWorld, applyWorldChanges } from "../src/state/modules/world/model.js";
 
 test("outfit tags are fresh only for the outfit they were made from (or when locked)", () => {
-    const made = { from: outfitHash("Grey hoodie,  black joggers"), tags: "grey hoodie, black joggers" };
+    const made = { from: outfitHash("Grey hoodie,  black joggers"), tags: "grey hoodie, black joggers", regions: { upper: "grey hoodie", lower: "black joggers" } };
     assert.equal(freshOutfitTags(made, "grey hoodie, black joggers"), "grey hoodie, black joggers", "case and spacing do not matter");
     assert.equal(freshOutfitTags(made, "white towel"), null, "a new outfit needs new tags");
     assert.equal(freshOutfitTags({ ...made, locked: true }, "white towel"), "grey hoodie, black joggers");
     assert.equal(freshOutfitTags(undefined, "x"), null);
     assert.equal(freshOutfitTags({ from: outfitHash("x"), tags: "" }, "x"), null);
+    const { regions, ...old } = made;
+    assert.equal(freshOutfitTags(old, "grey hoodie, black joggers"), null, "made before plan 027 (no parts): made again");
+    assert.equal(freshOutfitTags({ ...old, locked: true }, "white towel"), "grey hoodie, black joggers", "locked tags stay as they are");
 });
 
 test("outfit prompt and parsing", () => {
@@ -132,13 +135,14 @@ test("position goes into the Cast for the player and whoever is in the scene", (
 
 test("cast uses fresh outfit tags, and flags stale ones for remaking", () => {
     const looks = {
-        Aqua: { tags: "female, blue hair", outfitTags: { from: outfitHash("blue dress"), tags: "blue dress, detached sleeves" } },
+        Aqua: { tags: "female, blue hair", outfitTags: { from: outfitHash("blue dress"), tags: "blue dress, detached sleeves", regions: { upper: "blue dress, detached sleeves" } } },
         Kazuma: { tags: "male", outfitTags: { from: outfitHash("black coat"), tags: "black coat" } }
     };
     const cast = buildImageCast({ world: scene(), userName: "Kazuma", looks, outfitTags: true });
     const by = n => cast.find(c => c.name === n);
     assert.equal(by("Aqua").outfit, "blue dress, detached sleeves");
     assert.equal(by("Aqua").outfitStale, false);
+    assert.deepEqual(by("Aqua").outfitRegions, { upper: "blue dress, detached sleeves" });
     assert.equal(by("Kazuma").outfit, "grey hoodie", "stale tags: the World State text until remade");
     assert.equal(by("Kazuma").outfitStale, true);
     assert.equal(by("Kazuma").outfitText, "grey hoodie");

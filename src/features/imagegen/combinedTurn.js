@@ -157,8 +157,9 @@ export async function runCombinedTurn(messageId, type, plan) {
                 built = renderCombinedPrompt(common);
             } else if (engine === "v2") {
                 const cast = currentImageCast();
-                const detailed = cfg.outfitTags && cfg.style === "tags";
-                staleBefore = detailed ? cast.filter(m => m.outfitStale && inImage(m, cfg.shot)) : [];
+                // Plan 027: outfit tags by part for every style.
+                const detailed = true;
+                staleBefore = cast.filter(m => m.outfitStale && inImage(m, cfg.shot));
                 missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(getContext()?.chatId, cast.filter(m => needsLook(m, cfg.shot)));
                 warnLooklessInScene(getContext()?.chatId, cast, cfg.shot, missingLooks);
                 built = renderCombinedPrompt({

@@ -60,7 +60,7 @@ export function renderCastList(cast, { shot = "cinematic", method = "placeholder
         const sex = c.sex ? `${c.sex}, ` : "";
         const lines = [`${handle}${also}: ${sex}${where}`];
         if (String(c.look || "").trim()) lines.push(`  appearance: ${c.look}`);
-        if (String(c.body || "").trim()) lines.push(`  body (only when the shot shows it): ${c.body}`);
+        if (String(c.body || "").trim()) lines.push(`  body: ${c.body}`);
         if (String(c.outfit || "").trim()) lines.push(`  wearing: ${c.outfit}`);
         else lines.push("  wearing: not noted (describe what they wear)");
         if (String(c.position || "").trim()) lines.push(`  position: ${c.position}`);
@@ -95,6 +95,7 @@ export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", 
     if (style === "qwen") {
         const parts = [
             focusRule(P.style.qwen, String(focus)),
+            P.levels,
             P.artStyleLine.replace("{{artStyle}}", String(artStyle || "").trim().replace(/\.$/, "")),
             P.shotQwen[shot] || P.shotQwen.cinematic,
             P.inEnglish
@@ -105,7 +106,8 @@ export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", 
     const guide = focusRule(method === "reference"
         ? [P.reference.head, P.reference[style] || P.reference.tags].join("\n")
         : (P.style[style] || P.style.tags), String(focus));
-    const parts = [guide, P.shot[shot] || P.shot.cinematic, P.inEnglish];
+    // Edit the last prompt writes no @Name, so it has no levels.
+    const parts = [guide, ...(method === "reference" ? [] : [P.levels]), P.shot[shot] || P.shot.cinematic, P.inEnglish];
     if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
     // A blank line, so the shot line never reads as part of the example above it.
     return parts.join("\n\n");

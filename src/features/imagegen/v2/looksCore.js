@@ -189,43 +189,75 @@ export function parseLookBlocks(text) {
 
 // ── Qwen Image (plan 026): looks and outfits as detailed phrases ───────────
 
-/** @param {Array<{ name: string, tags: string }>} looks */
+// A character's tags as part lines ("Core: …"), or one line when not sorted.
+const partLines = (name, text, regions, order) => regions
+    ? [`${name}:`, ...order.map(r => `${r.charAt(0).toUpperCase()}${r.slice(1)}: ${regions[r] || ""}`.trimEnd())]
+    : [`${name}: ${text}`];
+
+/** @param {Array<{ name: string, tags: string, regions?: object|null }>} looks */
 export function renderQwenLookPrompt(looks) {
     return [
         IMAGE_V2_PROMPTS.qwenLook.task,
         IMAGE_V2_PROMPTS.descriptionsInEnglish,
         "",
-        ...looks.map(l => `${l.name}: ${l.tags}`),
+        ...looks.flatMap(l => partLines(l.name, l.tags, l.regions || (l.tags ? { core: l.tags } : null), LOOK_REGIONS)),
         "",
         "Output one block per character and nothing else:",
-        "<Character_Qwen name=\"Name\">a …</Character_Qwen>"
+        "<Character_Qwen name=\"Name\">",
+        "Core: a …",
+        "Head: …",
+        "Upper: …",
+        "Lower: …",
+        "Feet:",
+        "</Character_Qwen>"
     ].join("\n");
 }
 
-/** @returns {Array<{ name: string, qwen: string }>} */
+const phrase = s => s.replace(/\s+/g, " ").trim().replace(/^["']|["']$/g, "");
+
+/** @returns {Array<{ name: string, qwen: string, parts?: object }>} parts by body part when written in lines */
 export function parseQwenLookBlocks(text) {
     return blocks(text, "Character_Qwen")
-        .map(b => ({ name: splitName(b.rawName).name, qwen: b.body.replace(/\s+/g, " ").trim().replace(/^["']|["']$/g, "") }))
+        .map(b => {
+            const name = splitName(b.rawName).name;
+            const parts = parseRegionLines(b.body, LOOK_REGIONS, { phrases: true });
+            return parts ? { name, qwen: joinRegions(parts, LOOK_REGIONS), parts } : { name, qwen: phrase(b.body) };
+        })
         .filter(x => x.name && x.qwen);
 }
 
-/** @param {Array<{ name: string, outfit: string }>} items */
+/** @param {Array<{ name: string, outfit: string, regions?: object|null }>} items */
 export function renderQwenOutfitPrompt(items) {
     return [
         IMAGE_V2_PROMPTS.qwenOutfit.task,
         IMAGE_V2_PROMPTS.descriptionsInEnglish,
         "",
-        ...items.map(i => `${i.name}: ${i.outfit}`),
+        ...items.flatMap(i => partLines(i.name, i.outfit, i.regions || null, OUTFIT_REGIONS)),
         "",
         "Output one block per character and nothing else:",
-        "<Outfit_Qwen name=\"Name\">a …, … and …</Outfit_Qwen>"
+        "<Outfit_Qwen name=\"Name\">",
+        "Head:",
+        "Upper: a …, … and …",
+        "Lower: …",
+        "Feet: …",
+        "</Outfit_Qwen>"
     ].join("\n");
 }
 
-/** @returns {Array<{ name: string, outfit: string }>} */
+const outfitPhrase = s => phrase(s).replace(/^wearing\s+/i, "").replace(/\.$/, "");
+
+/** @returns {Array<{ name: string, outfit: string, parts?: object }>} */
 export function parseQwenOutfitBlocks(text) {
     return blocks(text, "Outfit_Qwen")
-        .map(b => ({ name: splitName(b.rawName).name, outfit: b.body.replace(/\s+/g, " ").trim().replace(/^["']|["']$/g, "").replace(/^wearing\s+/i, "").replace(/\.$/, "") }))
+        .map(b => {
+            const name = splitName(b.rawName).name;
+            const parts = parseRegionLines(b.body, OUTFIT_REGIONS, { phrases: true });
+            if (parts) {
+                for (const r of OUTFIT_REGIONS) parts[r] = outfitPhrase(parts[r]);
+                return { name, outfit: joinRegions(parts, OUTFIT_REGIONS), parts };
+            }
+            return { name, outfit: outfitPhrase(b.body) };
+        })
         .filter(x => x.name && x.outfit);
 }
 
@@ -329,20 +361,29 @@ export function outfitHash(text) {
 export function freshOutfitTags(cached, outfitText) {
     if (!cached || !String(cached.tags || "").trim()) return null;
     if (cached.locked) return cached.tags;
+    // Tags made before plan 027 have no parts: made again, by part.
+    if (!cached.regions) return null;
     return cached.from === outfitHash(outfitText) ? cached.tags : null;
 }
 
 // Raised when the Qwen look or outfit texts change, so descriptions made with
 // the old texts are made again (2: no "and nothing else" in outfits).
-const QWEN_TEXTS_VERSION = 2;
+const QWEN_TEXTS_VERSION = 3;   // 3: described part by part (plan 027)
 
 /** What a Qwen description was made from: the source text and the texts' version. */
 export const qwenFrom = source => `q${QWEN_TEXTS_VERSION}:${outfitHash(source)}`;
 
 /** A Qwen description ({ from, text }) still made from this source text, or null. */
 export function freshQwenText(cached, source) {
+    const e = freshQwenEntry(cached, source);
+    return e ? e.text : null;
+}
+
+/** The same, with its parts: { text, parts } or null. */
+export function freshQwenEntry(cached, source) {
     if (!cached || !String(cached.text || "").trim()) return null;
-    return cached.from === qwenFrom(source) ? cached.text : null;
+    if (cached.from !== qwenFrom(source)) return null;
+    return { text: cached.text, parts: cached.parts || null };
 }
 
 export const OUTFIT_SYSTEM = "You turn clothing descriptions into booru tags for an image model.";

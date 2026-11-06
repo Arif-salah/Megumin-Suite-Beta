@@ -41,8 +41,8 @@ export const IMAGE_V2_BUILTIN = {
             "",
             "Example (made-up characters; use the names from <Cast>):",
             "1girl, 1boy, indoors, tavern, night, medium shot,",
-            "On the left is @Mira. She sits at the bar, laughing, holding a mug.",
-            "On the right is @Theo. He leans on the counter, smiling at her.",
+            "On the left is @Mira:waist. She sits at the bar, laughing, holding a mug.",
+            "On the right is @Theo:waist. He leans on the counter, smiling at her.",
             "wooden bar, shelves of bottles, rainy window, warm lamplight"
         ].join("\n"),
         natural: [
@@ -63,8 +63,8 @@ export const IMAGE_V2_BUILTIN = {
             "",
             "Example (made-up characters; use the names from <Cast>):",
             "A medium shot inside a tavern at night.",
-            "On the left is @Mira. She sits at the bar, laughing, holding a mug.",
-            "On the right is @Theo. He leans on the counter, smiling at her.",
+            "On the left is @Mira:waist. She sits at the bar, laughing, holding a mug.",
+            "On the right is @Theo:waist. He leans on the counter, smiling at her.",
             "Shelves of bottles line the wall behind them, rain runs down the window, and warm lamplight fills the room."
         ].join("\n"),
         // Plan 026: Qwen Image, from Qwen's own prompt-rewriting guide. One long
@@ -94,9 +94,13 @@ export const IMAGE_V2_BUILTIN = {
             "- Output the paragraph only, on one line: no heading, no quotation marks around it, nothing before or after.",
             "",
             "Example (made-up characters; use the names from <Cast>):",
-            "The image is a medium-shot anime illustration of a man and a woman sharing a laugh at a crowded tavern bar at night, the room glowing in warm amber and deep brown tones. Behind them, the back wall is lined with dark wooden shelves holding rows of green and amber glass bottles, a few of them dusty and half-empty. Across the top of the frame, heavy oak beams cross the ceiling, with a wrought-iron lantern hanging from the one on the left. On the left side of the frame sits @Mira. She sits sideways on a tall stool with one elbow on the bar, laughing with her head tipped back and her eyes half closed, both hands wrapped around a dented pewter mug. In the centre of the bar top, a wooden board holds a heel of crusty bread and a small wedge of pale yellow cheese beside a chipped clay bowl. On the right side of the frame stands @Theo. He leans forward on the counter on both forearms, smiling at her with one eyebrow raised, a folded cloth tucked over his shoulder. In the background between them, a few blurred patrons sit at round tables, their faces softened by a haze of pipe smoke. On the far right, a rain-streaked window shows a dark street and the smeared glow of a lamppost outside. Along the lower edge of the frame, the bar's scarred surface catches the light in a long glossy streak, with two damp rings left by earlier mugs. A small chalkboard propped against the bottles reads \"ALE 2 COPPER\" in uneven white letters. The lighting is warm and low, coming mostly from the lantern above and to the left, casting soft shadows to the right across the bar and leaving the corners of the room in deep brown shade. The overall composition is balanced between the two figures, framed by the shelves behind them, with a warm, cosy palette and a lively, friendly mood."
+            "The image is a medium-shot anime illustration of a man and a woman sharing a laugh at a crowded tavern bar at night, the room glowing in warm amber and deep brown tones. Behind them, the back wall is lined with dark wooden shelves holding rows of green and amber glass bottles, a few of them dusty and half-empty. Across the top of the frame, heavy oak beams cross the ceiling, with a wrought-iron lantern hanging from the one on the left. On the left side of the frame sits @Mira:waist. She sits sideways on a tall stool with one elbow on the bar, laughing with her head tipped back and her eyes half closed, both hands wrapped around a dented pewter mug. In the centre of the bar top, a wooden board holds a heel of crusty bread and a small wedge of pale yellow cheese beside a chipped clay bowl. On the right side of the frame stands @Theo:waist. He leans forward on the counter on both forearms, smiling at her with one eyebrow raised, a folded cloth tucked over his shoulder. In the background between them, a few blurred patrons sit at round tables, their faces softened by a haze of pipe smoke. On the far right, a rain-streaked window shows a dark street and the smeared glow of a lamppost outside. Along the lower edge of the frame, the bar's scarred surface catches the light in a long glossy streak, with two damp rings left by earlier mugs. A small chalkboard propped against the bottles reads \"ALE 2 COPPER\" in uneven white letters. The lighting is warm and low, coming mostly from the lantern above and to the left, casting soft shadows to the right across the bar and leaving the corners of the room in deep brown shade. The overall composition is balanced between the two figures, framed by the shelves behind them, with a warm, cosy palette and a lively, friendly mood."
         ].join("\n")
     },
+
+    // Plan 027: how much of each character the frame shows, after @Name.
+    // Sent right after the guide, for every style that writes @Name.
+    levels: "How much of each character the frame shows goes right after their @Name: @Mira:face for a close-up of the face, @Mira:upper for the chest up, @Mira:waist for the thighs up, @Mira:full when their feet are in the frame. Add :nude when they wear nothing at that moment: @Mira:full:nude.",
 
     // Plan 026: the art style picked on the V2 tab, sent after the Qwen guide.
     // {{artStyle}} = the style's description (QWEN_ART_STYLES) or your own text.
@@ -110,21 +114,31 @@ export const IMAGE_V2_BUILTIN = {
         portrait: "Shot: one character, a close-up from the chest up, walked as a single subject: the background and how it falls out of focus, their pose, their face and expression, and the clothing at the edge of the frame."
     },
 
-    // Qwen's looks: the saved tags turned into one detailed phrase each.
+    // Qwen's looks: the saved tags turned into a detailed phrase per body part
+    // (plan 027), so a close-up can leave the legs out.
     qwenLook: {
         system: "You turn booru appearance tags into detailed plain descriptions for an image model that reads long paragraphs.",
         task: [
-            "For each character, turn the tags into ONE descriptive phrase (30 to 60 words) that starts with \"a\" or \"an\".",
-            "Give their life stage (a young adult, in her thirties, elderly), build, skin tone, hair with its colour, length and style, eye colour, and permanent marks with where they sit. Give every colour a modifier: deep auburn, pale ivory, steel grey.",
-            "Describe only their permanent appearance: no clothing, no names, no actions. State it plainly.",
-            "Example: <Character_Qwen name=\"Mira\">a slender young woman in her twenties with pale, lightly freckled skin, long wavy deep auburn hair falling past her shoulders, bright emerald-green eyes and a small mole under her left eye</Character_Qwen>"
+            "For each character, turn the tags on each line into a plain phrase for that part of the body, 30 to 60 words in all.",
+            "Core: one phrase that starts with \"a\" or \"an\": their life stage (a young adult, in her thirties, elderly), build and skin tone.",
+            "Head: their hair with its colour, length and style, their eye colour, and marks on the face with where they sit.",
+            "Upper, Lower and Feet: what that line's tags say, as a short phrase. Leave the line empty when its tags are empty.",
+            "Give every colour a modifier: deep auburn, pale ivory, steel grey. Describe only their permanent appearance: no clothing, no names, no actions. State it plainly.",
+            "Example:",
+            "<Character_Qwen name=\"Mira\">",
+            "Core: a slender young woman in her twenties with pale, lightly freckled skin",
+            "Head: long wavy deep auburn hair falling past her shoulders, bright emerald-green eyes and a small mole under her left eye",
+            "Upper: a modest bust",
+            "Lower: long slim legs",
+            "Feet:",
+            "</Character_Qwen>"
         ].join("\n")
     },
 
     // Qwen's outfits: World State's outfit text as one phrase, once per outfit.
     qwenOutfit: {
         system: "You turn clothing descriptions into detailed plain descriptions for an image model that reads long paragraphs.",
-        task: "Describe each outfit as one phrase: one part per garment, the main garments first, each with its colour, material and cut or print (\"a loose cream cable-knit wool sweater\", \"faded light-blue denim jeans\"), plus one standout accessory, joined with commas and a final \"and\". Keep the state of dress (sleeves rolled up, unbuttoned, barefoot). Clothing only, nothing the text does not say. List only what they wear: never \"and nothing else\" or what they are not wearing, unless the text says they are partly undressed."
+        task: "Describe each outfit part by part, one phrase per line: Head (hats, glasses, earrings), Upper (tops, jackets, dresses, anything on the arms), Lower (skirts, shorts, trousers, underwear, tights) and Feet (socks, shoes); a garment that covers several goes on the highest one. On each line, one part per garment, each with its colour, material and cut or print (\"a loose cream cable-knit wool sweater\", \"faded light-blue denim jeans\"), joined with commas and a final \"and\". Keep the state of dress on its line (sleeves rolled up, unbuttoned, barefoot). Clothing only, nothing the text does not say. List only what they wear: never \"and nothing else\" or what they are not wearing, unless the text says they are partly undressed. Leave a line empty when nothing is worn there."
     },
 
     shot: {

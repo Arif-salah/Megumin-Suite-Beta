@@ -19,13 +19,15 @@
 // character's tags with that character. An old flat tag line ("1girl, @Mira,
 // laughing") still resolves the old way: tags only, deduplicated.
 //
-// Body tags (a member's `body`) go in only when the prompt frames the body
-// (full body, wide shot, cowboy shot…): in a close-up they would pull the image
-// toward a full figure.
+// Levels (plan 027): @Mira:face, :upper, :waist, :full (and :nude) hand in
+// only the parts of the look and outfit the frame shows. A plain @Mira takes
+// its level from the framing in the prompt's opening (else full). A look or
+// outfit not sorted by body part goes in whole (the body tags only from
+// :waist down).
 //
 // Pure: no SillyTavern, no DOM. The caller builds the cast.
 
-import { framingShowsBody } from "./lookParts.js";
+import { readLevel, framingLevel, lookPartsFor, outfitPartsFor, joinRegions } from "./regions.js";
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -126,7 +128,7 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
     if (style === "qwen") return resolveQwenPrompt(prompt, cast);
     const text = String(prompt || "");
     const index = nameIndex(cast);
-    const showBody = framingShowsBody(text);
+    const defaultLevel = framingLevel(openingOf(text), text);
     const layout = style === "natural" || isLineLayout(text);
     const lower = text.toLowerCase();
     const filled = [];
@@ -170,10 +172,14 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
             unknown.push(displayName);
         }
 
-        // Optional possessive, then optional .look / .outfit
+        // Optional level (":waist", ":full:nude"), possessive, then .look / .outfit
+        let lv = readLevel(text.slice(end));
+        end += lv.length;
         let possessive = "";
         const pos = text.slice(end).match(POSSESSIVE);
         if (pos) { possessive = pos[0]; end += pos[0].length; }
+        if (!lv.length) { lv = readLevel(text.slice(end)); end += lv.length; }
+        const frame = { level: lv.level || defaultLevel, nude: lv.nude };
         const part = "all";
         const suffix = text.slice(end).match(/^\.([A-Za-z]+)/);
         if (suffix && PART_SYNONYMS[suffix[1].toLowerCase()]) end += suffix[0].length;
@@ -205,9 +211,9 @@ export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
             missing.forEach(x => done.add(x));
             seen.set(member.name, done);
             out += layout
-                ? renderInLine(member, renderPart, style, noLook, showBody, /^\s*[A-Za-z]/.test(text.slice(end)))
-                : renderMember(member, renderPart, style, noLook, showBody);
-            filled.push({ name: member.name, part: renderPart });
+                ? renderInLine(member, renderPart, style, noLook, frame, /^\s*[A-Za-z]/.test(text.slice(end)))
+                : renderMember(member, renderPart, style, noLook, frame);
+            filled.push({ name: member.name, part: renderPart, level: frame.level, ...(frame.nude ? { nude: true } : {}) });
         }
         i = end;
     }
@@ -246,12 +252,15 @@ function qwenShort(m) {
 // "the young woman": the head without what follows its noun.
 const qwenThe = short => short.replace(/^(a|an)\s+/i, "the ").split(/\s+(?:in|of|from|at)\s+/i)[0];
 
-function qwenFull(m, showBody) {
-    const tags = stripCountTags(m.look || "");
-    const desc = String(m.lookQwen || m.lookNatural || "").trim()
+function qwenFull(m, frame) {
+    const parts = lookPartsFor(frame.level);
+    const tags = lookAt(m, frame.level);
+    // Described part by part: the parts the level shows. An older whole
+    // description goes in whole.
+    const desc = (m.lookQwenParts ? joinRegions(m.lookQwenParts, parts) : "")
+        || String(m.lookQwen || m.lookNatural || "").trim()
         || (tags ? `${SEX_NOUN[m.sex] || "a person"} with ${tags}` : (SEX_NOUN[m.sex] || "a person"));
-    const body = showBody ? stripCountTags(m.body || "") : "";
-    return [desc, body, wearingPhrase(m.outfit)].filter(Boolean).join(", ");
+    return [desc, wearingPhrase(outfitAt(m, frame, m.outfitQwenParts || m.outfitRegions))].filter(Boolean).join(", ");
 }
 
 /** @returns {{ prompt: string, filled: Array<{name: string, part: string}>, unknown: string[], noLook: string[] }} */
@@ -274,12 +283,15 @@ export function resolveQwenPrompt(prompt, cast = []) {
             word = text.slice(i + 1, j);
             end = j;
         }
+        let lv = readLevel(text.slice(end));
+        end += lv.length;
         const pos = text.slice(end).match(POSSESSIVE);
         const possessive = pos ? pos[0] : "";
         if (pos) end += pos[0].length;
+        if (!lv.length) { lv = readLevel(text.slice(end)); end += lv.length; }
         const suffix = text.slice(end).match(/^\.([A-Za-z]+)/);
         if (suffix && PART_SYNONYMS[suffix[1].toLowerCase()]) end += suffix[0].length;
-        tokens.push({ at: i, end, member, word, possessive });
+        tokens.push({ at: i, end, member, word, possessive, level: lv.level, nude: lv.nude });
         i = end - 1;
     }
 
@@ -288,7 +300,7 @@ export function resolveQwenPrompt(prompt, cast = []) {
     for (const t of tokens) masked = masked.slice(0, t.at) + "x".repeat(t.end - t.at) + masked.slice(t.end);
     const stop = masked.search(/[.!?](\s|$)/);
     const openEnd = stop < 0 ? text.length : stop + 1;
-    const showBody = framingShowsBody(text.slice(0, openEnd));
+    const defaultLevel = framingLevel(text.slice(0, openEnd));
 
     // Each character's full description goes on their first plain mention
     // after the opening sentence, else on their first plain mention.
@@ -315,8 +327,11 @@ export function resolveQwenPrompt(prompt, cast = []) {
         } else if (fullAt.get(t.member) === t) {
             const m = t.member;
             if (!String(m.look || m.body || m.lookQwen || m.lookNatural || "").trim() && !noLook.includes(m.name)) noLook.push(m.name);
-            rep = qwenFull(m, showBody);
-            filled.push({ name: m.name, part: "all" });
+            // The level written on any of their mentions, else the framing's.
+            const own = tokens.find(x => x.member === m && x.level);
+            const frame = { level: (t.level || (own && own.level)) || defaultLevel, nude: tokens.some(x => x.member === m && x.nude) };
+            rep = qwenFull(m, frame);
+            filled.push({ name: m.name, part: "all", level: frame.level, ...(frame.nude ? { nude: true } : {}) });
         } else {
             const full = fullAt.get(t.member);
             const short = qwenShort(t.member);
@@ -350,15 +365,36 @@ export function wearingPhrase(outfit) {
     return `wearing ${/^[aeiou]/i.test(o) ? "an" : "a"} ${o}`;
 }
 
+// The prompt's opening: its first line, or its first sentence on one line.
+function openingOf(text) {
+    const first = String(text || "").trim().split("\n")[0];
+    const stop = first.search(/[.!?](\s|$)/);
+    return stop < 0 ? first : first.slice(0, stop + 1);
+}
+
+/** The look tags a level shows: the sorted parts, or the old two parts. */
+function lookAt(m, level) {
+    if (m.lookRegions) return stripCountTags(joinRegions(m.lookRegions, lookPartsFor(level)));
+    const withBody = level === "waist" || level === "full";
+    return stripCountTags([m.look, withBody ? m.body : ""].filter(s => String(s || "").trim()).join(", "));
+}
+
+/** The outfit a level shows; "nude" with :nude. Unsorted outfits go in whole. */
+function outfitAt(m, frame, parts = m.outfitRegions) {
+    if (frame.nude) return "nude";
+    if (parts) return joinRegions(parts, outfitPartsFor(frame.level));
+    return String(m.outfit || "").trim();
+}
+
 /**
  * A character in the line layout: "Mira, <look>, wearing a <outfit>".
  * When a verb follows ("@Mira sits…") a closing comma keeps the sentence readable.
  */
-function renderInLine(m, part, style, noLook, showBody, wordFollows) {
-    const lookTags = stripCountTags([m.look, showBody ? m.body : ""].filter(s => String(s || "").trim()).join(", "));
+function renderInLine(m, part, style, noLook, frame, wordFollows) {
+    const lookTags = lookAt(m, frame.level);
     if (!lookTags && !m.body && !m.lookNatural && part !== "outfit" && !noLook.includes(m.name)) noLook.push(m.name);
     const look = style === "natural" ? (String(m.lookNatural || "").trim() || lookTags) : lookTags;
-    const wearing = wearingPhrase(m.outfit);
+    const wearing = wearingPhrase(outfitAt(m, frame));
     const bits = [m.name];
     if (part !== "outfit" && look) bits.push(look);
     if (part !== "look" && wearing) bits.push(wearing);
@@ -373,9 +409,9 @@ function coveredAlready(seen, name, part) {
     return want.every(x => done.has(x));
 }
 
-function renderMember(m, part, style, noLook, showBody = false) {
-    const lookTags = stripCountTags([m.look, showBody ? m.body : ""].filter(s => String(s || "").trim()).join(", "));
-    const outfit = String(m.outfit || "").trim();
+function renderMember(m, part, style, noLook, frame = { level: "full", nude: false }) {
+    const lookTags = lookAt(m, frame.level);
+    const outfit = outfitAt(m, frame);
     if (!lookTags && !m.body && !m.lookNatural && part !== "outfit" && !noLook.includes(m.name)) noLook.push(m.name);
 
     if (style === "natural") {
@@ -383,10 +419,10 @@ function renderMember(m, part, style, noLook, showBody = false) {
         // the description sits in parentheses so the sentence around @Name still
         // reads. Natural-language models give parentheses no weight meaning.
         const desc = String(m.lookNatural || "").trim() || lookTags;
-        if (part === "outfit") return outfit ? `wearing ${outfit}` : "";
+        if (part === "outfit") return outfit === "nude" ? outfit : outfit ? `wearing ${outfit}` : "";
         const bits = [];
         if (desc) bits.push(desc);
-        if (part === "all" && outfit) bits.push(`wearing ${outfit}`);
+        if (part === "all" && outfit) bits.push(outfit === "nude" ? outfit : `wearing ${outfit}`);
         return bits.length ? `${m.name} (${bits.join(", ")})` : m.name;
     }
 

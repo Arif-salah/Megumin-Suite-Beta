@@ -43,8 +43,13 @@ test("art styles: a detailed text for each, Your own sends your words, anime whe
 test("Qwen looks: the prompt lists each character's tags, the answer is read back by name", () => {
     const p = renderQwenLookPrompt([{ name: "Jenny", tags: "female, young adult, short hair" }]);
     assert.match(p, /30 to 60 words/);
-    assert.ok(p.includes("Jenny: female, young adult, short hair"));
-    assert.ok(p.trimEnd().endsWith("<Character_Qwen name=\"Name\">a …</Character_Qwen>"));
+    assert.ok(p.includes("Jenny:\nCore: female, young adult, short hair"), "an unsorted look goes in as Core");
+    assert.ok(p.trimEnd().endsWith("Feet:\n</Character_Qwen>"));
+    const sorted = renderQwenLookPrompt([{ name: "Jenny", tags: "x", regions: { core: "female", head: "short hair", upper: "", lower: "wide hips", feet: "" } }]);
+    assert.ok(sorted.includes("Jenny:\nCore: female\nHead: short hair\nUpper:\nLower: wide hips\nFeet:\n"));
+    const parts = parseQwenLookBlocks("<Character_Qwen name=\"Jenny\">\nCore: a young woman in her twenties with fair skin\nHead: short tousled brown hair,\n  bright blue eyes\nLower: wide hips.\nFeet:\n</Character_Qwen>");
+    assert.deepEqual(parts, [{ name: "Jenny", qwen: "a young woman in her twenties with fair skin, short tousled brown hair, bright blue eyes, wide hips",
+        parts: { core: "a young woman in her twenties with fair skin", head: "short tousled brown hair, bright blue eyes", upper: "", lower: "wide hips", feet: "" } }]);
     const r = parseQwenLookBlocks("<think>x</think><Character_Qwen name=\"Jenny\">\n a young woman with\n short brown hair </Character_Qwen>");
     assert.deepEqual(r, [{ name: "Jenny", qwen: "a young woman with short brown hair" }]);
 });
@@ -86,21 +91,22 @@ test("Qwen rules: its guide, the art style, its shot line, and Characters in foc
 const jenny = {
     name: "Jenny", aliases: [], sex: "female", look: "female, young adult, short hair", body: "slim",
     lookQwen: "a young woman in her early twenties with fair skin and short tousled medium-brown hair",
+    lookQwenParts: { core: "a young woman in her early twenties with fair skin", head: "short tousled medium-brown hair", upper: "", lower: "slim legs", feet: "" },
     outfit: "an oversized heather-grey graphic tee and frayed denim shorts"
 };
 const patel = { name: "Dr. Patel", aliases: [], sex: "female", look: "female, adult", body: "", lookQwen: "", outfit: "" };
 
 test("Qwen fill-in: the description with no name, where she stands", () => {
-    const r = resolveImagePrompt("The image is a medium-shot anime illustration of a young woman at a door. In the centre stands @Jenny. She grins.", { cast: [jenny], style: "qwen" });
-    assert.equal(r.prompt, "The image is a medium-shot anime illustration of a young woman at a door. In the centre stands a young woman in her early twenties with fair skin and short tousled medium-brown hair, wearing an oversized heather-grey graphic tee and frayed denim shorts. She grins.");
-    assert.doesNotMatch(r.prompt, /Jenny|slim/, "no name; no body in a medium shot");
-    assert.deepEqual(r.filled, [{ name: "Jenny", part: "all" }]);
+    const r = resolveImagePrompt("The image is a close-up anime illustration of a young woman at a door. In the centre stands @Jenny. She grins.", { cast: [jenny], style: "qwen" });
+    assert.equal(r.prompt, "The image is a close-up anime illustration of a young woman at a door. In the centre stands a young woman in her early twenties with fair skin, short tousled medium-brown hair, wearing an oversized heather-grey graphic tee and frayed denim shorts. She grins.");
+    assert.doesNotMatch(r.prompt, /Jenny|slim/, "no name; no legs in a close-up");
+    assert.deepEqual(r.filled, [{ name: "Jenny", part: "all", level: "face" }]);
 });
 
 test("Qwen fill-in: @Name written twice keeps the full look where she stands, the short form elsewhere", () => {
     const r = resolveImagePrompt("The image is a full-body anime illustration showing @Jenny braced against a door. In the centre stands @Jenny. Light falls on @Jenny's face.", { cast: [jenny], style: "qwen" });
     assert.ok(r.prompt.startsWith("The image is a full-body anime illustration showing a young woman in her early twenties braced against a door. In the centre stands a young woman in her early twenties with fair skin"));
-    assert.ok(r.prompt.includes("short tousled medium-brown hair, slim, wearing"), "full-body: the build goes in");
+    assert.ok(r.prompt.includes("short tousled medium-brown hair, slim legs, wearing"), "full-body: the legs go in");
     assert.ok(r.prompt.endsWith("Light falls on the young woman's face."));
     assert.equal(r.filled.length, 1);
 });

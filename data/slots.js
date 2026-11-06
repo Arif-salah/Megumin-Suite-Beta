@@ -161,6 +161,7 @@ const IMAGE_V2_LABELS = {
     "style.tags": "Style guide: tags",
     "style.natural": "Style guide: natural sentences",
     "style.qwen": "Style guide: Qwen Image",
+    "levels": "How much of each character shows (@Name:waist)",
     "artStyleLine": "Qwen Image: art style line",
     "shotQwen.cinematic": "Qwen Image shot: cinematic",
     "shotQwen.pov": "Qwen Image shot: point of view",

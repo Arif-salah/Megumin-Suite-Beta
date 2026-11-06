@@ -102,3 +102,71 @@ test("the look scan and the image call ask for the parts", () => {
     assert.match(extras, /<Character_Visual name="Name">\nCore: female, young adult, /);
     assert.match(extras, /Head always has hair \(colour, length, style\) and eye colour/);
 });
+
+// ── Phase 2: levels ──────────────────────────────────────────────────────
+import { readLevel, framingLevel } from "../src/features/imagegen/v2/regions.js";
+import { resolveImagePrompt } from "../src/features/imagegen/v2/resolve.js";
+import { IMAGE_V2_BUILTIN } from "../src/prompts/imageGenV2.js";
+import { renderV2Rules } from "../src/features/imagegen/v2/prompt.js";
+
+const jenny = {
+    name: "Jenny", aliases: [], sex: "female", look: "female, young adult, short hair, blue eyes", body: "large breasts, wide hips",
+    lookRegions: { core: "female, young adult", head: "short hair, blue eyes", upper: "large breasts", lower: "wide hips", feet: "" },
+    outfit: "grey t-shirt, denim shorts, white sneakers",
+    outfitRegions: { head: "", upper: "grey t-shirt", lower: "denim shorts", feet: "white sneakers" }
+};
+const fill = (p, style = "tags", cast = [jenny]) => resolveImagePrompt(p, { cast, style }).prompt;
+
+test("levels are read after @Name, in any order with :nude", () => {
+    assert.deepEqual(readLevel(":waist. She"), { level: "waist", nude: false, length: 6 });
+    assert.deepEqual(readLevel(":nude:full,"), { level: "full", nude: true, length: 10 });
+    assert.deepEqual(readLevel(":nude"), { level: "", nude: true, length: 5 });
+    assert.equal(readLevel(":waistcoat").length, 0, "a longer word is not a level");
+    assert.equal(readLevel("'s hand").length, 0);
+});
+
+test("a plain @Name takes its level from the opening's framing, else full", () => {
+    assert.equal(framingLevel("1girl, indoors, close-up,"), "face");
+    assert.equal(framingLevel("A medium shot inside a bar."), "waist");
+    assert.equal(framingLevel("2girls, upper body, then a full body mirror"), "upper", "the first framing wins");
+    assert.equal(framingLevel("1girl, bedroom", "far below: wide shot"), "full", "the whole prompt when the opening has none");
+    assert.equal(framingLevel("1girl, bedroom"), "full");
+});
+
+test("each level hands in only the parts it shows: no shoes in a close-up, the top kept", () => {
+    assert.equal(fill("1girl, close-up,\nOn the left is @Jenny:face. She grins."),
+        "1girl, close-up,\nOn the left is Jenny, female, young adult, short hair, blue eyes, wearing a grey t-shirt. She grins.");
+    assert.match(fill("On the left is @Jenny:upper. She waves."), /blue eyes, large breasts, wearing a grey t-shirt\./);
+    assert.match(fill("On the left is @Jenny:waist. She waves."), /large breasts, wide hips, wearing a grey t-shirt, denim shorts\./);
+    assert.match(fill("On the left is @Jenny:full. She waves."), /wearing a grey t-shirt, denim shorts, white sneakers\./);
+    assert.match(fill("1girl, close-up,\nOn the left is @Jenny. She grins."), /blue eyes, wearing a grey t-shirt\./, "plain @Name: the framing's level");
+});
+
+test(":nude: the look at that level, no outfit", () => {
+    assert.match(fill("1girl, full body,\nOn the left is @Jenny:full:nude. She stretches."), /short hair, blue eyes, large breasts, wide hips, nude\. She/);
+    assert.match(fill("A close-up. On the left is @Jenny:nude.", "natural"), /blue eyes, nude\./);
+});
+
+test("an unsorted look: the body from :waist down; an unsorted outfit goes in whole", () => {
+    const old = { ...jenny, lookRegions: null, outfitRegions: null };
+    assert.match(fill("On the left is @Jenny:face.", "tags", [old]), /blue eyes, wearing a grey t-shirt, denim shorts, white sneakers\.$/);
+    assert.match(fill("On the left is @Jenny:waist.", "tags", [old]), /blue eyes, large breasts, wide hips, wearing/);
+});
+
+test("Qwen: the parts of the description the level shows, the outfit by part", () => {
+    const q = { ...jenny, lookQwen: "x",
+        lookQwenParts: { core: "a young woman in her twenties", head: "short brown hair", upper: "a full bust", lower: "wide hips", feet: "" },
+        outfitQwenParts: { head: "", upper: "a loose grey cotton t-shirt", lower: "faded denim shorts", feet: "white canvas sneakers" } };
+    const r = fill("The image is a close-up of a young woman. In the centre stands @Jenny. She grins.", "qwen", [q]);
+    assert.match(r, /stands a young woman in her twenties, short brown hair, wearing a loose grey cotton t-shirt\. She/);
+    assert.match(fill("The image is a portrait. Here is @Jenny:full.", "qwen", [q]), /wide hips, wearing a loose grey cotton t-shirt, faded denim shorts, white canvas sneakers\.$/);
+});
+
+test("every @Name style is told about levels, and its example uses them; Edit the last prompt is not", () => {
+    for (const style of ["tags", "natural", "qwen"]) {
+        const r = renderV2Rules({ style });
+        assert.ok(r.includes(IMAGE_V2_BUILTIN.levels), style);
+        assert.match(r, /@Mira:waist/, style);
+    }
+    assert.ok(!renderV2Rules({ style: "tags", method: "reference" }).includes(IMAGE_V2_BUILTIN.levels));
+});

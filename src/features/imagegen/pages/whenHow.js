@@ -174,18 +174,6 @@ function renderV2Advanced(box, redraw) {
                 id => { setCfg({ method: id }); $methodDesc.text(METHOD_DESC[id]); })).append($methodDesc));
     }
 
-    const tagsStyle = cfg.style === "tags";
-    box.append(switchRow({
-        label: "Detailed outfit tags",
-        desc: tagsStyle
-            ? "Turns each outfit from the story into exact tags, once each time it changes."
-            : cfg.style === "qwen"
-                ? "Only for the Tags prompt style. Qwen Image already describes each outfit in detail, once each time it changes."
-                : "Only for the Tags prompt style. Plain sentences use the outfit as the story wrote it.",
-        on: Boolean(cfg.outfitTags) && tagsStyle,
-        disabled: !tagsStyle,
-        onChange: on => setCfg({ outfitTags: on })
-    }));
     box.append(switchRow({
         label: "Give new characters a look automatically",
         desc: "Read from the chat when someone new enters the scene without one.",

@@ -10,7 +10,8 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { splitLookTags, sexOf } from "./lookParts.js";
-import { freshOutfitTags, freshQwenText, outfitHash } from "./looksCore.js";
+import { freshOutfitTags, freshQwenEntry } from "./looksCore.js";
+import { isSorted, joinRegions, LOOK_REGIONS } from "./regions.js";
 import { whoIs, namedIn } from "../../../state/names.js";
 
 const key = s => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s'-]/gu, "").replace(/\s+/g, " ").trim();
@@ -41,7 +42,7 @@ export function needsLook(m, shot) {
  *   userName?: string,             // persona name
  *   recentText?: string,           // for "mentioned" (absent but just named)
  *   npcFirst?: boolean,            // NPC Bank Image Tags win over a stored look
- *   outfitTags?: boolean           // use detailed outfit tags when they are fresh
+ *   outfitTags?: boolean           // use the outfit tags when they are fresh (always on since plan 027)
  *   qwen?: boolean                 // Qwen Image: use the look and outfit descriptions when they are fresh
  * }} src
  * @returns {Array<{ name: string, aliases: string[], look: string, body: string, sex: string, lookNatural: string,
@@ -60,7 +61,9 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
     const blank = (name, extra = {}) => ({
         name, aliases: [], look: "", body: "", sex: "", lookNatural: "", outfit: "", position: "",
         lookKey: "", outfitText: "", outfitStale: false, outfitCache: null,
-        lookQwen: "", lookQwenStale: false, lookQwenCache: null, outfitQwenStale: false, outfitQwenCache: null,
+        lookRegions: null, outfitRegions: null,
+        lookQwen: "", lookQwenParts: null, lookQwenStale: false, lookQwenCache: null, qwenLookSource: "",
+        outfitQwenParts: null, outfitQwenStale: false, outfitQwenCache: null, qwenOutfitSource: "",
         isPc: false, inScene: false, mentioned: false, lookSource: "", ...extra
     });
 
@@ -120,6 +123,8 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
         if (parts.always || parts.body || String(entry.natural || "").trim()) {
             m.look = parts.always;
             m.body = parts.body;
+            // Plan 027: a look sorted by body part, so a level can cut it.
+            m.lookRegions = isSorted(entry) ? { ...entry.regions } : null;
             m.lookNatural = String(entry.natural || "").trim();
             m.lookSource = entry.source || "manual";
         }
@@ -139,6 +144,7 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
             const parts = splitLookTags(tags);
             m.look = parts.always;
             m.body = parts.body;
+            m.lookRegions = null;
             m.lookSource = "npc";
         }
     }
@@ -150,20 +156,28 @@ export function buildImageCast({ looks = {}, world = null, npcs = [], userName =
         if (outfitTags && String(m.outfit || "").trim()) {
             const tags = freshOutfitTags(m.outfitCache, m.outfit);
             m.outfitText = m.outfit;
-            if (tags) m.outfit = tags; else m.outfitStale = true;
+            if (tags) {
+                m.outfit = tags;
+                m.outfitRegions = m.outfitCache && m.outfitCache.regions ? { ...m.outfitCache.regions } : null;
+            } else m.outfitStale = true;
         }
         // Qwen Image (plan 026): the descriptions made from THIS look and THIS
         // outfit. Otherwise the tags / World State text stand in until they
         // are made, right before the image.
+        // Plan 027: made from the whole look and the outfit tags, part by part.
         if (qwen) {
-            if (String(m.look || "").trim()) {
-                m.lookQwen = freshQwenText(m.lookQwenCache, m.look) || "";
-                m.lookQwenStale = !m.lookQwen;
+            m.qwenLookSource = m.lookRegions ? joinRegions(m.lookRegions, LOOK_REGIONS) : [m.look, m.body].filter(s => String(s || "").trim()).join(", ");
+            if (m.qwenLookSource) {
+                const q = freshQwenEntry(m.lookQwenCache, m.qwenLookSource);
+                m.lookQwen = q ? q.text : "";
+                m.lookQwenParts = q && q.parts ? { ...q.parts } : null;
+                m.lookQwenStale = !q;
             }
             if (String(m.outfit || "").trim()) {
-                const text = freshQwenText(m.outfitQwenCache, m.outfit);
-                m.outfitText = m.outfit;
-                if (text) m.outfit = text; else m.outfitQwenStale = true;
+                m.qwenOutfitSource = m.outfit;
+                const q = freshQwenEntry(m.outfitQwenCache, m.outfit);
+                if (!m.outfitText) m.outfitText = m.outfit;
+                if (q) { m.outfit = q.text; m.outfitQwenParts = q.parts ? { ...q.parts } : null; } else m.outfitQwenStale = true;
             }
         }
     }

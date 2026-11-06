@@ -23,7 +23,6 @@ export const V2_DEFAULTS = {
     style: "tags", shot: "cinematic", extra: "", method: "placeholders",
     autoLooks: true,          // a character entering the scene gets a look read from the chat
     lookPriority: "v2",       // "v2" | "npc": which wins when the NPC Bank also has Image Tags
-    outfitTags: false,        // Tags style: turn World State outfits into detailed tags (once per outfit)
     focus: "3",               // characters with a line of their own: "2" | "3" | "4" | "all"
     artStyle: "anime",        // Qwen Image: QWEN_ART_STYLES id, or "custom"
     artStyleCustom: ""        // Qwen Image: your own art style, with "custom"
@@ -94,7 +93,7 @@ export function currentImageCast() {
         userName: sub("{{user}}"),
         recentText: recent,
         npcFirst: v2Settings().lookPriority === "npc" && Boolean(localProfile && localProfile.npcBank && localProfile.npcBank.enabled),
-        outfitTags: v2Settings().outfitTags && v2Settings().style === "tags",
+        outfitTags: true,         // plan 027: every style, by part, once per outfit
         qwen: v2Settings().style === "qwen"
     });
 }
@@ -123,7 +122,7 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
     // missing) is asked for in this SAME call and saved from its answer.
     const chatAtStart = getContext()?.chatId;
     const castNow = currentImageCast();
-    const staleOutfits = cfg.outfitTags && cfg.style === "tags" ? castNow.filter(m => m.outfitStale && inImage(m, cfg.shot)) : [];
+    const staleOutfits = castNow.filter(m => m.outfitStale && inImage(m, cfg.shot));
     const missingLooks = cfg.autoLooks === false ? [] : takeLookAttempts(chatAtStart, castNow.filter(m => needsLook(m, cfg.shot)));
     warnLooklessInScene(chatAtStart, castNow, cfg.shot, missingLooks);
     const extras = renderV2Extras({

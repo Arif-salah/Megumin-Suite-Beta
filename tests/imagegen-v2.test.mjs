@@ -22,7 +22,7 @@ const R = (p, style = "tags") => resolveImagePrompt(p, { cast: CAST, style });
 test("@Name puts in the look then the outfit, word for word", () => {
     const r = R("1girl, @Aqua, sitting at the bar, warm lamplight");
     assert.equal(r.prompt, "1girl, long blue hair, blue eyes, slender, blue dress, detached sleeves, sitting at the bar, warm lamplight");
-    assert.deepEqual(r.filled, [{ name: "Aqua", part: "all" }]);
+    assert.deepEqual(r.filled, [{ name: "Aqua", part: "all", level: "full" }]);
 });
 
 test("the look's own count tags never reach the prompt; the model's stay at the front", () => {
@@ -156,11 +156,11 @@ test("cast list: player, in scene, mentioned; POV leaves the player out", () => 
         "  wearing: green cape",
         "@Matthew (also @Matt): male, in the scene",
         "  appearance: male, purple eyes",
-        "  body (only when the shot shows it): wide hips",
+        "  body: wide hips",
         "  wearing: cropped black tee",
         "@Sara: female, not in the scene",
         "  appearance: female, red hair",
-        "  body (only when the shot shows it): long legs",
+        "  body: long legs",
         "  wearing: not noted (describe what they wear)",
         "</Cast>"
     ].join("\n"));
@@ -210,7 +210,7 @@ test("the prompt examples resolve cleanly when those characters exist", () => {
     const mira = { name: "Mira", look: "1girl, red hair, green eyes", outfit: "white blouse" };
     const theo = { name: "Theo", look: "1boy, black hair", outfit: "grey coat" };
     const rules = renderV2Rules({ style: "tags" });
-    const example = rules.slice(rules.indexOf("1girl, 1boy, indoors")).split("\nShot:")[0];
+    const example = rules.slice(rules.indexOf("1girl, 1boy, indoors")).split("\n\nHow much")[0];
     assert.equal(resolveImagePrompt(example, { cast: [mira, theo] }).prompt, [
         "1girl, 1boy, indoors, tavern, night, medium shot,",
         "On the left is Mira, red hair, green eyes, wearing a white blouse. She sits at the bar, laughing, holding a mug.",
@@ -218,7 +218,7 @@ test("the prompt examples resolve cleanly when those characters exist", () => {
         "wooden bar, shelves of bottles, rainy window, warm lamplight"
     ].join("\n"));
     const nat = renderV2Rules({ style: "natural" });
-    const natExample = nat.slice(nat.indexOf("A medium shot inside")).split("\nShot:")[0];
+    const natExample = nat.slice(nat.indexOf("A medium shot inside")).split("\n\nHow much")[0];
     assert.match(resolveImagePrompt(natExample, { cast: [mira, theo], style: "natural" }).prompt,
         /\nOn the left is Mira, red hair, green eyes, wearing a white blouse\. She sits/);
 });
@@ -226,10 +226,10 @@ test("the prompt examples resolve cleanly when those characters exist", () => {
 test("line layout: each character's look in their own sentence, nothing deduplicated across them", () => {
     const anno = { name: "Anno", look: "female, young adult, black hair, blue eyes", body: "petite, thick thighs", outfit: "white cat-print bra, blue dolphin shorts" };
     const matt = { name: "Matt", look: "male, young adult, brown hair, blue eyes", outfit: "oversized pink sweater" };
-    const p = "1girl, 1boy, pov, indoors, bedroom, night, medium shot,\nIn the foreground on the right is @Anno. She looks at the viewer.\nIn the background on the left is @Matt. He blushes.\nneon monitor glow";
+    const p = "1girl, 1boy, pov, indoors, bedroom, night, upper body,\nIn the foreground on the right is @Anno. She looks at the viewer.\nIn the background on the left is @Matt. He blushes.\nneon monitor glow";
     const r = resolveImagePrompt(p, { cast: [anno, matt] });
     assert.equal(r.prompt, [
-        "1girl, 1boy, pov, indoors, bedroom, night, medium shot,",
+        "1girl, 1boy, pov, indoors, bedroom, night, upper body,",
         "In the foreground on the right is Anno, female, young adult, black hair, blue eyes, wearing a white cat-print bra, blue dolphin shorts. She looks at the viewer.",
         "In the background on the left is Matt, male, young adult, brown hair, blue eyes, wearing an oversized pink sweater. He blushes.",
         "neon monitor glow"

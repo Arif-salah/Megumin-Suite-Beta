@@ -17,9 +17,9 @@ import { card, busy, esc, confirmPopup } from "../../../ui/controls.js";
 const LOOK_FIELDS = {
     core: ["Whole body", "Sex, age, skin and build. In every image.", "female, young adult, fair skin, slim"],
     head: ["Head and face", "Hair, eyes and marks on the face. In every image.", "short brown hair, blue eyes, freckles"],
-    upper: ["Chest and arms", "Only in full-body shots.", "large breasts, toned arms"],
-    lower: ["Hips and legs", "Only in full-body shots.", "wide hips, long legs"],
-    feet: ["Feet", "Only in full-body shots. Most characters have nothing here.", ""]
+    upper: ["Chest and arms", "When the image shows them from the chest down.", "large breasts, toned arms"],
+    lower: ["Hips and legs", "When the image shows their hips and legs.", "wide hips, long legs"],
+    feet: ["Feet", "Only when their feet are in the image. Most characters have nothing here.", ""]
 };
 const OUTFIT_FIELDS = { head: "Head", upper: "Top", lower: "Bottom", feet: "Feet" };
 
@@ -130,7 +130,7 @@ async function openLookEditor(name, redraw) {
         const looks = getLooks();
         const k = findLookKey(looks, member.name, member.aliases || []);
         const stored = k ? looks[k] : null;
-        const detailed = cfg.outfitTags && cfg.style === "tags";
+        const detailed = true;   // plan 027: every style has outfit tags by part
         const qwen = cfg.style === "qwen";
         const outfitLocked = Boolean(stored && stored.outfitTags && stored.outfitTags.locked);
         // A look sorted by body part, or none yet, is edited part by part.
@@ -231,13 +231,13 @@ async function openLookEditor(name, redraw) {
         $root.find(".igx-ed-qwen").on("change", function () {
             const { look } = lookFor(member);
             const text = String($(this).val() || "").trim();
-            look.qwen = text ? { from: qwenFrom(member.look), text } : null;
+            look.qwen = text ? { from: qwenFrom(member.qwenLookSource || member.look), text } : null;
             saveProfileToMemory();
         });
         $root.find(".igx-ed-qwen-outfit").on("change", function () {
             const { look } = lookFor(member);
             const text = String($(this).val() || "").trim().replace(/^wearing\s+/i, "");
-            look.outfitQwen = text ? { from: qwenFrom(member.outfitText), text } : null;
+            look.outfitQwen = text ? { from: qwenFrom(member.qwenOutfitSource || member.outfitText), text } : null;
             saveProfileToMemory();
         });
         $root.find(".igx-ed-aliases").on("change", function () {

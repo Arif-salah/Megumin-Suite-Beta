@@ -355,7 +355,6 @@ export function storeNewLooks(targets, raw) {
 export function refreshOutfitTags() {
     if (outfitRefresh) return outfitRefresh;
     const cfg = v2Settings();
-    if (!cfg.outfitTags || cfg.style !== "tags") return Promise.resolve(0);
     const stale = currentImageCast().filter(m => m.outfitStale && inImage(m, cfg.shot));
     if (!stale.length) return Promise.resolve(0);
 
@@ -441,7 +440,7 @@ export function storeQwenLooks(members, raw) {
     for (const r of parseQwenLookBlocks(raw)) {
         const m = memberFor(members, r.name);
         if (!m) continue;
-        lookEntryFor(looks, m).qwen = { from: qwenFrom(m.look), text: r.qwen };
+        lookEntryFor(looks, m).qwen = { from: qwenFrom(m.qwenLookSource || m.look), text: r.qwen, parts: r.parts || null };
         n++;
     }
     if (n) saveProfileToMemory();
@@ -455,7 +454,7 @@ export function storeQwenOutfits(members, raw) {
     for (const r of parseQwenOutfitBlocks(raw)) {
         const m = memberFor(members, r.name);
         if (!m) continue;
-        lookEntryFor(looks, m).outfitQwen = { from: qwenFrom(m.outfitText), text: r.outfit };
+        lookEntryFor(looks, m).outfitQwen = { from: qwenFrom(m.qwenOutfitSource || m.outfitText), text: r.outfit, parts: r.parts || null };
         n++;
     }
     if (n) saveProfileToMemory();
@@ -477,12 +476,12 @@ export function refreshQwenDescriptions() {
     qwenRefresh = (async () => {
         let n = 0;
         if (looksDue.length) {
-            const raw = await ask(P.qwenLook.system, renderQwenLookPrompt(looksDue.map(m => ({ name: m.name, tags: m.look }))));
+            const raw = await ask(P.qwenLook.system, renderQwenLookPrompt(looksDue.map(m => ({ name: m.name, tags: m.qwenLookSource, regions: m.lookRegions }))));
             if (getContext()?.chatId !== chatAtStart) return n;
             n += storeQwenLooks(looksDue, raw);
         }
         if (outfitsDue.length) {
-            const raw = await ask(P.qwenOutfit.system, renderQwenOutfitPrompt(outfitsDue.map(m => ({ name: m.name, outfit: m.outfitText }))));
+            const raw = await ask(P.qwenOutfit.system, renderQwenOutfitPrompt(outfitsDue.map(m => ({ name: m.name, outfit: m.qwenOutfitSource, regions: m.outfitRegions }))));
             if (getContext()?.chatId !== chatAtStart) return n;
             n += storeQwenOutfits(outfitsDue, raw);
         }
