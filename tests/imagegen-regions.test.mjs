@@ -170,3 +170,21 @@ test("every @Name style is told about levels, and its example uses them; Edit th
     }
     assert.ok(!renderV2Rules({ style: "tags", method: "reference" }).includes(IMAGE_V2_BUILTIN.levels));
 });
+
+// ── Qwen looks and outfits in one call ───────────────────────────────────
+import { renderQwenDescriptionsPrompt, qwenDescriptionsSystem, renderQwenLookPrompt, parseQwenLookBlocks, parseQwenOutfitBlocks } from "../src/features/imagegen/v2/looksCore.js";
+
+test("Qwen: looks and outfits asked in one call, each answer read from it", () => {
+    const looks = [{ name: "Jenny", tags: "female", regions: { core: "female", head: "short hair" } }];
+    const outfits = [{ name: "Jenny", outfit: "grey t-shirt", regions: { upper: "grey t-shirt" } }];
+    const p = renderQwenDescriptionsPrompt(looks, outfits);
+    assert.ok(p.indexOf("## Looks") < p.indexOf("## Outfits"));
+    assert.equal(p.split(IMAGE_V2_BUILTIN.descriptionsInEnglish).length, 2, "the English line once");
+    assert.ok(p.includes("<Character_Qwen") && p.includes("<Outfit_Qwen"));
+    assert.equal(renderQwenDescriptionsPrompt(looks, []), renderQwenLookPrompt(looks), "one task alone: its own prompt");
+    assert.equal(qwenDescriptionsSystem(looks, outfits), `${IMAGE_V2_BUILTIN.qwenLook.system} ${IMAGE_V2_BUILTIN.qwenOutfit.system}`);
+    assert.equal(qwenDescriptionsSystem([], outfits), IMAGE_V2_BUILTIN.qwenOutfit.system);
+    const raw = `<Character_Qwen name="Jenny">\nCore: a young woman\nHead: short brown hair\n</Character_Qwen>\n<Outfit_Qwen name="Jenny">\nUpper: a loose grey t-shirt\n</Outfit_Qwen>`;
+    assert.equal(parseQwenLookBlocks(raw)[0].parts.head, "short brown hair");
+    assert.equal(parseQwenOutfitBlocks(raw)[0].parts.upper, "a loose grey t-shirt");
+});

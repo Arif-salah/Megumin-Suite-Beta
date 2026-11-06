@@ -194,15 +194,18 @@ const partLines = (name, text, regions, order) => regions
     ? [`${name}:`, ...order.map(r => `${r.charAt(0).toUpperCase()}${r.slice(1)}: ${regions[r] || ""}`.trimEnd())]
     : [`${name}: ${text}`];
 
+const ONLY_BLOCKS = "Output one block per character and nothing else:";
+const EACH_BLOCK = "One block per character, in this shape:";
+
 /** @param {Array<{ name: string, tags: string, regions?: object|null }>} looks */
-export function renderQwenLookPrompt(looks) {
+export function renderQwenLookPrompt(looks, { outLine = ONLY_BLOCKS } = {}) {
     return [
         IMAGE_V2_PROMPTS.qwenLook.task,
         IMAGE_V2_PROMPTS.descriptionsInEnglish,
         "",
         ...looks.flatMap(l => partLines(l.name, l.tags, l.regions || (l.tags ? { core: l.tags } : null), LOOK_REGIONS)),
         "",
-        "Output one block per character and nothing else:",
+        outLine,
         "<Character_Qwen name=\"Name\">",
         "Core: a …",
         "Head: …",
@@ -227,14 +230,14 @@ export function parseQwenLookBlocks(text) {
 }
 
 /** @param {Array<{ name: string, outfit: string, regions?: object|null }>} items */
-export function renderQwenOutfitPrompt(items) {
+export function renderQwenOutfitPrompt(items, { outLine = ONLY_BLOCKS, english = true } = {}) {
     return [
         IMAGE_V2_PROMPTS.qwenOutfit.task,
-        IMAGE_V2_PROMPTS.descriptionsInEnglish,
+        ...(english ? [IMAGE_V2_PROMPTS.descriptionsInEnglish] : []),
         "",
         ...items.flatMap(i => partLines(i.name, i.outfit, i.regions || null, OUTFIT_REGIONS)),
         "",
-        "Output one block per character and nothing else:",
+        outLine,
         "<Outfit_Qwen name=\"Name\">",
         "Head:",
         "Upper: a …, … and …",
@@ -243,6 +246,30 @@ export function renderQwenOutfitPrompt(items) {
         "</Outfit_Qwen>"
     ].join("\n");
 }
+
+/**
+ * Looks and outfits in ONE call: each task with its own list and shape, the
+ * looks first. With only one of them, that task's own prompt.
+ */
+export function renderQwenDescriptionsPrompt(looks = [], outfits = []) {
+    if (!outfits.length) return renderQwenLookPrompt(looks);
+    if (!looks.length) return renderQwenOutfitPrompt(outfits);
+    return [
+        "Two tasks: the looks, then the outfits. Output the look blocks, then the outfit blocks, and nothing else.",
+        "",
+        "## Looks",
+        renderQwenLookPrompt(looks, { outLine: EACH_BLOCK }),
+        "",
+        "## Outfits",
+        renderQwenOutfitPrompt(outfits, { outLine: EACH_BLOCK, english: false })
+    ].join("\n");
+}
+
+/** The opening for that call: one task's opening, or both. */
+export const qwenDescriptionsSystem = (looks = [], outfits = []) => [
+    looks.length ? IMAGE_V2_PROMPTS.qwenLook.system : "",
+    outfits.length ? IMAGE_V2_PROMPTS.qwenOutfit.system : ""
+].filter(Boolean).join(" ");
 
 const outfitPhrase = s => phrase(s).replace(/^wearing\s+/i, "").replace(/\.$/, "");
 

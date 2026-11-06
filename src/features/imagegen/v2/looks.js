@@ -21,12 +21,11 @@ import { regionsToParts, isSorted, holdToOriginal } from "./regions.js";
 import { inImage, needsLook } from "./cast.js";
 import { loreForNames, loreBlock } from "../../../core/lore.js";
 import { imageViaChomusuke } from "../auto.js";
-import { IMAGE_V2_PROMPTS } from "../../../prompts/imageGenV2.js";
 import {
     LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey, sheetNames, lookSourceFor,
     NATURAL_SYSTEM, renderNaturalPrompt, parseNaturalBlocks, matchScanToTargets,
     OUTFIT_SYSTEM, renderOutfitTagsPrompt, parseOutfitBlocks, outfitHash, qwenFrom, SORT_LOOKS_SYSTEM, renderSortLooksPrompt,
-    renderQwenLookPrompt, parseQwenLookBlocks, renderQwenOutfitPrompt, parseQwenOutfitBlocks
+    parseQwenLookBlocks, parseQwenOutfitBlocks, renderQwenDescriptionsPrompt, qwenDescriptionsSystem
 } from "./looksCore.js";
 
 const esc = v => String(v == null ? "" : v)
@@ -421,7 +420,7 @@ export function sortOldLooks(keys = null) {
 // Qwen reads long paragraphs, so a character's look and outfit go in as
 // detailed phrases. Made right before an image (never inside a Chomusuke job),
 // only for the people in the shot whose look or outfit changed since: one call
-// for the looks, one for the outfits, each kept until its source changes.
+// for the looks and outfits together, each kept until its source changes.
 
 let qwenRefresh = null;
 
@@ -472,20 +471,13 @@ export function refreshQwenDescriptions() {
     if (!looksDue.length && !outfitsDue.length) return Promise.resolve(0);
 
     const chatAtStart = getContext()?.chatId;
-    const P = IMAGE_V2_PROMPTS;
     qwenRefresh = (async () => {
-        let n = 0;
-        if (looksDue.length) {
-            const raw = await ask(P.qwenLook.system, renderQwenLookPrompt(looksDue.map(m => ({ name: m.name, tags: m.qwenLookSource, regions: m.lookRegions }))));
-            if (getContext()?.chatId !== chatAtStart) return n;
-            n += storeQwenLooks(looksDue, raw);
-        }
-        if (outfitsDue.length) {
-            const raw = await ask(P.qwenOutfit.system, renderQwenOutfitPrompt(outfitsDue.map(m => ({ name: m.name, outfit: m.qwenOutfitSource, regions: m.outfitRegions }))));
-            if (getContext()?.chatId !== chatAtStart) return n;
-            n += storeQwenOutfits(outfitsDue, raw);
-        }
-        return n;
+        // One call for both: the looks and the outfits that need a description.
+        const raw = await ask(qwenDescriptionsSystem(looksDue, outfitsDue), renderQwenDescriptionsPrompt(
+            looksDue.map(m => ({ name: m.name, tags: m.qwenLookSource, regions: m.lookRegions })),
+            outfitsDue.map(m => ({ name: m.name, outfit: m.qwenOutfitSource, regions: m.outfitRegions }))));
+        if (getContext()?.chatId !== chatAtStart) return 0;
+        return (looksDue.length ? storeQwenLooks(looksDue, raw) : 0) + (outfitsDue.length ? storeQwenOutfits(outfitsDue, raw) : 0);
     })().catch(e => { console.error("[Megumin-Suite] Qwen descriptions failed", e); return 0; })
         .finally(() => { qwenRefresh = null; });
     return qwenRefresh;
