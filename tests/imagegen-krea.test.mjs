@@ -97,3 +97,7 @@ test("Text in images can be edited in Dev Mode", () => {
     const keys = new Map(MEGUMIN_SLOT_REGISTRY.map(s => [s.key, s.label]));
     assert.equal(keys.get("imageV2.textInImages"), "Text in images (Qwen Image and Krea 2)");
 });
+
+test("Qwen's readable text is in English too", () => {
+    assert.match(IMAGE_V2_BUILTIN.style.qwen, /what it says, in double quotes, in English\./);
+});
