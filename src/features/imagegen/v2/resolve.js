@@ -126,6 +126,7 @@ function skipParens(text, at) {
  */
 export function resolveImagePrompt(prompt, { cast = [], style = "tags" } = {}) {
     if (style === "qwen") return resolveQwenPrompt(prompt, cast);
+    if (style === "krea") return resolveKreaPrompt(prompt, cast);
     const text = String(prompt || "");
     const index = nameIndex(cast);
     const defaultLevel = framingLevel(openingOf(text), text);
@@ -263,9 +264,8 @@ function qwenFull(m, frame) {
     return [desc, wearingPhrase(outfitAt(m, frame, m.outfitQwenParts || m.outfitRegions))].filter(Boolean).join(", ");
 }
 
-/** @returns {{ prompt: string, filled: Array<{name: string, part: string}>, unknown: string[], noLook: string[] }} */
-export function resolveQwenPrompt(prompt, cast = []) {
-    const text = String(prompt || "");
+// Every @Name in a paragraph: where it sits, who it is, its level and possessive.
+function findMentions(text, cast) {
     const index = nameIndex(cast);
     const lower = text.toLowerCase();
     const tokens = [];
@@ -294,6 +294,13 @@ export function resolveQwenPrompt(prompt, cast = []) {
         tokens.push({ at: i, end, member, word, possessive, level: lv.level, nude: lv.nude });
         i = end - 1;
     }
+    return tokens;
+}
+
+/** @returns {{ prompt: string, filled: Array<{name: string, part: string}>, unknown: string[], noLook: string[] }} */
+export function resolveQwenPrompt(prompt, cast = []) {
+    const text = String(prompt || "");
+    const tokens = findMentions(text, cast);
 
     // The opening sentence ends at the first full stop outside a @Name ("@Dr. Patel").
     let masked = text;
@@ -338,6 +345,68 @@ export function resolveQwenPrompt(prompt, cast = []) {
             rep = t.possessive ? `${qwenThe(short)}'s` : (full && full.at < t.at ? qwenThe(short) : short);
         }
         // A sentence that starts on the description starts with a capital.
+        if (/(^|[.!?]\s+)$/.test(out)) rep = rep.charAt(0).toUpperCase() + rep.slice(1);
+        out += rep;
+        i = t.end;
+    }
+    out += text.slice(i);
+    const result = out.replace(/\s+,/g, ",").replace(/,\s*,/g, ",").replace(/,\s*\./g, ".").replace(/[ \t]{2,}/g, " ").trim();
+    return { prompt: result, filled, unknown, noLook };
+}
+
+// ── Krea 2 (plan 027) ────────────────────────────────────────────────────
+// One short paragraph. The model writes each character as "On the left,
+// Mira, laughing, @Mira:waist, sitting…": the name and the expression come
+// before @Name (written after the look, Krea left the face blank). @Name
+// becomes "a young woman (look tags), wearing …" with no name, since the name
+// is already there. Only the first plain mention carries the look; later ones
+// and possessives become the name.
+
+/** "a young woman" from a character's sex and age tags. */
+export function personNoun(m, tags = "") {
+    const t = `, ${String(tags || "").toLowerCase()}, `;
+    const sex = m.sex || (/[, ](female|woman|girl)[, ]/.test(t) ? "female" : /[, ](male|man|boy)[, ]/.test(t) ? "male" : "");
+    const noun = sex === "female" ? "woman" : sex === "male" ? "man" : "person";
+    if (/, (old woman|old man|elderly)[, ]/.test(t)) return `an old ${noun}`;
+    if (/, (young adult|teenage|teen)[, ]/.test(t)) return `a young ${noun}`;
+    return `a ${noun}`;
+}
+
+function kreaFull(m, frame) {
+    const tags = lookAt(m, frame.level);
+    const who = tags ? `${personNoun(m, tags)} (${tags})` : personNoun(m);
+    return [who, wearingPhrase(outfitAt(m, frame))].filter(Boolean).join(", ");
+}
+
+/** @returns {{ prompt: string, filled: Array<{name: string, part: string}>, unknown: string[], noLook: string[] }} */
+export function resolveKreaPrompt(prompt, cast = []) {
+    const text = String(prompt || "");
+    const tokens = findMentions(text, cast);
+    const defaultLevel = framingLevel(openingOf(text), text);
+    const fullAt = new Map();
+    for (const t of tokens) if (t.member && !t.possessive && !fullAt.has(t.member)) fullAt.set(t.member, t);
+
+    const filled = [];
+    const unknown = [];
+    const noLook = [];
+    let out = "";
+    let i = 0;
+    for (const t of tokens) {
+        out += text.slice(i, t.at);
+        let rep;
+        if (!t.member) {
+            unknown.push(t.word);
+            rep = t.word + t.possessive;
+        } else if (fullAt.get(t.member) === t) {
+            const m = t.member;
+            if (!lookAt(m, "full") && !noLook.includes(m.name)) noLook.push(m.name);
+            const own = tokens.find(x => x.member === m && x.level);
+            const frame = { level: (t.level || (own && own.level)) || defaultLevel, nude: tokens.some(x => x.member === m && x.nude) };
+            rep = kreaFull(m, frame);
+            filled.push({ name: m.name, part: "all", level: frame.level, ...(frame.nude ? { nude: true } : {}) });
+        } else {
+            rep = t.member.name + t.possessive;
+        }
         if (/(^|[.!?]\s+)$/.test(out)) rep = rep.charAt(0).toUpperCase() + rep.slice(1);
         out += rep;
         i = t.end;

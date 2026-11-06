@@ -44,7 +44,7 @@ import { igGenerateWithComfy } from "./comfy.js";
 import { imageViaChomusuke, dueNow, NOT_A_REPLY, insertPlaceholder, removePlaceholder, unwrapImgTag } from "./auto.js";
 import { classicImageParts, classicImageRulesBlock } from "./classic/prompt.js";
 import { v2Settings, currentImageCast, cleanModelPrompt, getLastImagePrompt } from "./v2/index.js";
-import { renderCastList, renderV2Rules, renderCombinedPrompt, splitCombinedAnswer } from "./v2/prompt.js";
+import { renderCastList, renderV2Rules, renderCombinedPrompt, splitCombinedAnswer, wantsLookDetail } from "./v2/prompt.js";
 import { qwenArtStyleText } from "../../prompts/imageGenV2.js";
 import { storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSourceFor } from "./v2/looks.js";
 import { inImage, needsLook } from "./v2/cast.js";
@@ -173,7 +173,8 @@ export async function runCombinedTurn(messageId, type, plan) {
                     extras: {
                         outfits: staleBefore.map(m => ({ name: m.name, outfit: m.outfitText })),
                         looks: missingLooks.map(m => m.name),
-                        followUpdate: detailed
+                        followUpdate: detailed,
+                        detail: wantsLookDetail(cfg.style)
                     }
                 });
             } else {

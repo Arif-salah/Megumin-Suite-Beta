@@ -48,7 +48,7 @@ export const LOOK_SCAN_SYSTEM =
  *   sheets — the card's character and persona sheets, read before the story;
  *            a character who has one looks the way it says
  */
-export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [], lore = "", sheets = "" }) {
+export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [], lore = "", sheets = "", detail = false }) {
     const who = names.length
         ? `these characters: ${names.join(", ")}. Skip anyone the text does not describe.`
         : "every character the text describes.";
@@ -63,6 +63,7 @@ export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [
         "Write 8 to 12 booru tags per character, only the ones you would recognise them by, sorted by where they show on the body:",
         ...LOOK_REGION_GUIDE,
         LOOK_ALWAYS,
+        ...(detail ? [`- ${IMAGE_V2_PROMPTS.lookDetail}`] : []),
         "- Each tag goes on one line only, the line where it shows most. Leave a line empty when nothing belongs on it.",
         "- A man who looks feminine: add \"otoko no ko, flat chest\". A woman who looks masculine: add \"tomboy\". Without them the image model draws the wrong sex.",
         "- Age is one of these tags, never a number or a decade: young adult, adult, mature female, mature male, old woman, old man. \"late 20s\" is \"young adult\"; \"30s\" is \"adult\".",

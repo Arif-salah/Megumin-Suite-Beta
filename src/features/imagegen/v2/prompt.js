@@ -18,7 +18,10 @@ import { editable } from "../../../prompts/edits.js";
 const SECTION_TAGS = ["Outfit_Tags", "Character_Visual", "World_Update", "World_State", "Bonds", "Character_Sheet", "NPC_Inner_Chatter", "CYOA", "Notebook_Update", "Notebook"];
 const ANY_SECTION = SECTION_TAGS.join("|");
 
-export const V2_STYLES = ["tags", "natural", "qwen"];
+export const V2_STYLES = ["tags", "natural", "qwen", "krea"];
+
+/** Qwen Image and Krea 2 draw the body in nude shots: their looks ask for more of it. */
+export const wantsLookDetail = style => style === "qwen" || style === "krea";
 export const V2_SHOTS = ["cinematic", "pov", "portrait"];
 export const V2_METHODS = ["placeholders", "reference"];
 
@@ -86,8 +89,8 @@ function focusRule(guide, focus) {
             "Every named character in the moment gets their own place in the frame; mention unnamed people briefly as people in the background.");
 }
 
-/** Qwen Image has no "Edit last prompt": its prompt is always written fresh. */
-export const v2Method = (style, method) => (style === "qwen" ? "placeholders" : method || "placeholders");
+/** Qwen Image and Krea 2 have no "Edit last prompt": their prompt is always written fresh. */
+export const v2Method = (style, method) => (style === "qwen" || style === "krea" ? "placeholders" : method || "placeholders");
 
 /** The style guide (structure + example + rules), the shot line, extra instructions. */
 export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", method = "placeholders", focus = "3", artStyle = "" } = {}) {
@@ -100,6 +103,12 @@ export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", 
             P.shotQwen[shot] || P.shotQwen.cinematic,
             P.inEnglish
         ];
+        if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
+        return parts.join("\n\n");
+    }
+    // Plan 027: Krea 2 has its own guide and shot lines, and no art style.
+    if (style === "krea") {
+        const parts = [focusRule(P.style.krea, String(focus)), P.levels, P.shotKrea[shot] || P.shotKrea.cinematic, P.inEnglish];
         if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
         return parts.join("\n\n");
     }
@@ -183,7 +192,7 @@ export const COMBINED_IMAGE_TASK = "The image shows the moment the latest exchan
  * @param {{ outfits?: Array<{ name: string, outfit: string }>, looks?: string[], followUpdate?: boolean }} needs
  *   followUpdate: in a combined call, also give tags for every outfit the World_Update changes
  */
-export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = false } = {}) {
+export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = false, detail = false } = {}) {
     const parts = [];
     if (outfits.length || followUpdate) {
         const who = followUpdate
@@ -194,7 +203,8 @@ export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = fa
     }
     if (outfits.length || followUpdate || looks.length) parts.push(`- ${P.tagsInEnglish}`);
     if (looks.length) {
-        parts.push(editable("imageV2LooksTask", V2_LOOKS_TASK.replace("{{names}}", looks.join(", ")), { names: looks.join(", ") }));
+        const task = editable("imageV2LooksTask", V2_LOOKS_TASK.replace("{{names}}", looks.join(", ")), { names: looks.join(", ") });
+        parts.push(detail ? `${task} ${P.lookDetail}` : task);
     }
     return parts.join("\n");
 }
@@ -210,14 +220,14 @@ export function renderV2ExtraShape({ outfits = [], looks = [], followUpdate = fa
 /**
  * The extras for a normal (image-only) call: tasks and answer shape.
  * The sheets the looks need go BEFORE the story (renderV2ManualPrompt), not here.
- * @param {{ outfits?: Array<{ name: string, outfit: string }>, looks?: string[] }} needs
+ * @param {{ outfits?: Array<{ name: string, outfit: string }>, looks?: string[], detail?: boolean }} needs
  * @returns {string} "" when nothing extra is needed
  */
-export function renderV2Extras({ outfits = [], looks = [] } = {}) {
+export function renderV2Extras({ outfits = [], looks = [], detail = false } = {}) {
     if (!outfits.length && !looks.length) return "";
     return [
         "## In the same answer",
-        renderV2ExtraTasks({ outfits, looks }),
+        renderV2ExtraTasks({ outfits, looks, detail }),
         "",
         "Answer in this shape and nothing else:",
         "<Image_Prompt>the image prompt</Image_Prompt>",

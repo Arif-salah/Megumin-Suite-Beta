@@ -15,6 +15,7 @@ import { runWithChomusuke } from "../../../engine/tasks.js";
 import { meguminCleanChatHistoryText } from "../../../engine/chatText.js";
 import { worldEnabled, worldHasState, getWorldState } from "../../../state/index.js";
 import { buildCharacterSheets } from "../classic/prompt.js";
+import { wantsLookDetail } from "./prompt.js";
 import { getLooks, currentImageCast, v2Settings } from "./index.js";
 import { splitLookTags } from "./lookParts.js";
 import { regionsToParts, isSorted, holdToOriginal } from "./regions.js";
@@ -139,7 +140,8 @@ export async function scanLooks({ from, targets = [], interactive = true }) {
         return null;
     }
     const chatAtStart = getContext()?.chatId;
-    const user = renderLookScanPrompt({ source, sourceLabel: from === "sheet" ? "Character_Sheets" : "Recent_Story", names, lore, sheets });
+    const user = renderLookScanPrompt({ source, sourceLabel: from === "sheet" ? "Character_Sheets" : "Recent_Story", names, lore, sheets,
+        detail: wantsLookDetail(v2Settings().style) });
     const raw = await ask(LOOK_SCAN_SYSTEM, user);
     if (getContext()?.chatId !== chatAtStart) return null; // the user moved on: this belongs to another chat
     // No answer at all (cancelled, refused, failed): the automatic look asks again later.

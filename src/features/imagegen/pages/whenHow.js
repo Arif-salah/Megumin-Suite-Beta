@@ -36,7 +36,8 @@ const SHOTS = [
 const STYLES = [
     { id: "tags", label: "Tags", desc: "Illustrious, Pony, SDXL anime models." },
     { id: "natural", label: "Plain sentences", desc: "Flux, Z Image." },
-    { id: "qwen", label: "Qwen Image", desc: "Qwen Image 2.1: one long, detailed paragraph." }
+    { id: "qwen", label: "Qwen Image", desc: "Qwen Image 2.1: one long, detailed paragraph." },
+    { id: "krea", label: "Krea 2", desc: "Krea 2: a short paragraph, each face's expression first." }
 ];
 const METHOD_DESC = {
     placeholders: "The model writes @Name, and each saved look and outfit goes in word for word.",
@@ -100,6 +101,7 @@ export function renderWhenHow(c, { engine, redraw }) {
             redraw();
         })));
         if (cfg.style === "qwen") renderQwenStyle(look, cfg, setCfg, s);
+        if (cfg.style === "krea") look.append(`<div class="igx-note"><i class="fa-solid fa-palette"></i> The prompt names no art style: Krea draws it from your LoRA and the Positive Prefix. Put the style you want there.</div>`);
         const $extra = $(`<input type="text" id="ig2_extra" class="ps-modern-input" value="${esc(cfg.extra)}" placeholder="soft film grain, moody lighting…" />`);
         $extra.on("input", e => { setCfg({ extra: String($(e.target).val() || "") }); saveProfileDebounced(); });
         look.append(field("Extra instructions", "Added to every image", $extra));
@@ -165,8 +167,8 @@ function renderV2Advanced(box, redraw) {
         segmented([{ id: "2", label: "2" }, { id: "3", label: "3" }, { id: "4", label: "4" }, { id: "all", label: "All" }],
             String(cfg.focus || "3"), id => setCfg({ focus: id }))));
 
-    // Qwen Image always writes its prompt fresh, with the saved looks filled in.
-    if (cfg.style !== "qwen") {
+    // Qwen Image and Krea 2 always write their prompt fresh, with the saved looks filled in.
+    if (cfg.style !== "qwen" && cfg.style !== "krea") {
         const $methodDesc = $(`<div class="igx-note">${METHOD_DESC[cfg.method === "reference" ? "reference" : "placeholders"]}</div>`);
         box.append(field("How the prompt is written", "",
             segmented([{ id: "placeholders", label: "Fill in saved looks" }, { id: "reference", label: "Edit the last prompt (experimental)" }],

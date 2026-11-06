@@ -95,12 +95,40 @@ export const IMAGE_V2_BUILTIN = {
             "",
             "Example (made-up characters; use the names from <Cast>):",
             "The image is a medium-shot anime illustration of a man and a woman sharing a laugh at a crowded tavern bar at night, the room glowing in warm amber and deep brown tones. Behind them, the back wall is lined with dark wooden shelves holding rows of green and amber glass bottles, a few of them dusty and half-empty. Across the top of the frame, heavy oak beams cross the ceiling, with a wrought-iron lantern hanging from the one on the left. On the left side of the frame sits @Mira:waist. She sits sideways on a tall stool with one elbow on the bar, laughing with her head tipped back and her eyes half closed, both hands wrapped around a dented pewter mug. In the centre of the bar top, a wooden board holds a heel of crusty bread and a small wedge of pale yellow cheese beside a chipped clay bowl. On the right side of the frame stands @Theo:waist. He leans forward on the counter on both forearms, smiling at her with one eyebrow raised, a folded cloth tucked over his shoulder. In the background between them, a few blurred patrons sit at round tables, their faces softened by a haze of pipe smoke. On the far right, a rain-streaked window shows a dark street and the smeared glow of a lamppost outside. Along the lower edge of the frame, the bar's scarred surface catches the light in a long glossy streak, with two damp rings left by earlier mugs. A small chalkboard propped against the bottles reads \"ALE 2 COPPER\" in uneven white letters. The lighting is warm and low, coming mostly from the lantern above and to the left, casting soft shadows to the right across the bar and leaving the corners of the room in deep brown shade. The overall composition is balanced between the two figures, framed by the shelves behind them, with a warm, cosy palette and a lively, friendly mood."
+        ].join("\n"),
+        // Plan 027: Krea 2, from the hand tests. A short paragraph; each
+        // character's expression goes BEFORE @Name (after the look, Krea left
+        // the face blank). No art style: it comes from the LoRA and the prefix.
+        krea: [
+            "## How to write the image prompt",
+            "Write one paragraph in English, under 200 words of your own, in this order:",
+            "",
+            "1. **The shot**, one sentence: the framing (close-up, upper body, medium shot, cowboy shot, full body, wide shot), the angle, where the camera is, and who is there in plain words (a young woman, two men). \"Medium shot at eye level from a tavern doorway, looking at a young woman and a young man at the bar.\"",
+            "2. **The light**, a few words: \"Warm lamplight from above the bar.\"",
+            "3. **Each character**, the one the moment is about first: where they are in the frame, their name, their expression in a few strong words, then @Name, then what they are doing. \"On the left, Mira, laughing, eyes squeezed shut and cheeks flushed, @Mira:waist, sitting sideways on a stool with both hands around a mug.\"",
+            "4. **The place**, one or two sentences: what frames them and what stands behind them.",
+            "",
+            "Rules:",
+            "- <Cast> is reference only. @Name carries their look and clothing, so write no hair, eyes, body or clothing for them. The one exception: when <Cast> says \"wearing: not noted\", describe what they wear right after their @Name.",
+            "- The expression comes before @Name, every time. Written after it, the image model leaves the face blank.",
+            "- Write each @Name once. In the actions, call the others by name: \"smiling at Mira\".",
+            "- Three characters at most; mention anyone else briefly as people in the background.",
+            "- Draw the moment. Show feelings as what the face and body do: \"red-faced, eyes wide, mouth open mid-stammer\".",
+            "- No art style, no quality words, no ratio.",
+            "- Output the paragraph only, on one line.",
+            "",
+            "Example (made-up characters; use the names from <Cast>):",
+            "Medium shot at eye level from a tavern doorway, looking at a young woman and a young man at the bar. Warm lamplight from above the bar. On the left, Mira, laughing, eyes squeezed shut and cheeks flushed, @Mira:waist, sitting sideways on a stool with both hands around a dented mug. On the right, Theo, amused, one eyebrow raised and a crooked grin, @Theo:waist, leaning on the counter on both forearms and smiling at Mira. Dark wooden shelves of green and amber bottles line the wall behind them, and rain runs down a window on the far right."
         ].join("\n")
     },
 
     // Plan 027: how much of each character the frame shows, after @Name.
     // Sent right after the guide, for every style that writes @Name.
     levels: "How much of each character the frame shows goes right after their @Name: @Mira:face for a close-up of the face, @Mira:upper for the chest up, @Mira:waist for the thighs up, @Mira:full when their feet are in the frame. Add :nude when they wear nothing at that moment: @Mira:full:nude.",
+
+    // Plan 027: looks for Qwen and Krea, which draw the body in nude shots,
+    // where a look with one tag per part drifted.
+    lookDetail: "Give Upper and Lower 3 to 5 tags each, with the details that show when they are uncovered: breast size and shape, nipple colour, navel, body hair, tan lines, birthmarks and where each sits.",
 
     // Plan 026: the art style picked on the V2 tab, sent after the Qwen guide.
     // {{artStyle}} = the style's description (QWEN_ART_STYLES) or your own text.
@@ -112,6 +140,13 @@ export const IMAGE_V2_BUILTIN = {
         cinematic: "Shot: a film still of the moment. Pick a wide, medium or close shot to suit it, and say which in the opening sentence.",
         pov: "Shot: seen through {{user}}'s eyes. {{user}} is the viewer: write \"the viewer\" for them (looking at the viewer, reaching toward the viewer), never their name. The viewer is behind the camera, so describe only what is in front of them. Never describe the viewer's own face, head, hair, glasses, bandages or injuries: the image model would draw them on someone in the frame. A character who touches the viewer's face is shown reaching toward the viewer. The viewer's hands or knees may show at the lower edge only when they touch something. The opening sentence says the image is seen from the viewer's point of view.",
         portrait: "Shot: one character, a close-up from the chest up, walked as a single subject: the background and how it falls out of focus, their pose, their face and expression, and the clothing at the edge of the frame."
+    },
+
+    // The shot lines for Krea 2: the framing opens the paragraph.
+    shotKrea: {
+        cinematic: "Shot: a film still of the moment. Pick a wide, medium or close shot to suit it, and open the paragraph with it.",
+        pov: "Shot: seen through {{user}}'s eyes. Start the prompt with \"Point-of-view\". {{user}} is the viewer: write \"the viewer\" for them, never their name. Describe only what is in front of the viewer, and never their own face, hair, glasses, bandages or injuries: the image model would put those on someone in the frame. The viewer's hands may show at the lower edge only when they touch something.",
+        portrait: "Shot: one character from the chest up (@Name:upper), their face and expression first, with a simple background from the place."
     },
 
     // Qwen's looks: the saved tags turned into a detailed phrase per body part

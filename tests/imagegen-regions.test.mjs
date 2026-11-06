@@ -163,7 +163,7 @@ test("Qwen: the parts of the description the level shows, the outfit by part", (
 });
 
 test("every @Name style is told about levels, and its example uses them; Edit the last prompt is not", () => {
-    for (const style of ["tags", "natural", "qwen"]) {
+    for (const style of ["tags", "natural", "qwen", "krea"]) {
         const r = renderV2Rules({ style });
         assert.ok(r.includes(IMAGE_V2_BUILTIN.levels), style);
         assert.match(r, /@Mira:waist/, style);

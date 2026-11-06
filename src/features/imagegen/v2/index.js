@@ -15,7 +15,7 @@ import { bgPreviewOpen } from "../../../engine/bgPrompts.js";
 import { waitUnlessStuck } from "./waitFor.js";
 import { buildImageCast, inImage, needsLook } from "./cast.js";
 import { resolveImagePrompt } from "./resolve.js";
-import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2InlineSplit, renderV2Extras, splitCombinedAnswer, v2Method } from "./prompt.js";
+import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2InlineSplit, renderV2Extras, splitCombinedAnswer, v2Method, wantsLookDetail } from "./prompt.js";
 import { qwenArtStyleText } from "../../../prompts/imageGenV2.js";
 import { sortOldLooks, refreshQwenDescriptions, refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSourceFor, looksSettled, looksBeingRead } from "./looks.js";
 
@@ -127,7 +127,8 @@ export async function v2GenerateImagePromptText({ extraInstruction = "" } = {}) 
     warnLooklessInScene(chatAtStart, castNow, cfg.shot, missingLooks);
     const extras = renderV2Extras({
         outfits: staleOutfits.map(m => ({ name: m.name, outfit: m.outfitText })),
-        looks: missingLooks.map(m => m.name)
+        looks: missingLooks.map(m => m.name),
+        detail: wantsLookDetail(cfg.style)
     });
     // The image shows the moment the last message ends on; the ones before
     // it are context only, so the model does not draw what already ended.
