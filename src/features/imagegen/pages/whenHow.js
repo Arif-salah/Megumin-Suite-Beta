@@ -37,7 +37,7 @@ const STYLES = [
     { id: "tags", label: "Tags", desc: "Illustrious, Pony, SDXL anime models." },
     { id: "natural", label: "Plain sentences", desc: "Flux, Z Image." },
     { id: "qwen", label: "Qwen Image", desc: "Qwen Image 2.1: one long, detailed paragraph." },
-    { id: "krea", label: "Krea 2", desc: "Krea 2: a short paragraph, each face's expression first." }
+    { id: "krea", label: "Krea 2 / Moss", desc: "Krea 2 and Moss Image: a short paragraph, each face's expression first." }
 ];
 const METHOD_DESC = {
     placeholders: "The model writes @Name, and each saved look and outfit goes in word for word.",
@@ -107,7 +107,7 @@ export function renderWhenHow(c, { engine, redraw }) {
             on: cfg.textInImages === true,
             onChange: on => { setCfg({ textInImages: on }); saveProfileToMemory(); }
         }));
-        if (cfg.style === "krea") look.append(`<div class="igx-note"><i class="fa-solid fa-palette"></i> The prompt names no art style: Krea draws it from your LoRA and the Positive Prefix. Put the style you want there.</div>`);
+        if (cfg.style === "krea") look.append(`<div class="igx-note"><i class="fa-solid fa-palette"></i> The prompt names no art style: Krea and Moss draw it from your LoRA and the Positive Prefix. Put the style you want there. With Moss Image, a style LoRA is recommended: it keeps the look the same from one image to the next.</div>`);
         const $extra = $(`<input type="text" id="ig2_extra" class="ps-modern-input" value="${esc(cfg.extra)}" placeholder="soft film grain, moody lighting…" />`);
         $extra.on("input", e => { setCfg({ extra: String($(e.target).val() || "") }); saveProfileDebounced(); });
         look.append(field("Extra instructions", "Added to every image", $extra));
