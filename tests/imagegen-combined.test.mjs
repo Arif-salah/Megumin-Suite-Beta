@@ -37,7 +37,7 @@ test("V2: reference material first, sheets before the story, the tasks together 
     assert.match(user, /Outfit tags for every character whose Outfit your World_Update changes, and for these outfits/);
     assert.match(user, /Kazuma: grey hoodie/);
     assert.match(user, /Appearance of Wiz/);
-    assert.match(user, /<World_Update>\n\[change lines, or: No changes\]\n<\/World_Update>\n<Image_Prompt>the image prompt<\/Image_Prompt>\n<Outfit_Tags name="Name">[^\n]*\n<Character_Visual name="Name">/);
+    assert.match(user, /<World_Update>\n\[change lines, or: No changes\]\n<\/World_Update>\n<Image_Prompt>the image prompt<\/Image_Prompt>\n<Outfit_Tags name="Name">\nHead:\nUpper: [^<]*<\/Outfit_Tags>\n<Character_Visual name="Name">\nCore: /);
     assert.equal(prefill, "<World_Update>\n");
     // Sheets in the call: their facts are allowed too.
     assert.equal(system, COMBINED_SYSTEM.replace("facts the exchange does not state or clearly show", "facts that neither the exchange nor the character sheets give you"));

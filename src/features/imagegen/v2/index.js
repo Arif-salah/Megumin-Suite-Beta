@@ -17,7 +17,7 @@ import { buildImageCast, inImage, needsLook } from "./cast.js";
 import { resolveImagePrompt } from "./resolve.js";
 import { renderCastList, renderV2Rules, renderV2ManualPrompt, renderV2InlineInstruction, renderV2InlineSplit, renderV2Extras, splitCombinedAnswer, v2Method } from "./prompt.js";
 import { qwenArtStyleText } from "../../../prompts/imageGenV2.js";
-import { refreshQwenDescriptions, refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSourceFor, looksSettled, looksBeingRead } from "./looks.js";
+import { sortOldLooks, refreshQwenDescriptions, refreshOutfitTags, storeOutfitTags, storeNewLooks, takeLookAttempts, releaseLookAttempts, warnLooklessInScene, warnLooksNotMade, sheetSourceFor, looksSettled, looksBeingRead } from "./looks.js";
 
 export const V2_DEFAULTS = {
     style: "tags", shot: "cinematic", extra: "", method: "placeholders",
@@ -254,6 +254,7 @@ export async function v2ResolveForComfy(prompt) {
     // a World State read or a look still running, then bring any changed
     // outfit tags up to date. Each is a no-op when nothing is pending.
     await waitForImageInputs();
+    await sortOldLooks();
     await refreshOutfitTags();
     await refreshQwenDescriptions();
     const r = resolveImagePrompt(prompt, { cast: currentImageCast(), style: v2Settings().style });

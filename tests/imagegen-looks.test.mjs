@@ -14,7 +14,8 @@ test("scan prompt: source, who, rules, output shape; never off-frame", () => {
     assert.match(all, /^<Character_Sheet>\nAqua is a goddess\.\n<\/Character_Sheet>/);
     assert.match(all, /every character the text describes/);
     assert.match(all, /Never include: clothing/);
-    assert.match(all, /<Character_Visual name="Name">tag, tag, tag<\/Character_Visual>$/);
+    assert.match(all, /<Character_Visual name="Name">\nCore: tag, tag\nHead: tag, tag\nUpper: tag\nLower: tag\nFeet:\n<\/Character_Visual>$/);
+    assert.match(all, /sorted by where they show on the body/);
     const some = renderLookScanPrompt({ source: "x", names: ["Aqua", "Wiz"] });
     assert.match(some, /these characters: Aqua, Wiz\. Skip anyone the text does not describe\./);
     for (const t of [all, some, LOOK_SCAN_SYSTEM, NATURAL_SYSTEM, renderNaturalPrompt([{ name: "A", tags: "red hair" }])]) {
@@ -109,7 +110,8 @@ test("outfit tags are fresh only for the outfit they were made from (or when loc
 test("outfit prompt and parsing", () => {
     const p = renderOutfitTagsPrompt([{ name: "Matthew", outfit: "cropped black tee, pleated skirt" }]);
     assert.match(p, /Matthew: cropped black tee, pleated skirt/);
-    assert.match(p, /<Outfit_Tags name="Name">tag, tag, tag<\/Outfit_Tags>$/);
+    assert.match(p, /<Outfit_Tags name="Name">\nHead:\nUpper: tag, tag\nLower: tag\nFeet: tag\n<\/Outfit_Tags>$/);
+    assert.match(p, /goes on the highest one/);
     assert.doesNotMatch(p + OUTFIT_SYSTEM, /\b(extension|plugin|app|ledger|interface)\b/i);
     assert.deepEqual(parseOutfitBlocks('<Outfit_Tags name="Matthew \\"Matt\\"">black crop top, black pleated skirt, black crop top, 1boy</Outfit_Tags>'),
         [{ name: "Matthew", tags: "black crop top, black pleated skirt" }]);

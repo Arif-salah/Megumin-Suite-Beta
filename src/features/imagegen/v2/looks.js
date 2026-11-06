@@ -17,6 +17,7 @@ import { worldEnabled, worldHasState, getWorldState } from "../../../state/index
 import { buildCharacterSheets } from "../classic/prompt.js";
 import { getLooks, currentImageCast, v2Settings } from "./index.js";
 import { splitLookTags } from "./lookParts.js";
+import { regionsToParts, isSorted, holdToOriginal } from "./regions.js";
 import { inImage, needsLook } from "./cast.js";
 import { loreForNames, loreBlock } from "../../../core/lore.js";
 import { imageViaChomusuke } from "../auto.js";
@@ -24,7 +25,7 @@ import { IMAGE_V2_PROMPTS } from "../../../prompts/imageGenV2.js";
 import {
     LOOK_SCAN_SYSTEM, renderLookScanPrompt, parseLookBlocks, planLookUpdates, findLookKey, sheetNames, lookSourceFor,
     NATURAL_SYSTEM, renderNaturalPrompt, parseNaturalBlocks, matchScanToTargets,
-    OUTFIT_SYSTEM, renderOutfitTagsPrompt, parseOutfitBlocks, outfitHash, qwenFrom,
+    OUTFIT_SYSTEM, renderOutfitTagsPrompt, parseOutfitBlocks, outfitHash, qwenFrom, SORT_LOOKS_SYSTEM, renderSortLooksPrompt,
     renderQwenLookPrompt, parseQwenLookBlocks, renderQwenOutfitPrompt, parseQwenOutfitBlocks
 } from "./looksCore.js";
 
@@ -74,12 +75,14 @@ function writeLook(looks, item, source) {
     for (const a of item.aliases || []) {
         if (a && a.toLowerCase() !== k.toLowerCase() && !aliases.some(x => x.toLowerCase() === a.toLowerCase())) aliases.push(a);
     }
-    // Saved in two parts: what shows in any shot, and the body (full-body shots only).
-    const parts = splitLookTags(item.tags);
+    // Saved by where each part shows on the body (plan 027), plus the old two
+    // parts: what shows in any shot, and the body. An answer with no lines is
+    // split the old way and sorted later (sortOldLooks).
+    const parts = item.regions ? regionsToParts(item.regions) : splitLookTags(item.tags);
     // New tags make an old natural description stale; it is remade on request.
     const changed = (cur.tags || "") !== parts.always || (cur.body || "") !== parts.body;
     const natural = cur.tags && changed ? "" : (cur.natural || "");
-    looks[k] = { ...cur, tags: parts.always, body: parts.body, natural, aliases, locked: Boolean(cur.locked), source, updatedAt: Date.now() };
+    looks[k] = { ...cur, tags: parts.always, body: parts.body, regions: item.regions || null, natural, aliases, locked: Boolean(cur.locked), source, updatedAt: Date.now() };
 }
 
 // ── The review popup (established looks) ────────────────────────────────
@@ -159,6 +162,14 @@ export async function scanLooks({ from, targets = [], interactive = true }) {
     for (const item of [...plan.same, ...plan.locked, ...plan.change]) {
         const cur = looks[item.key];
         if (!cur) continue;
+        // The same tags, now sorted by body part: keep the sorting.
+        if (plan.same.includes(item) && item.regions && !isSorted(cur)) {
+            const regions = holdToOriginal(item.regions, [cur.tags, cur.body].filter(Boolean).join(", "));
+            if (regions) {
+                const parts = regionsToParts(regions);
+                Object.assign(cur, { regions, tags: parts.always, body: parts.body });
+            }
+        }
         cur.aliases = cur.aliases || [];
         for (const a of item.aliases) if (!cur.aliases.some(x => x.toLowerCase() === a.toLowerCase()) && a.toLowerCase() !== item.key.toLowerCase()) cur.aliases.push(a);
     }
@@ -320,7 +331,7 @@ export function storeOutfitTags(stale, raw) {
         if (!m) continue;
         const k = m.lookKey || findLookKey(looks, m.name, m.aliases || []) || m.name;
         if (!looks[k]) looks[k] = { tags: "", body: "", natural: "", aliases: [], locked: false, source: "manual" };
-        looks[k].outfitTags = { from: outfitHash(m.outfitText), tags: r.tags, locked: false };
+        looks[k].outfitTags = { from: outfitHash(m.outfitText), tags: r.tags, regions: r.regions || null, locked: false };
         n++;
     }
     if (n) saveProfileToMemory();
@@ -356,6 +367,55 @@ export function refreshOutfitTags() {
     })().catch(e => { console.error("[Megumin-Suite] Outfit tags failed", e); return 0; })
         .finally(() => { outfitRefresh = null; });
     return outfitRefresh;
+}
+
+// ── Looks saved before plan 027: sorted by body part once ────────────────
+// One call for every look still saved as one tag list, right before an image
+// (never inside a Chomusuke job). The answer may only move the look's own
+// tags around: a made-up tag is dropped, a forgotten one goes in Core. A look
+// the model skipped is not asked again until the page reloads.
+
+let sortRefresh = null;
+const sortTried = new Set();
+const SORT_CAP = 20;
+
+const wholeLook = v => [v.tags, v.body].map(t => String(t || "").trim()).filter(Boolean).join(", ");
+
+/**
+ * Sorts the old looks (all of them, or only these keys) by body part.
+ * @param {string[]|null} keys  only these looks, asked even if tried before
+ * @returns {Promise<number>} looks sorted
+ */
+export function sortOldLooks(keys = null) {
+    if (sortRefresh) return sortRefresh;
+    const looks = getLooks();
+    const due = Object.entries(looks)
+        .filter(([k, v]) => v && !isSorted(v) && wholeLook(v) && (keys ? keys.includes(k) : !sortTried.has(k)))
+        .slice(0, SORT_CAP)
+        .map(([k, v]) => ({ name: k, tags: wholeLook(v) }));
+    if (!due.length) return Promise.resolve(0);
+    due.forEach(d => sortTried.add(d.name));
+
+    const chatAtStart = getContext()?.chatId;
+    sortRefresh = (async () => {
+        const raw = await ask(SORT_LOOKS_SYSTEM, renderSortLooksPrompt(due));
+        if (getContext()?.chatId !== chatAtStart) return 0;
+        let n = 0;
+        for (const r of parseLookBlocks(raw)) {
+            const d = due.find(x => x.name.toLowerCase() === r.name.toLowerCase());
+            const entry = d && looks[d.name];
+            if (!entry || isSorted(entry) || wholeLook(entry) !== d.tags) continue;   // edited meanwhile
+            const regions = holdToOriginal(r.regions, d.tags);
+            if (!regions) continue;
+            const parts = regionsToParts(regions);
+            Object.assign(entry, { regions, tags: parts.always, body: parts.body });
+            n++;
+        }
+        if (n) saveProfileToMemory();
+        return n;
+    })().catch(e => { console.error("[Megumin-Suite] Sorting looks failed", e); return 0; })
+        .finally(() => { sortRefresh = null; });
+    return sortRefresh;
 }
 
 // ── Qwen Image descriptions (plan 026) ───────────────────────────────────

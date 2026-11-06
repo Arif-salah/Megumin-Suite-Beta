@@ -8,6 +8,27 @@
 
 import { stripCountTags, dedupeTags, splitTags } from "./resolve.js";
 import { IMAGE_V2_PROMPTS } from "../../../prompts/imageGenV2.js";
+import { parseRegionLines, joinRegions, LOOK_REGIONS, OUTFIT_REGIONS } from "./regions.js";
+
+// Plan 027: where each part of a look shows on the body. Shared by the scan
+// and by the one-time sorting of looks saved before.
+export const LOOK_REGION_GUIDE = [
+    "Core: their sex (male or female) and apparent age (young adult, mature female…), skin, overall build, and marks that cover the whole body (tan lines, full-body tattoos).",
+    "Head: hair (colour, length, style), eye colour, and permanent features of the head and face (freckles, a scar, horns, animal ears, a mole under the eye).",
+    "Upper: chest, shoulders, arms and hands (breast size, muscular arms, a tattoo on the shoulder, wings).",
+    "Lower: waist, hips and legs (wide hips, thick thighs, a tail, a scar on the knee).",
+    "Feet: anything permanent on the feet (hooves, an ankle tattoo). Most characters have nothing here."
+];
+
+const LOOK_SHAPE = [
+    "<Character_Visual name=\"Name\">",
+    "Core: tag, tag",
+    "Head: tag, tag",
+    "Upper: tag",
+    "Lower: tag",
+    "Feet:",
+    "</Character_Visual>"
+];
 
 // ── Prompts (background task calls; they describe their own job, never an extension) ──
 
@@ -33,7 +54,9 @@ export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [
         ...(String(source || "").trim() ? [`<${sourceLabel}>`, String(source).trim(), `</${sourceLabel}>`, ""] : []),
         `Write the permanent appearance of ${who}`,
         ...(sheetText ? [SHEET_FIRST] : []),
-        "Write 8 to 12 booru tags per character, only the ones you would recognise them by. Always start with their sex (male or female) and apparent age (young adult, mature female…), then hair (colour, length, style), eye colour, skin, body type, and permanent features (scars, tattoos, horns, animal ears, tails, wings).",
+        "Write 8 to 12 booru tags per character, only the ones you would recognise them by, sorted by where they show on the body:",
+        ...LOOK_REGION_GUIDE,
+        "- Each tag goes on one line only, the line where it shows most. Leave a line empty when nothing belongs on it.",
         "- A man who looks feminine: add \"otoko no ko, flat chest\". A woman who looks masculine: add \"tomboy\". Without them the image model draws the wrong sex.",
         "- Age is one of these tags, never a number or a decade: young adult, adult, mature female, mature male, old woman, old man. \"late 20s\" is \"young adult\"; \"30s\" is \"adult\".",
         "- One tag per thing, the strongest one: \"long hair\", never \"long hair, medium hair\".",
@@ -46,7 +69,26 @@ export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [
         "If a character has a nickname, write the name as: Name \"Nickname\".",
         "",
         "Output one block per character and nothing else:",
-        "<Character_Visual name=\"Name\">tag, tag, tag</Character_Visual>"
+        ...LOOK_SHAPE
+    ].join("\n");
+}
+
+export const SORT_LOOKS_SYSTEM = "You sort booru appearance tags by where they show on the body.";
+
+/**
+ * The one-time sorting of looks saved before plan 027 (one tag list each).
+ * @param {Array<{ name: string, tags: string }>} looks
+ */
+export function renderSortLooksPrompt(looks) {
+    return [
+        "Sort each character's tags by where they show on the body:",
+        ...LOOK_REGION_GUIDE,
+        "- Use every tag once, on the line where it shows most, written exactly as given. Add no tags. Leave a line empty when nothing belongs on it.",
+        "",
+        ...looks.map(l => `${l.name}: ${l.tags}`),
+        "",
+        "Output one block per character and nothing else:",
+        ...LOOK_SHAPE
     ].join("\n");
 }
 
@@ -127,12 +169,13 @@ export function parseLookBlocks(text) {
         const { name, aliases } = splitName(b.rawName);
         const key = name.toLowerCase();
         if (!name || seen.has(key)) continue;
-        const tags = dedupeTags(stripCountTags(
+        const regions = parseRegionLines(b.body, LOOK_REGIONS);
+        const tags = regions ? joinRegions(regions, LOOK_REGIONS) : dedupeTags(stripCountTags(
             splitTags(b.body.replace(/\s*\n\s*/g, ", ").replace(/^["'\s]+|["'\s]+$/g, "")).join(", ")
         ));
         if (!tags) continue;
         seen.add(key);
-        out.push({ name, aliases, tags });
+        out.push(regions ? { name, aliases, tags, regions } : { name, aliases, tags });
     }
     return out;
 }
@@ -244,6 +287,7 @@ export function planLookUpdates(looks, scanned) {
         // A stored look is its always part plus its body part.
         const old = cur ? [cur.tags, cur.body].map(t => String(t || "").trim()).filter(Boolean).join(", ") : "";
         const item = { key: k || s.name, name: s.name, aliases: s.aliases || [], tags: s.tags, old };
+        if (s.regions) item.regions = s.regions;
         if (!old) plan.add.push(item);
         else if (sameTags(old, s.tags)) plan.same.push(item);
         else if (cur.locked) plan.locked.push(item);
@@ -291,29 +335,51 @@ export function freshQwenText(cached, source) {
 
 export const OUTFIT_SYSTEM = "You turn clothing descriptions into booru tags for an image model.";
 
+// Plan 027: where each garment is worn.
+export const OUTFIT_REGION_GUIDE = [
+    "Head: hats, glasses, earrings, masks, hair accessories.",
+    "Upper: tops, jackets, dresses, bras, anything on the arms or hands, and badges or necklaces on the chest.",
+    "Lower: skirts, shorts, trousers, underwear, belts, tights and stockings.",
+    "Feet: socks, shoes, anklets."
+];
+
+const OUTFIT_SHAPE = [
+    "<Outfit_Tags name=\"Name\">",
+    "Head:",
+    "Upper: tag, tag",
+    "Lower: tag",
+    "Feet: tag",
+    "</Outfit_Tags>"
+];
+
 /** @param {Array<{ name: string, outfit: string }>} items */
 export function renderOutfitTagsPrompt(items) {
     return [
-        "Turn each outfit into booru clothing tags.",
-        "- Main garments only, 3 to 6 tags: one tag per garment, with its colour or material when the text gives one (\"grey hoodie, black joggers, white socks\"), plus one standout accessory if there is one. \"oversized pink sweater\" is one tag, never \"pink sweater, cable knit sweater, oversized sweater\".",
+        "Turn each outfit into booru clothing tags, sorted by where they are worn:",
+        ...OUTFIT_REGION_GUIDE,
+        "- A garment that covers several of these goes on the highest one: a dress or a long coat goes on Upper.",
+        "- Main garments only, 3 to 6 tags in all: one tag per garment, with its colour or material when the text gives one (\"grey hoodie, black joggers, white socks\"), plus one standout accessory if there is one. \"oversized pink sweater\" is one tag, never \"pink sweater, cable knit sweater, oversized sweater\".",
         "- Plain over detailed: \"white bra\", not \"lace-trimmed bra, front bow, white trim, drawstring\". Name a print only when it is simple, and put it in the garment's own tag: \"white cat print bra\", not \"white bra, cat print bra\".",
-        "- Keep the state of dress when the text says it (open jacket, sleeves rolled up, barefoot, towel).",
+        "- Keep the state of dress when the text says it, on the line it belongs to: \"Upper: open jacket, sleeves rolled up\", \"Upper: topless\", \"Feet: barefoot\".",
+        "- Leave a line empty when the text says nothing about it.",
         "- Only clothing and accessories: no hair, body, expression, pose, count tags or quality tags. Add nothing the text does not say.",
         `- ${IMAGE_V2_PROMPTS.tagsInEnglish}`,
         "",
         ...items.map(i => `${i.name}: ${i.outfit}`),
         "",
         "Output one block per character and nothing else:",
-        "<Outfit_Tags name=\"Name\">tag, tag, tag</Outfit_Tags>"
+        ...OUTFIT_SHAPE
     ].join("\n");
 }
 
 /** @returns {Array<{ name: string, tags: string }>} */
 export function parseOutfitBlocks(text) {
     return blocks(text, "Outfit_Tags")
-        .map(b => ({
-            name: splitName(b.rawName).name,
-            tags: dedupeTags(stripCountTags(splitTags(b.body.replace(/\s*\n\s*/g, ", ").replace(/^["'\s]+|["'\s]+$/g, "")).join(", ")))
-        }))
+        .map(b => {
+            const name = splitName(b.rawName).name;
+            const regions = parseRegionLines(b.body, OUTFIT_REGIONS);
+            if (regions) return { name, tags: joinRegions(regions, OUTFIT_REGIONS), regions };
+            return { name, tags: dedupeTags(stripCountTags(splitTags(b.body.replace(/\s*\n\s*/g, ", ").replace(/^["'\s]+|["'\s]+$/g, "")).join(", "))) };
+        })
         .filter(x => x.name && x.tags);
 }

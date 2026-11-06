@@ -172,8 +172,8 @@ export function renderV2InlineSplit({ conditionalText = "", castList = "", rules
 
 // Dev Mode edits: {{names}} = the characters who need a look, {{who}} =
 // whose outfits (src/prompts/edits.js).
-export const V2_LOOKS_TASK = "- Appearance of {{names}} as 8 to 12 booru tags each. Someone with a sheet in <Character_Sheets> looks the way the sheet says; use the story only for what the sheet leaves out. Always start with sex (male or female) and an age tag (young adult, adult, mature female, mature male, old woman, old man; never a number like \"30s\"), then hair, eye colour, skin, build, permanent features. A feminine-looking man gets \"otoko no ko, flat chest\"; a masculine-looking woman gets \"tomboy\". One tag per thing, never two that fight (petite with tall), only real booru tags (\"mole under eye\", not \"moles\"), no small face details (nose, lips, eyelashes). No clothing, expressions, poses or count tags. Skip anyone the text does not describe.";
-export const V2_OUTFIT_TASK = "- Outfit tags {{who}}: main garments only, 3 to 6 booru tags, one tag per garment with its colour, material and print (\"oversized pink sweater\", \"white cat print bra\"; never two tags for one garment), plus one standout accessory; plain over detailed; keep the state of dress; clothing only, nothing the text does not say.";
+export const V2_LOOKS_TASK = "- Appearance of {{names}} as 8 to 12 booru tags each, sorted by where they show on the body: Core (sex, an age tag, skin, overall build), Head (hair, eye colour, features of the head and face), Upper (chest, shoulders, arms, hands), Lower (waist, hips, legs), Feet (anything permanent on the feet; most have nothing). Each tag on one line only. Someone with a sheet in <Character_Sheets> looks the way the sheet says; use the story only for what the sheet leaves out. Core always starts with sex (male or female) and an age tag (young adult, adult, mature female, mature male, old woman, old man; never a number like \"30s\"). A feminine-looking man gets \"otoko no ko, flat chest\"; a masculine-looking woman gets \"tomboy\". One tag per thing, never two that fight (petite with tall), only real booru tags (\"mole under eye\", not \"moles\"), no small face details (nose, lips, eyelashes). No clothing, expressions, poses or count tags. Skip anyone the text does not describe.";
+export const V2_OUTFIT_TASK = "- Outfit tags {{who}}, sorted by where they are worn: Head (hats, glasses, earrings), Upper (tops, jackets, dresses, bras, anything on the arms), Lower (skirts, shorts, trousers, underwear, tights), Feet (socks, shoes); a garment that covers several goes on the highest one, and the state of dress goes on its own line (Feet: barefoot). Main garments only, 3 to 6 booru tags in all, one tag per garment with its colour, material and print (\"oversized pink sweater\", \"white cat print bra\"; never two tags for one garment), plus one standout accessory; plain over detailed; keep the state of dress; clothing only, nothing the text does not say.";
 export const COMBINED_IMAGE_TASK = "The image shows the moment the latest exchange ends on; draw nothing that has already ended (someone who put an item away no longer holds it).";
 
 /**
@@ -200,8 +200,8 @@ export function renderV2ExtraTasks({ outfits = [], looks = [], followUpdate = fa
 /** The answer-shape lines for the extra sections that were asked for. */
 export function renderV2ExtraShape({ outfits = [], looks = [], followUpdate = false } = {}) {
     return [
-        ...(outfits.length || followUpdate ? ["<Outfit_Tags name=\"Name\">tag, tag, tag</Outfit_Tags>"] : []),
-        ...(looks.length ? ["<Character_Visual name=\"Name\">tag, tag, tag</Character_Visual>"] : [])
+        ...(outfits.length || followUpdate ? ["<Outfit_Tags name=\"Name\">\nHead:\nUpper: tag, tag\nLower: tag\nFeet: tag\n</Outfit_Tags>"] : []),
+        ...(looks.length ? ["<Character_Visual name=\"Name\">\nCore: tag, tag\nHead: tag, tag\nUpper: tag\nLower: tag\nFeet:\n</Character_Visual>"] : [])
     ];
 }
 
