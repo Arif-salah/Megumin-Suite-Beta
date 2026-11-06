@@ -164,6 +164,7 @@ const IMAGE_V2_LABELS = {
     "style.krea": "Style guide: Krea 2",
     "levels": "How much of each character shows (@Name:waist)",
     "lookDetail": "Looks for Qwen Image and Krea 2: body detail",
+    "textInImages": "Text in images (Qwen Image and Krea 2)",
     "shotKrea.cinematic": "Krea 2 shot: cinematic",
     "shotKrea.pov": "Krea 2 shot: point of view",
     "shotKrea.portrait": "Krea 2 shot: portrait",

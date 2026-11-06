@@ -142,6 +142,11 @@ export const IMAGE_V2_BUILTIN = {
         portrait: "Shot: one character, a close-up from the chest up, walked as a single subject: the background and how it falls out of focus, their pose, their face and expression, and the clothing at the edge of the frame."
     },
 
+    // Plan 027: the "Text in images" switch (Qwen Image and Krea 2 draw text).
+    // English whatever the story's language. With inline images the quotes
+    // become single quotes, since the prompt sits inside prompt="...".
+    textInImages: "When the moment has a short spoken line or a word worth showing, you may put it in the picture: a speech bubble beside the speaker, a sign, a phone screen or a sound effect. Write the exact words in English in double quotes and say where they sit: a speech bubble beside Mira's head reads \"Back off!\". A few words, one or two pieces of text at most, and none in a quiet moment.",
+
     // The shot lines for Krea 2: the framing opens the paragraph.
     shotKrea: {
         cinematic: "Shot: a film still of the moment. Pick a wide, medium or close shot to suit it, and open the paragraph with it.",

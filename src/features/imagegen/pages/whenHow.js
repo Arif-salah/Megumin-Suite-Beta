@@ -101,6 +101,12 @@ export function renderWhenHow(c, { engine, redraw }) {
             redraw();
         })));
         if (cfg.style === "qwen") renderQwenStyle(look, cfg, setCfg, s);
+        if (cfg.style === "qwen" || cfg.style === "krea") look.append(switchRow({
+            label: "Text in images",
+            desc: "Speech bubbles, signs, phone screens or sound effects, in English, when the moment has a short line worth showing.",
+            on: cfg.textInImages === true,
+            onChange: on => { setCfg({ textInImages: on }); saveProfileToMemory(); }
+        }));
         if (cfg.style === "krea") look.append(`<div class="igx-note"><i class="fa-solid fa-palette"></i> The prompt names no art style: Krea draws it from your LoRA and the Positive Prefix. Put the style you want there.</div>`);
         const $extra = $(`<input type="text" id="ig2_extra" class="ps-modern-input" value="${esc(cfg.extra)}" placeholder="soft film grain, moody lighting…" />`);
         $extra.on("input", e => { setCfg({ extra: String($(e.target).val() || "") }); saveProfileDebounced(); });

@@ -25,7 +25,8 @@ export const V2_DEFAULTS = {
     lookPriority: "v2",       // "v2" | "npc": which wins when the NPC Bank also has Image Tags
     focus: "3",               // characters with a line of their own: "2" | "3" | "4" | "all"
     artStyle: "anime",        // Qwen Image: QWEN_ART_STYLES id, or "custom"
-    artStyleCustom: ""        // Qwen Image: your own art style, with "custom"
+    artStyleCustom: "",       // Qwen Image: your own art style, with "custom"
+    textInImages: false       // Qwen Image and Krea 2: speech bubbles, signs, phone screens when they fit
 };
 
 // ── The previous image prompt (Reference method) ─────────────────────────
@@ -104,11 +105,11 @@ function sceneLine() {
     return [s.time && `Time: ${s.time}`, s.location && `Loc: ${s.location}`, s.weather && `Wx: ${s.weather}`].filter(Boolean).join(" | ");
 }
 
-function rules(extraInstruction = "") {
+function rules(extraInstruction = "", { inline = false } = {}) {
     const cfg = v2Settings();
     const extra = [cfg.extra, extraInstruction].filter(s => String(s || "").trim()).join(" ");
     return sub(renderV2Rules({ style: cfg.style, shot: cfg.shot, extra, method: cfg.method, focus: cfg.focus,
-        artStyle: qwenArtStyleText(cfg.artStyle, cfg.artStyleCustom) }));
+        artStyle: qwenArtStyleText(cfg.artStyle, cfg.artStyleCustom), text: cfg.textInImages === true, inline }));
 }
 
 // ── The manual button ────────────────────────────────────────────────────
@@ -194,7 +195,7 @@ export function v2InlineInstruction({ conditionalText = "", imageCount = 1 } = {
         conditionalText,
         imageCount,
         castList: renderCastList(cast, { shot: cfg.shot, method: cfg.method, lookPending: inlineLookPending(cast, cfg) }),
-        rules: rules(),
+        rules: rules("", { inline: true }),
         method: cfg.method,
         previous: getLastImagePrompt()
     }));
@@ -207,7 +208,7 @@ export function v2InlineSplit({ conditionalText = "" } = {}) {
     const out = renderV2InlineSplit({
         conditionalText,
         castList: renderCastList(cast, { shot: cfg.shot, method: cfg.method, lookPending: inlineLookPending(cast, cfg) }),
-        rules: rules(),
+        rules: rules("", { inline: true }),
         method: cfg.method,
         previous: getLastImagePrompt()
     });

@@ -75,3 +75,25 @@ test("every Krea text can be edited in Dev Mode, under its own label", () => {
         assert.notEqual(keys.get(k), k.replace(/^imageV2\./, ""), `${k} has a label`);
     }
 });
+
+// ── Phase 4: Text in images ──────────────────────────────────────────────
+import { drawsText } from "../src/features/imagegen/v2/prompt.js";
+
+test("Text in images: Qwen and Krea only, only when the switch is on; inline uses single quotes", () => {
+    const t = IMAGE_V2_BUILTIN.textInImages;
+    assert.ok(drawsText("qwen") && drawsText("krea") && !drawsText("tags") && !drawsText("natural"));
+    assert.ok(renderV2Rules({ style: "krea", text: true }).includes(t));
+    assert.ok(renderV2Rules({ style: "qwen", text: true }).includes(t));
+    assert.ok(!renderV2Rules({ style: "krea" }).includes(t));
+    assert.ok(!renderV2Rules({ style: "tags", text: true }).includes("speech bubble"));
+    const inline = renderV2Rules({ style: "krea", text: true, inline: true });
+    assert.match(inline, /in English in single quotes/);
+    assert.match(inline, /reads 'Back off!'/);
+    assert.doesNotMatch(inline.slice(inline.indexOf("When the moment has")), /"Back off!"/);
+    assert.match(t, /in English/);
+});
+
+test("Text in images can be edited in Dev Mode", () => {
+    const keys = new Map(MEGUMIN_SLOT_REGISTRY.map(s => [s.key, s.label]));
+    assert.equal(keys.get("imageV2.textInImages"), "Text in images (Qwen Image and Krea 2)");
+});

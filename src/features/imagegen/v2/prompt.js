@@ -92,8 +92,21 @@ function focusRule(guide, focus) {
 /** Qwen Image and Krea 2 have no "Edit last prompt": their prompt is always written fresh. */
 export const v2Method = (style, method) => (style === "qwen" || style === "krea" ? "placeholders" : method || "placeholders");
 
-/** The style guide (structure + example + rules), the shot line, extra instructions. */
-export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", method = "placeholders", focus = "3", artStyle = "" } = {}) {
+/** Qwen Image and Krea 2 can draw text: the "Text in images" switch shows for them. */
+export const drawsText = style => style === "qwen" || style === "krea";
+
+// The "Text in images" line. Inline, the prompt sits inside prompt="...", so
+// its quotes become single quotes.
+function textLine(inline) {
+    const t = P.textInImages;
+    return inline ? t.replace(/double quotes/g, "single quotes").replace(/"([^"]*)"/g, "'$1'") : t;
+}
+
+/**
+ * The style guide (structure + example + rules), the shot line, extra instructions.
+ * text: the "Text in images" switch (Qwen Image and Krea 2 only); inline: the story writes it in prompt="...".
+ */
+export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", method = "placeholders", focus = "3", artStyle = "", text = false, inline = false } = {}) {
     // Plan 026: Qwen Image has its own guide, art style line and shot lines.
     if (style === "qwen") {
         const parts = [
@@ -101,6 +114,7 @@ export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", 
             P.levels,
             P.artStyleLine.replace("{{artStyle}}", String(artStyle || "").trim().replace(/\.$/, "")),
             P.shotQwen[shot] || P.shotQwen.cinematic,
+            ...(text ? [textLine(inline)] : []),
             P.inEnglish
         ];
         if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
@@ -108,7 +122,8 @@ export function renderV2Rules({ style = "tags", shot = "cinematic", extra = "", 
     }
     // Plan 027: Krea 2 has its own guide and shot lines, and no art style.
     if (style === "krea") {
-        const parts = [focusRule(P.style.krea, String(focus)), P.levels, P.shotKrea[shot] || P.shotKrea.cinematic, P.inEnglish];
+        const parts = [focusRule(P.style.krea, String(focus)), P.levels, P.shotKrea[shot] || P.shotKrea.cinematic,
+            ...(text ? [textLine(inline)] : []), P.inEnglish];
         if (String(extra || "").trim()) parts.push(`Extra instructions: ${String(extra).trim()}`);
         return parts.join("\n\n");
     }

@@ -168,7 +168,7 @@ export async function runCombinedTurn(messageId, type, plan) {
                     castList: renderCastList(cast, { shot: cfg.shot, method: cfg.method, lookPending: missingLooks.map(m => m.name) }),
                     sheets: missingLooks.length ? await sheetSourceFor(missingLooks) : common.sheets,
                     imageRules: renderV2Rules({ style: cfg.style, shot: cfg.shot, extra: cfg.extra, method: cfg.method, focus: cfg.focus,
-                        artStyle: qwenArtStyleText(cfg.artStyle, cfg.artStyleCustom) }),
+                        artStyle: qwenArtStyleText(cfg.artStyle, cfg.artStyleCustom), text: cfg.textInImages === true }),
                     previous: cfg.method === "reference" ? getLastImagePrompt() : null,
                     extras: {
                         outfits: staleBefore.map(m => ({ name: m.name, outfit: m.outfitText })),
