@@ -9,6 +9,26 @@ README on the stable branch.
 
 ---
 
+## 2026-11-06
+
+> Two new image styles, Qwen Image and Krea 2, and each image now shows only the parts of a character that are in the frame.
+
+### Images (Version 2)
+
+- **Qwen Image style.** Pick Qwen Image in Prompt style for Qwen Image 2.1. The prompt is one long, detailed paragraph, and each character's look and outfit go in as detailed descriptions, made once and kept until they change. Choose an art style from the list or write your own. Chomusuke or the Draw button writes the prompt, because it is too long for the story's reply.
+- **Krea 2 style.** A short paragraph where each character's expression comes right after their name, before their look. Krea 2 drops an expression written after the look, so this keeps the faces expressive. The prompt names no art style: Krea takes it from your LoRA and Positive Prefix.
+- **Only what the frame shows.** The image prompt now says how much of each character is in the frame: the face, the chest up, the thighs up or the whole body. Only those parts of their look and outfit go in, so a close-up has no shoes, and in a point-of-view shot their sneakers no longer end up on your feet.
+- **Nude scenes keep the body.** When a character wears nothing, the outfit comes out and their saved body stays, so they look the same from one image to the next.
+- **Looks sorted by body part.** Each look is saved as whole body, head and face, chest and arms, hips and legs, and feet, and the character popup edits each part. Looks you already have are sorted once, before your next image.
+- **Outfit tags for every style, by part.** The Detailed outfit tags switch is gone: an outfit is always turned into tags, once each time it changes. Tags made before this update are made again once.
+- **Text in images** (Qwen Image and Krea 2, off by default). The picture can show a speech bubble, a sign, a phone screen or a sound effect when the moment has a short line worth showing. The text is in English, whatever language the story is in.
+- **More body detail for Qwen and Krea.** Their looks ask for more tags on the chest, hips and legs, so a nude scene shows the same body each time.
+
+### Fixes
+
+- **Full looks again.** Reading a look gave very few tags. Hair, eye colour, skin and build are always asked for again.
+- **A look written under a full name is kept.** When the model wrote "Koromi Hazami" for Koromi, the look was thrown away with "no look found". Now it lands on Koromi.
+
 ## 2026-11-04
 
 > Gemini Flash gets its own loadout, and images now work in group chats.
