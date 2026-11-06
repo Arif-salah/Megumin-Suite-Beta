@@ -20,15 +20,20 @@ export const LOOK_REGION_GUIDE = [
     "Feet: anything permanent on the feet (hooves, an ankle tattoo). Most characters have nothing here."
 ];
 
+// A filled example: with "tag, tag" placeholders models wrote one or two tags
+// per line and left Head empty.
 const LOOK_SHAPE = [
     "<Character_Visual name=\"Name\">",
-    "Core: tag, tag",
-    "Head: tag, tag",
-    "Upper: tag",
-    "Lower: tag",
+    "Core: female, young adult, pale skin, slender",
+    "Head: long hair, wavy hair, auburn hair, green eyes, freckles, mole under eye",
+    "Upper: medium breasts",
+    "Lower: long legs",
     "Feet:",
     "</Character_Visual>"
 ];
+
+// The scan's must-haves, as the one-list prompt had them before plan 027.
+const LOOK_ALWAYS = "- Core always has their sex, an age tag, skin and build. Head always has hair (colour, length, style) and eye colour. Upper and Lower are often one or two tags; Feet is usually empty.";
 
 // ── Prompts (background task calls; they describe their own job, never an extension) ──
 
@@ -56,6 +61,7 @@ export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [
         ...(sheetText ? [SHEET_FIRST] : []),
         "Write 8 to 12 booru tags per character, only the ones you would recognise them by, sorted by where they show on the body:",
         ...LOOK_REGION_GUIDE,
+        LOOK_ALWAYS,
         "- Each tag goes on one line only, the line where it shows most. Leave a line empty when nothing belongs on it.",
         "- A man who looks feminine: add \"otoko no ko, flat chest\". A woman who looks masculine: add \"tomboy\". Without them the image model draws the wrong sex.",
         "- Age is one of these tags, never a number or a decade: young adult, adult, mature female, mature male, old woman, old man. \"late 20s\" is \"young adult\"; \"30s\" is \"adult\".",
@@ -68,7 +74,7 @@ export function renderLookScanPrompt({ source, sourceLabel = "Source", names = [
         IMAGE_V2_PROMPTS.tagsInEnglish,
         "If a character has a nickname, write the name as: Name \"Nickname\".",
         "",
-        "Output one block per character and nothing else:",
+        "Output one block per character and nothing else, in this shape (an example for a made-up character):",
         ...LOOK_SHAPE
     ].join("\n");
 }
@@ -87,7 +93,7 @@ export function renderSortLooksPrompt(looks) {
         "",
         ...looks.map(l => `${l.name}: ${l.tags}`),
         "",
-        "Output one block per character and nothing else:",
+        "Output one block per character and nothing else, in this shape (an example for a made-up character; use only the tags given above):",
         ...LOOK_SHAPE
     ].join("\n");
 }

@@ -14,7 +14,8 @@ test("scan prompt: source, who, rules, output shape; never off-frame", () => {
     assert.match(all, /^<Character_Sheet>\nAqua is a goddess\.\n<\/Character_Sheet>/);
     assert.match(all, /every character the text describes/);
     assert.match(all, /Never include: clothing/);
-    assert.match(all, /<Character_Visual name="Name">\nCore: tag, tag\nHead: tag, tag\nUpper: tag\nLower: tag\nFeet:\n<\/Character_Visual>$/);
+    assert.match(all, /<Character_Visual name="Name">\nCore: female, young adult, [^\n]+\nHead: long hair, [^\n]+\nUpper: [^\n]+\nLower: [^\n]+\nFeet:\n<\/Character_Visual>$/);
+    assert.match(all, /Head always has hair \(colour, length, style\) and eye colour/, "the must-haves of the one-list prompt are kept");
     assert.match(all, /sorted by where they show on the body/);
     const some = renderLookScanPrompt({ source: "x", names: ["Aqua", "Wiz"] });
     assert.match(some, /these characters: Aqua, Wiz\. Skip anyone the text does not describe\./);

@@ -87,5 +87,6 @@ test("the look scan and the image call ask for the parts", () => {
     const extras = renderV2Extras({ outfits: [{ name: "Jenny", outfit: "grey tee" }], looks: ["Hana"] });
     assert.match(extras, /sorted by where they are worn/);
     assert.match(extras, /sorted by where they show on the body: Core/);
-    assert.match(extras, /<Character_Visual name="Name">\nCore: tag, tag\n/);
+    assert.match(extras, /<Character_Visual name="Name">\nCore: female, young adult, /);
+    assert.match(extras, /Head always has hair \(colour, length, style\) and eye colour/);
 });
