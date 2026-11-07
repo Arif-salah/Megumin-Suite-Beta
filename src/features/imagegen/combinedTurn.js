@@ -41,6 +41,7 @@ import { worldModule } from "../../state/modules/world/index.js";
 import { SCENE_RULES, SCENE_TEMPLATE, sceneClerkRules } from "../../prompts/scene.js";
 import { editable } from "../../prompts/edits.js";
 import { igGenerateWithComfy } from "./comfy.js";
+import { imageBackendName } from "./backend.js";
 import { imageViaChomusuke, dueNow, NOT_A_REPLY, insertPlaceholder, removePlaceholder, unwrapImgTag } from "./auto.js";
 import { classicImageParts, classicImageRulesBlock } from "./classic/prompt.js";
 import { v2Settings, currentImageCast, cleanModelPrompt, getLastImagePrompt } from "./v2/index.js";
@@ -275,7 +276,7 @@ export async function runCombinedTurn(messageId, type, plan) {
         return true;
     }
     tell();
-    toastr.info("Sending to ComfyUI...", "Megumin Suite");
+    toastr.info(`Sending to ${imageBackendName()}...`, "Megumin Suite");
     igGenerateWithComfy(prompt, { message, index, mode: inline ? "inline" : "new_msg", isInlineAuto: true, placeholderId: id });
     return true;
 }
