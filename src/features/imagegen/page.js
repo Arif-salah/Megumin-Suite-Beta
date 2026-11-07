@@ -22,6 +22,7 @@ import { imageGenSelectedEngine, enableWorldState, askToEnableWorldState } from 
 import { renderCharacters } from "./v2/characters.js";
 import { renderWhenHow } from "./pages/whenHow.js";
 import { renderGenerator } from "./pages/generator.js";
+import { imageBackend, sillyTavernImagesReady } from "./backend.js";
 
 // The page you were on, kept while SillyTavern is open.
 let currentPage = null;
@@ -135,7 +136,18 @@ export function renderImageGen(c) {
         </div>`);
         $when.find("button").on("click", () => goPage("when"));
 
-        const steps = [
+        // Plan 028: with SillyTavern's Image Generation, its own settings replace steps 1 and 2.
+        const viaST = imageBackend() === "st";
+        const $st = $(`<div class="igx-stack">
+            <div class="igx-note">Images are made by SillyTavern's Image Generation. Pick its source, model and size in SillyTavern's Extensions panel, under Image Generation.</div>
+            <div class="igx-inline"><button type="button" class="menu_button igx-btn">Open the Generator page <i class="fa-solid fa-arrow-right"></i></button></div>
+        </div>`);
+        $st.find("button").on("click", () => goPage("gen"));
+        const steps = viaST ? [
+            { title: "Set up SillyTavern's Image Generation", done: sillyTavernImagesReady(), body: $st,
+              note: sillyTavernImagesReady() ? "" : "SillyTavern's Image Generation extension is off. Turn it on in SillyTavern's Extensions." },
+            { title: "Choose when to draw", done: true, body: $when }
+        ] : [
             { title: "Connect ComfyUI", done: connected === true, body: $conn,
               note: connected === null ? "Checking…" : connected ? "Connected." : "ComfyUI isn't answering at this address. Start it, check the address, then Test." },
             { title: "Pick a workflow and a model", done: Boolean(s.currentWorkflowName && s.selectedModel), body: $gen },
@@ -159,7 +171,7 @@ export function renderImageGen(c) {
         $setup.empty().append(checklist({
             id: "images",
             title: "Set up Images",
-            ready: `Ready · ${esc(s.currentWorkflowName || "")} · ${esc(whenLabel)}${s.enabled ? "" : " <small>(Images are off: switch them on at the top)</small>"}`,
+            ready: `Ready · ${viaST ? "SillyTavern's Image Generation" : esc(s.currentWorkflowName || "")} · ${esc(whenLabel)}${s.enabled ? "" : " <small>(Images are off: switch them on at the top)</small>"}`,
             steps
         }));
     };
@@ -168,12 +180,13 @@ export function renderImageGen(c) {
     const showConnection = () => {
         const connected = igKnownConnection();
         const $chip = $ver.find(".igx-conn");
-        if (connected === null) $chip.attr("class", "igx-chip igx-conn").html(`<i class="fa-solid fa-spinner fa-spin"></i> Checking ComfyUI…`);
+        if (imageBackend() === "st") $chip.attr("class", "igx-chip igx-conn").html(`<i class="fa-solid fa-image"></i> Made by SillyTavern's Image Generation`);
+        else if (connected === null) $chip.attr("class", "igx-chip igx-conn").html(`<i class="fa-solid fa-spinner fa-spin"></i> Checking ComfyUI…`);
         else if (connected) $chip.attr("class", "igx-chip igx-conn ok").html(`<span class="igx-dot"></span> ComfyUI connected`);
         else $chip.attr("class", "igx-chip igx-conn warn").html(`<span class="igx-dot"></span> ComfyUI not connected`);
     };
     const check = async () => {
-        await igCheckConnection();
+        if (imageBackend() !== "st") await igCheckConnection();
         if ($.contains(document, $ver[0])) { showConnection(); drawSetup(); }
     };
     showConnection();
@@ -195,7 +208,7 @@ export function renderImageGen(c) {
     const drawPage = () => {
         if (currentPage === "chars") renderCharacters($page, { redraw: redrawPage });
         else if (currentPage === "when") renderWhenHow($page, { engine, redraw: redrawPage });
-        else renderGenerator($page, { redraw: redrawPage, onTested: check });
+        else renderGenerator($page, { redraw: redrawPage, onTested: check, onBackend: () => { showConnection(); drawSetup(); check(); } });
     };
     drawPage();
 }

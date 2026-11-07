@@ -107,7 +107,7 @@ export function renderWhenHow(c, { engine, redraw }) {
             on: cfg.textInImages === true,
             onChange: on => { setCfg({ textInImages: on }); saveProfileToMemory(); }
         }));
-        if (cfg.style === "krea") look.append(`<div class="igx-note"><i class="fa-solid fa-palette"></i> The prompt names no art style: Krea and Moss draw it from your LoRA and the Positive Prefix. Put the style you want there. With Moss Image, a style LoRA is recommended: it keeps the look the same from one image to the next.</div>`);
+        if (cfg.style === "krea") look.append(`<div class="igx-note"><i class="fa-solid fa-palette"></i> The prompt names no art style: Krea and Moss draw it from your LoRA and the Positive Prefix (SillyTavern's own prefix when SillyTavern makes the images). Put the style you want there. With Moss Image, a style LoRA is recommended: it keeps the look the same from one image to the next.</div>`);
         const $extra = $(`<input type="text" id="ig2_extra" class="ps-modern-input" value="${esc(cfg.extra)}" placeholder="soft film grain, moody lighting…" />`);
         $extra.on("input", e => { setCfg({ extra: String($(e.target).val() || "") }); saveProfileDebounced(); });
         look.append(field("Extra instructions", "Added to every image", $extra));

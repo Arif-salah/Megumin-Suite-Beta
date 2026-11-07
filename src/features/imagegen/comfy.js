@@ -17,6 +17,7 @@ import { KAZUMA_PLACEHOLDERS } from "../../../data/image_data.js";
 import { meguminScheduleBlocksRefresh } from "../blocks/chat.js";
 import { makeComfyClientId, openComfyProgressSocket } from "./comfyProgress.js";
 import { comfyBase } from "./comfyUrl.js";
+import { imageBackend, imageBackendName, generateWithSillyTavern } from "./backend.js";
 
 // -------------------------------------------------------------
 // STAGE 8 HELPER FUNCTIONS
@@ -348,6 +349,8 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
     const s = localProfile.imageGen;
     // Awaited: V2 may first bring outfit tags up to date.
     let finalPrompt = await promptResolver(positivePrompt);
+    // Plan 028: SillyTavern adds its own prefix and negative, so ours stay out.
+    const viaST = imageBackend() === "st";
 
     // This one writes into a CHAT MESSAGE and calls saveChat(), not into a profile, so
     // _loadedProfileKey is the wrong thing to check: what matters is whether the message
@@ -420,14 +423,14 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
 
     // A retry sends back the stored prompt, which already carries the triggers
     // and the prefix; adding them again grew the prompt on every retry.
-    if (loraTriggers.length > 0) {
+    if (!viaST && loraTriggers.length > 0) {
         let combinedTriggers = loraTriggers.join(", ");
         if (!combinedTriggers.endsWith(",")) combinedTriggers += ",";
         if (!finalPrompt.includes(combinedTriggers)) finalPrompt = combinedTriggers + " " + finalPrompt;
     }
 
     // --- INJECT PREFIX ---
-    if (s.promptPrefix && s.promptPrefix.trim() !== "") {
+    if (!viaST && s.promptPrefix && s.promptPrefix.trim() !== "") {
         let prefix = s.promptPrefix.trim();
         if (!prefix.endsWith(",")) prefix += ",";
         if (!finalPrompt.startsWith(prefix)) finalPrompt = prefix + " " + finalPrompt;
@@ -439,7 +442,7 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
 
         const $content = $(`
             <div style="display:flex; flex-direction:column; gap:10px; font-family: 'Inter', sans-serif;">
-                <div style="font-size: 0.85rem; color: var(--text-muted);">Review or modify the prompt before it goes to ComfyUI.</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">Review or modify the prompt before it goes to ${imageBackendName()}.</div>
                 <textarea class="ps-modern-input ig-preview-textarea" style="height: 150px; resize: vertical; font-family: monospace; font-size: 0.85rem; padding: 10px;">${finalPrompt}</textarea>
             </div>
         `);
@@ -451,7 +454,7 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
             liveText = $(this).val();
         });
 
-        const popup = new Popup($content, POPUP_TYPE.CONFIRM, "Preview Image Prompt", { okButton: "Send to ComfyUI", cancelButton: "Cancel", wide: true });
+        const popup = new Popup($content, POPUP_TYPE.CONFIRM, "Preview Image Prompt", { okButton: viaST ? "Send to SillyTavern" : "Send to ComfyUI", cancelButton: "Cancel", wide: true });
         const confirmed = await popup.show();
 
         if (!confirmed) {
@@ -468,6 +471,116 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
         }
 
         showKazumaProgress("Preparing to Render..."); // Bring progress bar back
+    }
+
+    // Puts a finished image into the chat: inline in its placeholder, in the
+    // message's gallery, or as a new message. Shared by ComfyUI and SillyTavern.
+    const placeImage = async (savedPath) => {
+        const mediaAttach = {
+            url: savedPath,
+            type: "image",
+            source: "generated",
+            title: finalPrompt,
+            generation_type: "free"
+        };
+
+        if (target && target.isInlineAuto && target.mode === "inline") {
+            const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
+            const imgTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper">
+<img src="${savedPath}" title="${safePrompt}" alt="KazumaInline" data-kazumaid="${wrapperId}" style="max-width: 100%; border-radius: 8px; display: block;" />
+</div><!-- kazuma-inline-end:${wrapperId} -->`;
+            
+            if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
+                const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}"[^>]*>.*?<\/div>`, "g");
+                target.message.mes = target.message.mes.replace(specificPlaceholderRegex, imgTag);
+            } else {
+                const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
+                if (placeholderRegex.test(target.message.mes)) {
+                    target.message.mes = target.message.mes.replace(placeholderRegex, imgTag);
+                } else {
+                    target.message.mes += `\n\n${imgTag}`;
+                }
+            }
+            
+            // Queue the retry buttons before the redraw, not after it.
+            // The passes run on their own timers so they still land
+            // after SillyTavern has drawn, and they survive anything
+            // below here throwing into the empty catch.
+            kazumaRetrySweep(target.index);
+
+            await saveChat();
+            if (typeof updateMessageBlock === "function") {
+                updateMessageBlock(target.index, target.message);
+                // The rebuild dropped the block card with the rest of the body.
+                meguminScheduleBlocksRefresh();
+            } else {
+                await reloadCurrentChat();
+            }
+            toastr.success("Image injected inline!");
+        } else if (target && target.message && !target.isInlineAuto) {
+            if (!target.message.extra) target.message.extra = {}; if (!target.message.extra.media) target.message.extra.media = [];
+            target.message.extra.media_display = "gallery"; target.message.extra.media.push(mediaAttach); target.message.extra.media_index = target.message.extra.media.length - 1;
+            if (typeof appendMediaToMessage === "function") appendMediaToMessage(target.message, target.element);
+            await saveChat(); toastr.success("Gallery updated!");
+        } else {
+            const newMsg = { name: "Image Gen Kazuma", is_user: false, is_system: true, send_date: Date.now(), mes: "", extra: { media: [mediaAttach], media_display: "gallery", media_index: 0 }, force_avatar: "img/five.png" };
+            getContext().chat.push(newMsg); await saveChat();
+            if (typeof addOneMessage === "function") addOneMessage(newMsg); else await reloadCurrentChat();
+            toastr.success("Image inserted!");
+        }
+    };
+
+    // An inline image that failed: "[Image Generation Failed]" where the
+    // placeholder was, with the retry button.
+    const placeFailure = (reason = "") => {
+        const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
+        const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const shown = reason ? `[Image Generation Failed: ${reason}]` : "[Image Generation Failed]";
+        const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:var(--c-danger, #ef4444); font-style: italic; margin: 10px 0;"><span>${shown}</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
+
+        if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
+            const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}" class="kazuma-img-placeholder"[^>]*>.*?<\\/div>`, "g");
+            target.message.mes = target.message.mes.replace(specificPlaceholderRegex, failTag);
+        } else {
+            const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
+            target.message.mes = target.message.mes.replace(placeholderRegex, failTag);
+        }
+        kazumaRetrySweep(target.index);
+        saveChat();
+        if (typeof updateMessageBlock === "function") {
+            updateMessageBlock(target.index, target.message);
+            // The rebuild dropped the block card with the rest of the body.
+            meguminScheduleBlocksRefresh();
+        }
+    };
+
+    // Plan 028: SillyTavern's Image Generation makes the image and saves the
+    // file; we only place it. Its own notice (with Stop) shows while it works.
+    if (viaST) {
+        $("#kazuma_progress_overlay").hide();
+        const inline = target && target.isInlineAuto && target.mode === "inline";
+        let url = "";
+        let reason = "";
+        try {
+            url = await generateWithSillyTavern(finalPrompt);
+        } catch (e) {
+            reason = e.message;
+            toastr.error("SillyTavern's Image Generation extension is off. Turn it on in SillyTavern's Extensions, or pick ComfyUI on the Generator page of the Images tab.", "Image Gen", { timeOut: 10000 });
+        }
+        if (!url) {
+            if (inline && !igResolveTarget()) igDeclineWrite("failure notice");
+            else if (inline) placeFailure(reason);
+            return;
+        }
+        if (!igResolveTarget()) { igDeclineWrite("insert"); return; }
+        try {
+            await placeImage(url);
+        } catch (e) {
+            console.error("[Megumin-Suite] Image gen: the image came back but could not be added to the chat.", e);
+            toastr.error("The image was made, but it could not be added to the chat. The browser console has the details.", "Image Gen");
+        }
+        return;
     }
 
     let workflowRaw;
@@ -571,83 +684,14 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
                         }
                         const charName = getContext().characters[getContext().characterId]?.name || "User";
                         const savedPath = await saveBase64AsFile(base64Clean.split(',')[1], charName, `${charName}_${humanizedDateTime()}`, format);
-                        const mediaAttach = {
-                            url: savedPath,
-                            type: "image",
-                            source: "generated",
-                            title: finalPrompt,
-                            generation_type: "free"
-                        };
-
-                        if (target && target.isInlineAuto && target.mode === "inline") {
-                            const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                            const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
-                            const imgTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper">
-<img src="${savedPath}" title="${safePrompt}" alt="KazumaInline" data-kazumaid="${wrapperId}" style="max-width: 100%; border-radius: 8px; display: block;" />
-</div><!-- kazuma-inline-end:${wrapperId} -->`;
-                            
-                            if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
-                                const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}"[^>]*>.*?<\/div>`, "g");
-                                target.message.mes = target.message.mes.replace(specificPlaceholderRegex, imgTag);
-                            } else {
-                                const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
-                                if (placeholderRegex.test(target.message.mes)) {
-                                    target.message.mes = target.message.mes.replace(placeholderRegex, imgTag);
-                                } else {
-                                    target.message.mes += `\n\n${imgTag}`;
-                                }
-                            }
-                            
-                            // Queue the retry buttons before the redraw, not after it.
-                            // The passes run on their own timers so they still land
-                            // after SillyTavern has drawn, and they survive anything
-                            // below here throwing into the empty catch.
-                            kazumaRetrySweep(target.index);
-
-                            await saveChat();
-                            if (typeof updateMessageBlock === "function") {
-                                updateMessageBlock(target.index, target.message);
-                                // The rebuild dropped the block card with the rest of the body.
-                                meguminScheduleBlocksRefresh();
-                            } else {
-                                await reloadCurrentChat();
-                            }
-                            toastr.success("Image injected inline!");
-                        } else if (target && target.message && !target.isInlineAuto) {
-                            if (!target.message.extra) target.message.extra = {}; if (!target.message.extra.media) target.message.extra.media = [];
-                            target.message.extra.media_display = "gallery"; target.message.extra.media.push(mediaAttach); target.message.extra.media_index = target.message.extra.media.length - 1;
-                            if (typeof appendMediaToMessage === "function") appendMediaToMessage(target.message, target.element);
-                            await saveChat(); toastr.success("Gallery updated!");
-                        } else {
-                            const newMsg = { name: "Image Gen Kazuma", is_user: false, is_system: true, send_date: Date.now(), mes: "", extra: { media: [mediaAttach], media_display: "gallery", media_index: 0 }, force_avatar: "img/five.png" };
-                            getContext().chat.push(newMsg); await saveChat();
-                            if (typeof addOneMessage === "function") addOneMessage(newMsg); else await reloadCurrentChat();
-                            toastr.success("Image inserted!");
-                        }
+                        await placeImage(savedPath);
                         progress.close(); $("#kazuma_progress_overlay").hide();
                     } else {
                         progress.close(); $("#kazuma_progress_overlay").hide();
                         if (target && target.isInlineAuto && target.mode === "inline" && !igResolveTarget()) {
                             igDeclineWrite("failure notice");
                         } else if (target && target.isInlineAuto && target.mode === "inline") {
-                            const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
-                            const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                            const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:var(--c-danger, #ef4444); font-style: italic; margin: 10px 0;"><span>[Image Generation Failed]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
-                            
-                            if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
-                                const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}" class="kazuma-img-placeholder"[^>]*>.*?<\\/div>`, "g");
-                                target.message.mes = target.message.mes.replace(specificPlaceholderRegex, failTag);
-                            } else {
-                                const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
-                                target.message.mes = target.message.mes.replace(placeholderRegex, failTag);
-                            }
-                            kazumaRetrySweep(target.index);
-                            saveChat();
-                            if (typeof updateMessageBlock === "function") {
-                                updateMessageBlock(target.index, target.message);
-                                // The rebuild dropped the block card with the rest of the body.
-                                meguminScheduleBlocksRefresh();
-                            }
+                            placeFailure();
                         }
                     }
                 }
@@ -669,24 +713,7 @@ export async function igGenerateWithComfy(positivePrompt, target = null) {
         if (target && target.isInlineAuto && target.mode === "inline" && !igResolveTarget()) {
             igDeclineWrite("error notice");
         } else if (target && target.isInlineAuto && target.mode === "inline") {
-            const wrapperId = target.placeholderId || `kazuma-img-${Date.now()}`;
-            const safePrompt = finalPrompt.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-            const failTag = `<!-- kazuma-inline-start:${wrapperId} --><div id="${wrapperId}" class="kazuma-img-wrapper" style="color:var(--c-danger, #ef4444); font-style: italic; margin: 10px 0;"><span>[Image Generation Failed: ${e.message}]</span> <img alt="KazumaInline" data-kazumaid="${wrapperId}" title="${safePrompt}" style="display:none;" /></div><!-- kazuma-inline-end:${wrapperId} -->`;
-            
-            if (target.placeholderId && target.message.mes.includes(`id="${target.placeholderId}"`)) {
-                const specificPlaceholderRegex = new RegExp(`<div id="${target.placeholderId}" class="kazuma-img-placeholder"[^>]*>.*?<\\/div>`, "g");
-                target.message.mes = target.message.mes.replace(specificPlaceholderRegex, failTag);
-            } else {
-                const placeholderRegex = /<div class="kazuma-img-placeholder"[^>]*>\[(Generating|Regenerating) Image\.\.\.\]<\/div>/g;
-                target.message.mes = target.message.mes.replace(placeholderRegex, failTag);
-            }
-            kazumaRetrySweep(target.index);
-            saveChat();
-            if (typeof updateMessageBlock === "function") {
-                updateMessageBlock(target.index, target.message);
-                // The rebuild dropped the block card with the rest of the body.
-                meguminScheduleBlocksRefresh();
-            }
+            placeFailure(e.message);
         }
     }
 }

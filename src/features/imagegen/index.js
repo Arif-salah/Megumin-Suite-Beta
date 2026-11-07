@@ -15,6 +15,7 @@ import { setActiveImageGenRequest } from "../../core/activeRequests.js";
 import { showKazumaProgress } from "../../ui/progress.js";
 import { runWithChomusuke } from "../../engine/tasks.js";
 import { igGenerateWithComfy, setImagePromptResolver } from "./comfy.js";
+import { imageBackendName } from "./backend.js";
 import { classicGenerateImagePromptText, classicInlineNpcTags } from "./classic/prompt.js";
 import { v2GenerateImagePromptText, v2InlineInstruction, v2InlineSplit, v2ResolveForComfy, v2PrepareImagePrompt, v2Settings } from "./v2/index.js";
 import { imageGenEngine } from "./engineChoice.js";
@@ -93,7 +94,7 @@ export async function igManualGenerate() {
             return;
         }
 
-        toastr.info("Sending to ComfyUI...", "Megumin Suite");
+        toastr.info(`Sending to ${imageBackendName()}...`, "Megumin Suite");
         igGenerateWithComfy(promptText, null);
 
     } catch (e) {
