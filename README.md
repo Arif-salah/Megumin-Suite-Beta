@@ -11,7 +11,12 @@ README on the stable branch.
 
 ## 2026-11-06
 
-> Two new image styles, Qwen Image and Krea 2, and each image now shows only the parts of a character that are in the frame.
+> Two new image styles, Qwen Image and Krea 2, each image now shows only the parts of a character that are in the frame, and images can be made by SillyTavern's own Image Generation.
+
+### Images (both versions)
+
+- **Use SillyTavern's Image Generation.** A new "Where images are made" choice at the top of the Generator page: ComfyUI (Megumin's own workflows, as before) or SillyTavern's Image Generation, with whatever source you set up there (ComfyUI, Forge, NovelAI, Pollinations…). One choice for every character. Megumin still writes the prompt, with each character's look in Version 2, and places the image inline, in the gallery or as a new message. Every image follows it: replies, the Draw button, Chomusuke's images, retries and NPC portraits.
+- **SillyTavern's settings apply.** With SillyTavern picked, its own model, size, seed, prefix and negative prompt are used, set in its Image Generation settings. Megumin's ComfyUI settings are hidden and its quality tags and LoRA trigger words are left out, so the style is never added twice.
 
 ### Images (Version 2)
 
