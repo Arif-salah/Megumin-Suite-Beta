@@ -62,6 +62,14 @@ export function renderGlobalAndBlocks(c) {
     // from having to be excluded here by hand.
     const isV9 = engineUsesRenderLimits(activeMode);
 
+    // Only what this tab actually switches: the gameplay add-ons, plus MVU (the one
+    // block that lives here under Output Formats). localProfile.blocks ALSO mirrors
+    // the tracker blocks enabled on the BLOCKS tab — meguminSyncLegacyBlockIds copies
+    // blockStack.order into it — so counting blocks.length here made the badge read
+    // "2 Active Modules" while every card on this tab was off. The Blocks tab already
+    // shows its own "N in block" badge, so those trackers don't need counting twice.
+    const languageTabModules = localProfile.addons.length + (localProfile.blocks.includes("mvu") ? 1 : 0);
+
     // ── UNIFIED HEADER ──
     c.append(`
         <div class="mtab-header">
@@ -75,7 +83,7 @@ export function renderGlobalAndBlocks(c) {
                 </div>
             </div>
             <div class="mtab-header-badge" style="background: rgba(59,130,246,0.12); color: var(--c-info, #3b82f6); border: 1px solid rgba(59,130,246,0.25);">
-                <i class="fa-solid fa-gears" style="font-size:0.6rem;"></i> ${localProfile.addons.length + localProfile.blocks.length} Active Modules
+                <i class="fa-solid fa-gears" style="font-size:0.6rem;"></i> ${languageTabModules} Active Modules
             </div>
         </div>
     `);
